@@ -32,7 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3.1.0
       - name: typos-action
         uses: crate-ci/typos@v1.12.8
         with:
@@ -52,7 +52,7 @@ jobs:
       ts: ${{ steps.filter.outputs.ts }}
       k8s: ${{ steps.filter.outputs.k8s }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v3.1.0
       # For pull requests it's not necessary to checkout the code
       - uses: dorny/paths-filter@v2
         id: filter
@@ -91,7 +91,7 @@ jobs:
     timeout-minutes: 5
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v3.1.0
       - uses: actions/setup-go@v3
         with:
           go-version: "~1.19"
@@ -105,7 +105,7 @@ jobs:
     timeout-minutes: 5
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v3.1.0
       - name: Check imports of enterprise code
         run: ./scripts/check_enterprise_imports.sh
 
@@ -114,7 +114,7 @@ jobs:
     timeout-minutes: 5
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v3.1.0
       - name: Run ShellCheck
         uses: ludeeus/action-shellcheck@1.1.0
         env:
@@ -128,7 +128,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v3.1.0
 
       - name: Cache Node
         id: cache-node
@@ -156,7 +156,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v3.1.0
 
       - name: Install helm
         uses: azure/setup-helm@v3
@@ -175,7 +175,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.docs-only == 'false'
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v3.1.0
 
       - name: Cache Node
         id: cache-node
@@ -247,7 +247,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v3.1.0
         with:
           fetch-depth: 0
           submodules: true
@@ -285,7 +285,7 @@ jobs:
           - macos-latest
           - windows-2022
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v3.1.0
 
       - uses: actions/setup-go@v3
         with:
@@ -363,7 +363,7 @@ jobs:
     # even if some of the preceding steps are slow.
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v3.1.0
 
       - uses: actions/setup-go@v3
         with:
@@ -427,7 +427,7 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v3.1.0
         with:
           fetch-depth: 0
 
@@ -517,7 +517,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v3.1.0
 
       - name: Cache Node
         id: cache-node
@@ -564,7 +564,7 @@ jobs:
         os:
           - ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v3.1.0
 
       - name: Cache Node
         id: cache-node
@@ -637,7 +637,7 @@ jobs:
       - changes
     if: needs.changes.outputs.ts == 'true'
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v3.1.0
         with:
           # Required by Chromatic for build-over-build history, otherwise we
           # only get 1 commit on shallow checkout.
