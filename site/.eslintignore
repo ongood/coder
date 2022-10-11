@@ -1,0 +1,16 @@
+###############################################################################
+# COPY PASTA OF .gitignore
+###############################################################################
+
+.idea
+.gitpod.yml
+node_modules
+vendor
+out
+coverage
+.next
+storybook-static
+test-results
+**/*.typegen.ts
+**/*.swp
+.coderv2/*

@@ -1,0 +1,179 @@
+# GitHub release workflow.
+name: release
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      snapshot:
+        description: Force a dev version to be generated, implies dry_run.
+        type: boolean
+        required: true
+      dry_run:
+        description: Perform a dry-run release.
+        type: boolean
+        required: true
+
+permissions:
+  # Required to publish a release
+  contents: write
+  # Necessary to push docker images to ghcr.io.
+  packages: write
+
+env:
+  CODER_RELEASE: ${{ github.event.inputs.snapshot && 'false' || 'true' }}
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      # Necessary for Docker manifest
+      DOCKER_CLI_EXPERIMENTAL: "enabled"
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      # If the event that triggered the build was an annotated tag (which our
+      # tags are supposed to be), actions/checkout has a bug where the tag in
+      # question is only a lightweight tag and not a full annotated tag. This
+      # command seems to fix it.
+      # https://github.com/actions/checkout/issues/290
+      - name: Fetch git tags
+        run: git fetch --tags --force
+
+      - name: Docker Login
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-go@v3
+        with:
+          go-version: "~1.19"
+
+      - name: Cache Node
+        id: cache-node
+        uses: actions/cache@v3
+        with:
+          path: |
+            **/node_modules
+            .eslintcache
+          key: js-${{ runner.os }}-test-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            js-${{ runner.os }}-
+
+      - name: Install nfpm
+        run: |
+          set -euo pipefail
+          wget -O /tmp/nfpm.deb https://github.com/goreleaser/nfpm/releases/download/v2.18.1/nfpm_amd64.deb
+          sudo dpkg -i /tmp/nfpm.deb
+      - name: Install zstd
+        run: sudo apt-get install -y zstd
+
+      - name: Install rcodesign
+        run: |
+          set -euo pipefail
+
+          # Install a prebuilt binary of rcodesign for linux amd64. Once the
+          # following PR is merged and released upstream, we can download
+          # directly from GitHub releases instead:
+          #   https://github.com/indygreg/PyOxidizer/pull/635
+          wget -O /tmp/rcodesign https://cdn.discordapp.com/attachments/283356472258199552/1016767245717872700/rcodesign
+          sudo install --mode 755 /tmp/rcodesign /usr/local/bin/rcodesign
+
+      - name: Setup Apple Developer certificate and API key
+        run: |
+          set -euo pipefail
+          touch /tmp/{apple_cert.p12,apple_cert_password.txt,apple_apikey.p8}
+          chmod 600 /tmp/{apple_cert.p12,apple_cert_password.txt,apple_apikey.p8}
+          echo "$AC_CERTIFICATE_P12_BASE64" | base64 -d > /tmp/apple_cert.p12
+          echo "$AC_CERTIFICATE_PASSWORD" > /tmp/apple_cert_password.txt
+          echo "$AC_APIKEY_P8_BASE64" | base64 -d > /tmp/apple_apikey.p8
+        env:
+          AC_CERTIFICATE_P12_BASE64: ${{ secrets.AC_CERTIFICATE_P12_BASE64 }}
+          AC_CERTIFICATE_PASSWORD: ${{ secrets.AC_CERTIFICATE_PASSWORD }}
+          AC_APIKEY_P8_BASE64: ${{ secrets.AC_APIKEY_P8_BASE64 }}
+
+      - name: Build binaries
+        run: |
+          set -euo pipefail
+          go mod download
+
+          version="$(./scripts/version.sh)"
+          make gen/mark-fresh
+          make -j \
+            build/coder_"$version"_linux_{amd64,armv7,arm64}.{tar.gz,apk,deb,rpm} \
+            build/coder_"$version"_{darwin,windows}_{amd64,arm64}.zip \
+            build/coder_helm_"$version".tgz
+        env:
+          CODER_SIGN_DARWIN: "1"
+          AC_CERTIFICATE_FILE: /tmp/apple_cert.p12
+          AC_CERTIFICATE_PASSWORD_FILE: /tmp/apple_cert_password.txt
+          AC_APIKEY_ISSUER_ID: ${{ secrets.AC_APIKEY_ISSUER_ID }}
+          AC_APIKEY_ID: ${{ secrets.AC_APIKEY_ID }}
+          AC_APIKEY_FILE: /tmp/apple_apikey.p8
+
+      - name: Delete Apple Developer certificate and API key
+        run: rm -f /tmp/{apple_cert.p12,apple_cert_password.txt,apple_apikey.p8}
+
+      - name: Build Linux Docker images
+        run: |
+          set -euxo pipefail
+
+          # build Docker images for each architecture
+          version="$(./scripts/version.sh)"
+          make -j build/coder_"$version"_linux_{amd64,arm64,armv7}.tag
+
+          # we can't build multi-arch if the images aren't pushed, so quit now
+          # if dry-running
+          if [[ "$CODER_RELEASE" != *t* ]]; then
+            echo Skipping multi-arch docker builds due to dry-run.
+            exit 0
+          fi
+
+          # build and push multi-arch manifest, this depends on the other images
+          # being pushed so will automatically push them.
+          make -j push/build/coder_"$version"_linux.tag
+
+          # if the current version is equal to the highest (according to semver)
+          # version in the repo, also create a multi-arch image as ":latest" and
+          # push it
+          if [[ "$(git tag | grep '^v' | grep -vE '(rc|dev|-|\+|\/)' | sort -r --version-sort | head -n1)" == "v$(./scripts/version.sh)" ]]; then
+            ./scripts/build_docker_multiarch.sh \
+              --push \
+              --target "$(./scripts/image_tag.sh --version latest)" \
+              $(cat build/coder_"$version"_linux_{amd64,arm64,armv7}.tag)
+          fi
+
+      - name: ls build
+        run: ls -lh build
+
+      - name: Publish release
+        run: |
+          ./scripts/publish_release.sh \
+            ${{ (github.event.inputs.dry_run || github.event.inputs.snapshot) && '--dry-run' }} \
+            ./build/*.zip \
+            ./build/*.tar.gz \
+            ./build/*.tgz \
+            ./build/*.apk \
+            ./build/*.deb \
+            ./build/*.rpm
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload artifacts to actions (if dry-run or snapshot)
+        if: ${{ github.event.inputs.dry_run || github.event.inputs.snapshot }}
+        uses: actions/upload-artifact@v2
+        with:
+          name: release-artifacts
+          path: |
+            ./build/*.zip
+            ./build/*.tar.gz
+            ./build/*.tgz
+            ./build/*.apk
+            ./build/*.deb
+            ./build/*.rpm
+          retention-days: 7

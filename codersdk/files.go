@@ -1,0 +1,52 @@
+package codersdk
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+)
+
+const (
+	ContentTypeTar = "application/x-tar"
+)
+
+// UploadResponse contains the hash to reference the uploaded file.
+type UploadResponse struct {
+	Hash string `json:"hash"`
+}
+
+// Upload uploads an arbitrary file with the content type provided.
+// This is used to upload a source-code archive.
+func (c *Client) Upload(ctx context.Context, contentType string, content []byte) (UploadResponse, error) {
+	res, err := c.Request(ctx, http.MethodPost, "/api/v2/files", content, func(r *http.Request) {
+		r.Header.Set("Content-Type", contentType)
+	})
+	if err != nil {
+		return UploadResponse{}, err
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusCreated && res.StatusCode != http.StatusOK {
+		return UploadResponse{}, readBodyAsError(res)
+	}
+	var resp UploadResponse
+	return resp, json.NewDecoder(res.Body).Decode(&resp)
+}
+
+// Download fetches a file by uploaded hash.
+func (c *Client) Download(ctx context.Context, hash string) ([]byte, string, error) {
+	res, err := c.Request(ctx, http.MethodGet, fmt.Sprintf("/api/v2/files/%s", hash), nil)
+	if err != nil {
+		return nil, "", err
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		return nil, "", readBodyAsError(res)
+	}
+	data, err := io.ReadAll(res.Body)
+	if err != nil {
+		return nil, "", err
+	}
+	return data, res.Header.Get("Content-Type"), nil
+}

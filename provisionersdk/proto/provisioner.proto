@@ -1,0 +1,187 @@
+
+syntax = "proto3";
+option go_package = "github.com/coder/coder/provisionersdk/proto";
+
+package provisioner;
+
+// Empty indicates a successful request/response.
+message Empty {}
+
+// ParameterSource represents the source location for a parameter to get it's value from.
+message ParameterSource {
+    enum Scheme {
+        DATA = 0;
+    }
+    Scheme scheme = 1;
+    string value = 2;
+}
+
+// ParameterDestination represents the target location for a provisioner to set the value.
+message ParameterDestination {
+    enum Scheme {
+        ENVIRONMENT_VARIABLE = 0;
+        PROVISIONER_VARIABLE = 1;
+    }
+    Scheme scheme = 1;
+}
+
+// ParameterValue represents the resolved source and destination of a parameter.
+message ParameterValue {
+    ParameterDestination.Scheme destination_scheme = 1;
+    string name = 2;
+    string value = 3;
+}
+
+// ParameterSchema represents validation and type information for a parsed parameter.
+message ParameterSchema {
+    string name = 1;
+    string description = 2;
+    ParameterSource default_source = 3;
+    bool allow_override_source = 4;
+    ParameterDestination default_destination = 5;
+    bool allow_override_destination = 6;
+    bool redisplay_value = 7;
+
+    enum TypeSystem {
+        None = 0;
+        HCL = 1;
+    }
+    TypeSystem validation_type_system = 8;
+    string validation_value_type = 9;
+    string validation_error = 10;
+    string validation_condition = 11;
+}
+
+// LogLevel represents severity of the log.
+enum LogLevel {
+    TRACE = 0;
+    DEBUG = 1;
+    INFO = 2;
+    WARN = 3;
+    ERROR = 4;
+}
+
+// Log represents output from a request.
+message Log {
+    LogLevel level = 1;
+    string output = 2;
+}
+
+message InstanceIdentityAuth {
+    string instance_id = 1;
+}
+
+// Agent represents a running agent on the workspace.
+message Agent {
+    string id = 1;
+    string name = 2;
+    map<string, string> env = 3;
+    string startup_script = 4;
+    string operating_system = 5;
+    string architecture = 6;
+    string directory = 7;
+    repeated App apps = 8;
+    oneof auth {
+        string token = 9;
+        string instance_id = 10;
+    }
+}
+
+// App represents a dev-accessible application on the workspace.
+message App {
+    string name = 1;
+    string command = 2;
+    string url = 3;
+    string icon = 4;
+    bool subdomain = 5;
+    Healthcheck healthcheck = 6;
+}
+
+// Healthcheck represents configuration for checking for app readiness.
+message Healthcheck {
+    string url = 1;
+    int32 interval = 2;
+    int32 threshold = 3;
+}
+
+// Resource represents created infrastructure.
+message Resource {
+    string name = 1;
+    string type = 2;
+    repeated Agent agents = 3;
+
+    message Metadata {
+        string key = 1;
+        string value = 2;
+        bool sensitive = 3;
+        bool is_null = 4;
+    }
+    repeated Metadata metadata = 4;
+    bool hide = 5;
+	string icon = 6;
+}
+
+// Parse consumes source-code from a directory to produce inputs.
+message Parse {
+    message Request {
+        string directory = 1;
+    }
+    message Complete {
+        repeated ParameterSchema parameter_schemas = 2;
+    }
+    message Response {
+        oneof type {
+            Log log = 1;
+            Complete complete = 2;
+        }
+    }
+}
+
+enum WorkspaceTransition {
+    START = 0;
+    STOP = 1;
+    DESTROY = 2;
+}
+
+// Provision consumes source-code from a directory to produce resources.
+message Provision {
+    message Metadata {
+        string coder_url = 1;
+        WorkspaceTransition workspace_transition = 2;
+        string workspace_name = 3;
+        string workspace_owner = 4;
+        string workspace_id = 5;
+        string workspace_owner_id = 6;
+        string workspace_owner_email = 7;
+    }
+    message Start {
+        string directory = 1;
+        repeated ParameterValue parameter_values = 2;
+        Metadata metadata = 3;
+        bytes state = 4;
+        bool dry_run = 5;
+    }
+    message Cancel {}
+    message Request {
+        oneof type {
+            Start start = 1;
+            Cancel cancel = 2;
+        }
+    }
+    message Complete {
+        bytes state = 1;
+        string error = 2;
+        repeated Resource resources = 3;
+    }
+    message Response {
+        oneof type {
+            Log log = 1;
+            Complete complete = 2;
+        }
+    }
+}
+
+service Provisioner {
+    rpc Parse(Parse.Request) returns (stream Parse.Response);
+    rpc Provision(stream Provision.Request) returns (stream Provision.Response);
+}

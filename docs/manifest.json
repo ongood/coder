@@ -1,0 +1,248 @@
+{
+  "versions": [
+    "main",
+    "v0.8.1",
+    "v0.7.12"
+  ],
+  "routes": [
+    {
+      "title": "About",
+      "description": "About Coder",
+      "path": "./README.md",
+      "icon_path": "./images/icons/home.svg",
+      "children": [
+        {
+          "title": "Architecture",
+          "description": "Learn how Coder works",
+          "icon_path": "./images/icons/protractor.svg",
+          "path": "./about/architecture.md"
+        }
+      ]
+    },
+    {
+      "title": "Installation",
+      "description": "How to install and deploy Coder",
+      "icon_path": "./images/icons/download.svg",
+      "path": "./install/index.md",
+      "children": [
+        {
+          "title": "Install script",
+          "description": "One-line install script for macOS and Linux.",
+          "path": "./install/install.sh.md"
+        },
+        {
+          "title": "System packages",
+          "description": "System packages for Debian, Ubuntu, Fedora, CentOS, RHEL, SUSE, and Alpine.",
+          "path": "./install/packages.md"
+        },
+        {
+          "title": "Kubernetes",
+          "description": "Install Coder with Kubernetes via Helm.",
+          "path": "./install/kubernetes.md"
+        },
+        {
+          "title": "Docker",
+          "description": "Install Coder with Docker / docker-compose",
+          "path": "./install/docker.md"
+        },
+        {
+          "title": "Standalone binaries",
+          "description": "Download binaries for macOS, Windows, and Linux.",
+          "path": "./install/binary.md"
+        },
+        {
+          "title": "Uninstall",
+          "description": "Learn how to uninstall Coder.",
+          "path": "./install/uninstall.md"
+        }
+      ]
+    },
+    {
+      "title": "Quickstart",
+      "description": "Create your first template and workspace",
+      "icon_path": "./images/icons/star.svg",
+      "path": "./quickstart.md",
+      "children": [
+        {
+          "title": "Docker",
+          "description": "Setup Coder with Docker",
+          "icon_path": "./images/icons/docker.svg",
+          "path": "./quickstart/docker.md"
+        },
+        {
+          "title": "AWS",
+          "description": "Setup Coder with AWS",
+          "icon_path": "./images/aws.svg",
+          "path": "./quickstart/aws.md"
+        },
+        {
+          "title": "Azure",
+          "description": "Setup Coder with Azure",
+          "icon_path": "./images/azure.svg",
+          "path": "./quickstart/azure.md"
+        }
+      ]
+    },
+    {
+      "title": "Templates",
+      "description": "Learn about templates, which define the infrastructure underlying workspaces",
+      "path": "./templates.md",
+      "icon_path": "./images/icons/picture.svg",
+      "children": [
+        {
+          "title": "Provider Authentication",
+          "description": "Learn how to authenticate the provisioner",
+          "path": "./templates/authentication.md",
+          "icon_path": "./images/icons/key.svg"
+        },
+        {
+          "title": "Resource Metadata",
+          "description": "Learn how to expose resource data to users",
+          "path": "./templates/resource-metadata.md",
+          "icon_path": "./images/icons/table-rows.svg"
+        },
+        {
+          "title": "Docker in Docker",
+          "description": "Use docker inside containerized templates",
+          "path": "./templates/docker-in-docker.md",
+          "icon_path": "./images/icons/docker.svg"
+        }
+      ]
+    },
+    {
+      "title": "Workspaces",
+      "description": "Learn about Coder workspaces.",
+      "icon_path": "./images/icons/layers.svg",
+      "path": "./workspaces.md"
+    },
+    {
+      "title": "IDEs",
+      "description": "Learn how to use your IDE of choice with Coder",
+      "path": "./ides.md",
+      "icon_path": "./images/icons/code.svg",
+      "children": [
+        {
+          "title": "Web IDEs",
+          "description": "Learn how to configure web IDEs in your templates",
+          "path": "./ides/web-ides.md"
+        },
+        {
+          "title": "JetBrains Gateway",
+          "description": "Learn how to configure JetBrains Gateway for your workspaces",
+          "path": "./ides/gateway.md"
+        },
+        {
+          "title": "Emacs",
+          "description": "Learn how to configure Emacs with TRAMP in Coder",
+          "path": "./ides/emacs-tramp.md"
+        },
+        {
+          "title": "Remote Desktops",
+          "description": "Learn how to use Remote Desktops with Coder",
+          "path": "./ides/remote-desktops.md"
+        }
+      ]
+    },
+    {
+      "title": "Networking",
+      "description": "Learn about networking in Coder",
+      "path": "./networking.md",
+      "icon_path": "./images/icons/networking.svg",
+      "children": [
+        {
+          "title": "Port Forwarding",
+          "description": "Learn how to forward ports in Coder",
+          "path": "./networking/port-forwarding.md"
+        }
+      ]
+    },
+    {
+      "title": "Dotfiles",
+      "description": "Learn how to personalize your workspace",
+      "icon_path": "./images/icons/art-pad.svg",
+      "path": "./dotfiles.md"
+    },
+    {
+      "title": "Secrets",
+      "description": "Learn how to use secrets in your worskpace",
+      "icon_path": "./images/icons/secrets.svg",
+      "path": "./secrets.md"
+    },
+    {
+      "title": "Administration",
+      "description": "How to install and deploy Coder",
+      "icon_path": "./images/icons/wrench.svg",
+      "path": "./admin/index.md",
+      "children": [
+        {
+          "title": "Users",
+          "description": "Learn about user roles available in Coder and how to create and manage users",
+          "icon_path": "./images/icons/users.svg",
+          "path": "./admin/users.md"
+        },
+        {
+          "title": "Authentication",
+          "description": "Learn how to set up authentication using GitHub or OpenID Connect.",
+          "icon_path": "./images/icons/key.svg",
+          "path": "./admin/auth.md"
+        },
+        {
+          "title": "Configuration",
+          "description": "Learn how to configure Coder.",
+          "path": "./admin/configure.md",
+          "icon_path": "./images/icons/toggle_on.svg"
+        },
+        {
+          "title": "Upgrading",
+          "description": "Learn how to upgrade Coder.",
+          "icon_path": "./images/icons/upgrade.svg",
+          "path": "./admin/upgrade.md"
+        },
+        {
+          "title": "Audit Logs",
+          "description": "Learn how to use Audit Logs in your Coder deployment.",
+          "icon_path": "./images/icons/radar.svg",
+          "path": "./admin/audit-logs.md",
+          "state": "enterprise"
+        },
+        {
+          "title": "Quotas",
+          "description": "Learn how to use Workspace Quotas in Coder.",
+          "icon_path": "./images/icons/dollar.svg",
+          "path": "./admin/quotas.md",
+          "state": "enterprise"
+        },
+        {
+          "title": "Enterprise",
+          "description": "Learn how to enable Enterprise features.",
+          "icon_path": "./images/icons/group.svg",
+          "path": "./admin/enterprise.md"
+        },
+        {
+          "title": "Telemetry",
+          "description": "Learn what usage telemetry Coder collects.",
+          "icon_path": "./images/icons/science.svg",
+          "path": "./admin/telemetry.md"
+        }
+      ]
+    },
+    {
+      "title": "Contributing",
+      "description": "Learn how to contribute to Coder",
+      "icon_path": "./images/icons/contributing.svg",
+      "path": "./CONTRIBUTING.md",
+      "children": [
+        {
+          "title": "Code of Conduct",
+          "description": "See the code of conduct for contributing to Coder",
+          "path": "./contributing/CODE_OF_CONDUCT.md"
+        },
+        {
+          "title": "Security",
+          "description": "How to report vulnerabilities in Coder",
+          "path": "./contributing/SECURITY.md"
+        }
+      ]
+    }
+  ]
+}

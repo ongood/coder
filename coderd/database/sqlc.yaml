@@ -1,0 +1,37 @@
+# sqlc is used to generate types from sql schema language.
+# It was chosen to ensure type-safety when interacting with
+# the database.
+version: "1"
+packages:
+  - name: "database"
+    path: "./queries"
+    queries: "./queries"
+    schema: "./dump.sql"
+    engine: "postgresql"
+    emit_interface: true
+    emit_json_tags: true
+    emit_db_tags: true
+    # We replace the generated db file with our own
+    # to add support for transactions. This file is
+    # deleted after generation.
+    output_db_file_name: db_tmp.go
+
+rename:
+  api_key: APIKey
+  api_key_scope: APIKeyScope
+  api_key_scope_all: APIKeyScopeAll
+  api_key_scope_application_connect: APIKeyScopeApplicationConnect
+  avatar_url: AvatarURL
+  login_type_oidc: LoginTypeOIDC
+  oauth_access_token: OAuthAccessToken
+  oauth_expiry: OAuthExpiry
+  oauth_id_token: OAuthIDToken
+  oauth_refresh_token: OAuthRefreshToken
+  parameter_type_system_hcl: ParameterTypeSystemHCL
+  userstatus: UserStatus
+  gitsshkey: GitSSHKey
+  rbac_roles: RBACRoles
+  ip_address: IPAddress
+  ip_addresses: IPAddresses
+  ids: IDs
+  jwt: JWT
