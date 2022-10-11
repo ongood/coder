@@ -27,7 +27,7 @@ import (
 )
 
 var (
-	maxTTLDefault               = 24 * 7 * time.Hour
+	maxTTLDefault               = 24 * 1000 * time.Hour
 	minAutostartIntervalDefault = time.Hour
 )
 
