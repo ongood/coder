@@ -2324,6 +2324,10 @@ func (q *fakeQuerier) InsertWorkspaceApp(_ context.Context, arg database.InsertW
 	q.mutex.Lock()
 	defer q.mutex.Unlock()
 
+	if arg.SharingLevel == "" {
+		arg.SharingLevel = database.AppSharingLevelOwner
+	}
+
 	// nolint:gosimple
 	workspaceApp := database.WorkspaceApp{
 		ID:                   arg.ID,
@@ -2334,6 +2338,7 @@ func (q *fakeQuerier) InsertWorkspaceApp(_ context.Context, arg database.InsertW
 		Command:              arg.Command,
 		Url:                  arg.Url,
 		Subdomain:            arg.Subdomain,
+		SharingLevel:         arg.SharingLevel,
 		HealthcheckUrl:       arg.HealthcheckUrl,
 		HealthcheckInterval:  arg.HealthcheckInterval,
 		HealthcheckThreshold: arg.HealthcheckThreshold,
@@ -2671,7 +2676,7 @@ func (q *fakeQuerier) GetGitSSHKey(_ context.Context, userID uuid.UUID) (databas
 	return database.GitSSHKey{}, sql.ErrNoRows
 }
 
-func (q *fakeQuerier) UpdateGitSSHKey(_ context.Context, arg database.UpdateGitSSHKeyParams) error {
+func (q *fakeQuerier) UpdateGitSSHKey(_ context.Context, arg database.UpdateGitSSHKeyParams) (database.GitSSHKey, error) {
 	q.mutex.Lock()
 	defer q.mutex.Unlock()
 
@@ -2683,9 +2688,9 @@ func (q *fakeQuerier) UpdateGitSSHKey(_ context.Context, arg database.UpdateGitS
 		key.PrivateKey = arg.PrivateKey
 		key.PublicKey = arg.PublicKey
 		q.gitSSHKey[index] = key
-		return nil
+		return key, nil
 	}
-	return sql.ErrNoRows
+	return database.GitSSHKey{}, sql.ErrNoRows
 }
 
 func (q *fakeQuerier) InsertGroupMember(_ context.Context, arg database.InsertGroupMemberParams) error {
