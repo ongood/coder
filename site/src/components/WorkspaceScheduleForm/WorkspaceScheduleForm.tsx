@@ -47,7 +47,7 @@ export const Language = {
   errorNoStop:
     "Time until shutdown must be greater than zero when auto-stop is enabled.",
   errorTtlMax:
-    "Please enter a limit that is less than or equal to 168 hours (7 days).",
+    "Please enter a limit that is less than or equal to 24000 hours (1000 days).",
   daysOfWeekLabel: "Days of Week",
   daySundayLabel: "Sunday",
   dayMondayLabel: "Monday",
