@@ -62,16 +62,15 @@ const EnabledView: React.FC<PortForwardButtonProps> = (props) => {
   return (
     <>
       <HelpTooltipText>
-        Access ports running on the agent with the{" "}
-        <strong>port, agent name, workspace name</strong> and{" "}
-        <strong>your username</strong> URL schema, as shown below. Port URLs are
-        only accessible by you.
+        使用 {" "} 访问代理上运行的端口
+        <strong>端口、代理名称、工作区名称</strong>和{" "}
+        <strong>您的用户名</strong> URL 架构，如下所示： 此端口 URL 只有您可以访问。
       </HelpTooltipText>
 
       <CodeExample code={urlExample} className={styles.code} />
 
       <HelpTooltipText>
-        Use the form to open applications in a new tab.
+      使用浏览器在新选项卡中打开应用程序。
       </HelpTooltipText>
 
       <Stack
@@ -190,7 +189,7 @@ export const PortForwardButton: React.FC<PortForwardButtonProps> = (props) => {
           setIsOpen(true)
         }}
       >
-        Port forward
+        端口转发
       </Button>
       <Popover
         classes={{ paper: styles.popoverPaper }}
@@ -207,7 +206,7 @@ export const PortForwardButton: React.FC<PortForwardButtonProps> = (props) => {
           horizontal: "left",
         }}
       >
-        <HelpTooltipTitle>Port forward</HelpTooltipTitle>
+        <HelpTooltipTitle>端口转发</HelpTooltipTitle>
         <ChooseOne>
           <Cond condition={host !== ""}>
             <EnabledView {...props} />

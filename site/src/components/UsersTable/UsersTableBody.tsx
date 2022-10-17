@@ -17,7 +17,7 @@ export const Language = {
   suspendMenuItem: "暂停",
   deleteMenuItem: "删除",
   listWorkspacesMenuItem: "预览工作空间",
-  activateMenuItem: "启用",
+  activateMenuItem: "激活",
   resetPasswordMenuItem: "重置密码",
 }
 

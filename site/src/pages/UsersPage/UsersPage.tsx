@@ -15,10 +15,10 @@ import { UsersPageView } from "./UsersPageView"
 export const Language = {
   suspendDialogTitle: "暂停用户",
   suspendDialogAction: "暂停",
-  suspendDialogMessagePrefix: "你想暂停用户吗",
+  suspendDialogMessagePrefix: "你想暂停用户",
   activateDialogTitle: "激活用户",
   activateDialogAction: "激活",
-  activateDialogMessagePrefix: "你想激活用户吗",
+  activateDialogMessagePrefix: "你想激活用户",
 }
 
 export const UsersPage: FC<{ children?: ReactNode }> = () => {
