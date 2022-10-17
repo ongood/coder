@@ -86,7 +86,7 @@ export const AuditPageView: FC<AuditPageViewProps> = ({
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell style={{ paddingLeft: 32 }}>Logs</TableCell>
+              <TableCell style={{ paddingLeft: 32 }}>日志</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -98,7 +98,7 @@ export const AuditPageView: FC<AuditPageViewProps> = ({
             {isEmpty && (
               <TableRow>
                 <TableCell colSpan={999}>
-                  <EmptyState message="No audit logs available" />
+                  <EmptyState message="没有可用的审计日志" />
                 </TableCell>
               </TableRow>
             )}

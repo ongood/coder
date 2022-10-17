@@ -41,7 +41,7 @@ export interface DAUChartProps {
   templateDAUs: TypesGen.TemplateDAUsResponse
 }
 export const Language = {
-  loadingText: "正在加载 DAU 统计数据，稍后再回来查看。",
+  loadingText: "正在加载 DAU 统计数据，请稍后再查看。",
   chartTitle: "每日活跃用户",
 }
 
@@ -106,7 +106,7 @@ export const DAUChart: FC<DAUChartProps> = ({
             <HelpTooltip size="small">
               <HelpTooltipTitle>我们如何计算DAU?</HelpTooltipTitle>
               <HelpTooltipText>
-              我们使用所有工作空间连接流量来计算DAU。
+              我们使用所有工作空间连接流量来计算DAU（每日活跃用户）。
               </HelpTooltipText>
             </HelpTooltip>
           </Stack>
