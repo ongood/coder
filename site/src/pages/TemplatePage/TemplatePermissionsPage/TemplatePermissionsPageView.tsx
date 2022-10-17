@@ -98,10 +98,10 @@ const AddTemplateUserOrGroup: React.FC<AddTemplateUserOrGroupProps> = ({
           }}
         >
           <MenuItem key="use" value="use">
-            Use
+            用户
           </MenuItem>
           <MenuItem key="admin" value="admin">
-            Admin
+            管理员
           </MenuItem>
         </Select>
 
@@ -112,7 +112,7 @@ const AddTemplateUserOrGroup: React.FC<AddTemplateUserOrGroupProps> = ({
           startIcon={<PersonAdd />}
           loading={isLoading}
         >
-          Add member
+          添加成员
         </LoadingButton>
       </Stack>
     </form>
@@ -216,8 +216,8 @@ export const TemplatePermissionsPageView: FC<
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell width="60%">Member</TableCell>
-              <TableCell width="40%">Role</TableCell>
+              <TableCell width="60%">成员</TableCell>
+              <TableCell width="40%">角色</TableCell>
               <TableCell width="1%" />
             </TableRow>
           </TableHead>
@@ -230,8 +230,8 @@ export const TemplatePermissionsPageView: FC<
                 <TableRow>
                   <TableCell colSpan={999}>
                     <EmptyState
-                      message="No members yet"
-                      description="Add a member using the controls above"
+                      message="还没有成员"
+                      description="使用上面的控件添加一个成员"
                     />
                   </TableCell>
                 </TableRow>
@@ -275,7 +275,7 @@ export const TemplatePermissionsPageView: FC<
                           data={group}
                           menuItems={[
                             {
-                              label: "Remove",
+                              label: "删除",
                               onClick: () => onRemoveGroup(group),
                             },
                           ]}
@@ -331,7 +331,7 @@ export const TemplatePermissionsPageView: FC<
                           data={user}
                           menuItems={[
                             {
-                              label: "Remove",
+                              label: "删除",
                               onClick: () => onRemoveUser(user),
                             },
                           ]}

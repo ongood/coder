@@ -42,17 +42,15 @@ import {
 
 export const Language = {
   developerCount: (activeCount: number): string => {
-    return `${formatTemplateActiveDevelopers(activeCount)} developer${
-      activeCount !== 1 ? "s" : ""
-    }`
+    return `${formatTemplateActiveDevelopers(activeCount)} 开发者`
   },
-  nameLabel: "模板名称",
+  nameLabel: "名称",
   buildTimeLabel: "创建时间",
   usedByLabel: "用户数",
   lastUpdatedLabel: "最后更新",
   emptyViewNoPerms:
-    "Contact your Coder administrator to create a template. You can share the code below.",
-  emptyMessage: "Create your first template",
+    "请联系您的 Coder 管理员以创建模板，你可以分享下面的代码。",
+  emptyMessage: "创建您的首个工作空间模板",
   emptyDescription: (
     <>
       To create a workspace you need to have a template. You can{" "}

@@ -28,7 +28,7 @@ export const Language = {
   descriptionMaxError:
     "Please enter a description that is less than or equal to 128 characters.",
   ttlHelperText: (ttl: number): string =>
-    `从此模板创建的工作空间的运行时间不得超过 ${ttl} 小时。`,
+    `由此模板创建的工作空间的总运行时间不得超过 ${ttl} 小时。`,
 }
 
 const MAX_DESCRIPTION_CHAR_LIMIT = 128
