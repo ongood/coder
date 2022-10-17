@@ -47,7 +47,7 @@ export const UsersLayout: FC<PropsWithChildren> = ({ children }) => {
             </>
           }
         >
-          <PageHeaderTitle>Users</PageHeaderTitle>
+          <PageHeaderTitle>用户</PageHeaderTitle>
         </PageHeader>
       </Margins>
 

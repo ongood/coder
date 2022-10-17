@@ -25,7 +25,7 @@ export const CreateGroupPage: React.FC = () => {
   return (
     <>
       <Helmet>
-        <title>{pageTitle("Create Group")}</title>
+        <title>{pageTitle("创建用户组")}</title>
       </Helmet>
       <CreateGroupPageView
         onSubmit={(data) => {

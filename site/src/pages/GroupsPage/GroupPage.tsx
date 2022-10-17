@@ -68,7 +68,7 @@ const AddGroupMember: React.FC<{
           startIcon={<PersonAdd />}
           loading={isLoading}
         >
-          Add user
+          添加用户
         </LoadingButton>
       </Stack>
     </form>
@@ -99,7 +99,7 @@ export const GroupPage: React.FC = () => {
   return (
     <>
       <Helmet>
-        <title>{pageTitle(group?.name ?? "Loading...")}</title>
+        <title>{pageTitle(group?.name ?? "加载中...")}</title>
       </Helmet>
       <ChooseOne>
         <Cond condition={isLoading}>
@@ -112,7 +112,7 @@ export const GroupPage: React.FC = () => {
               actions={
                 <Maybe condition={canUpdateGroup}>
                   <Link to="settings" underline="none" component={RouterLink}>
-                    <Button startIcon={<SettingsOutlined />}>Settings</Button>
+                    <Button startIcon={<SettingsOutlined />}>设置</Button>
                   </Link>
                   <Button
                     onClick={() => {
@@ -120,14 +120,14 @@ export const GroupPage: React.FC = () => {
                     }}
                     startIcon={<DeleteOutline />}
                   >
-                    Delete
+                    删除
                   </Button>
                 </Maybe>
               }
             >
               <PageHeaderTitle>{group?.name}</PageHeaderTitle>
               <PageHeaderSubtitle>
-                {group?.members.length} members
+                {group?.members.length} 成员
               </PageHeaderSubtitle>
             </PageHeader>
 
@@ -159,8 +159,8 @@ export const GroupPage: React.FC = () => {
                         <TableRow>
                           <TableCell colSpan={999}>
                             <EmptyState
-                              message="No members yet"
-                              description="Add a member using the controls above"
+                              message="还没有成员"
+                              description="使用上面的控件添加成员"
                             />
                           </TableCell>
                         </TableRow>
@@ -182,7 +182,7 @@ export const GroupPage: React.FC = () => {
                                   data={member}
                                   menuItems={[
                                     {
-                                      label: "Remove",
+                                      label: "删除",
                                       onClick: () => {
                                         send({
                                           type: "REMOVE_MEMBER",

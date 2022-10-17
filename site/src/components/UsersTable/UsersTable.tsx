@@ -14,7 +14,7 @@ export const Language = {
   usernameLabel: "用户",
   rolesLabel: "角色",
   statusLabel: "状态",
-  lastSeenLabel: "最近登录",
+  lastSeenLabel: "最近登入",
 }
 
 export interface UsersTableProps {

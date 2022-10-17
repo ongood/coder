@@ -37,7 +37,7 @@ export const CreateGroupPageView: React.FC<CreateGroupPageViewProps> = ({
 
   return (
     <Margins>
-      <FullPageForm title="Create group" onCancel={onCancel}>
+      <FullPageForm title="创建用户组" onCancel={onCancel}>
         <form onSubmit={form.handleSubmit}>
           <TextField
             {...getFieldHelpers("name")}

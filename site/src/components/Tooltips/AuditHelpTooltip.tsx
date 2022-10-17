@@ -10,7 +10,7 @@ import {
 export const Language = {
   title: "什么是审计日志？",
   body: "审计日志是整个系统中发生的事件和更改的记录。",
-  docs: "我们跟踪的事件",
+  docs: "审计日志",
 }
 
 export const AuditHelpTooltip: FC = () => {

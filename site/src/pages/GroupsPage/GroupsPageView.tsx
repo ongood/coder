@@ -104,7 +104,7 @@ export const GroupsPageView: React.FC<GroupsPageViewProps> = ({
                                 to="/groups/create"
                               >
                                 <Button startIcon={<AddCircleOutline />}>
-                                  Create group
+                                  创建用户组
                                 </Button>
                               </Link>
                             )
