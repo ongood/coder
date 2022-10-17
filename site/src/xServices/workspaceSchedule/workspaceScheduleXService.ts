@@ -8,7 +8,7 @@ import * as TypesGen from "../../api/typesGenerated"
 import { displaySuccess } from "../../components/GlobalSnackbar/utils"
 
 export const Language = {
-  successMessage: "已成功更新工作空间计划.",
+  successMessage: "已成功更新工作区计划.",
 }
 
 type Permissions = Record<keyof ReturnType<typeof permissionsToCheck>, boolean>

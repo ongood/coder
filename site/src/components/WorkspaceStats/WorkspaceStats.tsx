@@ -10,9 +10,9 @@ import { Workspace } from "../../api/typesGenerated"
 import { MONOSPACE_FONT_FAMILY } from "../../theme/constants"
 
 const Language = {
-  workspaceDetails: "工作空间详细信息",
+  workspaceDetails: "工作区详细信息",
   templateLabel: "模板",
-  statusLabel: "工作空间状态",
+  statusLabel: "工作区状态",
   versionLabel: "版本",
   lastBuiltLabel: "最后创建",
   outdated: "已过时",

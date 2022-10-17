@@ -9,7 +9,7 @@ export const Language = {
   title: "SSH 密钥",
   description: (
     <p>
-       以下公钥用于在工作区中对 Git 进行身份验证。 
+       以下公钥用于在工作区中对 Git 进行身份验证。
        您可以将其添加到您需要从工作区访问的 Git 服务器（例如 GitHub）。<br />
       <br />
       Coder 通过此方式配置身份验证: <code>$GIT_SSH_COMMAND</code>.
@@ -17,7 +17,7 @@ export const Language = {
   ),
   regenerateDialogTitle: "重新生成 SSH 密钥？",
   regenerateDialogMessage:
-    "您将需要替换与它一起使用的Git服务器上的公共 SSH 密钥，并且您需要重建现有工作空间。",
+    "您将需要替换与它一起使用的Git服务器上的公共 SSH 密钥，并且您需要重建现有工作区。",
   confirmLabel: "确认",
   cancelLabel: "取消",
 }

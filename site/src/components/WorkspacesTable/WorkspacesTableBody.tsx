@@ -12,7 +12,7 @@ import { TableLoader } from "../TableLoader/TableLoader"
 import { WorkspacesRow } from "./WorkspacesRow"
 
 export const Language = {
-  emptyCreateWorkspaceMessage: "创建您的首个工作空间",
+  emptyCreateWorkspaceMessage: "创建您的首个工作区",
   emptyCreateWorkspaceDescription:
     "开始编辑您的源代码并构建您的软件。",
   createFromTemplateButton: "从模板创建",

@@ -9,7 +9,7 @@ import {
 export const Language = {
   resourceTooltipTitle: "什么是资源？",
   resourceTooltipText:
-    "资源是在构建工作空间时创建的基础结构对象。",
+    "资源是在构建工作区时创建的基础结构对象。",
   resourceTooltipLink: "持久资源与临时资源",
 }
 

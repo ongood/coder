@@ -10,8 +10,8 @@ import { MONOSPACE_FONT_FAMILY } from "../../theme/constants"
 
 export const Language = {
   of: "之",
-  workspace: "工作空间",
-  workspaces: "工作空间",
+  workspace: "工作区",
+  workspaces: "工作区",
 }
 
 export interface WorkspaceQuotaProps {

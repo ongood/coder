@@ -23,8 +23,8 @@ import {
 dayjs.extend(minMax)
 
 export const Language = {
-  errorExtension: "无法更新工作空间关闭时间。",
-  successExtension: "更新了工作空间关闭时间。",
+  errorExtension: "无法更新工作区关闭时间。",
+  successExtension: "更新了工作区关闭时间。",
 }
 
 export interface WorkspaceScheduleBannerContext {

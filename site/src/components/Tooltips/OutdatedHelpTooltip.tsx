@@ -11,7 +11,7 @@ import {
 export const Language = {
   outdatedLabel: "过时的",
   versionTooltipText:
-    "此工作空间版本已过时，并且有更新的版本可用。",
+    "此工作区版本已过时，并且有更新的版本可用。",
   updateVersionLabel: "更新版本",
 }
 

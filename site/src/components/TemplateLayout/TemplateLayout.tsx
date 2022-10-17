@@ -37,7 +37,7 @@ import { Permissions } from "xServices/auth/authXService"
 
 const Language = {
   settingsButton: "设置",
-  createButton: "创建工作空间",
+  createButton: "创建工作区",
   noDescription: "",
 }
 
