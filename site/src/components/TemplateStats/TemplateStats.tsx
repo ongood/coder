@@ -9,13 +9,13 @@ import { Template, TemplateVersion } from "../../api/typesGenerated"
 import { MONOSPACE_FONT_FAMILY } from "../../theme/constants"
 
 const Language = {
-  usedByLabel: "Used by",
-  buildTimeLabel: "Build time",
-  activeVersionLabel: "Active version",
-  lastUpdateLabel: "Last updated",
-  developerPlural: "developers",
-  developerSingular: "developer",
-  createdByLabel: "Created by",
+  usedByLabel: "用户数",
+  buildTimeLabel: "创建时间",
+  activeVersionLabel: "活跃版本",
+  lastUpdateLabel: "最后更新",
+  developerPlural: "开发者",
+  developerSingular: "开发者",
+  createdByLabel: "创建者",
 }
 
 export interface TemplateStatsProps {

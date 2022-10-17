@@ -9,12 +9,12 @@ import { WorkspaceItemMachineRef } from "../../xServices/workspaces/workspacesXS
 import { WorkspacesTableBody } from "./WorkspacesTableBody"
 
 const Language = {
-  name: "Name",
-  template: "Template",
-  lastUsed: "Last Used",
-  version: "Version",
-  status: "Status",
-  lastBuiltBy: "Last Built By",
+  name: "名称",
+  template: "模板",
+  lastUsed: "最后使用",
+  version: "版本",
+  status: "状态",
+  lastBuiltBy: "最后创建者",
 }
 
 export interface WorkspacesTableProps {

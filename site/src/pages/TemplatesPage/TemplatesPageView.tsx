@@ -46,10 +46,10 @@ export const Language = {
       activeCount !== 1 ? "s" : ""
     }`
   },
-  nameLabel: "Name",
-  buildTimeLabel: "Build time",
-  usedByLabel: "Used by",
-  lastUpdatedLabel: "Last updated",
+  nameLabel: "模板名称",
+  buildTimeLabel: "创建时间",
+  usedByLabel: "用户数",
+  lastUpdatedLabel: "最后更新",
   emptyViewNoPerms:
     "Contact your Coder administrator to create a template. You can share the code below.",
   emptyMessage: "Create your first template",
@@ -65,11 +65,11 @@ export const Language = {
       or use a built-in template using the following Coder CLI command:
     </>
   ),
-  templateTooltipTitle: "What is template?",
+  templateTooltipTitle: "什么是模板？",
   templateTooltipText:
-    "With templates you can create a common configuration for your workspaces using Terraform.",
-  templateTooltipLink: "Manage templates",
-  createdByLabel: "Created by",
+    "您可以使用 Terraform 为您的工作空间创建通用配置模板。",
+  templateTooltipLink: "管理模板",
+  createdByLabel: "创建者",
 }
 
 const TemplateHelpTooltip: React.FC = () => {
@@ -112,7 +112,7 @@ export const TemplatesPageView: FC<
       <PageHeader>
         <PageHeaderTitle>
           <Stack spacing={1} direction="row" alignItems="center">
-            Templates
+            模板
             <TemplateHelpTooltip />
           </Stack>
         </PageHeaderTitle>
@@ -120,17 +120,17 @@ export const TemplatesPageView: FC<
           condition={Boolean(props.templates && props.templates.length > 0)}
         >
           <PageHeaderSubtitle>
-            Choose a template to create a new workspace
+            选择一个模板用于创建新的工作空间
             {props.canCreateTemplate ? (
               <>
-                , or{" "}
+                , 或{" "}
                 <Link
                   href="https://coder.com/docs/coder-oss/latest/templates#add-a-template"
                   target="_blank"
                 >
-                  manage templates
+                  管理模板
                 </Link>{" "}
-                from the CLI.
+                基于CLI.
               </>
             ) : (
               "."

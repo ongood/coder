@@ -139,7 +139,7 @@ export const CreateWorkspacePageView: FC<
       : true
 
   return (
-    <FullPageForm title="Create workspace" onCancel={props.onCancel}>
+    <FullPageForm title="创建工作空间" onCancel={props.onCancel}>
       <form onSubmit={form.handleSubmit}>
         <Stack>
           {Boolean(

@@ -16,7 +16,7 @@ export const Language = {
   emptyMessage: "未发现用户",
   suspendMenuItem: "暂停",
   deleteMenuItem: "删除",
-  listWorkspacesMenuItem: "预览工作区",
+  listWorkspacesMenuItem: "预览工作空间",
   activateMenuItem: "启用",
   resetPasswordMenuItem: "重置密码",
 }

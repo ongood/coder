@@ -15,11 +15,11 @@ import { workspaceFilterQuery } from "../../util/filters"
 import { WorkspaceItemMachineRef } from "../../xServices/workspaces/workspacesXService"
 
 export const Language = {
-  pageTitle: "工作区",
-  yourWorkspacesButton: "你的工作区",
-  allWorkspacesButton: "所有工作区",
-  runningWorkspacesButton: "运行中的工作区",
-  createANewWorkspace: `创建新工作区自 `,
+  pageTitle: "工作空间",
+  yourWorkspacesButton: "你的工作空间",
+  allWorkspacesButton: "所有工作空间",
+  runningWorkspacesButton: "运行中的工作空间",
+  createANewWorkspace: `创建新工作空间基于`,
   template: "模板",
 }
 

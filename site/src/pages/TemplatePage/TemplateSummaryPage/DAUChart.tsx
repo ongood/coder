@@ -104,9 +104,9 @@ export const DAUChart: FC<DAUChartProps> = ({
           <Stack direction="row" spacing={1} alignItems="center">
             {Language.chartTitle}
             <HelpTooltip size="small">
-              <HelpTooltipTitle>How do we calculate DAUs?</HelpTooltipTitle>
+              <HelpTooltipTitle>我们如何计算DAU?</HelpTooltipTitle>
               <HelpTooltipText>
-                We use all workspace connection traffic to calculate DAUs.
+              我们使用所有工作空间连接流量来计算DAU。
               </HelpTooltipText>
             </HelpTooltip>
           </Stack>

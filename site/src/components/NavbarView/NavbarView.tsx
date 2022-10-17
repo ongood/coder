@@ -20,7 +20,7 @@ export interface NavbarViewProps {
 }
 
 export const Language = {
-  workspaces: "工作区",
+  workspaces: "空间",
   templates: "模板",
   users: "用户",
   audit: "审计",

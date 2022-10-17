@@ -34,7 +34,7 @@ export const CreateUserPage: React.FC = () => {
   return (
     <Margins>
       <Helmet>
-        <title>{pageTitle("Create User")}</title>
+        <title>{pageTitle("创建用户")}</title>
       </Helmet>
       <CreateUserForm
         formErrors={createUserFormErrors}

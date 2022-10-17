@@ -19,16 +19,16 @@ import * as Yup from "yup"
 export const Language = {
   nameLabel: "名称",
   descriptionLabel: "描述",
-  maxTtlLabel: "自动停止限制",
+  maxTtlLabel: "允许运行时长",
   iconLabel: "图标",
   formAriaLabel: "模板设置",
   selectEmoji: "选择表情符号",
   ttlMaxError:
-    "请输入小于或等于 24000 小时（1000 天）的限制。",
+    "请输入小于或等于 24000 小时（1000 天）的允许运行时长。",
   descriptionMaxError:
     "Please enter a description that is less than or equal to 128 characters.",
   ttlHelperText: (ttl: number): string =>
-    `从此模板创建的工作区的运行时间不得超过 ${ttl} 小时。`,
+    `从此模板创建的工作空间的运行时间不得超过 ${ttl} 小时。`,
 }
 
 const MAX_DESCRIPTION_CHAR_LIMIT = 128
