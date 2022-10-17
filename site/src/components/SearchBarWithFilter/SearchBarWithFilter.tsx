@@ -14,7 +14,7 @@ import { CloseDropdown, OpenDropdown } from "../DropdownArrows/DropdownArrows"
 import { Stack } from "../Stack/Stack"
 
 export const Language = {
-  filterName: "Filters",
+  filterName: "过滤",
 }
 
 export interface SearchBarWithFilterProps {

@@ -41,8 +41,8 @@ export interface DAUChartProps {
   templateDAUs: TypesGen.TemplateDAUsResponse
 }
 export const Language = {
-  loadingText: "DAU stats are loading. Check back later.",
-  chartTitle: "Daily Active Users",
+  loadingText: "正在加载 DAU 统计数据，稍后再回来查看。",
+  chartTitle: "每日活跃用户",
 }
 
 export const DAUChart: FC<DAUChartProps> = ({

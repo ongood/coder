@@ -10,7 +10,7 @@ import { Margins } from "../../../components/Margins/Margins"
 import { pageTitle } from "../../../util/page"
 
 export const Language = {
-  unknownError: "Oops, an unknown error occurred.",
+  unknownError: "糟糕，发生未知错误。",
 }
 
 export const CreateUserPage: React.FC = () => {

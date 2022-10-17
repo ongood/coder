@@ -8,10 +8,10 @@ import { Margins } from "../Margins/Margins"
 import { TabPanel } from "../TabPanel/TabPanel"
 
 export const Language = {
-  accountLabel: "Account",
-  securityLabel: "Security",
-  sshKeysLabel: "SSH keys",
-  settingsLabel: "Settings",
+  accountLabel: "账号",
+  securityLabel: "安全",
+  sshKeysLabel: "SSH 密钥",
+  settingsLabel: "设置",
 }
 
 const menuItems = [

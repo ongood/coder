@@ -14,13 +14,13 @@ import * as Yup from "yup"
 
 export const Language = {
   nameRequired: (name: string): string => {
-    return `Please enter a ${name.toLowerCase()}.`
+    return `请输入 ${name.toLowerCase()}.`
   },
   nameInvalidChars: (name: string): string => {
-    return `${name} must start with a-Z or 0-9 and can contain a-Z, 0-9 or -`
+    return `${name} 必须以 a-Z 或 0-9 开头，并且可以包含 a-Z、0-9 或 -`
   },
   nameTooLong: (name: string): string => {
-    return `${name} cannot be longer than 32 characters`
+    return `${name} 不能超过 32 个字符`
   },
 }
 

@@ -4,9 +4,9 @@ import * as TypesGen from "../../api/typesGenerated"
 import { displaySuccess } from "../../components/GlobalSnackbar/utils"
 
 export const Language = {
-  successProfileUpdate: "Updated settings.",
-  successSecurityUpdate: "Updated password.",
-  successRegenerateSSHKey: "SSH Key regenerated successfully",
+  successProfileUpdate: "更新了设置",
+  successSecurityUpdate: "更新了密码",
+  successRegenerateSSHKey: "SSH 密钥重新生成成功",
 }
 
 export const checks = {

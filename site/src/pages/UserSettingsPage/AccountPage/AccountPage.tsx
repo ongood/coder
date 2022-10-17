@@ -5,7 +5,7 @@ import { AccountForm } from "../../../components/SettingsAccountForm/SettingsAcc
 import { XServiceContext } from "../../../xServices/StateContext"
 
 export const Language = {
-  title: "Account",
+  title: "账号",
 }
 
 export const AccountPage: React.FC = () => {

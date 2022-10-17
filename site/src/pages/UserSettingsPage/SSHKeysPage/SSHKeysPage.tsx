@@ -6,7 +6,7 @@ import { XServiceContext } from "../../../xServices/StateContext"
 import { SSHKeysPageView } from "./SSHKeysPageView"
 
 export const Language = {
-  title: "SSH keys",
+  title: "SSH 密钥",
   description: (
     <p>
       The following public key is used to authenticate Git in workspaces. You

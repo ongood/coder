@@ -6,7 +6,7 @@ import { ComponentProps, FC } from "react"
 import { TemplateSettingsForm } from "./TemplateSettingsForm"
 
 export const Language = {
-  title: "Template settings",
+  title: "模板设置",
 }
 
 export interface TemplateSettingsPageViewProps {

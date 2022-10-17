@@ -14,14 +14,14 @@ import { FullPageForm } from "../FullPageForm/FullPageForm"
 import { Stack } from "../Stack/Stack"
 
 export const Language = {
-  emailLabel: "Email",
-  passwordLabel: "Password",
-  usernameLabel: "Username",
-  emailInvalid: "Please enter a valid email address.",
-  emailRequired: "Please enter an email address.",
-  passwordRequired: "Please enter a password.",
-  createUser: "Create",
-  cancel: "Cancel",
+  emailLabel: "电子邮箱",
+  passwordLabel: "密码",
+  usernameLabel: "用户名",
+  emailInvalid: "请输入一个有效的邮箱地址。",
+  emailRequired: "请输入邮箱地址。",
+  passwordRequired: "请输入密码",
+  createUser: "创建",
+  cancel: "取消",
 }
 
 export interface CreateUserFormProps {

@@ -21,8 +21,8 @@ import { AuditHelpTooltip } from "components/Tooltips"
 import { FC } from "react"
 
 export const Language = {
-  title: "Audit",
-  subtitle: "View events in your audit log.",
+  title: "审计",
+  subtitle: "查看审计日志中的事件。",
 }
 
 const presetFilters = [

@@ -8,11 +8,11 @@ import {
 } from "./HelpTooltip"
 
 export const Language = {
-  title: "What is a role?",
+  title: "什么是角色？",
   text:
-    "Coder role-based access control (RBAC) provides fine-grained access management. " +
-    "View our docs on how to use the available roles.",
-  link: "User Roles",
+    "Coder 基于角色的访问控制 (RBAC) 提供了细粒度的访问管理。" +
+    "查看我们的文档，了解如何使用可用角色。",
+  link: "用户角色",
 }
 
 export const UserRoleHelpTooltip: FC = () => {

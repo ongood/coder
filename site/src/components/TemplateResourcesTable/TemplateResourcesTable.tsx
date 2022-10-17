@@ -15,8 +15,8 @@ import { AgentHelpTooltip } from "../Tooltips/AgentHelpTooltip"
 import { ResourcesHelpTooltip } from "../Tooltips/ResourcesHelpTooltip"
 
 export const Language = {
-  resourceLabel: "Resource",
-  agentLabel: "Agent",
+  resourceLabel: "资源",
+  agentLabel: "代理",
 }
 
 export interface TemplateResourcesProps {

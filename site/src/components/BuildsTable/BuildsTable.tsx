@@ -20,12 +20,12 @@ import { TableCellLink } from "../TableCellLink/TableCellLink"
 import { TableLoader } from "../TableLoader/TableLoader"
 
 export const Language = {
-  emptyMessage: "No builds found",
-  inProgressLabel: "In progress",
-  actionLabel: "Action",
-  durationLabel: "Duration",
-  startedAtLabel: "Started at",
-  statusLabel: "Status",
+  emptyMessage: "未找到任何构建",
+  inProgressLabel: "进行中",
+  actionLabel: "动作",
+  durationLabel: "持续时间",
+  startedAtLabel: "开始于",
+  statusLabel: "状态",
 }
 
 export interface BuildsTableProps {

@@ -15,8 +15,8 @@ interface CopyButtonProps {
 }
 
 export const Language = {
-  tooltipTitle: "Copy to clipboard",
-  ariaLabel: "Copy to clipboard",
+  tooltipTitle: "复制到剪贴板",
+  ariaLabel: "复制到剪贴板",
 }
 
 /**

@@ -33,17 +33,17 @@ export enum LoginErrors {
 }
 
 export const Language = {
-  emailLabel: "Email",
-  passwordLabel: "Password",
-  emailInvalid: "Please enter a valid email address.",
-  emailRequired: "Please enter an email address.",
+  emailLabel: "电子邮箱",
+  passwordLabel: "密码",
+  emailInvalid: "请输入有效的电子邮箱地址。",
+  emailRequired: "请输入电子邮箱地址。",
   errorMessages: {
-    [LoginErrors.AUTH_ERROR]: "Incorrect email or password.",
-    [LoginErrors.GET_USER_ERROR]: "Failed to fetch user details.",
-    [LoginErrors.CHECK_PERMISSIONS_ERROR]: "Unable to fetch user permissions.",
-    [LoginErrors.GET_METHODS_ERROR]: "Unable to fetch auth methods.",
+    [LoginErrors.AUTH_ERROR]: "邮箱或密码不正确。",
+    [LoginErrors.GET_USER_ERROR]: "获取用户详细信息失败。",
+    [LoginErrors.CHECK_PERMISSIONS_ERROR]: "无法获取用户权限。",
+    [LoginErrors.GET_METHODS_ERROR]: "无法获取认证方法。",
   },
-  passwordSignIn: "Sign In",
+  passwordSignIn: "登入",
   githubSignIn: "GitHub",
   oidcSignIn: "OpenID Connect",
 }
