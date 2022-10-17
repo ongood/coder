@@ -9,7 +9,7 @@ import { Template, TemplateVersion } from "../../api/typesGenerated"
 import { MONOSPACE_FONT_FAMILY } from "../../theme/constants"
 
 const Language = {
-  usedByLabel: "用户数",
+  usedByLabel: "用户",
   buildTimeLabel: "创建时间",
   activeVersionLabel: "当前版本",
   lastUpdateLabel: "最后更新",
