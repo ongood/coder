@@ -136,7 +136,7 @@ export const SearchBarWithFilter: React.FC<
             ))}
             {docs && (
               <MenuItem component="a" href={docs} target="_blank">
-                View advanced filtering
+                查看高级过滤
               </MenuItem>
             )}
           </Menu>

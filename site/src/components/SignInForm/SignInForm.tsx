@@ -43,7 +43,7 @@ export const Language = {
     [LoginErrors.CHECK_PERMISSIONS_ERROR]: "无法获取用户权限。",
     [LoginErrors.GET_METHODS_ERROR]: "无法获取认证方法。",
   },
-  passwordSignIn: "登入",
+  passwordSignIn: "登录",
   githubSignIn: "GitHub",
   oidcSignIn: "OpenID Connect",
 }

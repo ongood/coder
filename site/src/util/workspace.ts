@@ -11,17 +11,17 @@ dayjs.extend(utc)
 dayjs.extend(minMax)
 
 export const DisplayWorkspaceBuildStatusLanguage = {
-  succeeded: "Succeeded",
-  pending: "Pending",
-  running: "Running",
-  canceling: "Canceling",
-  canceled: "Canceled",
-  failed: "Failed",
+  succeeded: "成功",
+  pending: "等待中",
+  running: "运行中",
+  canceling: "取消中",
+  canceled: "已取消",
+  failed: "失败",
 }
 
 export const DisplayAgentVersionLanguage = {
-  unknown: "unknown",
-  outdated: "outdated",
+  unknown: "未知",
+  outdated: "已过时",
 }
 
 export const getDisplayWorkspaceBuildStatus = (
@@ -106,10 +106,10 @@ export const displayWorkspaceBuildDuration = (
 }
 
 export const DisplayAgentStatusLanguage = {
-  loading: "Loading...",
-  connected: "⦿ Connected",
-  connecting: "⦿ Connecting",
-  disconnected: "◍ Disconnected",
+  loading: "加载中...",
+  connected: "⦿ 已连接",
+  connecting: "⦿ 连接中",
+  disconnected: "◍ 无法连接",
 }
 
 export const getDisplayAgentStatus = (

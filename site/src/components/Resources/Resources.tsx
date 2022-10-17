@@ -40,7 +40,7 @@ const Language = {
   agentLabel: "代理",
   statusLabel: "状态: ",
   versionLabel: "版本: ",
-  osLabel: "os: ",
+  osLabel: "系统: ",
 }
 
 interface ResourcesProps {

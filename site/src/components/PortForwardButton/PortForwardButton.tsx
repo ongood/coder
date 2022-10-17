@@ -62,9 +62,9 @@ const EnabledView: React.FC<PortForwardButtonProps> = (props) => {
   return (
     <>
       <HelpTooltipText>
-        使用 {" "} 访问代理上运行的端口
-        <strong>端口、代理名称、工作区名称</strong>和{" "}
-        <strong>您的用户名</strong> URL 架构，如下所示： 此端口 URL 只有您可以访问。
+        在访问代理上运行由{" "}
+        <strong>端口、代理名称、工作空间名称</strong>和{" "}
+        <strong>您的用户名</strong> 构成的URL，如下所示： 此 URL 只有您可以访问。
       </HelpTooltipText>
 
       <CodeExample code={urlExample} className={styles.code} />
@@ -95,7 +95,7 @@ const EnabledView: React.FC<PortForwardButtonProps> = (props) => {
           rel="noreferrer"
           className={styles.openUrlButton}
         >
-          <Button>Open URL</Button>
+          <Button>打开链接</Button>
         </Link>
       </Stack>
 
@@ -129,7 +129,7 @@ const EnabledView: React.FC<PortForwardButtonProps> = (props) => {
 
       <HelpTooltipLinksGroup>
         <HelpTooltipLink href="https://coder.com/docs/coder-oss/latest/networking/port-forwarding#dashboard">
-          Learn more about web port forwarding
+        了解有关 Web 端口转发的更多信息
         </HelpTooltipLink>
       </HelpTooltipLinksGroup>
     </>

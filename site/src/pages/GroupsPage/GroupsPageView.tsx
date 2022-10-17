@@ -55,7 +55,7 @@ export const GroupsPageView: React.FC<GroupsPageViewProps> = ({
                   rel="noreferrer"
                 >
                   <Button size="small" startIcon={<ArrowRightAltOutlined />}>
-                    See how to upgrade
+                    查看如何升级
                   </Button>
                 </Link>
                 <Link
@@ -64,7 +64,7 @@ export const GroupsPageView: React.FC<GroupsPageViewProps> = ({
                   target="_blank"
                   rel="noreferrer"
                 >
-                  Read the docs
+                  阅读文档
                 </Link>
               </Stack>
             }
@@ -75,8 +75,8 @@ export const GroupsPageView: React.FC<GroupsPageViewProps> = ({
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell width="50%">Name</TableCell>
-                  <TableCell width="49%">Users</TableCell>
+                  <TableCell width="50%">名称</TableCell>
+                  <TableCell width="49%">用户</TableCell>
                   <TableCell width="1%"></TableCell>
                 </TableRow>
               </TableHead>

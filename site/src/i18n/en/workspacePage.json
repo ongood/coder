@@ -19,7 +19,7 @@
     "workspaceShutdownWarning": "Your workspace is scheduled to automatically shut down soon."
   },
   "actionButton": {
-    "start": "开始",
+    "start": "启动",
     "stop": "停止",
     "delete": "删除",
     "cancel": "取消",

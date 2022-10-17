@@ -28,12 +28,12 @@ export const Language = {
 const presetFilters = [
   {
     query: "resource_type:workspace action:create",
-    name: "Created workspaces",
+    name: "已创建的工作空间",
   },
-  { query: "resource_type:template action:create", name: "Added templates" },
-  { query: "resource_type:user action:create", name: "Added users" },
-  { query: "resource_type:template action:delete", name: "Deleted templates" },
-  { query: "resource_type:user action:delete", name: "Deleted users" },
+  { query: "resource_type:template action:create", name: "已添加的模板" },
+  { query: "resource_type:user action:create", name: "已添加的用户" },
+  { query: "resource_type:template action:delete", name: "已删除的模板" },
+  { query: "resource_type:user action:delete", name: "已删除的用户" },
 ]
 
 export interface AuditPageViewProps {

@@ -131,18 +131,17 @@ const RoleSelect: FC<SelectProps> = (props) => {
     >
       <MenuItem key="use" value="use" className={styles.menuItem}>
         <div>
-          <div>Use</div>
+          <div>用户</div>
           <div className={styles.menuItemSecondary}>
-            Can read and use this template to create workspaces.
+          可以读取并使用此模板来创建工作区.
           </div>
         </div>
       </MenuItem>
       <MenuItem key="admin" value="admin" className={styles.menuItem}>
         <div>
-          <div>Admin</div>
+          <div>管理员</div>
           <div className={styles.menuItemSecondary}>
-            Can modify all aspects of this template including permissions,
-            metadata, and template versions.
+          可以修改此模板的各个方面包括权限、元数据和模板版本。
           </div>
         </div>
       </MenuItem>
