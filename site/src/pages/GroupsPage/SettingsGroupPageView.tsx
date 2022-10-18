@@ -37,7 +37,7 @@ const UpdateGroupForm: React.FC<{
   const getFieldHelpers = getFormHelpers<FormData>(form, errors)
 
   return (
-    <FullPageForm title="Group settings" onCancel={onCancel}>
+    <FullPageForm title="用户组设置" onCancel={onCancel}>
       <form onSubmit={form.handleSubmit}>
         <TextField
           {...getFieldHelpers("name")}
@@ -45,7 +45,7 @@ const UpdateGroupForm: React.FC<{
           autoComplete="name"
           autoFocus
           fullWidth
-          label="Name"
+          label="名称"
           variant="outlined"
         />
         <TextField
@@ -53,7 +53,7 @@ const UpdateGroupForm: React.FC<{
           onChange={onChangeTrimmed(form)}
           autoFocus
           fullWidth
-          label="Avatar URL"
+          label="头像网址"
           variant="outlined"
         />
         <FormFooter onCancel={onCancel} isLoading={isLoading} />
