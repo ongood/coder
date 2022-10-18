@@ -10,18 +10,18 @@ import * as Yup from "yup"
 import * as TypesGen from "../../api/typesGenerated"
 
 export const Language = {
-  emailLabel: "Email",
-  passwordLabel: "Password",
-  usernameLabel: "Username",
-  organizationLabel: "Organization name",
-  emailInvalid: "Please enter a valid email address.",
-  emailRequired: "Please enter an email address.",
-  passwordRequired: "Please enter a password.",
-  organizationRequired: "Please enter an organization name.",
-  create: "Setup account",
+  emailLabel: "电子邮件",
+  passwordLabel: "密码",
+  usernameLabel: "用户名",
+  organizationLabel: "组织名称",
+  emailInvalid: "请输入有效的电子邮件地址。",
+  emailRequired: "请输入电子邮件地址。",
+  passwordRequired: "请输入密码。",
+  organizationRequired: "请输入组织名称。",
+  create: "设置帐户",
   welcomeMessage: (
     <>
-      Set up <strong>your account</strong>
+      设置 <strong>您的账号</strong>
     </>
   ),
 }

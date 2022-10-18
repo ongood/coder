@@ -22,11 +22,10 @@ export const ResourceAgentLatency: React.FC<ResourceAgentLatencyProps> = (
   return (
     <div className={styles.root}>
       <div className={styles.title}>
-        <b>Latency</b>
+        <b>延迟</b>
         <HelpTooltip size="small">
           <HelpTooltipText>
-            Latency from relay servers, used when connections cannot connect
-            peer-to-peer. Star indicates the preferred relay.
+            中继服务器的延迟，在无法点对点连接时使用，星号表示首选中继服务器。
           </HelpTooltipText>
         </HelpTooltip>
       </div>

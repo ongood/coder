@@ -34,13 +34,13 @@ import { ResourceAvatarData } from "./ResourceAvatarData"
 import { AlertBanner } from "components/AlertBanner/AlertBanner"
 
 const Language = {
-  resources: "Resources",
-  resourceLabel: "Resource",
-  agentsLabel: "Agents",
-  agentLabel: "Agent",
-  statusLabel: "status: ",
-  versionLabel: "version: ",
-  osLabel: "os: ",
+  resources: "所有资源",
+  resourceLabel: "资源",
+  agentsLabel: "所有代理",
+  agentLabel: "代理",
+  statusLabel: "状态: ",
+  versionLabel: "版本: ",
+  osLabel: "系统: ",
 }
 
 interface ResourcesProps {

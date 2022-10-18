@@ -640,7 +640,7 @@ func createUser(ctx context.Context, t *testing.T, db database.Store) database.U
 		UpdatedAt:      time.Now(),
 		RBACRoles:      []string{},
 	})
-	require.NoError(t, err, "create user")
+	require.NoError(t, err, "创建用户")
 	return user
 }
 

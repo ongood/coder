@@ -5,9 +5,9 @@ import {
 } from "./HelpTooltip/HelpTooltip"
 
 export const Language = {
-  agentTooltipTitle: "What is an agent?",
+  agentTooltipTitle: "什么是代理？",
   agentTooltipText:
-    "The Coder agent runs inside your resource and gives you direct access to the shell via the UI or CLI.",
+    "Coder 代理在您的资源中运行，并让您可以通过 UI 或 CLI 直接访问 shell。",
 }
 
 export const AgentHelpTooltip: React.FC = () => {

@@ -10,9 +10,9 @@ export const Language = {
   buildInfoText: (buildInfo: TypesGen.BuildInfoResponse): string => {
     return `Coder ${buildInfo.version}`
   },
-  copyrightText: `Copyright \u00a9 ${new Date().getFullYear()} Coder Technologies, Inc.`,
-  reportBugLink: "Report an issue or share feedback",
-  discordLink: "Join Coder on Discord",
+  copyrightText: `版权所有 \u00a9 ${new Date().getFullYear()} Coder Technologies, Inc.`,
+  reportBugLink: "报告问题或分享反馈",
+  discordLink: "在 Discord 上加入 Coder",
 }
 
 export interface FooterProps {

@@ -9,9 +9,9 @@ import * as TypesGen from "../../api/typesGenerated"
 import { MONOSPACE_FONT_FAMILY } from "../../theme/constants"
 
 export const Language = {
-  of: "of",
-  workspace: "workspace",
-  workspaces: "workspaces",
+  of: "之",
+  workspace: "工作区",
+  workspaces: "工作区",
 }
 
 export interface WorkspaceQuotaProps {

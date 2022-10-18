@@ -14,16 +14,16 @@ interface SecurityFormValues {
 }
 
 export const Language = {
-  oldPasswordLabel: "Old Password",
-  newPasswordLabel: "New Password",
-  confirmPasswordLabel: "Confirm Password",
-  oldPasswordRequired: "Old password is required",
-  newPasswordRequired: "New password is required",
-  confirmPasswordRequired: "Password confirmation is required",
-  passwordMinLength: "Password must be at least 8 characters",
-  passwordMaxLength: "Password must be no more than 64 characters",
-  confirmPasswordMatch: "Password and confirmation must match",
-  updatePassword: "Update password",
+  oldPasswordLabel: "旧密码",
+  newPasswordLabel: "新密码",
+  confirmPasswordLabel: "确认密码",
+  oldPasswordRequired: "需要旧密码",
+  newPasswordRequired: "需要新密码",
+  confirmPasswordRequired: "需要密码确认",
+  passwordMinLength: "密码必须至少为 8 个字符",
+  passwordMaxLength: "密码不能超过 64 个字符",
+  confirmPasswordMatch: "密码和确认密码必须匹配",
+  updatePassword: "更新密码",
 }
 
 const validationSchema = Yup.object({

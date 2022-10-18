@@ -8,8 +8,8 @@ import { combineClasses } from "../../util/combineClasses"
 import { generateRandomString } from "../../util/random"
 
 export const Language = {
-  linkText: "Terminal",
-  terminalTitle: (identifier: string): string => `Terminal - ${identifier}`,
+  linkText: "终端",
+  terminalTitle: (identifier: string): string => `终端 - ${identifier}`,
 }
 
 export interface TerminalLinkProps {

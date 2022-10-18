@@ -98,7 +98,7 @@ export const UserAutocomplete: FC<UserAutocompleteProps> = ({
           variant="outlined"
           margin={inputMargin ?? "normal"}
           label={label ?? undefined}
-          placeholder="User email or username"
+          placeholder="用户邮箱或用户名"
           className={inputStyles}
           InputProps={{
             ...params.InputProps,

@@ -98,7 +98,7 @@ export const UserOrGroupAutocomplete: React.FC<
           {...params}
           margin="none"
           variant="outlined"
-          placeholder="Search for user or group"
+          placeholder="搜索用户或用户组"
           InputProps={{
             ...params.InputProps,
             onChange: handleFilterChange,
