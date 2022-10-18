@@ -25,6 +25,7 @@ export const Language = {
   templates: "模板",
   users: "用户",
   audit: "审计",
+  deployment: "部署",
 }
 
 const NavItems: React.FC<
