@@ -24,15 +24,15 @@ export const Language = {
   formAriaLabel: "Template settings form",
   selectEmoji: "Select emoji",
   ttlMaxError:
-    "Please enter a limit that is less than or equal to 168 hours (7 days).",
+    "请输入小于或等于 24000 小时（1000 天）",
   descriptionMaxError:
-    "Please enter a description that is less than or equal to 128 characters.",
+    "请输入少于或等于 128 个字符的描述。",
   ttlHelperText: (ttl: number): string =>
-    `Workspaces created from this template may not remain running longer than ${ttl} hours.`,
+    `此模板创建的工作区的运行时间不得超过 ${ttl} 小时。`,
 }
 
 const MAX_DESCRIPTION_CHAR_LIMIT = 128
-const MAX_TTL_DAYS = 7
+const MAX_TTL_DAYS = 1000
 const MS_HOUR_CONVERSION = 3600000
 
 export const validationSchema = Yup.object({
