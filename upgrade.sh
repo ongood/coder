@@ -36,7 +36,7 @@ sleep 5
 
 echo -e "\n---- 合并origin/translatoin-cn分支的更改----"
 echo -e "\n>git merge origin/translatoin-cn -m 中文翻译"
-git merge origin/dev --allow-unrelated-histories -m 中文翻译
+git merge origin/translatoin-cn --allow-unrelated-histories -m 中文翻译
 
 sleep 5
 
