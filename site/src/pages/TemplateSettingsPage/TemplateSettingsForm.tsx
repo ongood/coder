@@ -24,7 +24,7 @@ export const Language = {
   formAriaLabel: "Template settings form",
   selectEmoji: "Select emoji",
   ttlMaxError:
-    "Please enter a limit that is less than or equal to 168 hours (7 days).",
+    "Please enter a limit that is less than or equal to 24000 hours (1000 days).",
   descriptionMaxError:
     "Please enter a description that is less than or equal to 128 characters.",
   ttlHelperText: (ttl: number): string =>
@@ -32,7 +32,7 @@ export const Language = {
 }
 
 const MAX_DESCRIPTION_CHAR_LIMIT = 128
-const MAX_TTL_DAYS = 7
+const MAX_TTL_DAYS = 1000
 const MS_HOUR_CONVERSION = 3600000
 
 export const validationSchema = Yup.object({
