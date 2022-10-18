@@ -4,8 +4,8 @@ import { FC } from "react"
 import { LoadingButton } from "../LoadingButton/LoadingButton"
 
 export const Language = {
-  cancelLabel: "Cancel",
-  defaultSubmitLabel: "Submit",
+  cancelLabel: "取消",
+  defaultSubmitLabel: "提交",
 }
 
 export interface FormFooterProps {

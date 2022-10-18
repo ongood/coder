@@ -6,7 +6,7 @@ import { FC } from "react"
 import { AssignableRoles, Role } from "../../api/typesGenerated"
 
 export const Language = {
-  label: "Roles",
+  label: "角色",
 }
 export interface RoleSelectProps {
   roles: AssignableRoles[]

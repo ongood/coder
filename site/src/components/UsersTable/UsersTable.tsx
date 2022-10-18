@@ -11,10 +11,10 @@ import { UserRoleHelpTooltip } from "../Tooltips"
 import { UsersTableBody } from "./UsersTableBody"
 
 export const Language = {
-  usernameLabel: "User",
-  rolesLabel: "Roles",
-  statusLabel: "Status",
-  lastSeenLabel: "Last Seen",
+  usernameLabel: "用户",
+  rolesLabel: "角色",
+  statusLabel: "状态",
+  lastSeenLabel: "最近登录",
 }
 
 export interface UsersTableProps {

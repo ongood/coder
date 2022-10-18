@@ -27,8 +27,8 @@ dayjs.extend(relativeTime)
 dayjs.extend(timezone)
 
 export const Language = {
-  editScheduleLink: "Edit schedule",
-  timezoneLabel: "Timezone",
+  editScheduleLink: "编辑时间表",
+  timezoneLabel: "时区",
 }
 
 export interface WorkspaceScheduleProps {

@@ -32,7 +32,7 @@ export const UsersLayout: FC<PropsWithChildren> = ({ children }) => {
                   }}
                   startIcon={<PersonAdd />}
                 >
-                  Create user
+                  创建用户
                 </Button>
               )}
               {canCreateGroup && isTemplateRBACEnabled && (
@@ -41,13 +41,13 @@ export const UsersLayout: FC<PropsWithChildren> = ({ children }) => {
                   component={RouterLink}
                   to="/groups/create"
                 >
-                  <Button startIcon={<GroupAdd />}>Create group</Button>
+                  <Button startIcon={<GroupAdd />}>创建用户组</Button>
                 </Link>
               )}
             </>
           }
         >
-          <PageHeaderTitle>Users</PageHeaderTitle>
+          <PageHeaderTitle>用户</PageHeaderTitle>
         </PageHeader>
       </Margins>
 
@@ -64,7 +64,7 @@ export const UsersLayout: FC<PropsWithChildren> = ({ children }) => {
                 ])
               }
             >
-              Users
+              用户
             </NavLink>
             <NavLink
               to="/groups"
@@ -75,7 +75,7 @@ export const UsersLayout: FC<PropsWithChildren> = ({ children }) => {
                 ])
               }
             >
-              Groups
+              用户组
             </NavLink>
           </Stack>
         </Margins>
