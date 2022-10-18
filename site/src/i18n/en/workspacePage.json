@@ -1,13 +1,13 @@
 {
   "deleteDialog": {
-    "info": "This workspace was created {{timeAgo}}."
+    "info": "工作空间已创建{{timeAgo}}."
   },
   "workspaceScheduleButton": {
-    "schedule": "Schedule",
-    "editDeadlineMinus": "Subtract hours",
-    "editDeadlinePlus": "Add hours",
-    "submitDeadline": "Set",
-    "hours": "Hours"
+    "schedule": "日程",
+    "editDeadlineMinus": "减去小时数",
+    "editDeadlinePlus": "增加小时数",
+    "submitDeadline": "设定",
+    "hours": "小时"
   },
   "ctas": {
     "createWorkspaceCta": "Create new workspace",
@@ -19,19 +19,19 @@
     "workspaceShutdownWarning": "Your workspace is scheduled to automatically shut down soon."
   },
   "actionButton": {
-    "start": "Start",
-    "stop": "Stop",
-    "delete": "Delete",
-    "cancel": "Cancel",
-    "update": "Update",
-    "updating": "Updating",
-    "starting": "Starting...",
-    "stopping": "Stopping...",
-    "deleting": "Deleting..."
+    "start": "启动",
+    "stop": "停止",
+    "delete": "删除",
+    "cancel": "取消",
+    "update": "升级",
+    "updating": "升级中",
+    "starting": "启动中...",
+    "stopping": "停止中...",
+    "deleting": "删除中..."
   },
   "disabledButton": {
-    "canceling": "Canceling",
-    "deleted": "Deleted",
-    "pending": "Pending"
+    "canceling": "取消中",
+    "deleted": "已删除",
+    "pending": "等待中"
   }
 }

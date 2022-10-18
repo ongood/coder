@@ -82,7 +82,7 @@ Failed.args = {
   workspace: Mocks.MockFailedWorkspace,
   workspaceErrors: {
     [WorkspaceErrors.BUILD_ERROR]: Mocks.makeMockApiError({
-      message: "A workspace build is already active.",
+      message: "工作区构建已处于活动状态。",
     }),
   },
 }

@@ -13,10 +13,10 @@ import { EmptyState } from "../EmptyState/EmptyState"
 import { TableLoader } from "../TableLoader/TableLoader"
 
 export const Language = {
-  emptyMessage: "No versions found",
-  nameLabel: "Version name",
-  createdAtLabel: "Created at",
-  createdByLabel: "Created by",
+  emptyMessage: "未找到任何版本",
+  nameLabel: "版本名",
+  createdAtLabel: "创建于",
+  createdByLabel: "创建者",
 }
 
 export interface VersionsTableProps {

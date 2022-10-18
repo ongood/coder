@@ -7,10 +7,10 @@ import {
 } from "./HelpTooltip/HelpTooltip"
 
 export const Language = {
-  resourceTooltipTitle: "What is a resource?",
+  resourceTooltipTitle: "什么是资源？",
   resourceTooltipText:
-    "A resource is an infrastructure object that is created when the workspace is provisioned.",
-  resourceTooltipLink: "Persistent vs. ephemeral resources",
+    "资源是在构建工作区时创建的基础结构对象。",
+  resourceTooltipLink: "持久资源与临时资源",
 }
 
 export const ResourcesHelpTooltip: React.FC = () => {

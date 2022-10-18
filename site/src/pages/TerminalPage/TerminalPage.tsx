@@ -19,9 +19,9 @@ import { pageTitle } from "../../util/page"
 import { terminalMachine } from "../../xServices/terminal/terminalXService"
 
 export const Language = {
-  workspaceErrorMessagePrefix: "Unable to fetch workspace: ",
-  workspaceAgentErrorMessagePrefix: "Unable to fetch workspace agent: ",
-  websocketErrorMessagePrefix: "WebSocket failed: ",
+  workspaceErrorMessagePrefix: "无法获取工作区: ",
+  workspaceAgentErrorMessagePrefix: "无法获取工作区代理: ",
+  websocketErrorMessagePrefix: "WebSocket 失败: ",
 }
 
 const TerminalPage: FC<

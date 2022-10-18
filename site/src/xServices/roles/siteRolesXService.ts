@@ -4,7 +4,7 @@ import * as TypesGen from "../../api/typesGenerated"
 import { displayError } from "../../components/GlobalSnackbar/utils"
 
 export const Language = {
-  getRolesError: "Error on get the roles.",
+  getRolesError: "获取角色时出错。",
 }
 
 type SiteRolesContext = {

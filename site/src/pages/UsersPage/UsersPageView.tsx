@@ -5,8 +5,8 @@ import { UsersTable } from "../../components/UsersTable/UsersTable"
 import { userFilterQuery } from "../../util/filters"
 
 export const Language = {
-  activeUsersFilterName: "Active users",
-  allUsersFilterName: "All users",
+  activeUsersFilterName: "活跃用户",
+  allUsersFilterName: "所有用户",
 }
 export interface UsersPageViewProps {
   users?: TypesGen.User[]

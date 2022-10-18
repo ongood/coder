@@ -5,8 +5,8 @@ import { ReactElement } from "react"
 import { CopyButton } from "../CopyButton/CopyButton"
 
 export const Language = {
-  reloadApp: "Reload Application",
-  copyReport: "Copy Report",
+  reloadApp: "重载应用",
+  copyReport: "复制报告",
 }
 
 /**

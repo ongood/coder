@@ -26,7 +26,7 @@ export const ExampleOneRole = Template.bind({})
 ExampleOneRole.args = {
   user: {
     ...MockUser,
-    roles: [{ name: "member", display_name: "Member" }],
+    roles: [{ name: "member", display_name: "成员" }],
   },
 }
 
@@ -35,9 +35,9 @@ ExampleThreeRoles.args = {
   user: {
     ...MockUser,
     roles: [
-      { name: "admin", display_name: "Admin" },
-      { name: "member", display_name: "Member" },
-      { name: "auditor", display_name: "Auditor" },
+      { name: "admin", display_name: "管理员" },
+      { name: "member", display_name: "成员" },
+      { name: "auditor", display_name: "审计员" },
     ],
   },
 }

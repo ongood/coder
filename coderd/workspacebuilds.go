@@ -399,7 +399,7 @@ func (api *API) postWorkspaceBuilds(rw http.ResponseWriter, r *http.Request) {
 		priorJob, err := api.Database.GetProvisionerJobByID(ctx, priorHistory.JobID)
 		if err == nil && convertProvisionerJob(priorJob).Status.Active() {
 			httpapi.Write(ctx, rw, http.StatusConflict, codersdk.Response{
-				Message: "A workspace build is already active.",
+				Message: "工作区构建已处于活动状态。",
 			})
 			return
 		}

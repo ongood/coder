@@ -8,8 +8,8 @@ import { Stack } from "components/Stack/Stack"
 import { FC } from "react"
 
 export const Language = {
-  errorRegenerateSSHKey: "Error on regenerating the SSH Key",
-  regenerateLabel: "Regenerate",
+  errorRegenerateSSHKey: "重新生成 SSH 密钥时出错",
+  regenerateLabel: "重新生成",
 }
 
 export interface SSHKeysPageViewProps {

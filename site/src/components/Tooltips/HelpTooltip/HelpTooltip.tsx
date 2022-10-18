@@ -16,7 +16,7 @@ export interface HelpTooltipProps {
 }
 
 export const Language = {
-  ariaLabel: "tooltip",
+  ariaLabel: "工具提示",
 }
 
 const HelpTooltipContext = createContext<

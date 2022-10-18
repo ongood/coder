@@ -26,7 +26,7 @@ export const WorkspaceBuildStats: FC<WorkspaceBuildStatsProps> = ({
   return (
     <div className={styles.stats}>
       <div className={styles.statItem}>
-        <span className={styles.statsLabel}>Workspace Name</span>
+        <span className={styles.statsLabel}>工作空间名称</span>
         <Link
           component={RouterLink}
           to={`/@${build.workspace_owner_name}/${build.workspace_name}`}
@@ -38,28 +38,28 @@ export const WorkspaceBuildStats: FC<WorkspaceBuildStatsProps> = ({
       <div className={styles.statsDivider} />
 
       <div className={styles.statItem}>
-        <span className={styles.statsLabel}>Duration</span>
+        <span className={styles.statsLabel}>持续时间</span>
         <span className={styles.statsValue}>
           {displayWorkspaceBuildDuration(build)}
         </span>
       </div>
       <div className={styles.statsDivider} />
       <div className={styles.statItem}>
-        <span className={styles.statsLabel}>Started at</span>
+        <span className={styles.statsLabel}>开始于</span>
         <span className={styles.statsValue}>
           {new Date(build.created_at).toLocaleString()}
         </span>
       </div>
       <div className={styles.statsDivider} />
       <div className={styles.statItem}>
-        <span className={styles.statsLabel}>Status</span>
+        <span className={styles.statsLabel}>状态</span>
         <span className={styles.statsValue}>
           <span style={{ color: status.color }}>{status.status}</span>
         </span>
       </div>
       <div className={styles.statsDivider} />
       <div className={styles.statItem}>
-        <span className={styles.statsLabel}>Action</span>
+        <span className={styles.statsLabel}>动作</span>
         <span
           className={combineClasses([styles.statsValue, styles.capitalize])}
         >
@@ -68,7 +68,7 @@ export const WorkspaceBuildStats: FC<WorkspaceBuildStatsProps> = ({
       </div>
       <div className={styles.statsDivider} />
       <div className={styles.statItem}>
-        <span className={styles.statsLabel}>Initiated by</span>
+        <span className={styles.statsLabel}>发起人</span>
         <span className={styles.statsValue}>{initiatedBy}</span>
       </div>
     </div>
