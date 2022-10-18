@@ -70,18 +70,18 @@ git push origin --tags
 
 sleep 5
 
-echo -e "\n---- 删除本地临时分支cdr-main----"
-echo -e "\n>git branch -D cdr-main"
-git branch -D cdr-main
+# echo -e "\n---- 删除本地临时分支cdr-main----"
+# echo -e "\n>git branch -D cdr-main"
+# git branch -D cdr-main
 
-sleep 5
+# sleep 5
 
-echo -e "\n---- 本地删除失效的远程分支----"
-echo -e "\n>git remote prune origin"
-git remote prune origin
+# echo -e "\n---- 本地删除失效的远程分支----"
+# echo -e "\n>git remote prune origin"
+# git remote prune origin
 
-sleep 5
+# sleep 5
 
-echo -e "\n---- 删除远程代码库的本地标记coder----"
-echo -e "\n>git remote rm coder"
-git remote rm coder
+# echo -e "\n---- 删除远程代码库的本地标记coder----"
+# echo -e "\n>git remote rm coder"
+# git remote rm coder
