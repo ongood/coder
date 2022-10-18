@@ -34,7 +34,7 @@
     "@material-ui/lab": "4.0.0-alpha.42",
     "@testing-library/react-hooks": "8.0.1",
     "@vitejs/plugin-react": "2.1.0",
-    "@xstate/inspect": "0.6.5",
+    "@xstate/inspect": "0.7.0",
     "@xstate/react": "3.0.1",
     "axios": "0.26.1",
     "can-ndjson-stream": "1.0.2",
