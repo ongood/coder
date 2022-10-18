@@ -2,7 +2,7 @@
 # 将仓库的代码git clone 到本地，新建一个开发分支dev，进行必要的修改和开发。
 # 下面步骤是同步官方的更新到自己的修改过的代码仓库
 
-TAG="v1.3.3"
+TAG="v1.4.0"
 
 echo -e "\n---- 添加远程代码库，本地标记为coder----"
 echo -e "\n>git remote add coder git@github-ongood.com:ongood/cdr-coder.git"
