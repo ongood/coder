@@ -76,7 +76,7 @@ func Flags() *codersdk.DeploymentFlags {
 			Flag:        "derp-server-region-name",
 			EnvVar:      "CODER_DERP_SERVER_REGION_NAME",
 			Description: "Region name that for the embedded DERP server.",
-			Default:     "Coder嵌入式中继服务器",
+			Default:     "Coder中继服务器",
 		},
 		DerpServerSTUNAddresses: &codersdk.StringArrayFlag{
 			Name:        "DERP Server STUN Addresses",
