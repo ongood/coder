@@ -21,11 +21,11 @@ export interface NavbarViewProps {
 }
 
 export const Language = {
-  workspaces: "Workspaces",
-  templates: "Templates",
-  users: "Users",
-  audit: "Audit",
-  deployment: "Deployment",
+  workspaces: "空间",
+  templates: "模板",
+  users: "用户",
+  audit: "审计",
+  deployment: "部署",
 }
 
 const NavItems: React.FC<
