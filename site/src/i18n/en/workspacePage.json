@@ -30,8 +30,13 @@
     "deleting": "删除中..."
   },
   "disabledButton": {
-    "canceling": "取消中",
-    "deleted": "已删除",
-    "pending": "等待中"
+    "canceling": "Canceling",
+    "deleted": "Deleted",
+    "pending": "Pending"
+  },
+  "agentStatus": {
+    "connected": "Connected",
+    "connecting": "Connecting...",
+    "disconnected": "Disconnected"
   }
 }
