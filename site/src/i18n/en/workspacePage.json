@@ -1,6 +1,6 @@
 {
   "deleteDialog": {
-    "info": "工作空间已创建{{timeAgo}}."
+    "info": "工作空间创建于{{timeAgo}}."
   },
   "workspaceScheduleButton": {
     "schedule": "日程",
@@ -10,13 +10,13 @@
     "hours": "小时"
   },
   "ctas": {
-    "createWorkspaceCta": "Create new workspace",
-    "extendScheduleCta": "Extend"
+    "createWorkspaceCta": "创建新工作区",
+    "extendScheduleCta": "延长"
   },
   "warningsAndErrors": {
-    "workspaceRefreshWarning": "We're having difficulty fetching the latest workspace state. Refresh the page to see the newest changes.",
-    "workspaceDeletedWarning": "This workspace has been deleted and cannot be edited.",
-    "workspaceShutdownWarning": "Your workspace is scheduled to automatically shut down soon."
+    "workspaceRefreshWarning": "我们在获取最新的工作区状态时遇到了困难。刷新页面以查看最新的更改。",
+    "workspaceDeletedWarning": "此工作区已被删除，无法编辑。",
+    "workspaceShutdownWarning": "您的工作区计划很快自动关闭。"
   },
   "actionButton": {
     "start": "启动",

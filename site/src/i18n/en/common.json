@@ -13,23 +13,23 @@
     "pending": "等待中"
   },
   "deleteDialog": {
-    "title": "Delete {{entity}}",
-    "intro": "Deleting this {{entity}} is irreversible!",
-    "confirm": "Are you sure you want to proceed? Type the name of this {{entity}} below to confirm.",
-    "confirmLabel": "Name of {{entity}} to delete",
-    "incorrectName": "Incorrect {{entity}} name."
+    "title": "删除 {{entity}}",
+    "intro": "删除这个 {{entity}} 是不可逆的!",
+    "confirm": "您确定要继续吗？在下方输入 {{entity}} 的名称以确认。",
+    "confirmLabel": "输入 {{entity}} 的名称以删除",
+    "incorrectName": "不正确的 {{entity}} 名称。"
   },
   "schedule": {
-    "autoStartLabel": "Starts at",
-    "autoStopLabel": "Stops at"
+    "autoStartLabel": "开始于",
+    "autoStopLabel": "停止于"
   },
   "ctas": {
-    "dismissCta": "Dismiss",
-    "expand": "Click here to learn more",
-    "collapse": "Click here to hide",
-    "retry": "Retry"
+    "dismissCta": "解雇",
+    "expand": "点击这里了解更多",
+    "collapse": "点击这里以隐藏",
+    "retry": "重试"
   },
   "warningsAndErrors": {
-    "somethingWentWrong": "Something went wrong."
+    "somethingWentWrong": "遇到了点问题."
   }
 }
