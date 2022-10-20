@@ -38,14 +38,14 @@ export const WorkspaceBuildStats: FC<WorkspaceBuildStatsProps> = ({
       <div className={styles.statsDivider} />
 
       <div className={styles.statItem}>
-        <span className={styles.statsLabel}>持续时间</span>
+        <span className={styles.statsLabel}>持续</span>
         <span className={styles.statsValue}>
           {displayWorkspaceBuildDuration(build)}
         </span>
       </div>
       <div className={styles.statsDivider} />
       <div className={styles.statItem}>
-        <span className={styles.statsLabel}>开始于</span>
+        <span className={styles.statsLabel}>始于</span>
         <span className={styles.statsValue}>
           {new Date(build.created_at).toLocaleString()}
         </span>

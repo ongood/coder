@@ -26,9 +26,9 @@ export const Language = {
   ttlMaxError:
     "请输入小于或等于 24000 小时（1000 天）的允许运行时长。",
   descriptionMaxError:
-    "Please enter a description that is less than or equal to 128 characters.",
+    "请输入不超过128个字符的描述。",
   ttlHelperText: (ttl: number): string =>
-    `由此模板创建的工作区的总运行时间不得超过 ${ttl} 小时。`,
+    `由此模板创建的工作区的总运行时长不得超过 ${ttl} 小时。`,
 }
 
 const MAX_DESCRIPTION_CHAR_LIMIT = 128

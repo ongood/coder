@@ -40,7 +40,7 @@ dayjs.extend(timezone)
 
 export const Language = {
   errorNoDayOfWeek:
-    "如果启用自动启动，则必须至少设置一周中的一天。",
+    "如果启用自动启动，则必须至少设置一周中的某一天。",
   errorNoTime: "启用自动启动时需要启动时间。",
   errorTime: "时间必须是 HH:mm 格式（24 小时）。",
   errorTimezone: "时区无效。",
@@ -48,8 +48,8 @@ export const Language = {
     "启用自动停止时，直到关闭的时间必须大于零。",
   errorTtlMax:
     "请输入小于或等于 24000 小时（1000 天）的限制。",
-  daysOfWeekLabel: "星期几",
-  daySundayLabel: "星期天",
+  daysOfWeekLabel: "星期",
+  daySundayLabel: "星期日",
   dayMondayLabel: "星期一",
   dayTuesdayLabel: "星期二",
   dayWednesdayLabel: "星期三",
@@ -59,13 +59,13 @@ export const Language = {
   startTimeLabel: "开始时间",
   startTimeHelperText: "此时您的工作区将自动启动。",
   noStartTimeHelperText: "您的工作区不会自动启动。",
-  timezoneLabel: "Timezone",
-  ttlLabel: "关机前的时间（小时）",
-  ttlCausesShutdownHelperText: "您的工作区将关闭",
+  timezoneLabel: "时区",
+  ttlLabel: "被停止前的时间（小时）",
+  ttlCausesShutdownHelperText: "您的工作区将被停止",
   ttlCausesShutdownAfterStart:
-    "在下一次启动之后。每当我们检测到活动时，我们都会将关机延迟一个小时",
+    "在下一次启动之后。每当我们检测到活动时，我们都会延迟一个小时停止",
   ttlCausesNoShutdownHelperText:
-    "您的工作区不会自动关闭。",
+    "您的工作区不会自动停止。",
   formTitle: "工作区时间表",
   startSection: "开始",
   startSwitch: "自动开始",

@@ -211,7 +211,7 @@ export const GroupPage: React.FC = () => {
           isOpen={state.matches("confirmingDelete")}
           confirmLoading={state.matches("deleting")}
           name={group.name}
-          entity="group"
+          entity="用户组"
           onConfirm={() => {
             send("CONFIRM_DELETE")
           }}
