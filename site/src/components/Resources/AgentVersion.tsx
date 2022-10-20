@@ -35,7 +35,7 @@ export const AgentVersion: FC<{
         onMouseLeave={() => setIsOpen(false)}
         className={styles.trigger}
       >
-        Agent Outdated
+        代理过时
       </span>
       <HelpPopover
         id={id}
@@ -44,11 +44,11 @@ export const AgentVersion: FC<{
         onOpen={() => setIsOpen(true)}
         onClose={() => setIsOpen(false)}
       >
-        <HelpTooltipTitle>Agent Outdated</HelpTooltipTitle>
+        <HelpTooltipTitle>代理过时</HelpTooltipTitle>
         <HelpTooltipText>
-          This agent is an older version than the Coder server. This can happen
-          after you update Coder with running workspaces. To fix this, you can
-          stop and start the workspace.
+          此代理的版本比 Coder 服务器的版本旧。
+          当前正在运行的工作区如果更新编码器后，可能会发生这种情况。
+          要解决此问题，你可以停止并重启工作区。
         </HelpTooltipText>
       </HelpPopover>
     </>
