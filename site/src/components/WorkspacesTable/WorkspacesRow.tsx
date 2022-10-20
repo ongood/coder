@@ -18,7 +18,7 @@ import { OutdatedHelpTooltip } from "../Tooltips"
 
 const Language = {
   upToDateLabel: "最新",
-  outdatedLabel: "已过时",
+  outdatedLabel: "过时",
 }
 
 export const WorkspacesRow: FC<

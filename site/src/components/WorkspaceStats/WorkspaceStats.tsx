@@ -15,7 +15,7 @@ const Language = {
   statusLabel: "工作区状态",
   versionLabel: "版本",
   lastBuiltLabel: "最后创建",
-  outdated: "已过时",
+  outdated: "过时",
   upToDate: "最新",
   byLabel: "最后创建者",
 }

@@ -21,7 +21,7 @@ export const DisplayWorkspaceBuildStatusLanguage = {
 
 export const DisplayAgentVersionLanguage = {
   unknown: "未知",
-  outdated: "已过时",
+  outdated: "过时",
 }
 
 export const getDisplayWorkspaceBuildStatus = (
