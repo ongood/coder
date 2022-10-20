@@ -17,14 +17,14 @@ const estimateFinish = (
 
   const maxPercentage = 1
   if (realPercentage > maxPercentage) {
-    return [maxPercentage * 100, "Any moment now..."]
+    return [maxPercentage * 100, "马上就好..."]
   }
 
   return [
     realPercentage * 100,
     `~${Math.ceil(
       dayjs.duration((1 - realPercentage) * buildEstimate).asSeconds(),
-    )} seconds remaining...`,
+    )} 剩余秒数...`,
   ]
 }
 

@@ -123,7 +123,7 @@ export const UsersPage: FC<{ children?: ReactNode }> = () => {
           isOpen={usersState.matches("confirmUserDeletion")}
           confirmLoading={usersState.matches("deletingUser")}
           name={userToBeDeleted.username}
-          entity="user"
+          entity="用户"
           onConfirm={() => {
             usersSend("CONFIRM_USER_DELETE")
           }}

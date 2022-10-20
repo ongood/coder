@@ -23,8 +23,8 @@ export const Language = {
   emptyMessage: "未找到任何构建",
   inProgressLabel: "进行中",
   actionLabel: "动作",
-  durationLabel: "持续时间",
-  startedAtLabel: "开始于",
+  durationLabel: "持续",
+  startedAtLabel: "始于",
   statusLabel: "状态",
 }
 

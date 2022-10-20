@@ -13,18 +13,18 @@
     "pending": "等待中"
   },
   "deleteDialog": {
-    "title": "删除 {{entity}}",
-    "intro": "删除这个 {{entity}} 是不可逆的!",
-    "confirm": "您确定要继续吗？在下方输入 {{entity}} 的名称以确认。",
-    "confirmLabel": "输入 {{entity}} 的名称以删除",
-    "incorrectName": "不正确的 {{entity}} 名称。"
+    "title": "删除{{entity}}",
+    "intro": "删除这个{{entity}}是不可逆的!",
+    "confirm": "您确定要继续吗？在下方输入{{entity}}的名称以确认。",
+    "confirmLabel": "输入{{entity}}的名称以删除",
+    "incorrectName": "不正确的{{entity}}名称。"
   },
   "schedule": {
     "autoStartLabel": "开始于",
     "autoStopLabel": "停止于"
   },
   "ctas": {
-    "dismissCta": "解雇",
+    "dismissCta": "驳回",
     "expand": "点击这里了解更多",
     "collapse": "点击这里以隐藏",
     "retry": "重试"
