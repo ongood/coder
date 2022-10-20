@@ -9,9 +9,9 @@ import {
 } from "./HelpTooltip"
 
 export const Language = {
-  outdatedLabel: "过时的",
+  outdatedLabel: "过时",
   versionTooltipText:
-    "此工作区版本已过时，并且有更新的版本可用。",
+    "此工作区版本已过时，有新版本可用。",
   updateVersionLabel: "更新版本",
 }
 

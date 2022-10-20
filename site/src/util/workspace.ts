@@ -20,7 +20,7 @@ export const DisplayWorkspaceBuildStatusLanguage = {
 }
 
 export const DisplayAgentVersionLanguage = {
-  unknown: "Unknown",
+  unknown: "未知",
 }
 
 export const getDisplayWorkspaceBuildStatus = (
