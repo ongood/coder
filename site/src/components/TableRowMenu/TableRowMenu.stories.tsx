@@ -18,8 +18,8 @@ export const Example = Template.bind({})
 Example.args = {
   data: { id: "123" },
   menuItems: [
-    { label: "Suspend", onClick: (data) => alert(data.id) },
-    { label: "Update", onClick: (data) => alert(data.id) },
-    { label: "Delete", onClick: (data) => alert(data.id) },
+    { label: "暂停", onClick: (data) => alert(data.id) },
+    { label: "升级", onClick: (data) => alert(data.id) },
+    { label: "删除", onClick: (data) => alert(data.id) },
   ],
 }
