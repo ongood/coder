@@ -229,7 +229,7 @@ export const TemplateLayout: FC<PropsWithChildren> = ({ children }) => {
         onCancel={() => {
           templateSend("CANCEL_DELETE")
         }}
-        entity="template"
+        entity="模板"
         name={template.name}
       />
     </>
