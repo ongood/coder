@@ -98,10 +98,10 @@ export const getWorkspaceBuildDurationInSeconds = (
 
 export const displayWorkspaceBuildDuration = (
   build: TypesGen.WorkspaceBuild,
-  inProgressLabel = "In progress",
+  inProgressLabel = "进行中",
 ): string => {
   const duration = getWorkspaceBuildDurationInSeconds(build)
-  return duration ? `${duration} seconds` : inProgressLabel
+  return duration ? `${duration} 秒` : inProgressLabel
 }
 
 export const getDisplayVersionStatus = (

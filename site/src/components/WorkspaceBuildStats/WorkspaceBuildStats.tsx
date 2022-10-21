@@ -26,7 +26,7 @@ export const WorkspaceBuildStats: FC<WorkspaceBuildStatsProps> = ({
   return (
     <div className={styles.stats}>
       <div className={styles.statItem}>
-        <span className={styles.statsLabel}>工作空间名称</span>
+        <span className={styles.statsLabel}>名称</span>
         <Link
           component={RouterLink}
           to={`/@${build.workspace_owner_name}/${build.workspace_name}`}
@@ -38,7 +38,7 @@ export const WorkspaceBuildStats: FC<WorkspaceBuildStatsProps> = ({
       <div className={styles.statsDivider} />
 
       <div className={styles.statItem}>
-        <span className={styles.statsLabel}>持续</span>
+        <span className={styles.statsLabel}>耗时</span>
         <span className={styles.statsValue}>
           {displayWorkspaceBuildDuration(build)}
         </span>
@@ -68,7 +68,7 @@ export const WorkspaceBuildStats: FC<WorkspaceBuildStatsProps> = ({
       </div>
       <div className={styles.statsDivider} />
       <div className={styles.statItem}>
-        <span className={styles.statsLabel}>发起人</span>
+        <span className={styles.statsLabel}>发起</span>
         <span className={styles.statsValue}>{initiatedBy}</span>
       </div>
     </div>
