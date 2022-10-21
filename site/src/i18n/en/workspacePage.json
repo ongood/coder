@@ -1,6 +1,6 @@
 {
   "deleteDialog": {
-    "info": "工作区创建于{{timeAgo}}."
+    "info": "工作区创建于 {{timeAgo}}."
   },
   "workspaceScheduleButton": {
     "schedule": "日程",
