@@ -38,5 +38,16 @@
     "connected": "已连接",
     "connecting": "连接中...",
     "disconnected": "无法连接"
+  },
+  "buildMessage": {
+    "start": "已启动",
+    "stop": "已停止",
+    "delete": "已删除",
+    "theWorkspace": "工作区",
+    "automatically": "自动"
+  },
+  "buildData": {
+    "reason": "原因",
+    "duration": "耗时"
   }
 }
