@@ -10,8 +10,8 @@ waitonexit() {
 trap waitonexit EXIT
 BINARY_DIR=$(mktemp -d -t coder.XXXXXX)
 BINARY_NAME=coder
-# 从docker-compose.yml 获取内网下载地址
-BINARY_URL=${DOWNLOAD_URL}bin/coder-linux-${ARCH}
+# 硬改下载地址，仅适用于docker部署coder，注意端口要与docker-compose.yml 里设置的一致
+BINARY_URL=http://coder:7080/bin/coder-linux-${ARCH}
 # BINARY_URL=${ACCESS_URL}bin/coder-linux-${ARCH}
 cd "$BINARY_DIR"
 # Attempt to download the coder agent.
