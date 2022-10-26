@@ -10,7 +10,9 @@ waitonexit() {
 trap waitonexit EXIT
 BINARY_DIR=$(mktemp -d -t coder.XXXXXX)
 BINARY_NAME=coder
-BINARY_URL=${ACCESS_URL}bin/coder-linux-${ARCH}
+# 硬改下载地址为内网地址，此为临时解决方案，仅适用于docker部署模式
+BINARY_URL=http://coder:7080/bin/coder-linux-${ARCH}
+# BINARY_URL=${ACCESS_URL}bin/coder-linux-${ARCH}
 cd "$BINARY_DIR"
 # Attempt to download the coder agent.
 # This could fail for a number of reasons, many of which are likely transient.
@@ -44,5 +46,6 @@ if ! chmod +x $BINARY_NAME; then
 fi
 
 export CODER_AGENT_AUTH="${AUTH_TYPE}"
-export CODER_AGENT_URL="${ACCESS_URL}"
+export CODER_AGENT_URL="http://coder:7080"
+# export CODER_AGENT_URL="${ACCESS_URL}"
 exec ./$BINARY_NAME agent
