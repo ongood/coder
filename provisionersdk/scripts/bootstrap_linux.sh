@@ -10,7 +10,9 @@ waitonexit() {
 trap waitonexit EXIT
 BINARY_DIR=$(mktemp -d -t coder.XXXXXX)
 BINARY_NAME=coder
-BINARY_URL=${ACCESS_URL}bin/coder-linux-${ARCH}
+# 从docker-compose.yml 获取内网下载地址
+BINARY_URL=${DOWNLOAD_URL}bin/coder-linux-${ARCH}
+# BINARY_URL=${ACCESS_URL}bin/coder-linux-${ARCH}
 cd "$BINARY_DIR"
 # Attempt to download the coder agent.
 # This could fail for a number of reasons, many of which are likely transient.
