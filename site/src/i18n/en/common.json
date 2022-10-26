@@ -31,5 +31,8 @@
   },
   "warningsAndErrors": {
     "somethingWentWrong": "遇到了点问题."
+  },
+  "emojiPicker": {
+    "select": "Select emoji"
   }
 }

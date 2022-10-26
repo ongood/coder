@@ -51,7 +51,7 @@ var AuditableResources = auditMap(map[any]map[string]Action{
 		"id":                     ActionTrack,
 		"created_at":             ActionIgnore, // Never changes, but is implicit and not helpful in a diff.
 		"updated_at":             ActionIgnore, // Changes, but is implicit and not helpful in a diff.
-		"organization_id":        ActionTrack,
+		"organization_id":        ActionIgnore, /// Never changes.
 		"deleted":                ActionIgnore, // Changes, but is implicit when a delete event is fired.
 		"name":                   ActionTrack,
 		"provisioner":            ActionTrack,
@@ -68,7 +68,7 @@ var AuditableResources = auditMap(map[any]map[string]Action{
 	&database.TemplateVersion{}: {
 		"id":              ActionTrack,
 		"template_id":     ActionTrack,
-		"organization_id": ActionTrack,
+		"organization_id": ActionIgnore, // Never changes.
 		"created_at":      ActionIgnore, // Never changes, but is implicit and not helpful in a diff.
 		"updated_at":      ActionIgnore, // Changes, but is implicit and not helpful in a diff.
 		"name":            ActionTrack,
@@ -95,7 +95,7 @@ var AuditableResources = auditMap(map[any]map[string]Action{
 		"created_at":         ActionIgnore, // Never changes.
 		"updated_at":         ActionIgnore, // Changes, but is implicit and not helpful in a diff.
 		"owner_id":           ActionTrack,
-		"organization_id":    ActionTrack,
+		"organization_id":    ActionIgnore, // Never changes.
 		"template_id":        ActionTrack,
 		"deleted":            ActionIgnore, // Changes, but is implicit when a delete event is fired.
 		"name":               ActionTrack,
@@ -106,8 +106,23 @@ var AuditableResources = auditMap(map[any]map[string]Action{
 	&database.Group{}: {
 		"id":              ActionTrack,
 		"name":            ActionTrack,
-		"organization_id": ActionTrack,
+		"organization_id": ActionIgnore, // Never changes.
 		"avatar_url":      ActionTrack,
+	},
+	// We don't show any diff for the WorkspaceBuild resource
+	&database.WorkspaceBuild{}: {
+		"id":                  ActionIgnore,
+		"created_at":          ActionIgnore,
+		"updated_at":          ActionIgnore,
+		"workspace_id":        ActionIgnore,
+		"template_version_id": ActionIgnore,
+		"build_number":        ActionIgnore,
+		"transition":          ActionIgnore,
+		"initiator_id":        ActionIgnore,
+		"provisioner_state":   ActionIgnore,
+		"job_id":              ActionIgnore,
+		"deadline":            ActionIgnore,
+		"reason":              ActionIgnore,
 	},
 })
 

@@ -35,8 +35,19 @@
     "pending": "等待中"
   },
   "agentStatus": {
-    "connected": "已连接",
-    "connecting": "连接中...",
-    "disconnected": "无法连接"
+    "connected": "Connected",
+    "connecting": "Connecting...",
+    "disconnected": "Disconnected"
+  },
+  "buildMessage": {
+    "start": "started",
+    "stop": "stopped",
+    "delete": "deleted",
+    "theWorkspace": "the workspace",
+    "automatically": "automatically "
+  },
+  "buildData": {
+    "reason": "Reason",
+    "duration": "Duration"
   }
 }
