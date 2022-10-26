@@ -275,6 +275,7 @@ export interface DERPServerConfig {
 
 // From codersdk/deploymentconfig.go
 export interface DeploymentConfig {
+  readonly internal_url: DeploymentConfigField<string>
   readonly access_url: DeploymentConfigField<string>
   readonly wildcard_access_url: DeploymentConfigField<string>
   readonly address: DeploymentConfigField<string>

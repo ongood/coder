@@ -11,6 +11,7 @@ import (
 
 // DeploymentConfig is the central configuration for the coder server.
 type DeploymentConfig struct {
+	InternalURL                   *DeploymentConfigField[string]          `json:"Internal_url" typescript:",notnull"`
 	AccessURL                   *DeploymentConfigField[string]          `json:"access_url" typescript:",notnull"`
 	WildcardAccessURL           *DeploymentConfigField[string]          `json:"wildcard_access_url" typescript:",notnull"`
 	Address                     *DeploymentConfigField[string]          `json:"address" typescript:",notnull"`
