@@ -20,7 +20,7 @@
     "incorrectName": "不正确的{{entity}}名称。"
   },
   "schedule": {
-    "autoStartLabel": "开始于",
+    "autoStartLabel": "启动于",
     "autoStopLabel": "停止于"
   },
   "ctas": {

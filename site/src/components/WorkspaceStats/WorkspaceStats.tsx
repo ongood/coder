@@ -14,10 +14,10 @@ const Language = {
   templateLabel: "模板",
   statusLabel: "工作区状态",
   versionLabel: "版本",
-  lastBuiltLabel: "最后创建",
+  lastBuiltLabel: "最近创建",
   outdated: "过时",
   upToDate: "最新",
-  byLabel: "最后创建者",
+  byLabel: "创建者",
 }
 
 export interface WorkspaceStatsProps {
