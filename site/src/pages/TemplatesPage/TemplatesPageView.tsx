@@ -121,14 +121,14 @@ export const TemplatesPageView: FC<
             选择一个模板用于创建新的工作空间
             {props.canCreateTemplate ? (
               <>
-                , 或{" "}
+                , 或基于CLI
                 <Link
                   href="https://coder.com/docs/coder-oss/latest/templates#add-a-template"
                   target="_blank"
                 >
                   管理模板
-                </Link>{" "}
-                基于CLI.
+                </Link>
+                .
               </>
             ) : (
               "."

@@ -19,7 +19,7 @@ export const Language = {
   yourWorkspacesButton: "你的工作区",
   allWorkspacesButton: "所有工作区",
   runningWorkspacesButton: "运行中的工作区",
-  createANewWorkspace: `创建新工作区基于`,
+  createANewWorkspace: `创建新工作区`,
   template: "模板",
 }
 
@@ -53,10 +53,11 @@ export const WorkspacesPageView: FC<
         </PageHeaderTitle>
 
         <PageHeaderSubtitle>
-          {Language.createANewWorkspace}
+          基于
           <Link component={RouterLink} to="/templates">
             {Language.template}
           </Link>
+          {Language.createANewWorkspace}
           .
         </PageHeaderSubtitle>
       </PageHeader>
