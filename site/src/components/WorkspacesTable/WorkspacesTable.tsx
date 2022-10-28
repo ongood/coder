@@ -11,10 +11,10 @@ import { WorkspacesTableBody } from "./WorkspacesTableBody"
 const Language = {
   name: "名称",
   template: "模板",
-  lastUsed: "最后使用",
+  lastUsed: "最近使用",
   version: "版本",
   status: "状态",
-  lastBuiltBy: "最后创建者",
+  lastBuiltBy: "创建者",
 }
 
 export interface WorkspacesTableProps {

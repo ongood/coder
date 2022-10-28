@@ -45,7 +45,7 @@ export const Language = {
   errorTime: "时间必须是 HH:mm 格式（24 小时）。",
   errorTimezone: "时区无效。",
   errorNoStop:
-    "启用自动停止时，直到关闭的时间必须大于零。",
+    "启用自动停止时，距离停止的时间必须大于零。",
   errorTtlMax:
     "请输入小于或等于 24000 小时（1000 天）的限制。",
   daysOfWeekLabel: "星期",
@@ -56,19 +56,19 @@ export const Language = {
   dayThursdayLabel: "星期四",
   dayFridayLabel: "星期五",
   daySaturdayLabel: "星期六",
-  startTimeLabel: "开始时间",
+  startTimeLabel: "启动时间",
   startTimeHelperText: "此时您的工作区将自动启动。",
   noStartTimeHelperText: "您的工作区不会自动启动。",
   timezoneLabel: "时区",
-  ttlLabel: "被停止前的时间（小时）",
-  ttlCausesShutdownHelperText: "您的工作区将被停止",
+  ttlLabel: "自动停止前的工作时间（小时）",
+  ttlCausesShutdownHelperText: "您的工作区将自动停止于每次启动之后的",
   ttlCausesShutdownAfterStart:
-    "在下一次启动之后。每当我们检测到活动时，我们都会延迟一个小时停止",
+    "之内。如果检测到工作区在活动时，将自动延迟一个小时停止。",
   ttlCausesNoShutdownHelperText:
     "您的工作区不会自动停止。",
   formTitle: "工作区时间表",
-  startSection: "开始",
-  startSwitch: "自动开始",
+  startSection: "启动",
+  startSwitch: "自动启动",
   stopSection: "停止",
   stopSwitch: "自动停止",
 }

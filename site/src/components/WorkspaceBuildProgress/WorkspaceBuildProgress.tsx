@@ -17,7 +17,7 @@ const estimateFinish = (
 
   const maxPercentage = 1
   if (realPercentage > maxPercentage) {
-    return [maxPercentage * 100, "马上就好..."]
+    return [maxPercentage * 100, "马上就绪..."]
   }
 
   return [
