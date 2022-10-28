@@ -12,7 +12,7 @@ const Language = {
   usedByLabel: "用户",
   buildTimeLabel: "创建时间",
   activeVersionLabel: "当前版本",
-  lastUpdateLabel: "最后更新",
+  lastUpdateLabel: "最近更新",
   developerPlural: "开发者",
   developerSingular: "开发者",
   createdByLabel: "创建者",

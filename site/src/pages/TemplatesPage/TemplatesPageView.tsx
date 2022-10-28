@@ -47,7 +47,7 @@ export const Language = {
   nameLabel: "名称",
   buildTimeLabel: "创建时间",
   usedByLabel: "用户",
-  lastUpdatedLabel: "最后更新",
+  lastUpdatedLabel: "最近更新",
   emptyViewNoPerms:
     "请联系您的 Coder 管理员以创建模板，你可以分享下面的代码。",
   emptyMessage: "创建您的首个工作空间模板",
