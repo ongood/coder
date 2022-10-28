@@ -63,7 +63,7 @@ const EnabledView: React.FC<PortForwardButtonProps> = (props) => {
     <>
       <HelpTooltipText>
         在访问代理上运行由{" "}
-        <strong>端口、代理名称、工作空间名称</strong>和{" "}
+        <strong>端口、代理名称、工作区名称</strong>和{" "}
         <strong>您的用户名</strong> 构成的URL，如下所示： 此 URL 只有您可以访问。
       </HelpTooltipText>
 
