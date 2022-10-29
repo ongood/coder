@@ -29,7 +29,7 @@ export const Language = {
 const presetFilters = [
   {
     query: "resource_type:workspace action:create",
-    name: "已创建的工作空间",
+    name: "已创建的工作区",
   },
   { query: "resource_type:template action:create", name: "已添加的模板" },
   { query: "resource_type:user action:create", name: "已添加的用户" },

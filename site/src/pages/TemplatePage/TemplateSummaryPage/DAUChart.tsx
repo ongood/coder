@@ -106,7 +106,7 @@ export const DAUChart: FC<DAUChartProps> = ({
             <HelpTooltip size="small">
               <HelpTooltipTitle>我们如何计算DAU?</HelpTooltipTitle>
               <HelpTooltipText>
-              我们使用所有工作空间连接流量来计算DAU（每日活跃用户）。
+              我们使用所有工作区连接流量来计算DAU（每日活跃用户）。
               </HelpTooltipText>
             </HelpTooltip>
           </Stack>

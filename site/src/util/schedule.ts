@@ -56,9 +56,9 @@ export const extractTimezone = (
 export const Language = {
   manual: "手动",
   workspaceShuttingDownLabel: "正在停止工作区",
-  afterStart: "启动后",
-  autoStartLabel: "启动方式",
-  autoStopLabel: "停止方式",
+  afterStart: "启动之后",
+  autoStartLabel: "启动于",
+  autoStopLabel: "停止于",
 }
 
 export const autoStartDisplay = (schedule: string | undefined): string => {
