@@ -1,3 +1,4 @@
 {
-  "deleteSuccess": "成功删除模板."
+  "deleteSuccess": "Template successfully deleted.",
+  "createdVersion": "created the version"
 }
