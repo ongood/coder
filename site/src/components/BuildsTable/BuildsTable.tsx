@@ -12,7 +12,7 @@ import { TableLoader } from "../TableLoader/TableLoader"
 import { BuildRow } from "./BuildRow"
 
 export const Language = {
-  emptyMessage: "No builds found",
+  emptyMessage: "未发现构建",
 }
 
 export interface BuildsTableProps {
