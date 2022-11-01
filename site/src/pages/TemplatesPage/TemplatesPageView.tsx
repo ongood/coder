@@ -118,7 +118,7 @@ export const TemplatesPageView: FC<
           condition={Boolean(props.templates && props.templates.length > 0)}
         >
           <PageHeaderSubtitle>
-            选择一个模板用于创建新的工作空间
+            选择一个模板用于创建新的工作区
             {props.canCreateTemplate ? (
               <>
                 , 或基于CLI
