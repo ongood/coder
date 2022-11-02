@@ -118,7 +118,7 @@ require (
 	github.com/quasilyte/go-ruleguard/dsl v0.3.21
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/spf13/afero v1.9.2
-	github.com/spf13/cobra v1.5.0
+	github.com/spf13/cobra v1.6.1
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.8.0
 	github.com/tabbed/pqtype v0.1.1
@@ -194,7 +194,7 @@ require (
 	github.com/fxamacker/cbor/v2 v2.4.0 // indirect
 	github.com/ghodss/yaml v1.0.0 // indirect
 	github.com/gin-gonic/gin v1.7.0 // indirect
-	github.com/go-logr/logr v1.2.3 // indirect
+	github.com/go-logr/logr v1.2.3
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
 	github.com/go-playground/locales v0.14.0 // indirect
@@ -217,7 +217,7 @@ require (
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/hdevalence/ed25519consensus v0.0.0-20220222234857-c00d1f31bab3 // indirect
 	github.com/imdario/mergo v0.3.12 // indirect
-	github.com/inconshreveable/mousetrap v1.0.0 // indirect
+	github.com/inconshreveable/mousetrap v1.0.1 // indirect
 	github.com/insomniacslk/dhcp v0.0.0-20211209223715-7d93572ebe8e // indirect
 	github.com/joeshaw/multierror v0.0.0-20140124173710-69b34d4ec901 // indirect
 	github.com/josharian/native v1.0.0 // indirect
