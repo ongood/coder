@@ -23,24 +23,24 @@ func newConfig() *codersdk.DeploymentConfig {
 	return &codersdk.DeploymentConfig{
 		AccessURL: &codersdk.DeploymentConfigField[string]{
 			Name:  "Access URL",
-			Usage: "External URL to access your deployment. This must be accessible by all provisioned workspaces.",
+			Usage: "用于访问您的部署的外部 URL。所有配置的工作区都必须可以访问它。",
 			Flag:  "access-url",
 		},
 		WildcardAccessURL: &codersdk.DeploymentConfigField[string]{
 			Name:  "Wildcard Access URL",
-			Usage: "Specifies the wildcard hostname to use for workspace applications in the form \"*.example.com\".",
+			Usage: "以 *.example.com 的形式指定用于工作区应用程序的通配符主机名。",
 			Flag:  "wildcard-access-url",
 		},
 		Address: &codersdk.DeploymentConfigField[string]{
 			Name:      "Address",
-			Usage:     "Bind address of the server.",
+			Usage:     "绑定服务器地址。",
 			Flag:      "address",
 			Shorthand: "a",
 			Default:   "127.0.0.1:3000",
 		},
 		AutobuildPollInterval: &codersdk.DeploymentConfigField[time.Duration]{
 			Name:    "Autobuild Poll Interval",
-			Usage:   "Interval to poll for scheduled workspace builds.",
+			Usage:   "轮询计划工作区构建的间隔。",
 			Flag:    "autobuild-poll-interval",
 			Hidden:  true,
 			Default: time.Minute,
@@ -49,37 +49,37 @@ func newConfig() *codersdk.DeploymentConfig {
 			Server: &codersdk.DERPServerConfig{
 				Enable: &codersdk.DeploymentConfigField[bool]{
 					Name:    "DERP Server Enable",
-					Usage:   "Whether to enable or disable the embedded DERP relay server.",
+					Usage:   "是否启用或禁用嵌入式 DERP 中继服务器。",
 					Flag:    "derp-server-enable",
 					Default: true,
 				},
 				RegionID: &codersdk.DeploymentConfigField[int]{
 					Name:    "DERP Server Region ID",
-					Usage:   "Region ID to use for the embedded DERP server.",
+					Usage:   "用于嵌入式 DERP 服务器的区域 ID。",
 					Flag:    "derp-server-region-id",
 					Default: 999,
 				},
 				RegionCode: &codersdk.DeploymentConfigField[string]{
 					Name:    "DERP Server Region Code",
-					Usage:   "Region code to use for the embedded DERP server.",
+					Usage:   "用于嵌入式 DERP 服务器的区域代码。",
 					Flag:    "derp-server-region-code",
 					Default: "coder",
 				},
 				RegionName: &codersdk.DeploymentConfigField[string]{
 					Name:    "DERP Server Region Name",
-					Usage:   "Region name that for the embedded DERP server.",
+					Usage:   "嵌入式 DERP 服务器的区域名称。",
 					Flag:    "derp-server-region-name",
 					Default: "Coder Embedded Relay",
 				},
 				STUNAddresses: &codersdk.DeploymentConfigField[[]string]{
 					Name:    "DERP Server STUN Addresses",
-					Usage:   "Addresses for STUN servers to establish P2P connections. Set empty to disable P2P connections.",
+					Usage:   "STUN 服务器建立 P2P 连接的地址。设置为空以禁用 P2P 连接。",
 					Flag:    "derp-server-stun-addresses",
 					Default: []string{"stun.l.google.com:19302"},
 				},
 				RelayURL: &codersdk.DeploymentConfigField[string]{
 					Name:       "DERP Server Relay URL",
-					Usage:      "An HTTP URL that is accessible by other replicas to relay DERP traffic. Required for high availability.",
+					Usage:      "其他副本可访问以中继 DERP 流量的 HTTP URL。高可用性所需。",
 					Flag:       "derp-server-relay-url",
 					Enterprise: true,
 				},
@@ -87,7 +87,7 @@ func newConfig() *codersdk.DeploymentConfig {
 			Config: &codersdk.DERPConfig{
 				URL: &codersdk.DeploymentConfigField[string]{
 					Name:  "DERP Config URL",
-					Usage: "URL to fetch a DERP mapping on startup. See: https://tailscale.com/kb/1118/custom-derp-servers/",
+					Usage: "在启动时获取 DERP 映射的 URL。请参阅：https://tailscale.com/kb/1118/custom-derp-servers/",
 					Flag:  "derp-config-url",
 				},
 				Path: &codersdk.DeploymentConfigField[string]{
@@ -99,19 +99,19 @@ func newConfig() *codersdk.DeploymentConfig {
 		},
 		GitAuth: &codersdk.DeploymentConfigField[[]codersdk.GitAuthConfig]{
 			Name:    "Git Auth",
-			Usage:   "Automatically authenticate Git inside workspaces.",
+			Usage:   "在工作空间内自动验证 Git。",
 			Flag:    "gitauth",
 			Default: []codersdk.GitAuthConfig{},
 		},
 		Prometheus: &codersdk.PrometheusConfig{
 			Enable: &codersdk.DeploymentConfigField[bool]{
 				Name:  "Prometheus Enable",
-				Usage: "Serve prometheus metrics on the address defined by prometheus address.",
+				Usage: "在由 prometheus 地址定义的地址上提供 prometheus 指标。",
 				Flag:  "prometheus-enable",
 			},
 			Address: &codersdk.DeploymentConfigField[string]{
 				Name:    "Prometheus Address",
-				Usage:   "The bind address to serve prometheus metrics.",
+				Usage:   "服务普罗米修斯指标的绑定地址。",
 				Flag:    "prometheus-address",
 				Default: "127.0.0.1:2112",
 			},
@@ -119,12 +119,12 @@ func newConfig() *codersdk.DeploymentConfig {
 		Pprof: &codersdk.PprofConfig{
 			Enable: &codersdk.DeploymentConfigField[bool]{
 				Name:  "Pprof Enable",
-				Usage: "Serve pprof metrics on the address defined by pprof address.",
+				Usage: "在 pprof 定义的地址上提供 pprof 度量。",
 				Flag:  "pprof-enable",
 			},
 			Address: &codersdk.DeploymentConfigField[string]{
 				Name:    "Pprof Address",
-				Usage:   "The bind address to serve pprof.",
+				Usage:   "为 pprof 服务的绑定地址。",
 				Flag:    "pprof-address",
 				Default: "127.0.0.1:6060",
 			},
@@ -132,7 +132,7 @@ func newConfig() *codersdk.DeploymentConfig {
 		ProxyTrustedHeaders: &codersdk.DeploymentConfigField[[]string]{
 			Name:  "Proxy Trusted Headers",
 			Flag:  "proxy-trusted-headers",
-			Usage: "Headers to trust for forwarding IP addresses. e.g. Cf-Connecting-Ip, True-Client-Ip, X-Forwarded-For",
+			Usage: "用于转发 IP 地址的信任标头。例如 Cf-Connecting-Ip、True-Client-Ip、X-Forwarded-For",
 		},
 		ProxyTrustedOrigins: &codersdk.DeploymentConfigField[[]string]{
 			Name:  "Proxy Trusted Origins",
