@@ -17,17 +17,17 @@ const UserAuthSettingsPage: React.FC = () => {
   return (
     <>
       <Helmet>
-        <title>{pageTitle("User Authentication Settings")}</title>
+        <title>{pageTitle("用户身份验证设置")}</title>
       </Helmet>
 
       <Stack direction="column" spacing={6}>
         <div>
-          <Header title="User Authentication" />
+          <Header title="用户身份验证" />
 
           <Header
-            title="Login with OpenID Connect"
+            title="使用 OpenID Connect 登录"
             secondary
-            description="Set up authentication to login with OpenID Connect."
+            description="设置身份验证以使用 OpenID Connect 登录。"
             docsHref="https://coder.com/docs/coder-oss/latest/admin/auth#openid-connect-with-google"
           />
 
@@ -52,9 +52,9 @@ const UserAuthSettingsPage: React.FC = () => {
 
         <div>
           <Header
-            title="Login with GitHub"
+            title="使用 GitHub 登录"
             secondary
-            description="Set up authentication to login with GitHub."
+            description="设置身份验证以使用 GitHub 登录。"
             docsHref="https://coder.com/docs/coder-oss/latest/admin/auth#github"
           />
 

@@ -37,7 +37,7 @@
   "agentStatus": {
     "connected": "已连接",
     "connecting": "连接中...",
-    "disconnected": "无法连接"
+    "disconnected": "断开连接"
   },
   "buildMessage": {
     "start": "已启动",

@@ -20,12 +20,12 @@ const GitAuthSettingsPage: React.FC = () => {
   return (
     <>
       <Helmet>
-        <title>{pageTitle("Git Authentication Settings")}</title>
+        <title>{pageTitle("Git身份验证设置")}</title>
       </Helmet>
 
       <Header
-        title="Git Authentication"
-        description="Coder integrates with GitHub, GitLab, BitBucket, and Azure Repos to authenticate developers with your Git provider."
+        title="Git身份验证"
+        description="Coder 与 GitHub、GitLab、BitBucket 和 Azure Repos 集成，以向你的 Git 提供商验证开发人员的身份。"
         docsHref="https://coder.com/docs/coder-oss/latest/admin/git"
       />
 
@@ -43,8 +43,8 @@ const GitAuthSettingsPage: React.FC = () => {
 
       <div className={styles.description}>
         <AlertBanner
-          severity="info"
-          text="Integrating with multiple Git providers is an Enterprise feature."
+          severity="信息"
+          text="与多个 Git 提供商集成是一项企业版功能。"
           actions={[<EnterpriseBadge key="enterprise" />]}
         />
       </div>
@@ -63,7 +63,7 @@ const GitAuthSettingsPage: React.FC = () => {
               <TableRow>
                 <TableCell colSpan={999}>
                   <div className={styles.empty}>
-                    No providers have been configured!
+                     尚未配置任何提供程序！
                   </div>
                 </TableCell>
               </TableRow>

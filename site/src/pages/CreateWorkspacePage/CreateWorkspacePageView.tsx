@@ -168,9 +168,9 @@ export const CreateWorkspacePageView: FC<
           {/* General info */}
           <div className={styles.formSection}>
             <div className={styles.formSectionInfo}>
-              <h2 className={styles.formSectionInfoTitle}>General info</h2>
+              <h2 className={styles.formSectionInfoTitle}>基本信息</h2>
               <p className={styles.formSectionInfoDescription}>
-                The template and name of your new workspace.
+              新工作区的模板名称。
               </p>
             </div>
 
@@ -218,10 +218,10 @@ export const CreateWorkspacePageView: FC<
           {props.canCreateForUser && (
             <div className={styles.formSection}>
               <div className={styles.formSectionInfo}>
-                <h2 className={styles.formSectionInfoTitle}>Workspace owner</h2>
+                <h2 className={styles.formSectionInfoTitle}>工作区所有者</h2>
                 <p className={styles.formSectionInfoDescription}>
-                  The user that is going to own this workspace. If you are
-                  admin, you can create workspace for others.
+                  此工作区的拥有者。
+                  如果你是管理员，您可以为其他人创建工作区。
                 </p>
               </div>
 
@@ -256,10 +256,9 @@ export const CreateWorkspacePageView: FC<
           {props.templateSchema && props.templateSchema.length > 0 && (
             <div className={styles.formSection}>
               <div className={styles.formSectionInfo}>
-                <h2 className={styles.formSectionInfoTitle}>Template params</h2>
+                <h2 className={styles.formSectionInfoTitle}>模板参数</h2>
                 <p className={styles.formSectionInfoDescription}>
-                  Those values are provided by your template&lsquo;s Terraform
-                  configuration.
+                  这些值由模板的 Terraform 提供配置。
                 </p>
               </div>
 

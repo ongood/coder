@@ -645,7 +645,7 @@ func createUser(ctx context.Context, t *testing.T, db database.Store, opts ...fu
 		opt(&insert)
 	}
 	user, err := db.InsertUser(ctx, insert)
-	require.NoError(t, err, "create user")
+	require.NoError(t, err, "创建用户")
 	return user
 }
 
