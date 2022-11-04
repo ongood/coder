@@ -11,12 +11,12 @@ const NetworkSettingsPage: React.FC = () => {
   return (
     <>
       <Helmet>
-        <title>{pageTitle("Network Settings")}</title>
+        <title>{pageTitle("网络设置")}</title>
       </Helmet>
 
       <Header
-        title="Network"
-        description="Configure your deployment connectivity."
+        title="网络"
+        description="配置您的部署连接。"
         docsHref="https://coder.com/docs/coder-oss/latest/networking"
       />
 

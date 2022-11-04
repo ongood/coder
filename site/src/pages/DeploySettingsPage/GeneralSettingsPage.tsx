@@ -11,12 +11,12 @@ const GeneralSettingsPage: React.FC = () => {
   return (
     <>
       <Helmet>
-        <title>{pageTitle("General Settings")}</title>
+        <title>{pageTitle("常规设置")}</title>
       </Helmet>
 
       <Header
-        title="General"
-        description="Information about your Coder deployment."
+        title="常规"
+        description="有关您的 Coder 部署的信息。"
         docsHref="https://coder.com/docs/coder-oss/latest/admin/configure"
       />
 

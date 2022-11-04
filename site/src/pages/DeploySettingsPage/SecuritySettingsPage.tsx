@@ -23,13 +23,13 @@ const SecuritySettingsPage: React.FC = () => {
   return (
     <>
       <Helmet>
-        <title>{pageTitle("Security Settings")}</title>
+        <title>{pageTitle("安全设置")}</title>
       </Helmet>
       <Stack direction="column" spacing={6}>
         <div>
           <Header
-            title="Security"
-            description="Ensure your Coder deployment is secure."
+            title="安全"
+            description="确保您的 Coder 部署是安全的。"
           />
 
           <OptionsTable
@@ -42,9 +42,9 @@ const SecuritySettingsPage: React.FC = () => {
 
         <div>
           <Header
-            title="Audit Logging"
+            title="审计日志"
             secondary
-            description="Allow auditors to monitor user operations in your deployment."
+            description="允许审计员监视部署中的用户操作"
             docsHref="https://coder.com/docs/coder-oss/latest/admin/audit-logs"
           />
 
@@ -62,9 +62,9 @@ const SecuritySettingsPage: React.FC = () => {
 
         <div>
           <Header
-            title="Browser Only Connections"
+            title="仅浏览器连接"
             secondary
-            description="Block all workspace access via SSH, port forward, and other non-browser connections."
+            description="阻止所有通过 SSH、端口转发和其他非浏览器连接访问工作区。"
             docsHref="https://coder.com/docs/coder-oss/latest/networking#browser-only-connections-enterprise"
           />
 
@@ -84,7 +84,7 @@ const SecuritySettingsPage: React.FC = () => {
           <Header
             title="TLS"
             secondary
-            description="Ensure TLS is properly configured for your Coder deployment."
+            description="确保为你的编码器部署正确配置 TLS."
           />
 
           <OptionsTable
