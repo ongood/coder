@@ -14,7 +14,7 @@ import { CloseDropdown, OpenDropdown } from "../DropdownArrows/DropdownArrows"
 import { Stack } from "../Stack/Stack"
 
 export const Language = {
-  filterName: "Filters",
+  filterName: "过滤",
 }
 
 export interface SearchBarWithFilterProps {
@@ -136,7 +136,7 @@ export const SearchBarWithFilter: React.FC<
             ))}
             {docs && (
               <MenuItem component="a" href={docs} target="_blank">
-                View advanced filtering
+                查看高级过滤
               </MenuItem>
             )}
           </Menu>

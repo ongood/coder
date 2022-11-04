@@ -16,9 +16,9 @@ export interface AccountFormValues {
 }
 
 export const Language = {
-  usernameLabel: "Username",
-  emailLabel: "Email",
-  updateSettings: "Update settings",
+  usernameLabel: "用户名",
+  emailLabel: "电子邮箱",
+  updateSettings: "更新设置",
 }
 
 const validationSchema = Yup.object({

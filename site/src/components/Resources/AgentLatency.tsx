@@ -67,10 +67,9 @@ export const AgentLatency: FC<{ agent: WorkspaceAgent }> = ({ agent }) => {
         onOpen={() => setIsOpen(true)}
         onClose={() => setIsOpen(false)}
       >
-        <HelpTooltipTitle>Latency</HelpTooltipTitle>
+        <HelpTooltipTitle>延迟</HelpTooltipTitle>
         <HelpTooltipText>
-          This is the latency overhead on non peer to peer connections. The star
-          indicates the preferred relay.
+          这是非对等连接的延迟开销.星号表示首选中继服务器.
         </HelpTooltipText>
 
         <HelpTooltipText>

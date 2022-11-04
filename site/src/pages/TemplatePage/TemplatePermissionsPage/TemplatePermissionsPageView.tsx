@@ -98,10 +98,10 @@ const AddTemplateUserOrGroup: React.FC<AddTemplateUserOrGroupProps> = ({
           }}
         >
           <MenuItem key="use" value="use">
-            Use
+            用户
           </MenuItem>
           <MenuItem key="admin" value="admin">
-            Admin
+            管理员
           </MenuItem>
         </Select>
 
@@ -112,7 +112,7 @@ const AddTemplateUserOrGroup: React.FC<AddTemplateUserOrGroupProps> = ({
           startIcon={<PersonAdd />}
           loading={isLoading}
         >
-          Add member
+          添加成员
         </LoadingButton>
       </Stack>
     </form>
@@ -131,18 +131,17 @@ const RoleSelect: FC<SelectProps> = (props) => {
     >
       <MenuItem key="use" value="use" className={styles.menuItem}>
         <div>
-          <div>Use</div>
+          <div>用户</div>
           <div className={styles.menuItemSecondary}>
-            Can read and use this template to create workspaces.
+          可以读取并使用此模板来创建工作区.
           </div>
         </div>
       </MenuItem>
       <MenuItem key="admin" value="admin" className={styles.menuItem}>
         <div>
-          <div>Admin</div>
+          <div>管理员</div>
           <div className={styles.menuItemSecondary}>
-            Can modify all aspects of this template including permissions,
-            metadata, and template versions.
+          可以修改此模板的各个方面包括权限、元数据和模板版本。
           </div>
         </div>
       </MenuItem>
@@ -216,8 +215,8 @@ export const TemplatePermissionsPageView: FC<
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell width="60%">Member</TableCell>
-              <TableCell width="40%">Role</TableCell>
+              <TableCell width="60%">成员</TableCell>
+              <TableCell width="40%">角色</TableCell>
               <TableCell width="1%" />
             </TableRow>
           </TableHead>
@@ -230,8 +229,8 @@ export const TemplatePermissionsPageView: FC<
                 <TableRow>
                   <TableCell colSpan={999}>
                     <EmptyState
-                      message="No members yet"
-                      description="Add a member using the controls above"
+                      message="还没有成员"
+                      description="使用上面的控件添加一个成员"
                     />
                   </TableCell>
                 </TableRow>
@@ -280,7 +279,7 @@ export const TemplatePermissionsPageView: FC<
                           data={group}
                           menuItems={[
                             {
-                              label: "Remove",
+                              label: "删除",
                               onClick: () => onRemoveGroup(group),
                             },
                           ]}
@@ -336,7 +335,7 @@ export const TemplatePermissionsPageView: FC<
                           data={user}
                           menuItems={[
                             {
-                              label: "Remove",
+                              label: "删除",
                               onClick: () => onRemoveUser(user),
                             },
                           ]}

@@ -55,7 +55,7 @@ export const WorkspaceReadyPage = ({
     permissions,
   } = workspaceState.context
   if (workspace === undefined) {
-    throw Error("Workspace is undefined")
+    throw Error("工作区未定义")
   }
   const canUpdateWorkspace = Boolean(permissions?.updateWorkspace)
   const { t } = useTranslation("workspacePage")
@@ -135,7 +135,7 @@ export const WorkspaceReadyPage = ({
         template={template}
       />
       <DeleteDialog
-        entity="workspace"
+        entity="工作区"
         name={workspace.name}
         info={t("deleteDialog.info", {
           timeAgo: dayjs(workspace.created_at).fromNow(),

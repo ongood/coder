@@ -8,13 +8,13 @@ import {
 import { Template, TemplateVersion } from "../../api/typesGenerated"
 
 const Language = {
-  usedByLabel: "Used by",
-  buildTimeLabel: "Build time",
-  activeVersionLabel: "Active version",
-  lastUpdateLabel: "Last updated",
-  developerPlural: "developers",
-  developerSingular: "developer",
-  createdByLabel: "Created by",
+  usedByLabel: "用户",
+  buildTimeLabel: "创建时间",
+  activeVersionLabel: "当前版本",
+  lastUpdateLabel: "最近更新",
+  developerPlural: "开发者",
+  developerSingular: "开发者",
+  createdByLabel: "创建者",
 }
 
 export interface TemplateStatsProps {

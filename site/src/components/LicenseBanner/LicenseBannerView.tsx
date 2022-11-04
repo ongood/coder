@@ -5,12 +5,12 @@ import { useState } from "react"
 import { colors } from "theme/colors"
 
 export const Language = {
-  licenseIssue: "License Issue",
-  licenseIssues: (num: number): string => `${num} License Issues`,
-  upgrade: "Contact sales@coder.com.",
-  exceeded: "It looks like you've exceeded some limits of your license.",
-  lessDetails: "Less",
-  moreDetails: "More",
+  licenseIssue: "许可证问题",
+  licenseIssues: (num: number): string => `${num} 许可证问题`,
+  upgrade: "联系我们升级您的许可证。",
+  exceeded: "您似乎超出了许可证的某些限制。",
+  lessDetails: "少于",
+  moreDetails: "多于",
 }
 
 export interface LicenseBannerViewProps {

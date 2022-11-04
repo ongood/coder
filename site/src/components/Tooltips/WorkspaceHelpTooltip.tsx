@@ -8,12 +8,12 @@ import {
 } from "./HelpTooltip"
 
 const Language = {
-  workspaceTooltipTitle: "What is a workspace?",
+  workspaceTooltipTitle: "什么是工作区",
   workspaceTooltipText:
-    "A workspace is your development environment in the cloud. It includes the infrastructure and tools you need to work on your project.",
-  workspaceTooltipLink1: "Create workspaces",
-  workspaceTooltipLink2: "Connect with SSH",
-  workspaceTooltipLink3: "Editors and IDEs",
+    "工作区是您在云中的开发环境。 它包括您在项目上工作所需的基础设施和工具。",
+  workspaceTooltipLink1: "创建工作区",
+  workspaceTooltipLink2: "通过SSH连接",
+  workspaceTooltipLink3: "编辑器和IDEs",
 }
 
 export const WorkspaceHelpTooltip: FC = () => {

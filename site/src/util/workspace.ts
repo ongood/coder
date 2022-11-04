@@ -12,16 +12,16 @@ dayjs.extend(utc)
 dayjs.extend(minMax)
 
 export const DisplayWorkspaceBuildStatusLanguage = {
-  succeeded: "Succeeded",
-  pending: "Pending",
-  running: "Running",
-  canceling: "Canceling",
-  canceled: "Canceled",
-  failed: "Failed",
+  succeeded: "成功",
+  pending: "等待中",
+  running: "运行中",
+  canceling: "取消中",
+  canceled: "已取消",
+  failed: "失败",
 }
 
 export const DisplayAgentVersionLanguage = {
-  unknown: "Unknown",
+  unknown: "未知",
 }
 
 export const getDisplayWorkspaceBuildStatus = (
@@ -100,10 +100,10 @@ export const getWorkspaceBuildDurationInSeconds = (
 
 export const displayWorkspaceBuildDuration = (
   build: TypesGen.WorkspaceBuild,
-  inProgressLabel = "In progress",
+  inProgressLabel = "进行中",
 ): string => {
   const duration = getWorkspaceBuildDurationInSeconds(build)
-  return duration ? `${duration} seconds` : inProgressLabel
+  return duration ? `${duration} 秒` : inProgressLabel
 }
 
 export const getDisplayVersionStatus = (

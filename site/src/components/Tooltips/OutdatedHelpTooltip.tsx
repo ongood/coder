@@ -9,10 +9,10 @@ import {
 } from "./HelpTooltip"
 
 export const Language = {
-  outdatedLabel: "Outdated",
+  outdatedLabel: "过时",
   versionTooltipText:
-    "This workspace version is outdated and a newer version is available.",
-  updateVersionLabel: "Update version",
+    "此工作区版本已过时，有新版本可用。",
+  updateVersionLabel: "更新版本",
 }
 
 interface TooltipProps {

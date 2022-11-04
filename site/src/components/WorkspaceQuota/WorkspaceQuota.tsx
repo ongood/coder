@@ -8,9 +8,9 @@ import { FC } from "react"
 import * as TypesGen from "../../api/typesGenerated"
 
 export const Language = {
-  of: "of",
-  workspace: "workspace",
-  workspaces: "workspaces",
+  of: "之",
+  workspace: "工作区",
+  workspaces: "工作区",
 }
 
 export interface WorkspaceQuotaProps {

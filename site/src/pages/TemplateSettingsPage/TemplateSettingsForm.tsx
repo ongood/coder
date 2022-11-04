@@ -17,22 +17,22 @@ import { getFormHelpers, nameValidator, onChangeTrimmed } from "util/formUtils"
 import * as Yup from "yup"
 
 export const Language = {
-  nameLabel: "Name",
-  descriptionLabel: "Description",
-  maxTtlLabel: "Auto-stop limit",
-  iconLabel: "Icon",
-  formAriaLabel: "Template settings form",
-  selectEmoji: "Select emoji",
+  nameLabel: "名称",
+  descriptionLabel: "描述",
+  maxTtlLabel: "允许运行时长",
+  iconLabel: "图标",
+  formAriaLabel: "模板设置",
+  selectEmoji: "选择表情符号",
   ttlMaxError:
-    "Please enter a limit that is less than or equal to 168 hours (7 days).",
+    "请输入小于或等于 24000 小时（1000 天）的允许运行时长。",
   descriptionMaxError:
-    "Please enter a description that is less than or equal to 128 characters.",
+    "请输入不超过128个字符的描述。",
   ttlHelperText: (ttl: number): string =>
-    `Workspaces created from this template may not remain running longer than ${ttl} hours.`,
+    `由此模板创建的工作区的总运行时长不得超过 ${ttl} 小时。`,
 }
 
 const MAX_DESCRIPTION_CHAR_LIMIT = 128
-const MAX_TTL_DAYS = 7
+const MAX_TTL_DAYS = 1000
 const MS_HOUR_CONVERSION = 3600000
 
 export const validationSchema = Yup.object({

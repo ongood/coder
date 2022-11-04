@@ -4,7 +4,7 @@ import * as API from "../../api/api"
 import { Entitlements } from "../../api/typesGenerated"
 
 export const Language = {
-  getEntitlementsError: "Error getting license entitlements.",
+  getEntitlementsError: "获取许可证权利时出错。",
 }
 
 export type EntitlementsContext = {

@@ -13,12 +13,12 @@ import { TableLoader } from "../TableLoader/TableLoader"
 import { TableRowMenu } from "../TableRowMenu/TableRowMenu"
 
 export const Language = {
-  emptyMessage: "No users found",
-  suspendMenuItem: "Suspend",
-  deleteMenuItem: "Delete",
-  listWorkspacesMenuItem: "View workspaces",
-  activateMenuItem: "Activate",
-  resetPasswordMenuItem: "Reset password",
+  emptyMessage: "未发现用户",
+  suspendMenuItem: "暂停",
+  deleteMenuItem: "删除",
+  listWorkspacesMenuItem: "浏览工作区",
+  activateMenuItem: "激活",
+  resetPasswordMenuItem: "重置密码",
 }
 
 interface UsersTableBodyProps {

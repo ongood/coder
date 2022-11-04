@@ -2,8 +2,8 @@ import { FC } from "react"
 import { HelpTooltip, HelpTooltipText, HelpTooltipTitle } from "./HelpTooltip"
 
 export const Language = {
-  label: "Agent Outdated",
-  text: "This agent is an older version than the Coder server. This can happen after you update Coder with running workspaces. To fix this, you can stop and start the workspace.",
+  label: "代理已过时",
+  text: "此代理的版本比 Coder 服务器的旧。 这可能在您使用正在运行的工作区更新 Coder 后发生。 要解决此问题，您可以停止并重启工作区。",
 }
 
 interface TooltipProps {

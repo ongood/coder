@@ -9,14 +9,14 @@ import { getDisplayWorkspaceBuildInitiatedBy } from "util/workspace"
 import { Workspace } from "../../api/typesGenerated"
 
 const Language = {
-  workspaceDetails: "Workspace Details",
-  templateLabel: "Template",
-  statusLabel: "Workspace Status",
-  versionLabel: "Version",
-  lastBuiltLabel: "Last Built",
-  outdated: "Outdated",
-  upToDate: "Up to date",
-  byLabel: "Last built by",
+  workspaceDetails: "工作区详细信息",
+  templateLabel: "模板",
+  statusLabel: "工作区状态",
+  versionLabel: "版本",
+  lastBuiltLabel: "最近创建",
+  outdated: "过时",
+  upToDate: "最新",
+  byLabel: "创建者",
 }
 
 export interface WorkspaceStatsProps {
