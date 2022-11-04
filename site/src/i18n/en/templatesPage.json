@@ -1,6 +1,6 @@
 {
   "errors": {
-    "getOrganizationError": "Something went wrong fetching organizations.",
-    "getTemplatesError": "Something went wrong fetching templates."
+    "getOrganizationError": "获取组织时出错。",
+    "getTemplatesError": "获取模板时出错。"
   }
 }

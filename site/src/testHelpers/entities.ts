@@ -25,27 +25,27 @@ export const MockBuildInfo: TypesGen.BuildInfoResponse = {
 
 export const MockOwnerRole: TypesGen.Role = {
   name: "owner",
-  display_name: "Owner",
+  display_name: "所有者",
 }
 
 export const MockUserAdminRole: TypesGen.Role = {
   name: "user_admin",
-  display_name: "User Admin",
+  display_name: "用户管理员",
 }
 
 export const MockTemplateAdminRole: TypesGen.Role = {
   name: "template_admin",
-  display_name: "Template Admin",
+  display_name: "模板管理员",
 }
 
 export const MockMemberRole: TypesGen.Role = {
   name: "member",
-  display_name: "Member",
+  display_name: "成员",
 }
 
 export const MockAuditorRole: TypesGen.Role = {
   name: "auditor",
-  display_name: "Auditor",
+  display_name: "审计人员",
 }
 
 // assignableRole takes a role and a boolean. The boolean implies if the

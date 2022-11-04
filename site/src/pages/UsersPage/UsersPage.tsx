@@ -15,12 +15,12 @@ import { XServiceContext } from "../../xServices/StateContext"
 import { UsersPageView } from "./UsersPageView"
 
 export const Language = {
-  suspendDialogTitle: "Suspend user",
-  suspendDialogAction: "Suspend",
-  suspendDialogMessagePrefix: "Do you want to suspend the user",
-  activateDialogTitle: "Activate user",
-  activateDialogAction: "Activate",
-  activateDialogMessagePrefix: "Do you want to activate the user",
+  suspendDialogTitle: "暂停用户",
+  suspendDialogAction: "暂停",
+  suspendDialogMessagePrefix: "你想暂停用户",
+  activateDialogTitle: "激活用户",
+  activateDialogAction: "激活",
+  activateDialogMessagePrefix: "你想激活用户",
 }
 
 const getSelectedUser = (id: string, users?: User[]) =>

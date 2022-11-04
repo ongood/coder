@@ -16,9 +16,9 @@ import {
 } from "./RuntimeErrorReport"
 
 export const Language = {
-  title: "Coder encountered an error",
-  body: "Please copy the crash log using the button below and",
-  link: "send it to us.",
+  title: "Coder 遇到错误",
+  body: "请使用下面的按钮复制崩溃日志并",
+  link: "发送给我们.",
 }
 
 export interface RuntimeErrorStateProps {

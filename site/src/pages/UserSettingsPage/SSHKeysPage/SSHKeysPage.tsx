@@ -6,21 +6,20 @@ import { XServiceContext } from "../../../xServices/StateContext"
 import { SSHKeysPageView } from "./SSHKeysPageView"
 
 export const Language = {
-  title: "SSH keys",
+  title: "SSH 密钥",
   description: (
     <p>
-      The following public key is used to authenticate Git in workspaces. You
-      may add it to Git services (such as GitHub) that you need to access from
-      your workspace. <br />
+       以下公钥用于在工作区中对 Git 进行身份验证。
+       您可以将其添加到您需要从工作区访问的 Git 服务器（例如 GitHub）。<br />
       <br />
-      Coder configures authentication via <code>$GIT_SSH_COMMAND</code>.
+      Coder 通过此方式配置身份验证: <code>$GIT_SSH_COMMAND</code>.
     </p>
   ),
-  regenerateDialogTitle: "Regenerate SSH key?",
+  regenerateDialogTitle: "重新生成 SSH 密钥？",
   regenerateDialogMessage:
-    "You will need to replace the public SSH key on services you use it with, and you'll need to rebuild existing workspaces.",
-  confirmLabel: "Confirm",
-  cancelLabel: "Cancel",
+    "您将需要替换与它一起使用的Git服务器上的公共 SSH 密钥，并且您需要重建现有工作区。",
+  confirmLabel: "确认",
+  cancelLabel: "取消",
 }
 
 export const SSHKeysPage: React.FC<React.PropsWithChildren<unknown>> = () => {

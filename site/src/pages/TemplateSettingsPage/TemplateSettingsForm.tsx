@@ -17,12 +17,12 @@ import { getFormHelpers, nameValidator, onChangeTrimmed } from "util/formUtils"
 import * as Yup from "yup"
 
 export const Language = {
-  nameLabel: "Name",
-  descriptionLabel: "Description",
-  maxTtlLabel: "Auto-stop limit",
-  iconLabel: "Icon",
-  formAriaLabel: "Template settings form",
-  selectEmoji: "Select emoji",
+  nameLabel: "名称",
+  descriptionLabel: "描述",
+  maxTtlLabel: "允许运行时长",
+  iconLabel: "图标",
+  formAriaLabel: "模板设置",
+  selectEmoji: "选择表情符号",
   ttlMaxError:
     "请输入小于或等于 24000 小时（1000 天）",
   descriptionMaxError:

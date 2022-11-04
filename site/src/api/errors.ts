@@ -2,7 +2,7 @@ import axios, { AxiosError, AxiosResponse } from "axios"
 
 export const Language = {
   errorsByCode: {
-    defaultErrorCode: "Invalid value",
+    defaultErrorCode: "无效值",
   },
 }
 

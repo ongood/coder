@@ -5,7 +5,7 @@ import { SecurityForm } from "../../../components/SettingsSecurityForm/SettingsS
 import { XServiceContext } from "../../../xServices/StateContext"
 
 export const Language = {
-  title: "Security",
+  title: "安全",
 }
 
 export const SecurityPage: React.FC = () => {

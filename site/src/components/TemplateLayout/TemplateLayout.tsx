@@ -42,8 +42,8 @@ import { Permissions } from "xServices/auth/authXService"
 import { Loader } from "components/Loader/Loader"
 
 const Language = {
-  settingsButton: "Settings",
-  createButton: "Create workspace",
+  settingsButton: "设置",
+  createButton: "创建工作区",
   noDescription: "",
 }
 
@@ -209,7 +209,7 @@ export const TemplateLayout: FC<PropsWithChildren> = ({ children }) => {
                   ])
                 }
               >
-                Summary
+                概要
               </NavLink>
               <NavLink
                 to={`/templates/${template.name}/permissions`}
@@ -220,7 +220,7 @@ export const TemplateLayout: FC<PropsWithChildren> = ({ children }) => {
                   ])
                 }
               >
-                Permissions
+                权限
               </NavLink>
             </Stack>
           </Margins>
@@ -245,7 +245,7 @@ export const TemplateLayout: FC<PropsWithChildren> = ({ children }) => {
           onCancel={() => {
             templateSend("CANCEL_DELETE")
           }}
-          entity="template"
+          entity="模板"
           name={template.name}
         />
       )}

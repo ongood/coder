@@ -19,12 +19,12 @@ import { workspaceFilterQuery } from "../../util/filters"
 import { WorkspaceItemMachineRef } from "../../xServices/workspaces/workspacesXService"
 
 export const Language = {
-  pageTitle: "Workspaces",
-  yourWorkspacesButton: "Your workspaces",
-  allWorkspacesButton: "All workspaces",
-  runningWorkspacesButton: "Running workspaces",
-  createANewWorkspace: `Create a new workspace from a `,
-  template: "Template",
+  pageTitle: "工作区",
+  yourWorkspacesButton: "你的工作区",
+  allWorkspacesButton: "所有工作区",
+  runningWorkspacesButton: "运行中的工作区",
+  createANewWorkspace: `创建新工作区`,
+  template: "模板",
 }
 
 export interface WorkspacesPageViewProps {
@@ -70,10 +70,11 @@ export const WorkspacesPageView: FC<
         </PageHeaderTitle>
 
         <PageHeaderSubtitle>
-          {Language.createANewWorkspace}
+          基于
           <Link component={RouterLink} to="/templates">
             {Language.template}
           </Link>
+          {Language.createANewWorkspace}
           .
         </PageHeaderSubtitle>
       </PageHeader>

@@ -62,7 +62,7 @@ var (
 		owner: func(_ string) Role {
 			return Role{
 				Name:        owner,
-				DisplayName: "Owner",
+				DisplayName: "所有者",
 				Site: permissions(map[string][]Action{
 					ResourceWildcard.Type: {WildcardSymbol},
 				}),
@@ -73,7 +73,7 @@ var (
 		member: func(_ string) Role {
 			return Role{
 				Name:        member,
-				DisplayName: "",
+				DisplayName: "成员",
 				Site: permissions(map[string][]Action{
 					// All users can read all other users and know they exist.
 					ResourceUser.Type:           {ActionRead},
@@ -93,7 +93,7 @@ var (
 		auditor: func(_ string) Role {
 			return Role{
 				Name:        auditor,
-				DisplayName: "Auditor",
+				DisplayName: "审计员",
 				Site: permissions(map[string][]Action{
 					// Should be able to read all template details, even in orgs they
 					// are not in.
@@ -106,7 +106,7 @@ var (
 		templateAdmin: func(_ string) Role {
 			return Role{
 				Name:        templateAdmin,
-				DisplayName: "Template Admin",
+				DisplayName: "模板管理员",
 				Site: permissions(map[string][]Action{
 					ResourceTemplate.Type: {ActionCreate, ActionRead, ActionUpdate, ActionDelete},
 					// CRUD all files, even those they did not upload.
@@ -121,7 +121,7 @@ var (
 		userAdmin: func(_ string) Role {
 			return Role{
 				Name:        userAdmin,
-				DisplayName: "User Admin",
+				DisplayName: "用户管理员",
 				Site: permissions(map[string][]Action{
 					ResourceRoleAssignment.Type: {ActionCreate, ActionRead, ActionUpdate, ActionDelete},
 					ResourceUser.Type:           {ActionCreate, ActionRead, ActionUpdate, ActionDelete},
@@ -137,7 +137,7 @@ var (
 		orgAdmin: func(organizationID string) Role {
 			return Role{
 				Name:        roleName(orgAdmin, organizationID),
-				DisplayName: "Organization Admin",
+				DisplayName: "团队管理员",
 				Org: map[string][]Permission{
 					organizationID: {
 						{

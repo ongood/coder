@@ -17,8 +17,8 @@ import { TableCellLink } from "../TableCellLink/TableCellLink"
 import { OutdatedHelpTooltip } from "../Tooltips"
 
 const Language = {
-  upToDateLabel: "Up to date",
-  outdatedLabel: "Outdated",
+  upToDateLabel: "最新",
+  outdatedLabel: "过时",
 }
 
 export const WorkspacesRow: FC<

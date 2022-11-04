@@ -14,9 +14,9 @@ import { LogoutIcon } from "../Icons/LogoutIcon"
 import { UserAvatar } from "../UserAvatar/UserAvatar"
 
 export const Language = {
-  accountLabel: "Account",
-  docsLabel: "Documentation",
-  signOutLabel: "Sign Out",
+  accountLabel: "账号",
+  docsLabel: "文档",
+  signOutLabel: "退出",
 }
 
 export interface UserDropdownContentProps {

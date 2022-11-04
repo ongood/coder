@@ -12,11 +12,11 @@ import { TableLoader } from "../TableLoader/TableLoader"
 import { WorkspacesRow } from "./WorkspacesRow"
 
 export const Language = {
-  emptyCreateWorkspaceMessage: "Create your first workspace",
+  emptyCreateWorkspaceMessage: "创建您的首个工作区",
   emptyCreateWorkspaceDescription:
-    "Start editing your source code and building your software.",
-  createFromTemplateButton: "Create from template",
-  emptyResultsMessage: "No results matched your search",
+    "开始编辑您的源代码并构建您的软件。",
+  createFromTemplateButton: "从模板创建",
+  emptyResultsMessage: "没有与您的搜索匹配的结果",
 }
 
 interface TableBodyProps {

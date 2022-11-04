@@ -162,7 +162,7 @@ export const CreateWorkspacePageView: FC<
   }
 
   return (
-    <FullPageHorizontalForm title="New workspace" onCancel={props.onCancel}>
+    <FullPageHorizontalForm title="创建工作区" onCancel={props.onCancel}>
       <form onSubmit={form.handleSubmit}>
         <Stack direction="column" spacing={10} className={styles.formSections}>
           {/* General info */}

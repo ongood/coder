@@ -1,6 +1,6 @@
 {
-  "templateLabel": "Template",
-  "nameLabel": "Workspace Name",
-  "ownerLabel": "Owner",
-  "createWorkspace": "Create workspace"
+  "templateLabel": "模板",
+  "nameLabel": "名称",
+  "ownerLabel": "所有者",
+  "createWorkspace": "创建工作区"
 }
