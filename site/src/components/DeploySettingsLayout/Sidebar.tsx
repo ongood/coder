@@ -59,33 +59,33 @@ export const Sidebar: React.FC = () => {
         href="../general"
         icon={<SidebarNavItemIcon icon={LaunchOutlined} />}
       >
-        General
+        常规
       </SidebarNavItem>
       <SidebarNavItem
         href="../userauth"
         icon={<SidebarNavItemIcon icon={VpnKeyOutlined} />}
       >
-        User Authentication
+        用户身份验证
       </SidebarNavItem>
       {experimental && (
         <SidebarNavItem
           href="../gitauth"
           icon={<SidebarNavItemIcon icon={GitIcon} />}
         >
-          Git Authentication
+          Git 身份验证
         </SidebarNavItem>
       )}
       <SidebarNavItem
         href="../network"
         icon={<SidebarNavItemIcon icon={Globe} />}
       >
-        Network
+        网络
       </SidebarNavItem>
       <SidebarNavItem
         href="../security"
         icon={<SidebarNavItemIcon icon={LockRounded} />}
       >
-        Security
+        安全
       </SidebarNavItem>
     </nav>
   )

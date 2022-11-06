@@ -49,7 +49,7 @@ export const TemplatePermissionsPage: FC<
                   rel="noreferrer"
                 >
                   <Button size="small" startIcon={<ArrowRightAltOutlined />}>
-                    See how to upgrade
+                  查看如何升级
                   </Button>
                 </Link>
                 <Link
@@ -58,7 +58,7 @@ export const TemplatePermissionsPage: FC<
                   target="_blank"
                   rel="noreferrer"
                 >
-                  Read the docs
+                  阅读文档
                 </Link>
               </Stack>
             }
