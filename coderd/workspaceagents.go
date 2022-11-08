@@ -539,6 +539,7 @@ func (api *API) workspaceAgentCoordinate(rw http.ResponseWriter, r *http.Request
 			Valid: true,
 		}
 		_ = updateConnectionTimes()
+		_ = api.Pubsub.Publish(watchWorkspaceChannel(build.WorkspaceID), []byte{})
 	}()
 
 	err = updateConnectionTimes()
@@ -546,6 +547,7 @@ func (api *API) workspaceAgentCoordinate(rw http.ResponseWriter, r *http.Request
 		_ = conn.Close(websocket.StatusGoingAway, err.Error())
 		return
 	}
+	api.publishWorkspaceUpdate(ctx, build.WorkspaceID)
 
 	// End span so we don't get long lived trace data.
 	tracing.EndHTTPSpan(r, http.StatusOK, trace.SpanFromContext(ctx))
@@ -911,10 +913,10 @@ func (api *API) postWorkspaceAppHealth(rw http.ResponseWriter, r *http.Request) 
 	}
 
 	var newApps []database.WorkspaceApp
-	for name, newHealth := range req.Healths {
+	for id, newHealth := range req.Healths {
 		old := func() *database.WorkspaceApp {
 			for _, app := range apps {
-				if app.DisplayName == name {
+				if app.ID == id {
 					return &app
 				}
 			}
@@ -924,7 +926,7 @@ func (api *API) postWorkspaceAppHealth(rw http.ResponseWriter, r *http.Request) 
 		if old == nil {
 			httpapi.Write(r.Context(), rw, http.StatusNotFound, codersdk.Response{
 				Message: "Error setting workspace app health",
-				Detail:  xerrors.Errorf("workspace app name %s not found", name).Error(),
+				Detail:  xerrors.Errorf("workspace app name %s not found", id).Error(),
 			})
 			return
 		}
@@ -932,7 +934,7 @@ func (api *API) postWorkspaceAppHealth(rw http.ResponseWriter, r *http.Request) 
 		if old.HealthcheckUrl == "" {
 			httpapi.Write(r.Context(), rw, http.StatusNotFound, codersdk.Response{
 				Message: "Error setting workspace app health",
-				Detail:  xerrors.Errorf("health checking is disabled for workspace app %s", name).Error(),
+				Detail:  xerrors.Errorf("health checking is disabled for workspace app %s", id).Error(),
 			})
 			return
 		}
@@ -971,6 +973,32 @@ func (api *API) postWorkspaceAppHealth(rw http.ResponseWriter, r *http.Request) 
 			return
 		}
 	}
+
+	resource, err := api.Database.GetWorkspaceResourceByID(r.Context(), workspaceAgent.ResourceID)
+	if err != nil {
+		httpapi.Write(r.Context(), rw, http.StatusInternalServerError, codersdk.Response{
+			Message: "Internal error fetching workspace resource.",
+			Detail:  err.Error(),
+		})
+		return
+	}
+	job, err := api.Database.GetWorkspaceBuildByJobID(r.Context(), resource.JobID)
+	if err != nil {
+		httpapi.Write(r.Context(), rw, http.StatusInternalServerError, codersdk.Response{
+			Message: "Internal error fetching workspace build.",
+			Detail:  err.Error(),
+		})
+		return
+	}
+	workspace, err := api.Database.GetWorkspaceByID(r.Context(), job.WorkspaceID)
+	if err != nil {
+		httpapi.Write(r.Context(), rw, http.StatusInternalServerError, codersdk.Response{
+			Message: "Internal error fetching workspace.",
+			Detail:  err.Error(),
+		})
+		return
+	}
+	api.publishWorkspaceUpdate(r.Context(), workspace.ID)
 
 	httpapi.Write(r.Context(), rw, http.StatusOK, nil)
 }
