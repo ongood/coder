@@ -151,12 +151,6 @@ func newConfig() *codersdk.DeploymentConfig {
 			Flag:   "in-memory",
 			Hidden: true,
 		},
-		ProvisionerDaemons: &codersdk.DeploymentConfigField[int]{
-			Name:    "Provisioner Daemons",
-			Usage:   "Number of provisioner daemons to create on start. If builds are stuck in queued state for a long time, consider increasing this.",
-			Flag:    "provisioner-daemons",
-			Default: 3,
-		},
 		PostgresURL: &codersdk.DeploymentConfigField[string]{
 			Name:   "Postgres Connection URL",
 			Usage:  "URL of a PostgreSQL database. If empty, PostgreSQL binaries will be downloaded from Maven (https://repo1.maven.org/maven2) and store all data in the config root. Access the built-in database with \"coder server postgres-builtin-url\".",
@@ -301,6 +295,11 @@ func newConfig() *codersdk.DeploymentConfig {
 				Flag:   "trace-honeycomb-api-key",
 				Secret: true,
 			},
+			CaptureLogs: &codersdk.DeploymentConfigField[bool]{
+				Name:  "Capture Logs in Traces",
+				Usage: "Enables capturing of logs as events in traces. This is useful for debugging, but may result in a very large amount of events being sent to the tracing backend which may incur significant costs. If the verbose flag was supplied, debug-level logs will be included.",
+				Flag:  "trace-logs",
+			},
 		},
 		SecureAuthCookie: &codersdk.DeploymentConfigField[bool]{
 			Name:  "Secure Auth Cookie",
@@ -358,6 +357,31 @@ func newConfig() *codersdk.DeploymentConfig {
 			Usage:      "Enables and sets a limit on how many workspaces each user can create.",
 			Flag:       "user-workspace-quota",
 			Enterprise: true,
+		},
+		Provisioner: &codersdk.ProvisionerConfig{
+			Daemons: &codersdk.DeploymentConfigField[int]{
+				Name:    "Provisioner Daemons",
+				Usage:   "Number of provisioner daemons to create on start. If builds are stuck in queued state for a long time, consider increasing this.",
+				Flag:    "provisioner-daemons",
+				Default: 3,
+			},
+			ForceCancelInterval: &codersdk.DeploymentConfigField[time.Duration]{
+				Name:    "Force Cancel Interval",
+				Usage:   "Time to force cancel provisioning tasks that are stuck.",
+				Flag:    "provisioner-force-cancel-interval",
+				Default: 10 * time.Minute,
+			},
+		},
+		APIRateLimit: &codersdk.DeploymentConfigField[int]{
+			Name:    "API Rate Limit",
+			Usage:   "Maximum number of requests per minute allowed to the API per user, or per IP address for unauthenticated users. Negative values mean no rate limit. Some API endpoints are always rate limited regardless of this value to prevent denial-of-service attacks.",
+			Flag:    "api-rate-limit",
+			Default: 512,
+		},
+		Experimental: &codersdk.DeploymentConfigField[bool]{
+			Name:  "Experimental",
+			Usage: "Enable experimental features. Experimental features are not ready for production.",
+			Flag:  "experimental",
 		},
 	}
 }

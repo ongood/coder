@@ -68,8 +68,9 @@ import (
 	"github.com/coder/coder/provisioner/echo"
 	"github.com/coder/coder/provisioner/terraform"
 	"github.com/coder/coder/provisionerd"
+	"github.com/coder/coder/provisionerd/proto"
 	"github.com/coder/coder/provisionersdk"
-	"github.com/coder/coder/provisionersdk/proto"
+	sdkproto "github.com/coder/coder/provisionersdk/proto"
 	"github.com/coder/coder/tailnet"
 )
 
@@ -87,6 +88,9 @@ func Server(vip *viper.Viper, newAPI func(context.Context, *coderd.Options) (*co
 			logger := slog.Make(sloghuman.Sink(cmd.ErrOrStderr()))
 			if ok, _ := cmd.Flags().GetBool(varVerbose); ok {
 				logger = logger.Leveled(slog.LevelDebug)
+			}
+			if cfg.Trace.CaptureLogs.Value {
+				logger = logger.AppendSinks(tracing.SlogSink{})
 			}
 
 			// Main command context for managing cancellation
@@ -126,10 +130,11 @@ func Server(vip *viper.Viper, newAPI func(context.Context, *coderd.Options) (*co
 				shouldCoderTrace = cfg.Telemetry.Trace.Value
 			}
 
-			if cfg.Trace.Enable.Value || shouldCoderTrace {
+			if cfg.Trace.Enable.Value || shouldCoderTrace || cfg.Trace.HoneycombAPIKey.Value != "" {
 				sdkTracerProvider, closeTracing, err := tracing.TracerProvider(ctx, "coderd", tracing.TracerOpts{
-					Default: cfg.Trace.Enable.Value,
-					Coder:   shouldCoderTrace,
+					Default:   cfg.Trace.Enable.Value,
+					Coder:     shouldCoderTrace,
+					Honeycomb: cfg.Trace.HoneycombAPIKey.Value,
 				})
 				if err != nil {
 					logger.Warn(ctx, "start telemetry exporter", slog.Error(err))
@@ -357,9 +362,9 @@ func Server(vip *viper.Viper, newAPI func(context.Context, *coderd.Options) (*co
 				AutoImportTemplates:         validatedAutoImportTemplates,
 				MetricsCacheRefreshInterval: cfg.MetricsCacheRefreshInterval.Value,
 				AgentStatsRefreshInterval:   cfg.AgentStatRefreshInterval.Value,
-				Experimental:                ExperimentalEnabled(cmd),
 				DeploymentConfig:            cfg,
 				PrometheusRegistry:          prometheus.NewRegistry(),
+				APIRateLimit:                cfg.APIRateLimit.Value,
 			}
 			if tlsConfig != nil {
 				options.TLSCertificates = tlsConfig.Certificates
@@ -447,6 +452,24 @@ func Server(vip *viper.Viper, newAPI func(context.Context, *coderd.Options) (*co
 				if err != nil {
 					return xerrors.Errorf("migrate up: %w", err)
 				}
+				// The default is 0 but the request will fail with a 500 if the DB
+				// cannot accept new connections, so we try to limit that here.
+				// Requests will wait for a new connection instead of a hard error
+				// if a limit is set.
+				sqlDB.SetMaxOpenConns(10)
+				// Allow a max of 3 idle connections at a time. Lower values end up
+				// creating a lot of connection churn. Since each connection uses about
+				// 10MB of memory, we're allocating 30MB to Postgres connections per
+				// replica, but is better than causing Postgres to spawn a thread 15-20
+				// times/sec. PGBouncer's transaction pooling is not the greatest so
+				// it's not optimal for us to deploy.
+				//
+				// This was set to 10 before we started doing HA deployments, but 3 was
+				// later determined to be a better middle ground as to not use up all
+				// of PGs default connection limit while simultaneously avoiding a lot
+				// of connection churn.
+				sqlDB.SetMaxIdleConns(3)
+
 				options.Database = database.New(sqlDB)
 				options.Pubsub, err = database.NewPubsub(ctx, sqlDB, cfg.PostgresURL.Value)
 				if err != nil {
@@ -562,8 +585,8 @@ func Server(vip *viper.Viper, newAPI func(context.Context, *coderd.Options) (*co
 				}
 			}()
 			provisionerdMetrics := provisionerd.NewMetrics(options.PrometheusRegistry)
-			for i := 0; i < cfg.ProvisionerDaemons.Value; i++ {
-				daemon, err := newProvisionerDaemon(ctx, coderAPI, provisionerdMetrics, logger, cfg.CacheDirectory.Value, errCh, false)
+			for i := 0; i < cfg.Provisioner.Daemons.Value; i++ {
+				daemon, err := newProvisionerDaemon(ctx, coderAPI, provisionerdMetrics, logger, cfg, errCh, false)
 				if err != nil {
 					return xerrors.Errorf("create provisioner daemon: %w", err)
 				}
@@ -832,7 +855,7 @@ func newProvisionerDaemon(
 	coderAPI *coderd.API,
 	metrics provisionerd.Metrics,
 	logger slog.Logger,
-	cacheDir string,
+	cfg *codersdk.DeploymentConfig,
 	errCh chan error,
 	dev bool,
 ) (srv *provisionerd.Server, err error) {
@@ -843,9 +866,9 @@ func newProvisionerDaemon(
 		}
 	}()
 
-	err = os.MkdirAll(cacheDir, 0o700)
+	err = os.MkdirAll(cfg.CacheDirectory.Value, 0o700)
 	if err != nil {
-		return nil, xerrors.Errorf("mkdir %q: %w", cacheDir, err)
+		return nil, xerrors.Errorf("mkdir %q: %w", cfg.CacheDirectory.Value, err)
 	}
 
 	terraformClient, terraformServer := provisionersdk.TransportPipe()
@@ -861,7 +884,7 @@ func newProvisionerDaemon(
 			ServeOptions: &provisionersdk.ServeOptions{
 				Listener: terraformServer,
 			},
-			CachePath: cacheDir,
+			CachePath: cfg.CacheDirectory.Value,
 			Logger:    logger,
 		})
 		if err != nil && !xerrors.Is(err, context.Canceled) {
@@ -878,7 +901,7 @@ func newProvisionerDaemon(
 	}
 
 	provisioners := provisionerd.Provisioners{
-		string(database.ProvisionerTypeTerraform): proto.NewDRPCProvisionerClient(provisionersdk.Conn(terraformClient)),
+		string(database.ProvisionerTypeTerraform): sdkproto.NewDRPCProvisionerClient(provisionersdk.Conn(terraformClient)),
 	}
 	// include echo provisioner when in dev mode
 	if dev {
@@ -899,16 +922,21 @@ func newProvisionerDaemon(
 				}
 			}
 		}()
-		provisioners[string(database.ProvisionerTypeEcho)] = proto.NewDRPCProvisionerClient(provisionersdk.Conn(echoClient))
+		provisioners[string(database.ProvisionerTypeEcho)] = sdkproto.NewDRPCProvisionerClient(provisionersdk.Conn(echoClient))
 	}
-	return provisionerd.New(coderAPI.ListenProvisionerDaemon, &provisionerd.Options{
-		Logger:         logger,
-		PollInterval:   500 * time.Millisecond,
-		UpdateInterval: 500 * time.Millisecond,
-		Provisioners:   provisioners,
-		WorkDirectory:  tempDir,
-		TracerProvider: coderAPI.TracerProvider,
-		Metrics:        &metrics,
+	return provisionerd.New(func(ctx context.Context) (proto.DRPCProvisionerDaemonClient, error) {
+		// This debounces calls to listen every second. Read the comment
+		// in provisionerdserver.go to learn more!
+		return coderAPI.ListenProvisionerDaemon(ctx, time.Second)
+	}, &provisionerd.Options{
+		Logger:              logger,
+		PollInterval:        500 * time.Millisecond,
+		UpdateInterval:      500 * time.Millisecond,
+		ForceCancelInterval: cfg.Provisioner.ForceCancelInterval.Value,
+		Provisioners:        provisioners,
+		WorkDirectory:       tempDir,
+		TracerProvider:      coderAPI.TracerProvider,
+		Metrics:             &metrics,
 	}), nil
 }
 

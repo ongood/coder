@@ -72,6 +72,8 @@ func TestWorkspaceAgent(t *testing.T) {
 		require.NoError(t, err)
 		defer dialer.Close()
 		require.Eventually(t, func() bool {
+			ctx, cancelFunc := context.WithTimeout(ctx, testutil.IntervalFast)
+			defer cancelFunc()
 			_, err := dialer.Ping(ctx)
 			return err == nil
 		}, testutil.WaitMedium, testutil.IntervalFast)
@@ -133,6 +135,8 @@ func TestWorkspaceAgent(t *testing.T) {
 		require.NoError(t, err)
 		defer dialer.Close()
 		require.Eventually(t, func() bool {
+			ctx, cancelFunc := context.WithTimeout(ctx, testutil.IntervalFast)
+			defer cancelFunc()
 			_, err := dialer.Ping(ctx)
 			return err == nil
 		}, testutil.WaitMedium, testutil.IntervalFast)
@@ -194,11 +198,13 @@ func TestWorkspaceAgent(t *testing.T) {
 		require.NoError(t, err)
 		defer dialer.Close()
 		require.Eventually(t, func() bool {
+			ctx, cancelFunc := context.WithTimeout(ctx, testutil.IntervalFast)
+			defer cancelFunc()
 			_, err := dialer.Ping(ctx)
 			return err == nil
 		}, testutil.WaitMedium, testutil.IntervalFast)
 
-		sshClient, err := dialer.SSHClient()
+		sshClient, err := dialer.SSHClient(ctx)
 		require.NoError(t, err)
 		defer sshClient.Close()
 		session, err := sshClient.NewSession()

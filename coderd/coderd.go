@@ -437,6 +437,7 @@ func New(options *Options) *API {
 				)
 				r.Post("/", api.postUser)
 				r.Get("/", api.users)
+				r.Get("/count", api.userCount)
 				r.Post("/logout", api.postLogout)
 				// These routes query information about site wide roles.
 				r.Route("/roles", func(r chi.Router) {
@@ -523,7 +524,6 @@ func New(options *Options) *API {
 				apiKeyMiddleware,
 			)
 			r.Get("/", api.workspaces)
-			r.Get("/count", api.workspaceCount)
 			r.Route("/{workspace}", func(r chi.Router) {
 				r.Use(
 					httpmw.ExtractWorkspaceParam(options.Database),

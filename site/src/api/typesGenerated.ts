@@ -175,12 +175,12 @@ export interface CreateParameterRequest {
 // From codersdk/organizations.go
 export interface CreateTemplateRequest {
   readonly name: string
+  readonly display_name?: string
   readonly description?: string
   readonly icon?: string
   readonly template_version_id: string
   readonly parameter_values?: CreateParameterRequest[]
-  readonly max_ttl_ms?: number
-  readonly min_autostart_interval_ms?: number
+  readonly default_ttl_ms?: number
 }
 
 // From codersdk/templateversions.go
@@ -287,7 +287,6 @@ export interface DeploymentConfig {
   readonly proxy_trusted_origins: DeploymentConfigField<string[]>
   readonly cache_directory: DeploymentConfigField<string>
   readonly in_memory_database: DeploymentConfigField<boolean>
-  readonly provisioner_daemons: DeploymentConfigField<number>
   readonly pg_connection_url: DeploymentConfigField<string>
   readonly oauth2: OAuth2Config
   readonly oidc: OIDCConfig
@@ -303,6 +302,9 @@ export interface DeploymentConfig {
   readonly browser_only: DeploymentConfigField<boolean>
   readonly scim_api_key: DeploymentConfigField<string>
   readonly user_workspace_quota: DeploymentConfigField<number>
+  readonly provisioner: ProvisionerConfig
+  readonly api_rate_limit: DeploymentConfigField<number>
+  readonly experimental: DeploymentConfigField<boolean>
 }
 
 // From codersdk/deploymentconfig.go
@@ -514,6 +516,12 @@ export interface PrometheusConfig {
   readonly address: DeploymentConfigField<string>
 }
 
+// From codersdk/deploymentconfig.go
+export interface ProvisionerConfig {
+  readonly daemons: DeploymentConfigField<number>
+  readonly force_cancel_interval: DeploymentConfigField<number>
+}
+
 // From codersdk/provisionerdaemons.go
 export interface ProvisionerDaemon {
   readonly id: string
@@ -606,6 +614,7 @@ export interface Template {
   readonly updated_at: string
   readonly organization_id: string
   readonly name: string
+  readonly display_name: string
   readonly provisioner: ProvisionerType
   readonly active_version_id: string
   readonly workspace_owner_count: number
@@ -613,8 +622,7 @@ export interface Template {
   readonly build_time_stats: TemplateBuildTimeStats
   readonly description: string
   readonly icon: string
-  readonly max_ttl_ms: number
-  readonly min_autostart_interval_ms: number
+  readonly default_ttl_ms: number
   readonly created_by_id: string
   readonly created_by_name: string
 }
@@ -669,6 +677,7 @@ export interface TemplateVersionsByTemplateRequest extends Pagination {
 export interface TraceConfig {
   readonly enable: DeploymentConfigField<boolean>
   readonly honeycomb_api_key: DeploymentConfigField<string>
+  readonly capture_logs: DeploymentConfigField<boolean>
 }
 
 // From codersdk/templates.go
@@ -690,10 +699,10 @@ export interface UpdateTemplateACL {
 // From codersdk/templates.go
 export interface UpdateTemplateMeta {
   readonly name?: string
+  readonly display_name?: string
   readonly description?: string
   readonly icon?: string
-  readonly max_ttl_ms?: number
-  readonly min_autostart_interval_ms?: number
+  readonly default_ttl_ms?: number
 }
 
 // From codersdk/users.go
@@ -738,6 +747,16 @@ export interface User {
   readonly organization_ids: string[]
   readonly roles: Role[]
   readonly avatar_url: string
+}
+
+// From codersdk/users.go
+export interface UserCountRequest {
+  readonly q?: string
+}
+
+// From codersdk/users.go
+export interface UserCountResponse {
+  readonly count: number
 }
 
 // From codersdk/users.go
@@ -795,6 +814,8 @@ export interface WorkspaceAgent {
   readonly version: string
   readonly apps: WorkspaceApp[]
   readonly latency?: Record<string, DERPRegion>
+  readonly connection_timeout_seconds: number
+  readonly troubleshooting_url?: string
 }
 
 // From codersdk/workspaceagents.go
@@ -867,16 +888,6 @@ export interface WorkspaceBuildsRequest extends Pagination {
 }
 
 // From codersdk/workspaces.go
-export interface WorkspaceCountRequest {
-  readonly q?: string
-}
-
-// From codersdk/workspaces.go
-export interface WorkspaceCountResponse {
-  readonly count: number
-}
-
-// From codersdk/workspaces.go
 export interface WorkspaceFilter {
   readonly q?: string
 }
@@ -916,6 +927,12 @@ export interface WorkspaceResourceMetadata {
 // From codersdk/workspaces.go
 export interface WorkspacesRequest extends Pagination {
   readonly q?: string
+}
+
+// From codersdk/workspaces.go
+export interface WorkspacesResponse {
+  readonly workspaces: Workspace[]
+  readonly count: number
 }
 
 // From codersdk/apikey.go
@@ -994,7 +1011,11 @@ export type TemplateRole = "" | "admin" | "use"
 export type UserStatus = "active" | "suspended"
 
 // From codersdk/workspaceagents.go
-export type WorkspaceAgentStatus = "connected" | "connecting" | "disconnected"
+export type WorkspaceAgentStatus =
+  | "connected"
+  | "connecting"
+  | "disconnected"
+  | "timeout"
 
 // From codersdk/workspaceapps.go
 export type WorkspaceAppHealth =
