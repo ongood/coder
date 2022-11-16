@@ -47,7 +47,7 @@ export const Language = {
   errorNoStop:
     "启用自动停止时，距离停止的时间必须大于零。",
   errorTtlMax:
-    "请输入小于或等于 24000 小时（1000 天）的限制。",
+    "请输入小于或等于 168 小时（7 天）的限制。",
   daysOfWeekLabel: "星期",
   daySundayLabel: "星期日",
   dayMondayLabel: "星期一",
@@ -172,7 +172,7 @@ export const validationSchema = Yup.object({
   ttl: Yup.number()
     .integer()
     .min(0)
-    .max(24 * 1000 /* 1000 days */, Language.errorTtlMax)
+    .max(24 * 7 /* 7 days */, Language.errorTtlMax)
     .test("positive-if-auto-stop", Language.errorNoStop, function (value) {
       const parent = this.parent as WorkspaceScheduleFormValues
       if (parent.autoStopEnabled) {
