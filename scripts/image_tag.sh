@@ -49,7 +49,7 @@ if [[ "$version" == "" ]]; then
 	version="$(execrelative ./version.sh)"
 fi
 
-image="${CODER_IMAGE_BASE:-ghcr.io/ongood/coder}"
+image="${CODER_IMAGE_BASE:-ghcr.io/coder/coder}"
 tag="v$version"
 if [[ "$version" == "latest" ]]; then
 	tag="latest"
