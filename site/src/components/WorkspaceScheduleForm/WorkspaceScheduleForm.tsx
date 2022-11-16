@@ -173,7 +173,7 @@ export const validationSchema = Yup.object({
   ttl: Yup.number()
     .integer()
     .min(0)
-    .max(24 * 7 /* 7 days */, Language.errorTtlMax)
+    .max(24 * 1000 /* 7 days */, Language.errorTtlMax)
     .test("positive-if-auto-stop", Language.errorNoStop, function (value) {
       const parent = this.parent as WorkspaceScheduleFormValues
       if (parent.autoStopEnabled) {
