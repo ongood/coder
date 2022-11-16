@@ -40,9 +40,9 @@
     "disconnected": "断开连接"
   },
   "buildMessage": {
-    "start": "已启动",
-    "stop": "已停止",
-    "delete": "已删除",
+    "start": "启动",
+    "stop": "停止",
+    "delete": "删除",
     "theWorkspace": "工作区",
     "automatically": "自动地 "
   },
