@@ -1,14 +1,14 @@
 {
-  "deleteSuccess": "Template successfully deleted.",
-  "createdVersion": "created the version",
+  "deleteSuccess": "模板成功删除.",
+  "createdVersion": "创建了一个版本",
   "templateSettings": {
-    "title": "Template settings",
+    "title": "模板设置",
     "dangerZone": {
-      "dangerZoneHeader": "Danger Zone",
-      "deleteTemplateHeader": "Delete this template",
-      "deleteTemplateCaption": "Do you want to permanently delete this template?",
-      "deleteCta": "Delete Template"
+      "dangerZoneHeader": "危险区",
+      "deleteTemplateHeader": "删除模板",
+      "deleteTemplateCaption": "是否要永久删除此模板?",
+      "deleteCta": "删除模板"
     }
   },
-  "displayNameLabel": "Display name"
+  "displayNameLabel": "显示名称"
 }
