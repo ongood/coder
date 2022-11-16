@@ -16,6 +16,7 @@ import (
 	"github.com/andybalholm/brotli"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/google/uuid"
 	"github.com/klauspost/compress/zstd"
 	"github.com/prometheus/client_golang/prometheus"
 	"go.opentelemetry.io/otel/trace"
@@ -39,9 +40,9 @@ import (
 	"github.com/coder/coder/coderd/rbac"
 	"github.com/coder/coder/coderd/telemetry"
 	"github.com/coder/coder/coderd/tracing"
-	"github.com/coder/coder/coderd/workspacequota"
 	"github.com/coder/coder/coderd/wsconncache"
 	"github.com/coder/coder/codersdk"
+	"github.com/coder/coder/provisionerd/proto"
 	"github.com/coder/coder/site"
 	"github.com/coder/coder/tailnet"
 )
@@ -65,7 +66,6 @@ type Options struct {
 	CacheDir string
 
 	Auditor                        audit.Auditor
-	WorkspaceQuotaEnforcer         workspacequota.Enforcer
 	AgentConnectionUpdateFrequency time.Duration
 	AgentInactiveDisconnectTimeout time.Duration
 	// APIRateLimit is the minutely throughput rate limit per user or ip.
@@ -144,9 +144,6 @@ func New(options *Options) *API {
 	if options.Auditor == nil {
 		options.Auditor = audit.NewNop()
 	}
-	if options.WorkspaceQuotaEnforcer == nil {
-		options.WorkspaceQuotaEnforcer = workspacequota.NewNop()
-	}
 
 	siteCacheDir := options.CacheDir
 	if siteCacheDir != "" {
@@ -165,6 +162,7 @@ func New(options *Options) *API {
 
 	r := chi.NewRouter()
 	api := &API{
+		ID:          uuid.New(),
 		Options:     options,
 		RootHandler: r,
 		siteHandler: site.Handler(site.FS(), binFS),
@@ -172,12 +170,10 @@ func New(options *Options) *API {
 			Authorizer: options.Authorizer,
 			Logger:     options.Logger,
 		},
-		metricsCache:           metricsCache,
-		Auditor:                atomic.Pointer[audit.Auditor]{},
-		WorkspaceQuotaEnforcer: atomic.Pointer[workspacequota.Enforcer]{},
+		metricsCache: metricsCache,
+		Auditor:      atomic.Pointer[audit.Auditor]{},
 	}
 	api.Auditor.Store(&options.Auditor)
-	api.WorkspaceQuotaEnforcer.Store(&options.WorkspaceQuotaEnforcer)
 	api.workspaceAgentCache = wsconncache.New(api.dialWorkspaceAgentTailnet, 0)
 	api.TailnetCoordinator.Store(&options.TailnetCoordinator)
 	oauthConfigs := &httpmw.OAuth2Configs{
@@ -230,6 +226,8 @@ func New(options *Options) *API {
 		},
 		httpmw.CSRF(options.SecureAuthCookie),
 	)
+
+	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write([]byte("OK")) })
 
 	apps := func(r chi.Router) {
 		r.Use(
@@ -342,7 +340,10 @@ func New(options *Options) *API {
 					httpmw.ExtractOrganizationParam(options.Database),
 				)
 				r.Get("/", api.organization)
-				r.Post("/templateversions", api.postTemplateVersionsByOrganization)
+				r.Route("/templateversions", func(r chi.Router) {
+					r.Post("/", api.postTemplateVersionsByOrganization)
+					r.Get("/{templateversionname}", api.templateVersionByOrganizationAndName)
+				})
 				r.Route("/templates", func(r chi.Router) {
 					r.Post("/", api.postTemplateByOrganization)
 					r.Get("/", api.templatesByOrganization)
@@ -519,7 +520,6 @@ func New(options *Options) *API {
 				apiKeyMiddleware,
 			)
 			r.Get("/", api.workspaces)
-			r.Get("/count", api.workspaceCount)
 			r.Route("/{workspace}", func(r chi.Router) {
 				r.Use(
 					httpmw.ExtractWorkspaceParam(options.Database),
@@ -579,10 +579,15 @@ func New(options *Options) *API {
 
 type API struct {
 	*Options
+	// ID is a uniquely generated ID on initialization.
+	// This is used to associate objects with a specific
+	// Coder API instance, like workspace agents to a
+	// specific replica.
+	ID                                uuid.UUID
 	Auditor                           atomic.Pointer[audit.Auditor]
 	WorkspaceClientCoordinateOverride atomic.Pointer[func(rw http.ResponseWriter) bool]
-	WorkspaceQuotaEnforcer            atomic.Pointer[workspacequota.Enforcer]
 	TailnetCoordinator                atomic.Pointer[tailnet.Coordinator]
+	QuotaCommitter                    atomic.Pointer[proto.QuotaCommitter]
 	HTTPAuth                          *HTTPAuthorizer
 
 	// APIHandler serves "/api/v2"

@@ -10,7 +10,7 @@ import {
 const Language = {
   workspaceTooltipTitle: "什么是工作区",
   workspaceTooltipText:
-    "工作区是您在云中的开发环境。 它包括您在项目上工作所需的基础设施和工具。",
+    "工作区是您在云端的开发环境。 它包括您在项目上工作所需的基础设施和开发工具。",
   workspaceTooltipLink1: "创建工作区",
   workspaceTooltipLink2: "通过SSH连接",
   workspaceTooltipLink3: "编辑器和IDEs",

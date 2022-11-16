@@ -192,7 +192,8 @@ CREATE TABLE groups (
     id uuid NOT NULL,
     name text NOT NULL,
     organization_id uuid NOT NULL,
-    avatar_url text DEFAULT ''::text NOT NULL
+    avatar_url text DEFAULT ''::text NOT NULL,
+    quota_allowance integer DEFAULT 0 NOT NULL
 );
 
 CREATE TABLE licenses (
@@ -272,14 +273,23 @@ CREATE TABLE provisioner_daemons (
 );
 
 CREATE TABLE provisioner_job_logs (
-    id uuid NOT NULL,
     job_id uuid NOT NULL,
     created_at timestamp with time zone NOT NULL,
     source log_source NOT NULL,
     level log_level NOT NULL,
     stage character varying(128) NOT NULL,
-    output character varying(1024) NOT NULL
+    output character varying(1024) NOT NULL,
+    id bigint NOT NULL
 );
+
+CREATE SEQUENCE provisioner_job_logs_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+ALTER SEQUENCE provisioner_job_logs_id_seq OWNED BY provisioner_job_logs.id;
 
 CREATE TABLE provisioner_jobs (
     id uuid NOT NULL,
@@ -340,13 +350,17 @@ CREATE TABLE templates (
     provisioner provisioner_type NOT NULL,
     active_version_id uuid NOT NULL,
     description character varying(128) DEFAULT ''::character varying NOT NULL,
-    max_ttl bigint DEFAULT '604800000000000'::bigint NOT NULL,
-    min_autostart_interval bigint DEFAULT '3600000000000'::bigint NOT NULL,
+    default_ttl bigint DEFAULT '604800000000000'::bigint NOT NULL,
     created_by uuid NOT NULL,
     icon character varying(256) DEFAULT ''::character varying NOT NULL,
     user_acl jsonb DEFAULT '{}'::jsonb NOT NULL,
-    group_acl jsonb DEFAULT '{}'::jsonb NOT NULL
+    group_acl jsonb DEFAULT '{}'::jsonb NOT NULL,
+    display_name character varying(64) DEFAULT ''::character varying NOT NULL
 );
+
+COMMENT ON COLUMN templates.default_ttl IS 'The default duration for auto-stop for workspaces created from this template.';
+
+COMMENT ON COLUMN templates.display_name IS 'Display name is a custom, human-friendly template name that user can set.';
 
 CREATE TABLE user_links (
     user_id uuid NOT NULL,
@@ -390,10 +404,17 @@ CREATE TABLE workspace_agents (
     instance_metadata jsonb,
     resource_metadata jsonb,
     directory character varying(4096) DEFAULT ''::character varying NOT NULL,
-    version text DEFAULT ''::text NOT NULL
+    version text DEFAULT ''::text NOT NULL,
+    last_connected_replica_id uuid,
+    connection_timeout_seconds integer DEFAULT 0 NOT NULL,
+    troubleshooting_url text DEFAULT ''::text NOT NULL
 );
 
 COMMENT ON COLUMN workspace_agents.version IS 'Version tracks the version of the currently running workspace agent. Workspace agents register their version upon start.';
+
+COMMENT ON COLUMN workspace_agents.connection_timeout_seconds IS 'Connection timeout in seconds, 0 means disabled.';
+
+COMMENT ON COLUMN workspace_agents.troubleshooting_url IS 'URL for troubleshooting the agent.';
 
 CREATE TABLE workspace_apps (
     id uuid NOT NULL,
@@ -424,7 +445,8 @@ CREATE TABLE workspace_builds (
     provisioner_state bytea,
     job_id uuid NOT NULL,
     deadline timestamp with time zone DEFAULT '0001-01-01 00:00:00+00'::timestamp with time zone NOT NULL,
-    reason build_reason DEFAULT 'initiator'::build_reason NOT NULL
+    reason build_reason DEFAULT 'initiator'::build_reason NOT NULL,
+    daily_cost integer DEFAULT 0 NOT NULL
 );
 
 CREATE TABLE workspace_resource_metadata (
@@ -443,7 +465,8 @@ CREATE TABLE workspace_resources (
     name character varying(64) NOT NULL,
     hide boolean DEFAULT false NOT NULL,
     icon character varying(256) DEFAULT ''::character varying NOT NULL,
-    instance_type character varying(256)
+    instance_type character varying(256),
+    daily_cost integer DEFAULT 0 NOT NULL
 );
 
 CREATE TABLE workspaces (
@@ -461,6 +484,8 @@ CREATE TABLE workspaces (
 );
 
 ALTER TABLE ONLY licenses ALTER COLUMN id SET DEFAULT nextval('licenses_id_seq'::regclass);
+
+ALTER TABLE ONLY provisioner_job_logs ALTER COLUMN id SET DEFAULT nextval('provisioner_job_logs_id_seq'::regclass);
 
 ALTER TABLE ONLY agent_stats
     ADD CONSTRAINT agent_stats_pkey PRIMARY KEY (id);
@@ -604,6 +629,8 @@ CREATE UNIQUE INDEX templates_organization_id_name_idx ON templates USING btree 
 CREATE UNIQUE INDEX users_email_lower_idx ON users USING btree (lower(email)) WHERE (deleted = false);
 
 CREATE UNIQUE INDEX users_username_lower_idx ON users USING btree (lower(username)) WHERE (deleted = false);
+
+CREATE INDEX workspace_resources_job_id_idx ON workspace_resources USING btree (job_id);
 
 CREATE UNIQUE INDEX workspaces_owner_id_lower_idx ON workspaces USING btree (owner_id, lower((name)::text)) WHERE (deleted = false);
 

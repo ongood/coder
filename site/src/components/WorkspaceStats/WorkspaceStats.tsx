@@ -17,15 +17,18 @@ const Language = {
   outdated: "过时",
   upToDate: "最新",
   byLabel: "创建者",
+  costLabel: "每日费用",
 }
 
 export interface WorkspaceStatsProps {
   workspace: Workspace
+  quota_budget?: number
   handleUpdate: () => void
 }
 
 export const WorkspaceStats: FC<WorkspaceStatsProps> = ({
   workspace,
+  quota_budget,
   handleUpdate,
 }) => {
   const styles = useStyles()
@@ -74,6 +77,14 @@ export const WorkspaceStats: FC<WorkspaceStatsProps> = ({
         <span className={styles.statsLabel}>{Language.byLabel}:</span>
         <span className={styles.statsValue}>{initiatedBy}</span>
       </div>
+      {workspace.latest_build.daily_cost > 0 && (
+        <div className={styles.statItem}>
+          <span className={styles.statsLabel}>{Language.costLabel}:</span>
+          <span className={styles.statsValue}>
+            {workspace.latest_build.daily_cost} / {quota_budget}
+          </span>
+        </div>
+      )}
     </div>
   )
 }
@@ -121,6 +132,7 @@ const useStyles = makeStyles((theme) => ({
     color: theme.palette.text.primary,
     fontWeight: 600,
   },
+
   outdatedLabel: {
     color: theme.palette.error.main,
     display: "flex",

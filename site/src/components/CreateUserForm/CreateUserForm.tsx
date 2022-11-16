@@ -63,7 +63,7 @@ export const CreateUserForm: FC<
 
   return (
     <FullPageForm title="创建用户" onCancel={onCancel}>
-      <form onSubmit={form.handleSubmit}>
+      <form onSubmit={form.handleSubmit} autoComplete="off">
         <Stack spacing={1}>
           <TextField
             {...getFieldHelpers("username")}

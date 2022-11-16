@@ -20,6 +20,7 @@ import (
 	"github.com/coder/coder/coderd/database"
 	"github.com/coder/coder/coderd/httpapi"
 	"github.com/coder/coder/coderd/httpmw"
+	"github.com/coder/coder/coderd/provisionerdserver"
 	"github.com/coder/coder/coderd/rbac"
 	"github.com/coder/coder/codersdk"
 )
@@ -135,7 +136,7 @@ func (api *API) workspaceBuilds(rw http.ResponseWriter, r *http.Request) {
 		}
 
 		return nil
-	})
+	}, nil)
 	if err != nil {
 		return
 	}
@@ -495,7 +496,7 @@ func (api *API) postWorkspaceBuilds(rw http.ResponseWriter, r *http.Request) {
 		}
 
 		workspaceBuildID := uuid.New()
-		input, err := json.Marshal(workspaceProvisionJob{
+		input, err := json.Marshal(provisionerdserver.WorkspaceProvisionJob{
 			WorkspaceBuildID: workspaceBuildID,
 		})
 		if err != nil {
@@ -535,7 +536,7 @@ func (api *API) postWorkspaceBuilds(rw http.ResponseWriter, r *http.Request) {
 		}
 
 		return nil
-	})
+	}, nil)
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
 			Message: "Internal error inserting workspace build.",
@@ -573,6 +574,8 @@ func (api *API) postWorkspaceBuilds(rw http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
+
+	api.publishWorkspaceUpdate(ctx, workspace.ID)
 
 	httpapi.Write(ctx, rw, http.StatusCreated, apiBuild)
 }
@@ -632,6 +635,9 @@ func (api *API) patchCancelWorkspaceBuild(rw http.ResponseWriter, r *http.Reques
 		})
 		return
 	}
+
+	api.publishWorkspaceUpdate(ctx, workspace.ID)
+
 	httpapi.Write(ctx, rw, http.StatusOK, codersdk.Response{
 		Message: "Job has been marked as canceled...",
 	})
@@ -925,6 +931,7 @@ func (api *API) convertWorkspaceBuild(
 		Reason:             codersdk.BuildReason(build.Reason),
 		Resources:          apiResources,
 		Status:             convertWorkspaceStatus(apiJob.Status, transition),
+		DailyCost:          build.DailyCost,
 	}, nil
 }
 
@@ -968,6 +975,7 @@ func convertWorkspaceResource(resource database.WorkspaceResource, agents []code
 		Icon:       resource.Icon,
 		Agents:     agents,
 		Metadata:   convertedMetadata,
+		DailyCost:  resource.DailyCost,
 	}
 }
 

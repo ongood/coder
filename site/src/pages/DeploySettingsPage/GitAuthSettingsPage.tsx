@@ -26,7 +26,7 @@ const GitAuthSettingsPage: React.FC = () => {
       <Header
         title="Git身份验证"
         description="Coder 与 GitHub、GitLab、BitBucket 和 Azure Repos 集成，以向你的 Git 提供商验证开发人员的身份。"
-        docsHref="https://coder.com/docs/coder-oss/latest/admin/git"
+        docsHref="https://coder.com/docs/coder-oss/latest/admin/git-providers"
       />
 
       <video

@@ -5,7 +5,6 @@ import InputAdornment from "@material-ui/core/InputAdornment"
 import Popover from "@material-ui/core/Popover"
 import { makeStyles } from "@material-ui/core/styles"
 import TextField from "@material-ui/core/TextField"
-import Typography from "@material-ui/core/Typography"
 import { Template, UpdateTemplateMeta } from "api/typesGenerated"
 import { OpenDropdown } from "components/DropdownArrows/DropdownArrows"
 import { FormFooter } from "components/FormFooter/FormFooter"
@@ -13,35 +12,47 @@ import { Stack } from "components/Stack/Stack"
 import { FormikContextType, FormikTouched, useFormik } from "formik"
 import { FC, useRef, useState } from "react"
 import { colors } from "theme/colors"
-import { getFormHelpers, nameValidator, onChangeTrimmed } from "util/formUtils"
+import {
+  getFormHelpers,
+  nameValidator,
+  templateDisplayNameValidator,
+  onChangeTrimmed,
+} from "util/formUtils"
 import * as Yup from "yup"
+import i18next from "i18next"
+import { useTranslation } from "react-i18next"
 
 export const Language = {
-  nameLabel: "名称",
-  descriptionLabel: "描述",
-  maxTtlLabel: "允许运行时长",
-  iconLabel: "图标",
-  formAriaLabel: "模板设置",
-  selectEmoji: "选择表情符号",
+  nameLabel: "Name",
+  descriptionLabel: "Description",
+  defaultTtlLabel: "Auto-stop default",
+  iconLabel: "Icon",
+  formAriaLabel: "Template settings form",
+  selectEmoji: "Select emoji",
   ttlMaxError:
-    "请输入小于或等于 24000 小时（1000 天）的允许运行时长。",
+    "请输入小于或等于 168 小时（7 天）",
   descriptionMaxError:
-    "请输入不超过128个字符的描述。",
+    "请输入少于或等于 128 个字符的描述。",
   ttlHelperText: (ttl: number): string =>
-    `由此模板创建的工作区的总运行时长不得超过 ${ttl} 小时。`,
+    `Workspaces created from this template will default to stopping after ${ttl} hours.`,
 }
 
 const MAX_DESCRIPTION_CHAR_LIMIT = 128
-const MAX_TTL_DAYS = 1000
+const MAX_TTL_DAYS = 7
 const MS_HOUR_CONVERSION = 3600000
 
 export const validationSchema = Yup.object({
   name: nameValidator(Language.nameLabel),
+  display_name: templateDisplayNameValidator(
+    i18next.t("displayNameLabel", {
+      ns: "templatePage",
+    }),
+  ),
   description: Yup.string().max(
     MAX_DESCRIPTION_CHAR_LIMIT,
     Language.descriptionMaxError,
   ),
-  max_ttl_ms: Yup.number()
+  default_ttl_ms: Yup.number()
     .integer()
     .min(0)
     .max(24 * MAX_TTL_DAYS /* 7 days in hours */, Language.ttlMaxError),
@@ -70,9 +81,10 @@ export const TemplateSettingsForm: FC<TemplateSettingsForm> = ({
     useFormik<UpdateTemplateMeta>({
       initialValues: {
         name: template.name,
+        display_name: template.display_name,
         description: template.description,
         // on display, convert from ms => hours
-        max_ttl_ms: template.max_ttl_ms / MS_HOUR_CONVERSION,
+        default_ttl_ms: template.default_ttl_ms / MS_HOUR_CONVERSION,
         icon: template.icon,
       },
       validationSchema,
@@ -80,8 +92,8 @@ export const TemplateSettingsForm: FC<TemplateSettingsForm> = ({
         // on submit, convert from hours => ms
         onSubmit({
           ...formData,
-          max_ttl_ms: formData.max_ttl_ms
-            ? formData.max_ttl_ms * MS_HOUR_CONVERSION
+          default_ttl_ms: formData.default_ttl_ms
+            ? formData.default_ttl_ms * MS_HOUR_CONVERSION
             : undefined,
         })
       },
@@ -91,6 +103,8 @@ export const TemplateSettingsForm: FC<TemplateSettingsForm> = ({
   const styles = useStyles()
   const hasIcon = form.values.icon && form.values.icon !== ""
   const emojiButtonRef = useRef<HTMLButtonElement>(null)
+
+  const { t } = useTranslation("templatePage")
 
   return (
     <form onSubmit={form.handleSubmit} aria-label={Language.formAriaLabel}>
@@ -102,6 +116,14 @@ export const TemplateSettingsForm: FC<TemplateSettingsForm> = ({
           autoFocus
           fullWidth
           label={Language.nameLabel}
+          variant="outlined"
+        />
+
+        <TextField
+          {...getFieldHelpers("display_name")}
+          disabled={isSubmitting}
+          fullWidth
+          label={t("displayNameLabel")}
           variant="outlined"
         />
 
@@ -176,21 +198,19 @@ export const TemplateSettingsForm: FC<TemplateSettingsForm> = ({
         </div>
 
         <TextField
-          {...getFieldHelpers("max_ttl_ms")}
+          {...getFieldHelpers("default_ttl_ms")}
           disabled={isSubmitting}
           fullWidth
           inputProps={{ min: 0, step: 1 }}
-          label={Language.maxTtlLabel}
+          label={Language.defaultTtlLabel}
           variant="outlined"
           type="number"
         />
-        {/* If a value for max_ttl_ms has been entered and
+        {/* If a value for default_ttl_ms has been entered and
         there are no validation errors for that field, display helper text.
         We do not use the MUI helper-text prop because it overrides the validation error */}
-        {form.values.max_ttl_ms && !form.errors.max_ttl_ms && (
-          <Typography variant="subtitle2">
-            {Language.ttlHelperText(form.values.max_ttl_ms)}
-          </Typography>
+        {form.values.default_ttl_ms && !form.errors.default_ttl_ms && (
+          <span>{Language.ttlHelperText(form.values.default_ttl_ms)}</span>
         )}
       </Stack>
 
