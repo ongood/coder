@@ -10,5 +10,7 @@
       "deleteCta": "删除模板"
     }
   },
-  "displayNameLabel": "显示名称"
+  "displayNameLabel": "显示名称",
+  "allowUserCancelWorkspaceJobsLabel": "允许用户取消正在进行的工作区作业.",
+  "allowUserCancelWorkspaceJobsNotice": "取消构建可能会使工作区处于不健康状态。 对于大多数用例，不建议使用此选项."
 }
