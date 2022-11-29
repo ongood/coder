@@ -27,7 +27,8 @@
     "updating": "升级中",
     "starting": "启动中...",
     "stopping": "停止中...",
-    "deleting": "删除中..."
+    "deleting": "删除中...",
+    "changeVersion": "变更版本"
   },
   "disabledButton": {
     "canceling": "取消中",
@@ -35,10 +36,10 @@
     "pending": "等待中"
   },
   "agentStatus": {
-    "connected": "Connected",
-    "connecting": "Connecting...",
-    "disconnected": "Disconnected",
-    "timeout": "Timeout"
+    "connected": "已连接",
+    "connecting": "连接中...",
+    "disconnected": "未连接",
+    "timeout": "超时"
   },
   "buildMessage": {
     "start": "启动",
