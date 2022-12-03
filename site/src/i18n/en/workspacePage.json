@@ -50,6 +50,7 @@
   },
   "buildData": {
     "reason": "原因",
-    "duration": "耗时"
+    "duration": "期间",
+    "version": "版本"
   }
 }

@@ -41,6 +41,7 @@ type DeploymentConfig struct {
 	Provisioner                     *ProvisionerConfig                      `json:"provisioner" typescript:",notnull"`
 	APIRateLimit                    *DeploymentConfigField[int]             `json:"api_rate_limit" typescript:",notnull"`
 	Experimental                    *DeploymentConfigField[bool]            `json:"experimental" typescript:",notnull"`
+	UpdateCheck                     *DeploymentConfigField[bool]            `json:"update_check" typescript:",notnull"`
 }
 
 type DERP struct {
@@ -126,6 +127,7 @@ type GitAuthConfig struct {
 	ClientSecret string   `json:"-" yaml:"client_secret"`
 	AuthURL      string   `json:"auth_url"`
 	TokenURL     string   `json:"token_url"`
+	ValidateURL  string   `json:"validate_url"`
 	Regex        string   `json:"regex"`
 	NoRefresh    bool     `json:"no_refresh"`
 	Scopes       []string `json:"scopes"`
@@ -133,6 +135,8 @@ type GitAuthConfig struct {
 
 type ProvisionerConfig struct {
 	Daemons             *DeploymentConfigField[int]           `json:"daemons" typescript:",notnull"`
+	DaemonPollInterval  *DeploymentConfigField[time.Duration] `json:"daemon_poll_interval" typescript:",notnull"`
+	DaemonPollJitter    *DeploymentConfigField[time.Duration] `json:"daemon_poll_jitter" typescript:",notnull"`
 	ForceCancelInterval *DeploymentConfigField[time.Duration] `json:"force_cancel_interval" typescript:",notnull"`
 }
 
