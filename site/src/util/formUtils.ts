@@ -14,7 +14,7 @@ import * as Yup from "yup"
 
 export const Language = {
   nameRequired: (name: string): string => {
-    return `请输入 ${name.toLowerCase()}.`
+    return name ? `请输入 ${name.toLowerCase()}.` : "Required"
   },
   nameInvalidChars: (name: string): string => {
     return `${name} 必须以 a-Z 或 0-9 开头，并且可以包含 a-Z、0-9 或 -`
@@ -37,7 +37,6 @@ interface FormHelpers {
   helperText?: ReactNode
 }
 
-// backendErrorName can be used if the backend names a field differently than the frontend does
 export const getFormHelpers =
   <T>(form: FormikContextType<T>, error?: Error | unknown) =>
   (
@@ -54,6 +53,7 @@ export const getFormHelpers =
         `name must be type of string, instead received '${typeof name}'`,
       )
     }
+
     const apiErrorName = backendErrorName ?? name
 
     // getIn is a util function from Formik that gets at any depth of nesting
