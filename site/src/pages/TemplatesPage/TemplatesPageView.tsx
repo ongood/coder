@@ -1,3 +1,4 @@
+import Button from "@material-ui/core/Button"
 import Link from "@material-ui/core/Link"
 import { makeStyles, Theme } from "@material-ui/core/styles"
 import Table from "@material-ui/core/Table"
@@ -7,22 +8,19 @@ import TableContainer from "@material-ui/core/TableContainer"
 import TableHead from "@material-ui/core/TableHead"
 import TableRow from "@material-ui/core/TableRow"
 import KeyboardArrowRight from "@material-ui/icons/KeyboardArrowRight"
+import AddIcon from "@material-ui/icons/AddOutlined"
 import useTheme from "@material-ui/styles/useTheme"
 import { AlertBanner } from "components/AlertBanner/AlertBanner"
 import { ChooseOne, Cond } from "components/Conditionals/ChooseOne"
 import { Maybe } from "components/Conditionals/Maybe"
-import { TableEmpty } from "components/TableEmpty/TableEmpty"
 import { FC } from "react"
-import { useTranslation } from "react-i18next"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, Link as RouterLink } from "react-router-dom"
 import { createDayString } from "util/createDayString"
 import {
   formatTemplateBuildTime,
   formatTemplateActiveDevelopers,
 } from "util/templates"
-import * as TypesGen from "../../api/typesGenerated"
 import { AvatarData } from "../../components/AvatarData/AvatarData"
-import { CodeExample } from "../../components/CodeExample/CodeExample"
 import { Margins } from "../../components/Margins/Margins"
 import {
   PageHeader,
@@ -39,31 +37,19 @@ import {
   HelpTooltipText,
   HelpTooltipTitle,
 } from "../../components/Tooltips/HelpTooltip/HelpTooltip"
+import { EmptyTemplates } from "./EmptyTemplates"
+import { TemplatesContext } from "xServices/templates/templatesXService"
+import { Entitlements } from "api/typesGenerated"
 
 export const Language = {
   developerCount: (activeCount: number): string => {
     return `${formatTemplateActiveDevelopers(activeCount)} 开发者`
   },
-  nameLabel: "名称",
-  buildTimeLabel: "创建时间",
-  usedByLabel: "用户",
-  lastUpdatedLabel: "最近更新",
-  emptyViewNoPerms:
-    "请联系您的 Coder 管理员以创建模板，你可以分享下面的代码。",
-  emptyMessage: "创建您的首个工作空间模板",
-  emptyDescription: (
-    <>
-      To create a workspace you need to have a template. You can{" "}
-      <Link
-        target="_blank"
-        href="https://coder.com/docs/coder-oss/latest/templates"
-      >
-        create one from scratch
-      </Link>{" "}
-      or use a built-in template using the following Coder CLI command:
-    </>
-  ),
-  templateTooltipTitle: "什么是模板？",
+  nameLabel: "Name",
+  buildTimeLabel: "Build time",
+  usedByLabel: "Used by",
+  lastUpdatedLabel: "Last updated",
+  templateTooltipTitle: "What is template?",
   templateTooltipText:
     "您可以使用 Terraform 为您的工作空间创建通用配置模板。",
   templateTooltipLink: "管理模板",
@@ -85,41 +71,46 @@ const TemplateHelpTooltip: React.FC = () => {
 }
 
 export interface TemplatesPageViewProps {
-  loading?: boolean
-  canCreateTemplate?: boolean
-  templates?: TypesGen.Template[]
-  getOrganizationsError?: Error | unknown
-  getTemplatesError?: Error | unknown
+  context: TemplatesContext
+  entitlements: Entitlements
 }
 
 export const TemplatesPageView: FC<
   React.PropsWithChildren<TemplatesPageViewProps>
-> = (props) => {
+> = ({ context, entitlements }) => {
   const styles = useStyles()
   const navigate = useNavigate()
-  const { t } = useTranslation("templatesPage")
   const theme: Theme = useTheme()
-  const empty =
-    !props.loading &&
-    !props.getOrganizationsError &&
-    !props.getTemplatesError &&
-    !props.templates?.length
+  const { templates, error, examples, permissions } = context
+  const isLoading = !templates
+  const isEmpty = Boolean(templates && templates.length === 0)
 
   return (
     <Margins>
-      <PageHeader>
+      <PageHeader
+        actions={
+          <Maybe
+            condition={entitlements.experimental && permissions.createTemplates}
+          >
+            <Button component={RouterLink} to="/starter-templates">
+              Starter templates
+            </Button>
+            <Button startIcon={<AddIcon />} component={RouterLink} to="new">
+              Add template
+            </Button>
+          </Maybe>
+        }
+      >
         <PageHeaderTitle>
           <Stack spacing={1} direction="row" alignItems="center">
             模板
             <TemplateHelpTooltip />
           </Stack>
         </PageHeaderTitle>
-        <Maybe
-          condition={Boolean(props.templates && props.templates.length > 0)}
-        >
+        <Maybe condition={Boolean(templates && templates.length > 0)}>
           <PageHeaderSubtitle>
-            选择一个模板用于创建新的工作空间
-            {props.canCreateTemplate ? (
+            Choose a template to create a new workspace
+            {permissions.createTemplates ? (
               <>
                 , 或基于CLI
                 <Link
@@ -138,20 +129,10 @@ export const TemplatesPageView: FC<
       </PageHeader>
 
       <ChooseOne>
-        <Cond condition={Boolean(props.getOrganizationsError)}>
-          <AlertBanner
-            severity="error"
-            error={props.getOrganizationsError}
-            text={t("errors.getOrganizationsError")}
-          />
+        <Cond condition={Boolean(error)}>
+          <AlertBanner severity="error" error={error} />
         </Cond>
-        <Cond condition={Boolean(props.getTemplatesError)}>
-          <AlertBanner
-            severity="error"
-            error={props.getTemplatesError}
-            text={t("errors.getTemplatesError")}
-          />
-        </Cond>
+
         <Cond>
           <TableContainer>
             <Table>
@@ -166,30 +147,21 @@ export const TemplatesPageView: FC<
                 </TableRow>
               </TableHead>
               <TableBody>
-                <Maybe condition={Boolean(props.loading)}>
+                <Maybe condition={isLoading}>
                   <TableLoader />
                 </Maybe>
 
                 <ChooseOne>
-                  <Cond condition={empty}>
-                    <TableEmpty
-                      className={styles.empty}
-                      message={Language.emptyMessage}
-                      description={
-                        props.canCreateTemplate
-                          ? Language.emptyDescription
-                          : Language.emptyViewNoPerms
-                      }
-                      cta={<CodeExample code="coder templates init" />}
-                      image={
-                        <div className={styles.emptyImage}>
-                          <img src="/featured/templates.webp" alt="" />
-                        </div>
-                      }
+                  <Cond condition={isEmpty}>
+                    <EmptyTemplates
+                      permissions={permissions}
+                      examples={examples ?? []}
+                      entitlements={entitlements}
                     />
                   </Cond>
+
                   <Cond>
-                    {props.templates?.map((template) => {
+                    {templates?.map((template) => {
                       const templatePageLink = `/templates/${template.name}`
                       const hasIcon = template.icon && template.icon !== ""
 
@@ -315,20 +287,6 @@ const useStyles = makeStyles((theme) => ({
 
     "& img": {
       width: "100%",
-    },
-  },
-  empty: {
-    paddingBottom: 0,
-  },
-
-  emptyImage: {
-    maxWidth: "50%",
-    height: theme.spacing(40),
-    overflow: "hidden",
-    opacity: 0.85,
-
-    "& img": {
-      maxWidth: "100%",
     },
   },
 }))

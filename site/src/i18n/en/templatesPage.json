@@ -1,6 +1,10 @@
 {
   "errors": {
-    "getOrganizationError": "获取组织时出错。",
-    "getTemplatesError": "获取模板时出错。"
+    "getOrganizationError": "Something went wrong fetching organizations.",
+    "getTemplatesError": "Something went wrong fetching templates."
+  },
+  "empty": {
+    "message": "Create your first template",
+    "descriptionWithoutPermissions": "Contact your Coder administrator to create a template. You can share the code below."
   }
 }
