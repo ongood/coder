@@ -79,21 +79,15 @@ main() {
 	done
 
 	for commit in "${commits[@]}"; do
-		log "commit:"
-		echo -e "$commit"
 		mapfile -d ' ' -t parts <<<"$commit"
 		commit_sha_short=${parts[0]}
 		commit_sha_long=${parts[1]}
 		commit_prefix=${parts[2]}
-		log "parts:"
-		echo -e "$parts"
-		log "commit_sha_long:"
-		echo -e "$commit_sha_long"
 
 		# Safety-check, guarantee all commits had their metadata fetched.
-		# 暂时关闭，此报错！！！
 		if [[ ! -v labels[$commit_sha_long] ]]; then
-			labels[$commit_sha_long]="测试测试！"
+			# 修复通过vscode合并时报错,无法从vscode获取commit message
+			labels[$commit_sha_long]="Merge branch"
 			# error "Metadata missing for commit $commit_sha_short"
 		fi
 
