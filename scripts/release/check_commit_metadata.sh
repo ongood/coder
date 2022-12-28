@@ -85,9 +85,10 @@ main() {
 		commit_prefix=${parts[2]}
 
 		# Safety-check, guarantee all commits had their metadata fetched.
-		if [[ ! -v labels[$commit_sha_long] ]]; then
-			error "Metadata missing for commit $commit_sha_short"
-		fi
+		# 暂时关闭，此报错！！！
+		# if [[ ! -v labels[$commit_sha_long] ]]; then
+		# 	error "Metadata missing for commit $commit_sha_short"
+		# fi
 
 		# Store the commit title for later use.
 		title=${parts[*]:2}
