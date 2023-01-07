@@ -129,17 +129,6 @@ curl -X GET http://coder-server:8080/api/v2/config/deployment \
     "usage": "string",
     "value": 0
   },
-  "api_rate_limit": {
-    "default": 0,
-    "enterprise": true,
-    "flag": "string",
-    "hidden": true,
-    "name": "string",
-    "secret": true,
-    "shorthand": "string",
-    "usage": "string",
-    "value": 0
-  },
   "audit_logging": {
     "default": true,
     "enterprise": true,
@@ -150,17 +139,6 @@ curl -X GET http://coder-server:8080/api/v2/config/deployment \
     "shorthand": "string",
     "usage": "string",
     "value": true
-  },
-  "auto_import_templates": {
-    "default": ["string"],
-    "enterprise": true,
-    "flag": "string",
-    "hidden": true,
-    "name": "string",
-    "secret": true,
-    "shorthand": "string",
-    "usage": "string",
-    "value": "string"
   },
   "autobuild_poll_interval": {
     "default": 0,
@@ -675,6 +653,30 @@ curl -X GET http://coder-server:8080/api/v2/config/deployment \
     "usage": "string",
     "value": "string"
   },
+  "rate_limit": {
+    "api": {
+      "default": 0,
+      "enterprise": true,
+      "flag": "string",
+      "hidden": true,
+      "name": "string",
+      "secret": true,
+      "shorthand": "string",
+      "usage": "string",
+      "value": 0
+    },
+    "disable_all": {
+      "default": true,
+      "enterprise": true,
+      "flag": "string",
+      "hidden": true,
+      "name": "string",
+      "secret": true,
+      "shorthand": "string",
+      "usage": "string",
+      "value": true
+    }
+  },
   "scim_api_key": {
     "default": "string",
     "enterprise": true,
@@ -934,7 +936,7 @@ curl -X GET http://coder-server:8080/api/v2/config/deployment \
 | ------ | ------------------------------------------------------- | ----------- | ---------------------------------------------------------------- |
 | 200    | [OK](https://tools.ietf.org/html/rfc7231#section-6.3.1) | OK          | [codersdk.DeploymentConfig](schemas.md#codersdkdeploymentconfig) |
 
-To perform this operation, you must be authenticated by means of one of the following methods: **CoderSessionToken**.
+To perform this operation, you must be authenticated. [Learn more](authentication.md).
 
 ## Report CSP violations
 
@@ -969,7 +971,7 @@ curl -X POST http://coder-server:8080/api/v2/csp/reports \
 | ------ | ------------------------------------------------------- | ----------- | ------ |
 | 200    | [OK](https://tools.ietf.org/html/rfc7231#section-6.3.1) | OK          |        |
 
-To perform this operation, you must be authenticated by means of one of the following methods: **CoderSessionToken**.
+To perform this operation, you must be authenticated. [Learn more](authentication.md).
 
 ## Update check
 

@@ -301,7 +301,6 @@ export interface DeploymentConfig {
   readonly trace: TraceConfig
   readonly secure_auth_cookie: DeploymentConfigField<boolean>
   readonly ssh_keygen_algorithm: DeploymentConfigField<string>
-  readonly auto_import_templates: DeploymentConfigField<string[]>
   readonly metrics_cache_refresh_interval: DeploymentConfigField<number>
   readonly agent_stat_refresh_interval: DeploymentConfigField<number>
   readonly agent_fallback_troubleshooting_url: DeploymentConfigField<string>
@@ -309,7 +308,7 @@ export interface DeploymentConfig {
   readonly browser_only: DeploymentConfigField<boolean>
   readonly scim_api_key: DeploymentConfigField<string>
   readonly provisioner: ProvisionerConfig
-  readonly api_rate_limit: DeploymentConfigField<number>
+  readonly rate_limit: RateLimitConfig
   readonly experimental: DeploymentConfigField<boolean>
   readonly update_check: DeploymentConfigField<boolean>
   readonly max_token_lifetime: DeploymentConfigField<number>
@@ -584,6 +583,12 @@ export interface ProvisionerJobLog {
 // From codersdk/workspaces.go
 export interface PutExtendWorkspaceRequest {
   readonly deadline: string
+}
+
+// From codersdk/deploymentconfig.go
+export interface RateLimitConfig {
+  readonly disable_all: DeploymentConfigField<boolean>
+  readonly api: DeploymentConfigField<number>
 }
 
 // From codersdk/replicas.go

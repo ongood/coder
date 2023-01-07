@@ -5,24 +5,22 @@ import TableCell from "@material-ui/core/TableCell"
 import TableContainer from "@material-ui/core/TableContainer"
 import TableHead from "@material-ui/core/TableHead"
 import TableRow from "@material-ui/core/TableRow"
+import { DeploymentConfig } from "api/typesGenerated"
 import { AlertBanner } from "components/AlertBanner/AlertBanner"
 import { EnterpriseBadge } from "components/DeploySettingsLayout/Badges"
-import { useDeploySettings } from "components/DeploySettingsLayout/DeploySettingsLayout"
 import { Header } from "components/DeploySettingsLayout/Header"
-import React from "react"
-import { Helmet } from "react-helmet-async"
-import { pageTitle } from "util/page"
 
-const GitAuthSettingsPage: React.FC = () => {
+export type GitAuthSettingsPageViewProps = {
+  deploymentConfig: Pick<DeploymentConfig, "gitauth">
+}
+
+export const GitAuthSettingsPageView = ({
+  deploymentConfig,
+}: GitAuthSettingsPageViewProps): JSX.Element => {
   const styles = useStyles()
-  const { deploymentConfig: deploymentConfig } = useDeploySettings()
 
   return (
     <>
-      <Helmet>
-        <title>{pageTitle("Git身份验证设置")}</title>
-      </Helmet>
-
       <Header
         title="Git身份验证"
         description="Coder 与 GitHub、GitLab、BitBucket 和 Azure Repos 集成，以向你的 Git 提供商验证开发人员的身份。"
@@ -105,5 +103,3 @@ const useStyles = makeStyles((theme) => ({
     textAlign: "center",
   },
 }))
-
-export default GitAuthSettingsPage
