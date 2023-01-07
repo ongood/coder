@@ -1,44 +1,44 @@
 {
-  "title": "Create Template",
+  "title": "创建模板",
   "form": {
     "generalInfo": {
-      "title": "General info",
-      "description": "The name is used to identify the template on the URL and also API. It has to be unique across your organization."
+      "title": "常规信息",
+      "description": "该名称用于识别 URL 和 API 上的模板。它在您的组织中必须是唯一的。"
     },
     "displayInfo": {
-      "title": "Display info",
-      "description": "Set the name that you want to use to display your template, a helpful description and icon."
+      "title": "显示信息",
+      "description": "设置要用于显示模板的名称、有用的描述和图标。"
     },
     "schedule": {
-      "title": "Schedule",
-      "description": "Define when a workspace created from this template is going to stop."
+      "title": "时间表",
+      "description": "定义从此模板创建的工作区何时停止。"
     },
     "operations": {
-      "title": "Operations",
-      "description": "Allow or disallow users to run specific actions on the workspace."
+      "title": "操作",
+      "description": "允许或禁止用户在工作区上运行特定操作。"
     },
     "parameters": {
-      "title": "Template params",
-      "description": "These params are provided by your template's Terraform configuration."
+      "title": "模板参数",
+      "description": "这些参数由模板的 Terraform 配置提供。"
     },
     "fields": {
-      "name": "Name",
-      "displayName": "Display name",
-      "description": "Description",
-      "icon": "Icon",
-      "autoStop": "Auto-stop default",
-      "allowUsersToCancel": "Allow users to cancel in-progress workspace jobs"
+      "name": "名称",
+      "displayName": "显示名称",
+      "description": "描述",
+      "icon": "图标",
+      "autoStop": "默认自动停止",
+      "allowUsersToCancel": "允许用户取消正在进行的工作区作业"
     },
     "helperText": {
-      "autoStop": "Time in hours",
-      "allowUsersToCancel": "Not recommended"
+      "autoStop": "以小时为单位",
+      "allowUsersToCancel": "不推荐"
     },
     "upload": {
-      "removeTitle": "Remove file",
-      "title": "Upload template"
+      "removeTitle": "删除文件",
+      "title": "上传模板"
     },
     "tooltip": {
-      "allowUsersToCancel": "Depending on your template, canceling builds may leave workspaces in an unhealthy state. This option isn't recommended for most use cases."
+      "allowUsersToCancel": "根据您的模板，取消构建可能会使工作区处于不健康状态。对于大多数用例，不建议使用此选项。"
     }
   }
 }

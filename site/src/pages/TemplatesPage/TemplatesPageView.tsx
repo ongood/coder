@@ -44,10 +44,10 @@ export const Language = {
   developerCount: (activeCount: number): string => {
     return `${formatTemplateActiveDevelopers(activeCount)} 开发者`
   },
-  nameLabel: "Name",
-  buildTimeLabel: "Build time",
-  usedByLabel: "Used by",
-  lastUpdatedLabel: "Last updated",
+  nameLabel: "名称",
+  buildTimeLabel: "创建时间",
+  usedByLabel: "使用者",
+  lastUpdatedLabel: "最近更新",
   templateTooltipTitle: "What is template?",
   templateTooltipText:
     "您可以使用 Terraform 为您的工作空间创建通用配置模板。",
@@ -89,10 +89,10 @@ export const TemplatesPageView: FC<
         actions={
           <Maybe condition={permissions.createTemplates}>
             <Button component={RouterLink} to="/starter-templates">
-              Starter templates
+              入门模板
             </Button>
             <Button startIcon={<AddIcon />} component={RouterLink} to="new">
-              Add template
+              添加模板
             </Button>
           </Maybe>
         }
@@ -105,7 +105,7 @@ export const TemplatesPageView: FC<
         </PageHeaderTitle>
         <Maybe condition={Boolean(templates && templates.length > 0)}>
           <PageHeaderSubtitle>
-            Choose a template to create a new workspace
+            选择一个模板以创建新的工作区
             {permissions.createTemplates ? (
               <>
                 , 或基于CLI

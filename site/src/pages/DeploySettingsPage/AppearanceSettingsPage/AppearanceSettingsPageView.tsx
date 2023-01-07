@@ -69,8 +69,8 @@ export const AppearanceSettingsPageView = ({
   return (
     <>
       <Header
-        title="Appearance"
-        description="Customize the look and feel of your Coder deployment."
+        title="自定义界面"
+        description="自定义Coder部署的界面。"
       />
 
       <Badges>
@@ -79,24 +79,23 @@ export const AppearanceSettingsPageView = ({
       </Badges>
 
       <Fieldset
-        title="Logo URL"
+        title="徽标网址"
         validation={
           isEntitled
-            ? "We recommend a transparent image with 3:1 aspect ratio."
-            : "This is an Enterprise only feature."
+            ? "我们建议使用长宽比为3:1的透明图像。"
+            : "这是企业版独有的功能。"
         }
         onSubmit={logoForm.handleSubmit}
-        button={!isEntitled && <Button disabled>Submit</Button>}
+        button={!isEntitled && <Button disabled>提交</Button>}
       >
         <p>
-          Specify a custom URL for your logo to be displayed in the top left
-          corner of the dashboard.
+        为要显示在仪表板左上角的徽标指定自定义URL。
         </p>
         <TextField
           {...logoFieldHelpers("logo_url")}
           defaultValue={appearance.logo_url}
           fullWidth
-          placeholder="Leave empty to display the Coder logo."
+          placeholder="留空以显示Coder徽标。"
           disabled={!isEntitled}
           InputProps={{
             endAdornment: (
@@ -116,7 +115,7 @@ export const AppearanceSettingsPageView = ({
       </Fieldset>
 
       <Fieldset
-        title="Service Banner"
+        title="消息横幅"
         onSubmit={serviceBannerForm.handleSubmit}
         button={
           !isEntitled && (
@@ -148,7 +147,7 @@ export const AppearanceSettingsPageView = ({
           )
         }
       >
-        <p>Configure a banner that displays a message to all users.</p>
+        <p>配置向所有用户显示消息的横幅。</p>
 
         {isEntitled && (
           <Stack>
@@ -173,13 +172,13 @@ export const AppearanceSettingsPageView = ({
                   }}
                 />
               }
-              label="Enabled"
+              label="启用"
             />
             <Stack spacing={0}>
               <TextField
                 {...serviceBannerFieldHelpers("message")}
                 fullWidth
-                label="Message"
+                label="消息"
                 variant="outlined"
                 multiline
               />
@@ -187,7 +186,7 @@ export const AppearanceSettingsPageView = ({
             </Stack>
 
             <Stack spacing={0}>
-              <h3>{"Background Color"}</h3>
+              <h3>{"背景颜色"}</h3>
               <BlockPicker
                 color={backgroundColor}
                 onChange={async (color) => {
