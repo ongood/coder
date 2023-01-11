@@ -1,9 +1,9 @@
 {
   "title": "",
   "labels": {
-    "workspaceVersion": "Workspace version",
-    "submit": "Update version",
-    "createdBy": "Created by",
-    "active": "Active"
+    "workspaceVersion": "工作区版本",
+    "submit": "更新版本",
+    "createdBy": "创建者",
+    "active": "激活"
   }
 }

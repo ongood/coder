@@ -1,23 +1,23 @@
 {
   "shareTooltip": {
-    "private": "Private, only accessible by you",
-    "authenticated": "Shared with all authenticated users",
-    "public": "Shared publicly",
-    "external": "Open external URL"
+    "private": "私人的，只有你可以访问",
+    "authenticated": "与所有经过身份验证的用户共享",
+    "public": "公开分享",
+    "external": "打开外部 URL"
   },
   "labels": {
-    "agent": "Agent",
+    "agent": "代理",
     "os": "OS",
     "apps": "Apps",
     "noApps": "None"
   },
   "status": {
-    "timeout": "Timeout"
+    "timeout": "超时"
   },
   "timeoutTooltip": {
-    "title": "Agent is taking too long to connect",
-    "message": "We noticed this agent is taking longer than expected to connect.",
+    "title": "代理连接时间太长",
+    "message": "我们注意到这个代理连接的时间比预期的要长。",
     "link": "Troubleshoot"
   },
-  "unableToConnect": "Unable to connect"
+  "unableToConnect": "无法连接"
 }

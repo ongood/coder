@@ -1,11 +1,11 @@
 {
-  "title": "Starter Templates",
-  "subtitle": "Pick one of the built-in templates to start using Coder",
-  "filterCaption": "Filter",
+  "title": "入门模板",
+  "subtitle": "选择一个内置模板开始使用 Coder",
+  "filterCaption": "过滤器",
   "tags": {
-    "all": "All templates",
-    "digitalocean": "Digital Ocean",
+    "all": "所有模板",
+    "digitalocean": "数字海洋",
     "aws": "AWS",
-    "google": "Google Cloud"
+    "google": "谷歌云"
   }
 }

@@ -1,18 +1,18 @@
 {
   "actions": {
-    "create": "created a new",
-    "write": "updated",
-    "delete": "deleted"
+    "create": "新建",
+    "write": "已升级",
+    "delete": "已删除"
   },
   "table": {
-    "emptyPage": "No audit logs available on this page",
-    "noLogs": "No audit logs available",
+    "emptyPage": "此页面上没有可用的审计日志",
+    "noLogs": "没有可用的审计日志",
     "logRow": {
       "deletedLabel": " (deleted)",
       "ip": "IP: ",
       "os": "OS: ",
       "browser": "Browser: ",
-      "notAvailable": "Not available",
+      "notAvailable": "不可用",
       "onBehalfOf": " on behalf of {{owner}}"
     }
   }
