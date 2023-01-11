@@ -1,28 +1,20 @@
 import { useActor } from "@xstate/react"
-import React, { useContext, useEffect } from "react"
+import { useContext, useEffect, PropsWithChildren, FC } from "react"
 import { ConfirmDialog } from "../../../components/Dialogs/ConfirmDialog/ConfirmDialog"
-import { Section } from "../../../components/Section/Section"
+import { Section } from "../../../components/SettingsLayout/Section"
 import { XServiceContext } from "../../../xServices/StateContext"
 import { SSHKeysPageView } from "./SSHKeysPageView"
 
 export const Language = {
   title: "SSH 密钥",
-  description: (
-    <p>
-       以下公钥用于在工作区中对 Git 进行身份验证。
-       您可以将其添加到您需要从工作区访问的 Git 服务器（例如 GitHub）。<br />
-      <br />
-      Coder 通过此方式配置身份验证: <code>$GIT_SSH_COMMAND</code>.
-    </p>
-  ),
-  regenerateDialogTitle: "重新生成 SSH 密钥？",
+  regenerateDialogTitle: "重置密钥?",
   regenerateDialogMessage:
     "您将需要替换与它一起使用的Git服务器上的公共 SSH 密钥，并且您需要重建现有工作区。",
   confirmLabel: "确认",
   cancelLabel: "取消",
 }
 
-export const SSHKeysPage: React.FC<React.PropsWithChildren<unknown>> = () => {
+export const SSHKeysPage: FC<PropsWithChildren<unknown>> = () => {
   const xServices = useContext(XServiceContext)
   const [authState, authSend] = useActor(xServices.authXService)
   const { sshKey, getSSHKeyError, regenerateSSHKeyError } = authState.context
@@ -40,7 +32,7 @@ export const SSHKeysPage: React.FC<React.PropsWithChildren<unknown>> = () => {
 
   return (
     <>
-      <Section title={Language.title} description={Language.description}>
+      <Section title={Language.title}>
         <SSHKeysPageView
           isLoading={isLoading}
           hasLoaded={hasLoaded}

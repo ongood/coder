@@ -3,19 +3,19 @@
   "form": {
     "generalInfo": {
       "title": "常规信息",
-      "description": "该名称用于识别 URL 和 API 上的模板。它在您的组织中必须是唯一的。"
+      "description": "该名称用于标识 URL 和 API 中的模板。它在您的组织内必须是唯一的。"
     },
     "displayInfo": {
       "title": "显示信息",
-      "description": "设置要用于显示模板的名称、有用的描述和图标。"
+      "description": "为您的模板提供一个友好的名称、描述和图标。"
     },
     "schedule": {
       "title": "时间表",
-      "description": "定义从此模板创建的工作区何时停止。"
+      "description": "定义从此模板创建的工作区何时自动停止。"
     },
     "operations": {
       "title": "操作",
-      "description": "允许或禁止用户在工作区上运行特定操作。"
+      "description": "规定在此模板创建的工作区上允许的操作。"
     },
     "parameters": {
       "title": "模板参数",
@@ -30,8 +30,8 @@
       "allowUsersToCancel": "允许用户取消正在进行的工作区作业"
     },
     "helperText": {
-      "autoStop": "以小时为单位",
-      "allowUsersToCancel": "不推荐"
+      "autoStop": "Time in hours",
+      "allowUsersToCancel": "If checked, users may be able to corrupt their workspace."
     },
     "upload": {
       "removeTitle": "删除文件",
