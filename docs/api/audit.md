@@ -1,7 +1,5 @@
 # Audit
 
-> This page is incomplete, stay tuned.
-
 ## Get audit logs
 
 ### Code samples
@@ -47,25 +45,25 @@ curl -X GET http://coder-server:8080/api/v2/audit?q=string \
           "secret": true
         }
       },
-      "id": "string",
+      "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
       "ip": "string",
       "is_deleted": true,
-      "organization_id": "string",
-      "request_id": "string",
+      "organization_id": "7c60d51f-b44e-4682-87d6-449835ea4de6",
+      "request_id": "266ea41d-adf5-480b-af50-15b940c2b846",
       "resource_icon": "string",
-      "resource_id": "string",
+      "resource_id": "4d5215ed-38bb-48ed-879a-fdb9ca58522f",
       "resource_link": "string",
       "resource_target": "string",
       "resource_type": "organization",
       "status_code": 0,
-      "time": "string",
+      "time": "2019-08-24T14:15:22Z",
       "user": {
-        "avatar_url": "string",
-        "created_at": "string",
-        "email": "string",
-        "id": "string",
-        "last_seen_at": "string",
-        "organization_ids": ["string"],
+        "avatar_url": "http://example.com",
+        "created_at": "2019-08-24T14:15:22Z",
+        "email": "user@example.com",
+        "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+        "last_seen_at": "2019-08-24T14:15:22Z",
+        "organization_ids": ["497f6eca-6276-4993-bfeb-53cbbbba6f08"],
         "roles": [
           {
             "display_name": "string",
@@ -108,9 +106,9 @@ curl -X POST http://coder-server:8080/api/v2/audit/testgenerate \
 ```json
 {
   "action": "create",
-  "resource_id": "string",
+  "resource_id": "4d5215ed-38bb-48ed-879a-fdb9ca58522f",
   "resource_type": "organization",
-  "time": "string"
+  "time": "2019-08-24T14:15:22Z"
 }
 ```
 

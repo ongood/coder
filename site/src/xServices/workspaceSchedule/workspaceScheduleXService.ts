@@ -6,10 +6,6 @@ import { assign, createMachine } from "xstate"
 import * as API from "../../api/api"
 import * as TypesGen from "../../api/typesGenerated"
 
-export const Language = {
-  successMessage: "已成功更新工作区计划.",
-}
-
 type Permissions = Record<keyof ReturnType<typeof permissionsToCheck>, boolean>
 
 export interface WorkspaceScheduleContext {

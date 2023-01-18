@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"golang.org/x/xerrors"
 )
 
 type AddLicenseRequest struct {
@@ -16,13 +17,37 @@ type AddLicenseRequest struct {
 
 type License struct {
 	ID         int32     `json:"id"`
-	UUID       uuid.UUID `json:"uuid"`
-	UploadedAt time.Time `json:"uploaded_at"`
+	UUID       uuid.UUID `json:"uuid" format:"uuid"`
+	UploadedAt time.Time `json:"uploaded_at" format:"date-time"`
 	// Claims are the JWT claims asserted by the license.  Here we use
 	// a generic string map to ensure that all data from the server is
 	// parsed verbatim, not just the fields this version of Coder
 	// understands.
 	Claims map[string]interface{} `json:"claims"`
+}
+
+// Features provides the feature claims in license.
+func (l *License) Features() (map[FeatureName]int64, error) {
+	strMap, ok := l.Claims["features"].(map[string]interface{})
+	if !ok {
+		return nil, xerrors.New("features key is unexpected type")
+	}
+	fMap := make(map[FeatureName]int64)
+	for k, v := range strMap {
+		jn, ok := v.(json.Number)
+		if !ok {
+			return nil, xerrors.Errorf("feature %q has unexpected type", k)
+		}
+
+		n, err := jn.Int64()
+		if err != nil {
+			return nil, err
+		}
+
+		fMap[FeatureName(k)] = n
+	}
+
+	return fMap, nil
 }
 
 func (c *Client) AddLicense(ctx context.Context, r AddLicenseRequest) (License, error) {

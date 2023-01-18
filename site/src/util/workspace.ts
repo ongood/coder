@@ -11,7 +11,7 @@ dayjs.extend(duration)
 dayjs.extend(utc)
 dayjs.extend(minMax)
 
-export const DisplayWorkspaceBuildStatusLanguage = {
+const DisplayWorkspaceBuildStatusLanguage = {
   succeeded: "成功",
   pending: "等待中",
   running: "运行中",
@@ -20,7 +20,7 @@ export const DisplayWorkspaceBuildStatusLanguage = {
   failed: "失败",
 }
 
-export const DisplayAgentVersionLanguage = {
+const DisplayAgentVersionLanguage = {
   unknown: "未知",
 }
 
@@ -84,7 +84,7 @@ export const getDisplayWorkspaceBuildInitiatedBy = (
   }
 }
 
-export const getWorkspaceBuildDurationInSeconds = (
+const getWorkspaceBuildDurationInSeconds = (
   build: TypesGen.WorkspaceBuild,
 ): number | undefined => {
   const isCompleted = build.job.started_at && build.job.completed_at

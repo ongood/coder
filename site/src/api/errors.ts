@@ -1,6 +1,6 @@
 import axios, { AxiosError, AxiosResponse } from "axios"
 
-export const Language = {
+const Language = {
   errorsByCode: {
     defaultErrorCode: "无效值",
   },

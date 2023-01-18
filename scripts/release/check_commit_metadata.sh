@@ -34,6 +34,10 @@ dependencies gh
 COMMIT_METADATA_BREAKING=0
 declare -A COMMIT_METADATA_TITLE COMMIT_METADATA_CATEGORY
 
+# This environment variable can be set to 1 to ignore missing commit metadata,
+# useful for dry-runs.
+ignore_missing_metadata=${CODER_IGNORE_MISSING_COMMIT_METADATA:-0}
+
 main() {
 	# Match a commit prefix pattern, e.g. feat: or feat(site):.
 	prefix_pattern="^([a-z]+)(\([a-z]*\))?:"
@@ -89,9 +93,11 @@ main() {
 
 		# Safety-check, guarantee all commits had their metadata fetched.
 		if [[ ! -v labels[$commit_sha_long] ]]; then
-			# 修复通过vscode合并时报错,无法从vscode获取commit message
-			labels[$commit_sha_long]="Merge branch"
-			# error "Metadata missing for commit $commit_sha_short"
+			if [[ $ignore_missing_metadata != 1 ]]; then
+				error "Metadata missing for commit $commit_sha_short"
+			else
+				log "WARNING: Metadata missing for commit $commit_sha_short"
+			fi
 		fi
 
 		# Store the commit title for later use.
@@ -101,11 +107,11 @@ main() {
 
 		# First, check the title for breaking changes. This avoids doing a
 		# GH API request if there's a match.
-		if [[ $commit_prefix =~ $breaking_title ]] || [[ ${labels[$commit_sha_long]} = *"label:$breaking_label"* ]]; then
+		if [[ $commit_prefix =~ $breaking_title ]] || [[ ${labels[$commit_sha_long]:-} = *"label:$breaking_label"* ]]; then
 			COMMIT_METADATA_CATEGORY[$commit_sha_short]=$breaking_category
 			COMMIT_METADATA_BREAKING=1
 			continue
-		elif [[ ${labels[$commit_sha_long]} = *"label:$security_label"* ]]; then
+		elif [[ ${labels[$commit_sha_long]:-} = *"label:$security_label"* ]]; then
 			COMMIT_METADATA_CATEGORY[$commit_sha_short]=$security_label
 			continue
 		fi
@@ -139,6 +145,9 @@ export_commit_metadata() {
 if [[ ${_COMMIT_METADATA_CACHE:-} == "${range}:"* ]]; then
 	eval "${_COMMIT_METADATA_CACHE#*:}"
 else
+	if [[ $ignore_missing_metadata == 1 ]]; then
+		log "WARNING: Ignoring missing commit metadata, breaking changes may be missed."
+	fi
 	main
 fi
 

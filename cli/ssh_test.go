@@ -274,6 +274,10 @@ func TestSSH(t *testing.T) {
 			assert.NoError(t, err, "ssh command failed")
 		})
 
+		// Wait for the prompt or any output really to indicate the command has
+		// started and accepting input on stdin.
+		_ = pty.Peek(ctx, 1)
+
 		// Ensure that SSH_AUTH_SOCK is set.
 		// Linux: /tmp/auth-agent3167016167/listener.sock
 		// macOS: /var/folders/ng/m1q0wft14hj0t3rtjxrdnzsr0000gn/T/auth-agent3245553419/listener.sock
@@ -474,6 +478,10 @@ Expire-Date: 0
 		// Without this, the test will hang forever on failure, preventing the
 		// real error from being printed.
 		t.Cleanup(cancel)
+
+		// Wait for the prompt or any output really to indicate the command has
+		// started and accepting input on stdin.
+		_ = pty.Peek(ctx, 1)
 
 		pty.WriteLine("echo hello 'world'")
 		pty.ExpectMatch("hello world")

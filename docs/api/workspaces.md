@@ -1,8 +1,6 @@
 # Workspaces
 
-> This page is incomplete, stay tuned.
-
-## Create workspace by organization
+## Create user workspace by organization
 
 ### Code samples
 
@@ -17,10 +15,10 @@ curl -X POST http://coder-server:8080/api/v2/organizations/{organization}/member
 
 ### Parameters
 
-| Name           | In   | Type         | Required | Description     |
-| -------------- | ---- | ------------ | -------- | --------------- |
-| `organization` | path | string(uuid) | true     | Organization ID |
-| `user`         | path | string       | true     | Username        |
+| Name           | In   | Type         | Required | Description           |
+| -------------- | ---- | ------------ | -------- | --------------------- |
+| `organization` | path | string(uuid) | true     | Organization ID       |
+| `user`         | path | string       | true     | Username, UUID, or me |
 
 ### Example responses
 
@@ -162,7 +160,7 @@ curl -X POST http://coder-server:8080/api/v2/organizations/{organization}/member
 
 To perform this operation, you must be authenticated. [Learn more](authentication.md).
 
-## Get workspace metadata by owner and workspace name
+## Get workspace metadata by user and workspace name
 
 ### Code samples
 
@@ -179,7 +177,7 @@ curl -X GET http://coder-server:8080/api/v2/users/{user}/workspace/{workspacenam
 
 | Name              | In    | Type    | Required | Description                                                 |
 | ----------------- | ----- | ------- | -------- | ----------------------------------------------------------- |
-| `user`            | path  | string  | true     | Owner username                                              |
+| `user`            | path  | string  | true     | User ID, name, or me                                        |
 | `workspacename`   | path  | string  | true     | Workspace name                                              |
 | `include_deleted` | query | boolean | false    | Return data instead of HTTP 404 if the workspace is deleted |
 
@@ -511,18 +509,18 @@ To perform this operation, you must be authenticated. [Learn more](authenticatio
 
 ```shell
 # Example request using curl
-curl -X GET http://coder-server:8080/api/v2/workspaces/{id} \
+curl -X GET http://coder-server:8080/api/v2/workspaces/{workspace} \
   -H 'Accept: application/json' \
   -H 'Coder-Session-Token: API_KEY'
 ```
 
-`GET /workspaces/{id}`
+`GET /workspaces/{workspace}`
 
 ### Parameters
 
 | Name              | In    | Type         | Required | Description                                                 |
 | ----------------- | ----- | ------------ | -------- | ----------------------------------------------------------- |
-| `id`              | path  | string(uuid) | true     | Workspace ID                                                |
+| `workspace`       | path  | string(uuid) | true     | Workspace ID                                                |
 | `include_deleted` | query | boolean      | false    | Return data instead of HTTP 404 if the workspace is deleted |
 
 ### Example responses
@@ -755,7 +753,7 @@ curl -X PUT http://coder-server:8080/api/v2/workspaces/{workspace}/extend \
 
 ```json
 {
-  "deadline": "string"
+  "deadline": "2019-08-24T14:15:22Z"
 }
 ```
 

@@ -1,3 +1,5 @@
+//go:build !slim
+
 package cli
 
 import (
@@ -46,6 +48,8 @@ import (
 
 	"cdr.dev/slog"
 	"cdr.dev/slog/sloggers/sloghuman"
+	"cdr.dev/slog/sloggers/slogjson"
+	"cdr.dev/slog/sloggers/slogstackdriver"
 	"github.com/coder/coder/buildinfo"
 	"github.com/coder/coder/cli/cliui"
 	"github.com/coder/coder/cli/config"
@@ -81,6 +85,13 @@ func Server(vip *viper.Viper, newAPI func(context.Context, *coderd.Options) (*co
 		Use:   "server",
 		Short: "Start a Coder server",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Main command context for managing cancellation of running
+			// services.
+			ctx, cancel := context.WithCancel(cmd.Context())
+			defer cancel()
+
+			go dumpHandler(ctx)
+
 			cfg, err := deployment.Config(cmd.Flags(), vip)
 			if err != nil {
 				return xerrors.Errorf("getting deployment config: %w", err)
@@ -115,18 +126,11 @@ func Server(vip *viper.Viper, newAPI func(context.Context, *coderd.Options) (*co
 			}
 
 			printLogo(cmd)
-			logger := slog.Make(sloghuman.Sink(cmd.ErrOrStderr()))
-			if ok, _ := cmd.Flags().GetBool(varVerbose); ok {
-				logger = logger.Leveled(slog.LevelDebug)
+			logger, logCloser, err := buildLogger(cmd, cfg)
+			if err != nil {
+				return xerrors.Errorf("make logger: %w", err)
 			}
-			if cfg.Trace.CaptureLogs.Value {
-				logger = logger.AppendSinks(tracing.SlogSink{})
-			}
-
-			// Main command context for managing cancellation
-			// of running services.
-			ctx, cancel := context.WithCancel(cmd.Context())
-			defer cancel()
+			defer logCloser()
 
 			// Register signals early on so that graceful shutdown can't
 			// be interrupted by additional signals. Note that we avoid
@@ -541,6 +545,7 @@ func Server(vip *viper.Viper, newAPI func(context.Context, *coderd.Options) (*co
 						Endpoint:     oidcProvider.Endpoint(),
 						Scopes:       cfg.OIDC.Scopes.Value,
 					},
+					Provider: oidcProvider,
 					Verifier: oidcProvider.Verifier(&oidc.Config{
 						ClientID: cfg.OIDC.ClientID.Value,
 					}),
@@ -1143,6 +1148,11 @@ func newProvisionerDaemon(
 
 // nolint: revive
 func printLogo(cmd *cobra.Command) {
+	// Only print the logo in TTYs.
+	if !isTTYOut(cmd) {
+		return
+	}
+
 	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s - Software development on your infrastucture\n", cliui.Styles.Bold.Render("Coder "+buildinfo.Version()))
 }
 
@@ -1362,29 +1372,6 @@ func configureGithubOAuth2(accessURL *url.URL, clientID, clientSecret string, al
 	}, nil
 }
 
-func serveHandler(ctx context.Context, logger slog.Logger, handler http.Handler, addr, name string) (closeFunc func()) {
-	logger.Debug(ctx, "http server listening", slog.F("addr", addr), slog.F("name", name))
-
-	// ReadHeaderTimeout is purposefully not enabled. It caused some issues with
-	// websockets over the dev tunnel.
-	// See: https://github.com/coder/coder/pull/3730
-	//nolint:gosec
-	srv := &http.Server{
-		Addr:    addr,
-		Handler: handler,
-	}
-	go func() {
-		err := srv.ListenAndServe()
-		if err != nil && !xerrors.Is(err, http.ErrServerClosed) {
-			logger.Error(ctx, "http server listen", slog.F("name", name), slog.Error(err))
-		}
-	}()
-
-	return func() {
-		_ = srv.Close()
-	}
-}
-
 // embeddedPostgresURL returns the URL for the embedded PostgreSQL deployment.
 func embeddedPostgresURL(cfg config.Root) (string, error) {
 	pgPassword, err := cfg.PostgresPassword().Read()
@@ -1509,4 +1496,65 @@ func redirectHTTPToAccessURL(handler http.Handler, accessURL *url.URL) http.Hand
 // be called with `u.Hostname()`.
 func isLocalhost(host string) bool {
 	return host == "localhost" || host == "127.0.0.1" || host == "::1"
+}
+
+func buildLogger(cmd *cobra.Command, cfg *codersdk.DeploymentConfig) (slog.Logger, func(), error) {
+	var (
+		sinks   = []slog.Sink{}
+		closers = []func() error{}
+	)
+
+	addSinkIfProvided := func(sinkFn func(io.Writer) slog.Sink, loc string) error {
+		switch loc {
+		case "":
+
+		case "/dev/stdout":
+			sinks = append(sinks, sinkFn(cmd.OutOrStdout()))
+
+		case "/dev/stderr":
+			sinks = append(sinks, sinkFn(cmd.ErrOrStderr()))
+
+		default:
+			fi, err := os.OpenFile(loc, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+			if err != nil {
+				return xerrors.Errorf("open log file %q: %w", loc, err)
+			}
+
+			closers = append(closers, fi.Close)
+			sinks = append(sinks, sinkFn(fi))
+		}
+		return nil
+	}
+
+	err := addSinkIfProvided(sloghuman.Sink, cfg.Logging.Human.Value)
+	if err != nil {
+		return slog.Logger{}, nil, xerrors.Errorf("add human sink: %w", err)
+	}
+	err = addSinkIfProvided(slogjson.Sink, cfg.Logging.JSON.Value)
+	if err != nil {
+		return slog.Logger{}, nil, xerrors.Errorf("add json sink: %w", err)
+	}
+	err = addSinkIfProvided(slogstackdriver.Sink, cfg.Logging.Stackdriver.Value)
+	if err != nil {
+		return slog.Logger{}, nil, xerrors.Errorf("add stackdriver sink: %w", err)
+	}
+
+	if cfg.Trace.CaptureLogs.Value {
+		sinks = append(sinks, tracing.SlogSink{})
+	}
+
+	level := slog.LevelInfo
+	if ok, _ := cmd.Flags().GetBool(varVerbose); ok {
+		level = slog.LevelDebug
+	}
+
+	if len(sinks) == 0 {
+		return slog.Logger{}, nil, xerrors.New("no loggers provided")
+	}
+
+	return slog.Make(sinks...).Leveled(level), func() {
+		for _, closer := range closers {
+			_ = closer()
+		}
+	}, nil
 }

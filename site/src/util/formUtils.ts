@@ -8,7 +8,7 @@ import {
 } from "react"
 import * as Yup from "yup"
 
-export const Language = {
+const Language = {
   nameRequired: (name: string): string => {
     return name ? `请输入 ${name.toLowerCase()}.` : "Required"
   },

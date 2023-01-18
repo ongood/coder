@@ -34,14 +34,19 @@ if [[ "${CI:-}" == "" ]]; then
 fi
 
 version=""
+release_notes_file=""
 dry_run=0
 
-args="$(getopt -o "" -l version:,dry-run -- "$@")"
+args="$(getopt -o "" -l version:,release-notes-file:,dry-run -- "$@")"
 eval set -- "$args"
 while true; do
 	case "$1" in
 	--version)
 		version="$2"
+		shift 2
+		;;
+	--release-notes-file)
+		release_notes_file="$2"
 		shift 2
 		;;
 	--dry-run)
@@ -65,6 +70,10 @@ dependencies gh
 version="${version#v}"
 if [[ "$version" == "" ]]; then
 	version="$(execrelative ./version.sh)"
+fi
+
+if [[ -z $release_notes_file ]]; then
+	error "No release notes files specified, use --release-notes-file."
 fi
 
 # realpath-ify all input files so we can cdroot below.
@@ -96,25 +105,6 @@ if [[ "$(git describe --always)" != "$new_tag" ]]; then
 	log "The provided version does not match the current git tag, but --dry-run was supplied so continuing..."
 fi
 
-# This returns the tag before the current tag.
-old_tag="$(git describe --abbrev=0 HEAD^1)"
-
-# For dry-run builds we want to use the SHA instead of the tag, because the new
-# tag probably doesn't exist.
-new_ref="$new_tag"
-if [[ "$dry_run" == 1 ]]; then
-	new_ref="$(git rev-parse --short HEAD)"
-fi
-
-# shellcheck source=scripts/release/check_commit_metadata.sh
-source "$SCRIPT_DIR/release/check_commit_metadata.sh" "$old_tag" "$new_ref"
-
-# Craft the release notes.
-release_notes="$(execrelative ./release/generate_release_notes.sh --old-version "$old_tag" --new-version "$new_tag" --ref "$new_ref")"
-
-release_notes_file="$(mktemp)"
-echo "$release_notes" >"$release_notes_file"
-
 # Create temporary release folder so we can generate checksums. Both the
 # sha256sum and gh binaries support symlinks as input files so this works well.
 temp_dir="$(mktemp -d)"
@@ -124,13 +114,53 @@ done
 
 # Generate checksums file which will be uploaded to the GitHub release.
 pushd "$temp_dir"
-sha256sum ./* | sed -e 's/\.\///' - >"coder_${version}_checksums.txt"
+checksum_file="coder_${version}_checksums.txt"
+sha256sum ./* | sed -e 's/\.\///' - >"$checksum_file"
 popd
 
-log "--- Creating release $new_tag"
+# Sign the checksums file if we have a GPG key. We skip this step in dry-run
+# because we don't want to sign a fake release with our real key.
+if [[ "$dry_run" == 0 ]] && [[ "${CODER_GPG_RELEASE_KEY_BASE64:-}" != "" ]]; then
+	log "--- Signing checksums file"
+	log
+
+	# Import the GPG key.
+	old_gnupg_home="${GNUPGHOME:-}"
+	gnupg_home_temp="$(mktemp -d)"
+	export GNUPGHOME="$gnupg_home_temp"
+	echo "$CODER_GPG_RELEASE_KEY_BASE64" | base64 -d | gpg --import 1>&2
+
+	# Sign the checksums file. This generates a file in the same directory and
+	# with the same name as the checksums file but ending in ".asc".
+	#
+	# We pipe `true` into `gpg` so that it never tries to be interactive (i.e.
+	# ask for a passphrase). The key we import above is not password protected.
+	true | gpg --detach-sign --armor "${temp_dir}/${checksum_file}" 1>&2
+
+	rm -rf "$gnupg_home_temp"
+	unset GNUPGHOME
+	if [[ "$old_gnupg_home" != "" ]]; then
+		export GNUPGHOME="$old_gnupg_home"
+	fi
+
+	signed_checksum_path="${temp_dir}/${checksum_file}.asc"
+	if [[ ! -e "$signed_checksum_path" ]]; then
+		log "Signed checksum file not found: ${signed_checksum_path}"
+		log
+		log "Files in ${temp_dir}:"
+		ls -l "$temp_dir"
+		log
+		error "Failed to sign checksums file. See above for more details."
+	fi
+
+	log
+	log
+fi
+
+log "--- Publishing release $new_tag on GitHub"
 log
 log "Description:"
-echo "$release_notes" | sed -e 's/^/\t/' - 1>&2
+sed -e 's/^/\t/' - <"$release_notes_file" 1>&2
 log
 log "Contents:"
 pushd "$temp_dir"

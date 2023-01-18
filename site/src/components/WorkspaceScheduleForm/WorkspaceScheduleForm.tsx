@@ -62,7 +62,7 @@ export const Language = {
   ttlLabel: "自动停止前的工作时间（小时）",
   ttlCausesShutdownHelperText: "您的工作区将自动停止于每次启动之后的",
   ttlCausesShutdownAfterStart:
-    "之内。如果检测到工作区在活动时，将自动延迟一个小时停止。",
+    "after its next start. We delay shutdown by this time whenever we detect activity",
   ttlCausesNoShutdownHelperText:
     "您的工作区不会自动停止。",
   formTitle: "工作区时间表",
@@ -280,7 +280,7 @@ export const WorkspaceScheduleForm: FC<
   }
 
   return (
-    <FullPageForm onCancel={onCancel} title={Language.formTitle}>
+    <FullPageForm title={Language.formTitle}>
       <form onSubmit={form.handleSubmit} className={styles.form}>
         <Stack>
           {Boolean(submitScheduleError) && (

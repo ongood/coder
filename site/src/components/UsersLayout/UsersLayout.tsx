@@ -3,16 +3,22 @@ import Link from "@material-ui/core/Link"
 import { makeStyles } from "@material-ui/core/styles"
 import GroupAdd from "@material-ui/icons/GroupAddOutlined"
 import PersonAdd from "@material-ui/icons/PersonAddOutlined"
+import { USERS_LINK } from "components/NavbarView/NavbarView"
 import { PageHeader, PageHeaderTitle } from "components/PageHeader/PageHeader"
 import { useFeatureVisibility } from "hooks/useFeatureVisibility"
 import { usePermissions } from "hooks/usePermissions"
-import { FC, PropsWithChildren } from "react"
-import { Link as RouterLink, NavLink, useNavigate } from "react-router-dom"
+import { FC } from "react"
+import {
+  Link as RouterLink,
+  NavLink,
+  Outlet,
+  useNavigate,
+} from "react-router-dom"
 import { combineClasses } from "util/combineClasses"
 import { Margins } from "../../components/Margins/Margins"
 import { Stack } from "../../components/Stack/Stack"
 
-export const UsersLayout: FC<PropsWithChildren> = ({ children }) => {
+export const UsersLayout: FC = () => {
   const styles = useStyles()
   const { createUser: canCreateUser, createGroup: canCreateGroup } =
     usePermissions()
@@ -56,7 +62,7 @@ export const UsersLayout: FC<PropsWithChildren> = ({ children }) => {
           <Stack direction="row" spacing={0.25}>
             <NavLink
               end
-              to="/users"
+              to={USERS_LINK}
               className={({ isActive }) =>
                 combineClasses([
                   styles.tabItem,
@@ -81,7 +87,9 @@ export const UsersLayout: FC<PropsWithChildren> = ({ children }) => {
         </Margins>
       </div>
 
-      <Margins>{children}</Margins>
+      <Margins>
+        <Outlet />
+      </Margins>
     </>
   )
 }

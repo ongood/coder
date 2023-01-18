@@ -1,6 +1,51 @@
 # Schemas
 
-> This page is incomplete, stay tuned.
+## coderd.SCIMUser
+
+```json
+{
+  "active": true,
+  "emails": [
+    {
+      "display": "string",
+      "primary": true,
+      "type": "string",
+      "value": "user@example.com"
+    }
+  ],
+  "groups": [null],
+  "id": "string",
+  "meta": {
+    "resourceType": "string"
+  },
+  "name": {
+    "familyName": "string",
+    "givenName": "string"
+  },
+  "schemas": ["string"],
+  "userName": "string"
+}
+```
+
+### Properties
+
+| Name             | Type               | Required | Restrictions | Description |
+| ---------------- | ------------------ | -------- | ------------ | ----------- |
+| `active`         | boolean            | false    |              |             |
+| `emails`         | array of object    | false    |              |             |
+| `» display`      | string             | false    |              |             |
+| `» primary`      | boolean            | false    |              |             |
+| `» type`         | string             | false    |              |             |
+| `» value`        | string             | false    |              |             |
+| `groups`         | array of undefined | false    |              |             |
+| `id`             | string             | false    |              |             |
+| `meta`           | object             | false    |              |             |
+| `» resourceType` | string             | false    |              |             |
+| `name`           | object             | false    |              |             |
+| `» familyName`   | string             | false    |              |             |
+| `» givenName`    | string             | false    |              |             |
+| `schemas`        | array of string    | false    |              |             |
+| `userName`       | string             | false    |              |             |
 
 ## coderd.cspViolation
 
@@ -15,6 +60,62 @@
 | Name         | Type   | Required | Restrictions | Description |
 | ------------ | ------ | -------- | ------------ | ----------- |
 | `csp-report` | object | false    |              |             |
+
+## codersdk.APIKey
+
+```json
+{
+  "created_at": "2019-08-24T14:15:22Z",
+  "expires_at": "2019-08-24T14:15:22Z",
+  "id": "string",
+  "last_used": "2019-08-24T14:15:22Z",
+  "lifetime_seconds": 0,
+  "login_type": "password",
+  "scope": "all",
+  "updated_at": "2019-08-24T14:15:22Z",
+  "user_id": "a169451c-8525-4352-b8ca-070dd449a1a5"
+}
+```
+
+### Properties
+
+| Name               | Type                                         | Required | Restrictions | Description |
+| ------------------ | -------------------------------------------- | -------- | ------------ | ----------- |
+| `created_at`       | string                                       | true     |              |             |
+| `expires_at`       | string                                       | true     |              |             |
+| `id`               | string                                       | true     |              |             |
+| `last_used`        | string                                       | true     |              |             |
+| `lifetime_seconds` | integer                                      | true     |              |             |
+| `login_type`       | [codersdk.LoginType](#codersdklogintype)     | true     |              |             |
+| `scope`            | [codersdk.APIKeyScope](#codersdkapikeyscope) | true     |              |             |
+| `updated_at`       | string                                       | true     |              |             |
+| `user_id`          | string                                       | true     |              |             |
+
+#### Enumerated Values
+
+| Property     | Value                 |
+| ------------ | --------------------- |
+| `login_type` | `password`            |
+| `login_type` | `github`              |
+| `login_type` | `oidc`                |
+| `login_type` | `token`               |
+| `scope`      | `all`                 |
+| `scope`      | `application_connect` |
+
+## codersdk.APIKeyScope
+
+```json
+"all"
+```
+
+### Properties
+
+#### Enumerated Values
+
+| Value                 |
+| --------------------- |
+| `all`                 |
+| `application_connect` |
 
 ## codersdk.AWSInstanceIdentityToken
 
@@ -31,6 +132,20 @@
 | ----------- | ------ | -------- | ------------ | ----------- |
 | `document`  | string | true     |              |             |
 | `signature` | string | true     |              |             |
+
+## codersdk.AddLicenseRequest
+
+```json
+{
+  "license": "string"
+}
+```
+
+### Properties
+
+| Name      | Type   | Required | Restrictions | Description |
+| --------- | ------ | -------- | ------------ | ----------- |
+| `license` | string | true     |              |             |
 
 ## codersdk.AgentGitSSHKey
 
@@ -89,6 +204,44 @@
 | Name              | Type    | Required | Restrictions | Description                                                                    |
 | ----------------- | ------- | -------- | ------------ | ------------------------------------------------------------------------------ |
 | `report_interval` | integer | false    |              | Report interval is the duration after which the agent should send stats again. |
+
+## codersdk.AppearanceConfig
+
+```json
+{
+  "logo_url": "string",
+  "service_banner": {
+    "background_color": "string",
+    "enabled": true,
+    "message": "string"
+  }
+}
+```
+
+### Properties
+
+| Name             | Type                                                         | Required | Restrictions | Description |
+| ---------------- | ------------------------------------------------------------ | -------- | ------------ | ----------- |
+| `logo_url`       | string                                                       | false    |              |             |
+| `service_banner` | [codersdk.ServiceBannerConfig](#codersdkservicebannerconfig) | false    |              |             |
+
+## codersdk.AssignableRoles
+
+```json
+{
+  "assignable": true,
+  "display_name": "string",
+  "name": "string"
+}
+```
+
+### Properties
+
+| Name           | Type    | Required | Restrictions | Description |
+| -------------- | ------- | -------- | ------------ | ----------- |
+| `assignable`   | boolean | false    |              |             |
+| `display_name` | string  | false    |              |             |
+| `name`         | string  | false    |              |             |
 
 ## codersdk.AuditAction
 
@@ -168,25 +321,25 @@
       "secret": true
     }
   },
-  "id": "string",
+  "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
   "ip": "string",
   "is_deleted": true,
-  "organization_id": "string",
-  "request_id": "string",
+  "organization_id": "7c60d51f-b44e-4682-87d6-449835ea4de6",
+  "request_id": "266ea41d-adf5-480b-af50-15b940c2b846",
   "resource_icon": "string",
-  "resource_id": "string",
+  "resource_id": "4d5215ed-38bb-48ed-879a-fdb9ca58522f",
   "resource_link": "string",
   "resource_target": "string",
   "resource_type": "organization",
   "status_code": 0,
-  "time": "string",
+  "time": "2019-08-24T14:15:22Z",
   "user": {
-    "avatar_url": "string",
-    "created_at": "string",
-    "email": "string",
-    "id": "string",
-    "last_seen_at": "string",
-    "organization_ids": ["string"],
+    "avatar_url": "http://example.com",
+    "created_at": "2019-08-24T14:15:22Z",
+    "email": "user@example.com",
+    "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+    "last_seen_at": "2019-08-24T14:15:22Z",
+    "organization_ids": ["497f6eca-6276-4993-bfeb-53cbbbba6f08"],
     "roles": [
       {
         "display_name": "string",
@@ -244,25 +397,25 @@
           "secret": true
         }
       },
-      "id": "string",
+      "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
       "ip": "string",
       "is_deleted": true,
-      "organization_id": "string",
-      "request_id": "string",
+      "organization_id": "7c60d51f-b44e-4682-87d6-449835ea4de6",
+      "request_id": "266ea41d-adf5-480b-af50-15b940c2b846",
       "resource_icon": "string",
-      "resource_id": "string",
+      "resource_id": "4d5215ed-38bb-48ed-879a-fdb9ca58522f",
       "resource_link": "string",
       "resource_target": "string",
       "resource_type": "organization",
       "status_code": 0,
-      "time": "string",
+      "time": "2019-08-24T14:15:22Z",
       "user": {
-        "avatar_url": "string",
-        "created_at": "string",
-        "email": "string",
-        "id": "string",
-        "last_seen_at": "string",
-        "organization_ids": ["string"],
+        "avatar_url": "http://example.com",
+        "created_at": "2019-08-24T14:15:22Z",
+        "email": "user@example.com",
+        "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+        "last_seen_at": "2019-08-24T14:15:22Z",
+        "organization_ids": ["497f6eca-6276-4993-bfeb-53cbbbba6f08"],
         "roles": [
           {
             "display_name": "string",
@@ -285,6 +438,24 @@
 | ------------ | ----------------------------------------------- | -------- | ------------ | ----------- |
 | `audit_logs` | array of [codersdk.AuditLog](#codersdkauditlog) | false    |              |             |
 | `count`      | integer                                         | false    |              |             |
+
+## codersdk.AuthMethods
+
+```json
+{
+  "github": true,
+  "oidc": true,
+  "password": true
+}
+```
+
+### Properties
+
+| Name       | Type    | Required | Restrictions | Description |
+| ---------- | ------- | -------- | ------------ | ----------- |
+| `github`   | boolean | false    |              |             |
+| `oidc`     | boolean | false    |              |             |
+| `password` | boolean | false    |              |             |
 
 ## codersdk.AuthorizationCheck
 
@@ -437,11 +608,79 @@ AuthorizationObject can represent a "set" of objects, such as: all workspaces in
 | `autostart` |
 | `autostop`  |
 
+## codersdk.CreateFirstUserRequest
+
+```json
+{
+  "email": "string",
+  "password": "string",
+  "trial": true,
+  "username": "string"
+}
+```
+
+### Properties
+
+| Name       | Type    | Required | Restrictions | Description |
+| ---------- | ------- | -------- | ------------ | ----------- |
+| `email`    | string  | true     |              |             |
+| `password` | string  | true     |              |             |
+| `trial`    | boolean | false    |              |             |
+| `username` | string  | true     |              |             |
+
+## codersdk.CreateFirstUserResponse
+
+```json
+{
+  "organization_id": "7c60d51f-b44e-4682-87d6-449835ea4de6",
+  "user_id": "a169451c-8525-4352-b8ca-070dd449a1a5"
+}
+```
+
+### Properties
+
+| Name              | Type   | Required | Restrictions | Description |
+| ----------------- | ------ | -------- | ------------ | ----------- |
+| `organization_id` | string | false    |              |             |
+| `user_id`         | string | false    |              |             |
+
+## codersdk.CreateGroupRequest
+
+```json
+{
+  "avatar_url": "string",
+  "name": "string",
+  "quota_allowance": 0
+}
+```
+
+### Properties
+
+| Name              | Type    | Required | Restrictions | Description |
+| ----------------- | ------- | -------- | ------------ | ----------- |
+| `avatar_url`      | string  | false    |              |             |
+| `name`            | string  | false    |              |             |
+| `quota_allowance` | integer | false    |              |             |
+
+## codersdk.CreateOrganizationRequest
+
+```json
+{
+  "name": "string"
+}
+```
+
+### Properties
+
+| Name   | Type   | Required | Restrictions | Description |
+| ------ | ------ | -------- | ------------ | ----------- |
+| `name` | string | true     |              |             |
+
 ## codersdk.CreateParameterRequest
 
 ```json
 {
-  "copy_from_parameter": "string",
+  "copy_from_parameter": "000e07d6-021d-446c-be14-48a9c20bca0b",
   "destination_scheme": "none",
   "name": "string",
   "source_scheme": "none",
@@ -483,14 +722,14 @@ CreateParameterRequest is a structure used to create a new parameter value for a
   "name": "string",
   "parameter_values": [
     {
-      "copy_from_parameter": "string",
+      "copy_from_parameter": "000e07d6-021d-446c-be14-48a9c20bca0b",
       "destination_scheme": "none",
       "name": "string",
       "source_scheme": "none",
       "source_value": "string"
     }
   ],
-  "template_version_id": "string"
+  "template_version_id": "0ba39c92-1f1b-4c32-aa3e-9925d7713eb1"
 }
 ```
 
@@ -508,14 +747,38 @@ CreateParameterRequest is a structure used to create a new parameter value for a
 | `template_version_id`                                                                                                                                                                     | string                                                                      | true     |              | Template version ID is an in-progress or completed job to use as an initial version of the template.       |
 | This is required on creation to enable a user-flow of validating a template works. There is no reason the data-model cannot support empty templates, but it doesn't make sense for users. |
 
+## codersdk.CreateTemplateVersionDryRunRequest
+
+```json
+{
+  "parameter_values": [
+    {
+      "copy_from_parameter": "000e07d6-021d-446c-be14-48a9c20bca0b",
+      "destination_scheme": "none",
+      "name": "string",
+      "source_scheme": "none",
+      "source_value": "string"
+    }
+  ],
+  "workspace_name": "string"
+}
+```
+
+### Properties
+
+| Name               | Type                                                                        | Required | Restrictions | Description                                                                        |
+| ------------------ | --------------------------------------------------------------------------- | -------- | ------------ | ---------------------------------------------------------------------------------- |
+| `parameter_values` | array of [codersdk.CreateParameterRequest](#codersdkcreateparameterrequest) | false    |              | Parameter values is a structure used to create a new parameter value for a scope.] |
+| `workspace_name`   | string                                                                      | false    |              |                                                                                    |
+
 ## codersdk.CreateTestAuditLogRequest
 
 ```json
 {
   "action": "create",
-  "resource_id": "string",
+  "resource_id": "4d5215ed-38bb-48ed-879a-fdb9ca58522f",
   "resource_type": "organization",
-  "time": "string"
+  "time": "2019-08-24T14:15:22Z"
 }
 ```
 
@@ -547,6 +810,49 @@ CreateParameterRequest is a structure used to create a new parameter value for a
 | `resource_type` | `api_key`          |
 | `resource_type` | `group`            |
 
+## codersdk.CreateTokenRequest
+
+```json
+{
+  "lifetime": 0,
+  "scope": "all"
+}
+```
+
+### Properties
+
+| Name       | Type                                         | Required | Restrictions | Description |
+| ---------- | -------------------------------------------- | -------- | ------------ | ----------- |
+| `lifetime` | integer                                      | false    |              |             |
+| `scope`    | [codersdk.APIKeyScope](#codersdkapikeyscope) | false    |              |             |
+
+#### Enumerated Values
+
+| Property | Value                 |
+| -------- | --------------------- |
+| `scope`  | `all`                 |
+| `scope`  | `application_connect` |
+
+## codersdk.CreateUserRequest
+
+```json
+{
+  "email": "user@example.com",
+  "organization_id": "7c60d51f-b44e-4682-87d6-449835ea4de6",
+  "password": "string",
+  "username": "string"
+}
+```
+
+### Properties
+
+| Name              | Type   | Required | Restrictions | Description |
+| ----------------- | ------ | -------- | ------------ | ----------- |
+| `email`           | string | true     |              |             |
+| `organization_id` | string | true     |              |             |
+| `password`        | string | true     |              |             |
+| `username`        | string | true     |              |             |
+
 ## codersdk.CreateWorkspaceBuildRequest
 
 ```json
@@ -555,29 +861,36 @@ CreateParameterRequest is a structure used to create a new parameter value for a
   "orphan": true,
   "parameter_values": [
     {
-      "copy_from_parameter": "string",
+      "copy_from_parameter": "000e07d6-021d-446c-be14-48a9c20bca0b",
       "destination_scheme": "none",
       "name": "string",
       "source_scheme": "none",
       "source_value": "string"
     }
   ],
+  "rich_parameter_values": [
+    {
+      "name": "string",
+      "value": "string"
+    }
+  ],
   "state": [0],
-  "template_version_id": "string",
+  "template_version_id": "0ba39c92-1f1b-4c32-aa3e-9925d7713eb1",
   "transition": "create"
 }
 ```
 
 ### Properties
 
-| Name                  | Type                                                                        | Required | Restrictions | Description                                                                                                                                                                                              |
-| --------------------- | --------------------------------------------------------------------------- | -------- | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `dry_run`             | boolean                                                                     | false    |              |                                                                                                                                                                                                          |
-| `orphan`              | boolean                                                                     | false    |              | Orphan may be set for the Destroy transition.                                                                                                                                                            |
-| `parameter_values`    | array of [codersdk.CreateParameterRequest](#codersdkcreateparameterrequest) | false    |              | Parameter values are optional. It will write params to the 'workspace' scope. This will overwrite any existing parameters with the same name. This will not delete old params not included in this list. |
-| `state`               | array of integer                                                            | false    |              |                                                                                                                                                                                                          |
-| `template_version_id` | string                                                                      | false    |              |                                                                                                                                                                                                          |
-| `transition`          | [codersdk.WorkspaceTransition](#codersdkworkspacetransition)                | true     |              |                                                                                                                                                                                                          |
+| Name                    | Type                                                                          | Required | Restrictions | Description                                                                                                                                                                                              |
+| ----------------------- | ----------------------------------------------------------------------------- | -------- | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dry_run`               | boolean                                                                       | false    |              |                                                                                                                                                                                                          |
+| `orphan`                | boolean                                                                       | false    |              | Orphan may be set for the Destroy transition.                                                                                                                                                            |
+| `parameter_values`      | array of [codersdk.CreateParameterRequest](#codersdkcreateparameterrequest)   | false    |              | Parameter values are optional. It will write params to the 'workspace' scope. This will overwrite any existing parameters with the same name. This will not delete old params not included in this list. |
+| `rich_parameter_values` | array of [codersdk.WorkspaceBuildParameter](#codersdkworkspacebuildparameter) | false    |              |                                                                                                                                                                                                          |
+| `state`                 | array of integer                                                              | false    |              |                                                                                                                                                                                                          |
+| `template_version_id`   | string                                                                        | false    |              |                                                                                                                                                                                                          |
+| `transition`            | [codersdk.WorkspaceTransition](#codersdkworkspacetransition)                  | true     |              |                                                                                                                                                                                                          |
 
 #### Enumerated Values
 
@@ -587,6 +900,22 @@ CreateParameterRequest is a structure used to create a new parameter value for a
 | `transition` | `start`  |
 | `transition` | `stop`   |
 | `transition` | `delete` |
+
+## codersdk.DAUEntry
+
+```json
+{
+  "amount": 0,
+  "date": "2019-08-24T14:15:22Z"
+}
+```
+
+### Properties
+
+| Name     | Type    | Required | Restrictions | Description |
+| -------- | ------- | -------- | ------------ | ----------- |
+| `amount` | integer | false    |              |             |
+| `date`   | string  | false    |              |             |
 
 ## codersdk.DERP
 
@@ -1083,6 +1412,41 @@ CreateParameterRequest is a structure used to create a new parameter value for a
     "shorthand": "string",
     "usage": "string",
     "value": true
+  },
+  "logging": {
+    "human": {
+      "default": "string",
+      "enterprise": true,
+      "flag": "string",
+      "hidden": true,
+      "name": "string",
+      "secret": true,
+      "shorthand": "string",
+      "usage": "string",
+      "value": "string"
+    },
+    "json": {
+      "default": "string",
+      "enterprise": true,
+      "flag": "string",
+      "hidden": true,
+      "name": "string",
+      "secret": true,
+      "shorthand": "string",
+      "usage": "string",
+      "value": "string"
+    },
+    "stackdriver": {
+      "default": "string",
+      "enterprise": true,
+      "flag": "string",
+      "hidden": true,
+      "name": "string",
+      "secret": true,
+      "shorthand": "string",
+      "usage": "string",
+      "value": "string"
+    }
   },
   "max_token_lifetime": {
     "default": 0,
@@ -1698,6 +2062,7 @@ CreateParameterRequest is a structure used to create a new parameter value for a
 | `gitauth`                            | [codersdk.DeploymentConfigField-array_codersdk_GitAuthConfig](#codersdkdeploymentconfigfield-array_codersdk_gitauthconfig) | false    |              |                                                 |
 | `http_address`                       | [codersdk.DeploymentConfigField-string](#codersdkdeploymentconfigfield-string)                                             | false    |              |                                                 |
 | `in_memory_database`                 | [codersdk.DeploymentConfigField-bool](#codersdkdeploymentconfigfield-bool)                                                 | false    |              |                                                 |
+| `logging`                            | [codersdk.LoggingConfig](#codersdkloggingconfig)                                                                           | false    |              |                                                 |
 | `max_token_lifetime`                 | [codersdk.DeploymentConfigField-time_Duration](#codersdkdeploymentconfigfield-time_duration)                               | false    |              |                                                 |
 | `metrics_cache_refresh_interval`     | [codersdk.DeploymentConfigField-time_Duration](#codersdkdeploymentconfigfield-time_duration)                               | false    |              |                                                 |
 | `oauth2`                             | [codersdk.OAuth2Config](#codersdkoauth2config)                                                                             | false    |              |                                                 |
@@ -1923,6 +2288,94 @@ CreateParameterRequest is a structure used to create a new parameter value for a
 | `usage`      | string  | false    |              |             |
 | `value`      | integer | false    |              |             |
 
+## codersdk.Entitlement
+
+```json
+"entitled"
+```
+
+### Properties
+
+#### Enumerated Values
+
+| Value          |
+| -------------- |
+| `entitled`     |
+| `grace_period` |
+| `not_entitled` |
+
+## codersdk.Entitlements
+
+```json
+{
+  "errors": ["string"],
+  "experimental": true,
+  "features": {
+    "property1": {
+      "actual": 0,
+      "enabled": true,
+      "entitlement": "entitled",
+      "limit": 0
+    },
+    "property2": {
+      "actual": 0,
+      "enabled": true,
+      "entitlement": "entitled",
+      "limit": 0
+    }
+  },
+  "has_license": true,
+  "trial": true,
+  "warnings": ["string"]
+}
+```
+
+### Properties
+
+| Name               | Type                                 | Required | Restrictions | Description |
+| ------------------ | ------------------------------------ | -------- | ------------ | ----------- |
+| `errors`           | array of string                      | false    |              |             |
+| `experimental`     | boolean                              | false    |              |             |
+| `features`         | object                               | false    |              |             |
+| » `[any property]` | [codersdk.Feature](#codersdkfeature) | false    |              |             |
+| `has_license`      | boolean                              | false    |              |             |
+| `trial`            | boolean                              | false    |              |             |
+| `warnings`         | array of string                      | false    |              |             |
+
+## codersdk.Feature
+
+```json
+{
+  "actual": 0,
+  "enabled": true,
+  "entitlement": "entitled",
+  "limit": 0
+}
+```
+
+### Properties
+
+| Name          | Type                                         | Required | Restrictions | Description |
+| ------------- | -------------------------------------------- | -------- | ------------ | ----------- |
+| `actual`      | integer                                      | false    |              |             |
+| `enabled`     | boolean                                      | false    |              |             |
+| `entitlement` | [codersdk.Entitlement](#codersdkentitlement) | false    |              |             |
+| `limit`       | integer                                      | false    |              |             |
+
+## codersdk.GenerateAPIKeyResponse
+
+```json
+{
+  "key": "string"
+}
+```
+
+### Properties
+
+| Name  | Type   | Required | Restrictions | Description |
+| ----- | ------ | -------- | ------------ | ----------- |
+| `key` | string | false    |              |             |
+
 ## codersdk.GetAppHostResponse
 
 ```json
@@ -1936,6 +2389,39 @@ CreateParameterRequest is a structure used to create a new parameter value for a
 | Name   | Type   | Required | Restrictions | Description                                                   |
 | ------ | ------ | -------- | ------------ | ------------------------------------------------------------- |
 | `host` | string | false    |              | Host is the externally accessible URL for the Coder instance. |
+
+## codersdk.GetUsersResponse
+
+```json
+{
+  "count": 0,
+  "users": [
+    {
+      "avatar_url": "http://example.com",
+      "created_at": "2019-08-24T14:15:22Z",
+      "email": "user@example.com",
+      "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+      "last_seen_at": "2019-08-24T14:15:22Z",
+      "organization_ids": ["497f6eca-6276-4993-bfeb-53cbbbba6f08"],
+      "roles": [
+        {
+          "display_name": "string",
+          "name": "string"
+        }
+      ],
+      "status": "active",
+      "username": "string"
+    }
+  ]
+}
+```
+
+### Properties
+
+| Name    | Type                                    | Required | Restrictions | Description |
+| ------- | --------------------------------------- | -------- | ------------ | ----------- |
+| `count` | integer                                 | false    |              |             |
+| `users` | array of [codersdk.User](#codersdkuser) | false    |              |             |
 
 ## codersdk.GitAuthConfig
 
@@ -1967,6 +2453,26 @@ CreateParameterRequest is a structure used to create a new parameter value for a
 | `type`         | string          | false    |              |             |
 | `validate_url` | string          | false    |              |             |
 
+## codersdk.GitSSHKey
+
+```json
+{
+  "created_at": "2019-08-24T14:15:22Z",
+  "public_key": "string",
+  "updated_at": "2019-08-24T14:15:22Z",
+  "user_id": "a169451c-8525-4352-b8ca-070dd449a1a5"
+}
+```
+
+### Properties
+
+| Name         | Type   | Required | Restrictions | Description |
+| ------------ | ------ | -------- | ------------ | ----------- |
+| `created_at` | string | false    |              |             |
+| `public_key` | string | false    |              |             |
+| `updated_at` | string | false    |              |             |
+| `user_id`    | string | false    |              |             |
+
 ## codersdk.GoogleInstanceIdentityToken
 
 ```json
@@ -1980,6 +2486,47 @@ CreateParameterRequest is a structure used to create a new parameter value for a
 | Name             | Type   | Required | Restrictions | Description |
 | ---------------- | ------ | -------- | ------------ | ----------- |
 | `json_web_token` | string | true     |              |             |
+
+## codersdk.Group
+
+```json
+{
+  "avatar_url": "string",
+  "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+  "members": [
+    {
+      "avatar_url": "http://example.com",
+      "created_at": "2019-08-24T14:15:22Z",
+      "email": "user@example.com",
+      "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+      "last_seen_at": "2019-08-24T14:15:22Z",
+      "organization_ids": ["497f6eca-6276-4993-bfeb-53cbbbba6f08"],
+      "roles": [
+        {
+          "display_name": "string",
+          "name": "string"
+        }
+      ],
+      "status": "active",
+      "username": "string"
+    }
+  ],
+  "name": "string",
+  "organization_id": "7c60d51f-b44e-4682-87d6-449835ea4de6",
+  "quota_allowance": 0
+}
+```
+
+### Properties
+
+| Name              | Type                                    | Required | Restrictions | Description |
+| ----------------- | --------------------------------------- | -------- | ------------ | ----------- |
+| `avatar_url`      | string                                  | false    |              |             |
+| `id`              | string                                  | false    |              |             |
+| `members`         | array of [codersdk.User](#codersdkuser) | false    |              |             |
+| `name`            | string                                  | false    |              |             |
+| `organization_id` | string                                  | false    |              |             |
+| `quota_allowance` | integer                                 | false    |              |             |
 
 ## codersdk.Healthcheck
 
@@ -1998,6 +2545,78 @@ CreateParameterRequest is a structure used to create a new parameter value for a
 | `interval`  | integer | false    |              | Interval specifies the seconds between each health check.                                        |
 | `threshold` | integer | false    |              | Threshold specifies the number of consecutive failed health checks before returning "unhealthy". |
 | `url`       | string  | false    |              | URL specifies the endpoint to check for the app health.                                          |
+
+## codersdk.License
+
+```json
+{
+  "claims": {},
+  "id": 0,
+  "uploaded_at": "2019-08-24T14:15:22Z",
+  "uuid": "095be615-a8ad-4c33-8e9c-c7612fbf6c9f"
+}
+```
+
+### Properties
+
+| Name          | Type    | Required | Restrictions | Description                                                                                                                                                                                            |
+| ------------- | ------- | -------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `claims`      | object  | false    |              | Claims are the JWT claims asserted by the license. Here we use a generic string map to ensure that all data from the server is parsed verbatim, not just the fields this version of Coder understands. |
+| `id`          | integer | false    |              |                                                                                                                                                                                                        |
+| `uploaded_at` | string  | false    |              |                                                                                                                                                                                                        |
+| `uuid`        | string  | false    |              |                                                                                                                                                                                                        |
+
+## codersdk.ListeningPort
+
+```json
+{
+  "network": "tcp",
+  "port": 0,
+  "process_name": "string"
+}
+```
+
+### Properties
+
+| Name           | Type                                                           | Required | Restrictions | Description              |
+| -------------- | -------------------------------------------------------------- | -------- | ------------ | ------------------------ |
+| `network`      | [codersdk.ListeningPortNetwork](#codersdklisteningportnetwork) | false    |              | only "tcp" at the moment |
+| `port`         | integer                                                        | false    |              |                          |
+| `process_name` | string                                                         | false    |              | may be empty             |
+
+## codersdk.ListeningPortNetwork
+
+```json
+"tcp"
+```
+
+### Properties
+
+#### Enumerated Values
+
+| Value |
+| ----- |
+| `tcp` |
+
+## codersdk.ListeningPortsResponse
+
+```json
+{
+  "ports": [
+    {
+      "network": "tcp",
+      "port": 0,
+      "process_name": "string"
+    }
+  ]
+}
+```
+
+### Properties
+
+| Name    | Type                                                      | Required | Restrictions | Description                                                                                                                                                                                                                                            |
+| ------- | --------------------------------------------------------- | -------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `ports` | array of [codersdk.ListeningPort](#codersdklisteningport) | false    |              | If there are no ports in the list, nothing should be displayed in the UI. There must not be a "no ports available" message or anything similar, as there will always be no ports displayed on platforms where our port detection logic is unsupported. |
 
 ## codersdk.LogLevel
 
@@ -2031,6 +2650,101 @@ CreateParameterRequest is a structure used to create a new parameter value for a
 | -------------------- |
 | `provisioner_daemon` |
 | `provisioner`        |
+
+## codersdk.LoggingConfig
+
+```json
+{
+  "human": {
+    "default": "string",
+    "enterprise": true,
+    "flag": "string",
+    "hidden": true,
+    "name": "string",
+    "secret": true,
+    "shorthand": "string",
+    "usage": "string",
+    "value": "string"
+  },
+  "json": {
+    "default": "string",
+    "enterprise": true,
+    "flag": "string",
+    "hidden": true,
+    "name": "string",
+    "secret": true,
+    "shorthand": "string",
+    "usage": "string",
+    "value": "string"
+  },
+  "stackdriver": {
+    "default": "string",
+    "enterprise": true,
+    "flag": "string",
+    "hidden": true,
+    "name": "string",
+    "secret": true,
+    "shorthand": "string",
+    "usage": "string",
+    "value": "string"
+  }
+}
+```
+
+### Properties
+
+| Name          | Type                                                                           | Required | Restrictions | Description |
+| ------------- | ------------------------------------------------------------------------------ | -------- | ------------ | ----------- |
+| `human`       | [codersdk.DeploymentConfigField-string](#codersdkdeploymentconfigfield-string) | false    |              |             |
+| `json`        | [codersdk.DeploymentConfigField-string](#codersdkdeploymentconfigfield-string) | false    |              |             |
+| `stackdriver` | [codersdk.DeploymentConfigField-string](#codersdkdeploymentconfigfield-string) | false    |              |             |
+
+## codersdk.LoginType
+
+```json
+"password"
+```
+
+### Properties
+
+#### Enumerated Values
+
+| Value      |
+| ---------- |
+| `password` |
+| `github`   |
+| `oidc`     |
+| `token`    |
+
+## codersdk.LoginWithPasswordRequest
+
+```json
+{
+  "email": "user@example.com",
+  "password": "string"
+}
+```
+
+### Properties
+
+| Name       | Type   | Required | Restrictions | Description |
+| ---------- | ------ | -------- | ------------ | ----------- |
+| `email`    | string | true     |              |             |
+| `password` | string | true     |              |             |
+
+## codersdk.LoginWithPasswordResponse
+
+```json
+{
+  "session_token": "string"
+}
+```
+
+### Properties
+
+| Name            | Type   | Required | Restrictions | Description |
+| --------------- | ------ | -------- | ------------ | ----------- |
+| `session_token` | string | true     |              |             |
 
 ## codersdk.OAuth2Config
 
@@ -2328,6 +3042,53 @@ CreateParameterRequest is a structure used to create a new parameter value for a
 | `scopes`                | [codersdk.DeploymentConfigField-array_string](#codersdkdeploymentconfigfield-array_string) | false    |              |             |
 | `username_field`        | [codersdk.DeploymentConfigField-string](#codersdkdeploymentconfigfield-string)             | false    |              |             |
 
+## codersdk.Organization
+
+```json
+{
+  "created_at": "2019-08-24T14:15:22Z",
+  "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+  "name": "string",
+  "updated_at": "2019-08-24T14:15:22Z"
+}
+```
+
+### Properties
+
+| Name         | Type   | Required | Restrictions | Description |
+| ------------ | ------ | -------- | ------------ | ----------- |
+| `created_at` | string | true     |              |             |
+| `id`         | string | true     |              |             |
+| `name`       | string | true     |              |             |
+| `updated_at` | string | true     |              |             |
+
+## codersdk.OrganizationMember
+
+```json
+{
+  "created_at": "2019-08-24T14:15:22Z",
+  "organization_id": "7c60d51f-b44e-4682-87d6-449835ea4de6",
+  "roles": [
+    {
+      "display_name": "string",
+      "name": "string"
+    }
+  ],
+  "updated_at": "2019-08-24T14:15:22Z",
+  "user_id": "a169451c-8525-4352-b8ca-070dd449a1a5"
+}
+```
+
+### Properties
+
+| Name              | Type                                    | Required | Restrictions | Description |
+| ----------------- | --------------------------------------- | -------- | ------------ | ----------- |
+| `created_at`      | string                                  | false    |              |             |
+| `organization_id` | string                                  | false    |              |             |
+| `roles`           | array of [codersdk.Role](#codersdkrole) | false    |              |             |
+| `updated_at`      | string                                  | false    |              |             |
+| `user_id`         | string                                  | false    |              |             |
+
 ## codersdk.Parameter
 
 ```json
@@ -2386,6 +3147,62 @@ Parameter represents a set value for the scope.
 | `none`                 |
 | `environment_variable` |
 | `provisioner_variable` |
+
+## codersdk.ParameterSchema
+
+```json
+{
+  "allow_override_destination": true,
+  "allow_override_source": true,
+  "created_at": "2019-08-24T14:15:22Z",
+  "default_destination_scheme": "none",
+  "default_refresh": "string",
+  "default_source_scheme": "none",
+  "default_source_value": "string",
+  "description": "string",
+  "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+  "job_id": "453bd7d7-5355-4d6d-a38e-d9e7eb218c3f",
+  "name": "string",
+  "redisplay_value": true,
+  "validation_condition": "string",
+  "validation_contains": ["string"],
+  "validation_error": "string",
+  "validation_type_system": "string",
+  "validation_value_type": "string"
+}
+```
+
+### Properties
+
+| Name                         | Type                                                                       | Required | Restrictions | Description                                                                                                             |
+| ---------------------------- | -------------------------------------------------------------------------- | -------- | ------------ | ----------------------------------------------------------------------------------------------------------------------- |
+| `allow_override_destination` | boolean                                                                    | false    |              |                                                                                                                         |
+| `allow_override_source`      | boolean                                                                    | false    |              |                                                                                                                         |
+| `created_at`                 | string                                                                     | false    |              |                                                                                                                         |
+| `default_destination_scheme` | [codersdk.ParameterDestinationScheme](#codersdkparameterdestinationscheme) | false    |              |                                                                                                                         |
+| `default_refresh`            | string                                                                     | false    |              |                                                                                                                         |
+| `default_source_scheme`      | [codersdk.ParameterSourceScheme](#codersdkparametersourcescheme)           | false    |              |                                                                                                                         |
+| `default_source_value`       | string                                                                     | false    |              |                                                                                                                         |
+| `description`                | string                                                                     | false    |              |                                                                                                                         |
+| `id`                         | string                                                                     | false    |              |                                                                                                                         |
+| `job_id`                     | string                                                                     | false    |              |                                                                                                                         |
+| `name`                       | string                                                                     | false    |              |                                                                                                                         |
+| `redisplay_value`            | boolean                                                                    | false    |              |                                                                                                                         |
+| `validation_condition`       | string                                                                     | false    |              |                                                                                                                         |
+| `validation_contains`        | array of string                                                            | false    |              | This is a special array of items provided if the validation condition explicitly states the value must be one of a set. |
+| `validation_error`           | string                                                                     | false    |              |                                                                                                                         |
+| `validation_type_system`     | string                                                                     | false    |              |                                                                                                                         |
+| `validation_value_type`      | string                                                                     | false    |              |                                                                                                                         |
+
+#### Enumerated Values
+
+| Property                     | Value                  |
+| ---------------------------- | ---------------------- |
+| `default_destination_scheme` | `none`                 |
+| `default_destination_scheme` | `environment_variable` |
+| `default_destination_scheme` | `provisioner_variable` |
+| `default_source_scheme`      | `none`                 |
+| `default_source_scheme`      | `data`                 |
 
 ## codersdk.ParameterScope
 
@@ -2568,6 +3385,37 @@ Parameter represents a set value for the scope.
 | `daemons`               | [codersdk.DeploymentConfigField-int](#codersdkdeploymentconfigfield-int)                     | false    |              |             |
 | `force_cancel_interval` | [codersdk.DeploymentConfigField-time_Duration](#codersdkdeploymentconfigfield-time_duration) | false    |              |             |
 
+## codersdk.ProvisionerDaemon
+
+```json
+{
+  "created_at": "2019-08-24T14:15:22Z",
+  "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+  "name": "string",
+  "provisioners": ["string"],
+  "tags": {
+    "property1": "string",
+    "property2": "string"
+  },
+  "updated_at": {
+    "time": "string",
+    "valid": true
+  }
+}
+```
+
+### Properties
+
+| Name               | Type                         | Required | Restrictions | Description |
+| ------------------ | ---------------------------- | -------- | ------------ | ----------- |
+| `created_at`       | string                       | false    |              |             |
+| `id`               | string                       | false    |              |             |
+| `name`             | string                       | false    |              |             |
+| `provisioners`     | array of string              | false    |              |             |
+| `tags`             | object                       | false    |              |             |
+| » `[any property]` | string                       | false    |              |             |
+| `updated_at`       | [sql.NullTime](#sqlnulltime) | false    |              |             |
+
 ## codersdk.ProvisionerJob
 
 ```json
@@ -2672,7 +3520,7 @@ Parameter represents a set value for the scope.
 
 ```json
 {
-  "deadline": "string"
+  "deadline": "2019-08-24T14:15:22Z"
 }
 ```
 
@@ -2717,6 +3565,32 @@ Parameter represents a set value for the scope.
 | ------------- | -------------------------------------------------------------------------- | -------- | ------------ | ----------- |
 | `api`         | [codersdk.DeploymentConfigField-int](#codersdkdeploymentconfigfield-int)   | false    |              |             |
 | `disable_all` | [codersdk.DeploymentConfigField-bool](#codersdkdeploymentconfigfield-bool) | false    |              |             |
+
+## codersdk.Replica
+
+```json
+{
+  "created_at": "2019-08-24T14:15:22Z",
+  "database_latency": 0,
+  "error": "string",
+  "hostname": "string",
+  "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+  "region_id": 0,
+  "relay_address": "string"
+}
+```
+
+### Properties
+
+| Name               | Type    | Required | Restrictions | Description                                                        |
+| ------------------ | ------- | -------- | ------------ | ------------------------------------------------------------------ |
+| `created_at`       | string  | false    |              | Created at is the timestamp when the replica was first seen.       |
+| `database_latency` | integer | false    |              | Database latency is the latency in microseconds to the database.   |
+| `error`            | string  | false    |              | Error is the replica error.                                        |
+| `hostname`         | string  | false    |              | Hostname is the hostname of the replica.                           |
+| `id`               | string  | false    |              | ID is the unique identifier for the replica.                       |
+| `region_id`        | integer | false    |              | Region ID is the region of the replica.                            |
+| `relay_address`    | string  | false    |              | Relay address is the accessible address to relay DERP connections. |
 
 ## codersdk.ResourceType
 
@@ -2778,6 +3652,24 @@ Parameter represents a set value for the scope.
 | -------------- | ------ | -------- | ------------ | ----------- |
 | `display_name` | string | false    |              |             |
 | `name`         | string | false    |              |             |
+
+## codersdk.ServiceBannerConfig
+
+```json
+{
+  "background_color": "string",
+  "enabled": true,
+  "message": "string"
+}
+```
+
+### Properties
+
+| Name               | Type    | Required | Restrictions | Description |
+| ------------------ | ------- | -------- | ------------ | ----------- |
+| `background_color` | string  | false    |              |             |
+| `enabled`          | boolean | false    |              |             |
+| `message`          | string  | false    |              |             |
 
 ## codersdk.SwaggerConfig
 
@@ -2988,7 +3880,7 @@ Parameter represents a set value for the scope.
 ```json
 {
   "active_user_count": 0,
-  "active_version_id": "string",
+  "active_version_id": "eae64611-bd53-4a80-bb77-df1e432c0fbc",
   "allow_user_cancel_workspace_jobs": true,
   "build_time_stats": {
     "property1": {
@@ -3065,6 +3957,172 @@ Parameter represents a set value for the scope.
 | ---------------- | ---------------------------------------------------- | -------- | ------------ | ----------- |
 | `[any property]` | [codersdk.TransitionStats](#codersdktransitionstats) | false    |              |             |
 
+## codersdk.TemplateDAUsResponse
+
+```json
+{
+  "entries": [
+    {
+      "amount": 0,
+      "date": "2019-08-24T14:15:22Z"
+    }
+  ]
+}
+```
+
+### Properties
+
+| Name      | Type                                            | Required | Restrictions | Description |
+| --------- | ----------------------------------------------- | -------- | ------------ | ----------- |
+| `entries` | array of [codersdk.DAUEntry](#codersdkdauentry) | false    |              |             |
+
+## codersdk.TemplateExample
+
+```json
+{
+  "description": "string",
+  "icon": "string",
+  "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+  "markdown": "string",
+  "name": "string",
+  "tags": ["string"],
+  "url": "string"
+}
+```
+
+### Properties
+
+| Name          | Type            | Required | Restrictions | Description |
+| ------------- | --------------- | -------- | ------------ | ----------- |
+| `description` | string          | false    |              |             |
+| `icon`        | string          | false    |              |             |
+| `id`          | string          | false    |              |             |
+| `markdown`    | string          | false    |              |             |
+| `name`        | string          | false    |              |             |
+| `tags`        | array of string | false    |              |             |
+| `url`         | string          | false    |              |             |
+
+## codersdk.TemplateRole
+
+```json
+"admin"
+```
+
+### Properties
+
+#### Enumerated Values
+
+| Value   |
+| ------- |
+| `admin` |
+| `use`   |
+| ``      |
+
+## codersdk.TemplateUser
+
+```json
+{
+  "avatar_url": "http://example.com",
+  "created_at": "2019-08-24T14:15:22Z",
+  "email": "user@example.com",
+  "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+  "last_seen_at": "2019-08-24T14:15:22Z",
+  "organization_ids": ["497f6eca-6276-4993-bfeb-53cbbbba6f08"],
+  "role": "admin",
+  "roles": [
+    {
+      "display_name": "string",
+      "name": "string"
+    }
+  ],
+  "status": "active",
+  "username": "string"
+}
+```
+
+### Properties
+
+| Name               | Type                                           | Required | Restrictions | Description |
+| ------------------ | ---------------------------------------------- | -------- | ------------ | ----------- |
+| `avatar_url`       | string                                         | false    |              |             |
+| `created_at`       | string                                         | true     |              |             |
+| `email`            | string                                         | true     |              |             |
+| `id`               | string                                         | true     |              |             |
+| `last_seen_at`     | string                                         | false    |              |             |
+| `organization_ids` | array of string                                | false    |              |             |
+| `role`             | [codersdk.TemplateRole](#codersdktemplaterole) | false    |              |             |
+| `roles`            | array of [codersdk.Role](#codersdkrole)        | false    |              |             |
+| `status`           | [codersdk.UserStatus](#codersdkuserstatus)     | false    |              |             |
+| `username`         | string                                         | true     |              |             |
+
+#### Enumerated Values
+
+| Property | Value       |
+| -------- | ----------- |
+| `role`   | `admin`     |
+| `role`   | `use`       |
+| `status` | `active`    |
+| `status` | `suspended` |
+
+## codersdk.TemplateVersion
+
+```json
+{
+  "created_at": "2019-08-24T14:15:22Z",
+  "created_by": {
+    "avatar_url": "http://example.com",
+    "created_at": "2019-08-24T14:15:22Z",
+    "email": "user@example.com",
+    "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+    "last_seen_at": "2019-08-24T14:15:22Z",
+    "organization_ids": ["497f6eca-6276-4993-bfeb-53cbbbba6f08"],
+    "roles": [
+      {
+        "display_name": "string",
+        "name": "string"
+      }
+    ],
+    "status": "active",
+    "username": "string"
+  },
+  "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+  "job": {
+    "canceled_at": "2019-08-24T14:15:22Z",
+    "completed_at": "2019-08-24T14:15:22Z",
+    "created_at": "2019-08-24T14:15:22Z",
+    "error": "string",
+    "file_id": "8a0cfb4f-ddc9-436d-91bb-75133c583767",
+    "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+    "started_at": "2019-08-24T14:15:22Z",
+    "status": "pending",
+    "tags": {
+      "property1": "string",
+      "property2": "string"
+    },
+    "worker_id": "ae5fa6f7-c55b-40c1-b40a-b36ac467652b"
+  },
+  "name": "string",
+  "organization_id": "7c60d51f-b44e-4682-87d6-449835ea4de6",
+  "readme": "string",
+  "template_id": "c6d67e98-83ea-49f0-8812-e4abae2b68bc",
+  "updated_at": "2019-08-24T14:15:22Z"
+}
+```
+
+### Properties
+
+| Name              | Type                                               | Required | Restrictions | Description |
+| ----------------- | -------------------------------------------------- | -------- | ------------ | ----------- |
+| `created_at`      | string                                             | false    |              |             |
+| `created_by`      | [codersdk.User](#codersdkuser)                     | false    |              |             |
+| `id`              | string                                             | false    |              |             |
+| `job`             | [codersdk.ProvisionerJob](#codersdkprovisionerjob) | false    |              |             |
+| `name`            | string                                             | false    |              |             |
+| `organization_id` | string                                             | false    |              |             |
+| `readme`          | string                                             | false    |              |             |
+| `template_id`     | string                                             | false    |              |             |
+| `updated_at`      | string                                             | false    |              |             |
+
 ## codersdk.TraceConfig
 
 ```json
@@ -3129,6 +4187,20 @@ Parameter represents a set value for the scope.
 | `p50` | integer | false    |              |             |
 | `p95` | integer | false    |              |             |
 
+## codersdk.UpdateActiveTemplateVersion
+
+```json
+{
+  "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08"
+}
+```
+
+### Properties
+
+| Name | Type   | Required | Restrictions | Description |
+| ---- | ------ | -------- | ------------ | ----------- |
+| `id` | string | true     |              |             |
+
 ## codersdk.UpdateCheckResponse
 
 ```json
@@ -3146,6 +4218,74 @@ Parameter represents a set value for the scope.
 | `current` | boolean | false    |              | Current indicates whether the server version is the same as the latest. |
 | `url`     | string  | false    |              | URL to download the latest release of Coder.                            |
 | `version` | string  | false    |              | Version is the semantic version for the latest release of Coder.        |
+
+## codersdk.UpdateRoles
+
+```json
+{
+  "roles": ["string"]
+}
+```
+
+### Properties
+
+| Name    | Type            | Required | Restrictions | Description |
+| ------- | --------------- | -------- | ------------ | ----------- |
+| `roles` | array of string | false    |              |             |
+
+## codersdk.UpdateTemplateACL
+
+```json
+{
+  "group_perms": {
+    "property1": "admin",
+    "property2": "admin"
+  },
+  "user_perms": {
+    "property1": "admin",
+    "property2": "admin"
+  }
+}
+```
+
+### Properties
+
+| Name               | Type                                           | Required | Restrictions | Description |
+| ------------------ | ---------------------------------------------- | -------- | ------------ | ----------- |
+| `group_perms`      | object                                         | false    |              |             |
+| » `[any property]` | [codersdk.TemplateRole](#codersdktemplaterole) | false    |              |             |
+| `user_perms`       | object                                         | false    |              |             |
+| » `[any property]` | [codersdk.TemplateRole](#codersdktemplaterole) | false    |              |             |
+
+## codersdk.UpdateUserPasswordRequest
+
+```json
+{
+  "old_password": "string",
+  "password": "string"
+}
+```
+
+### Properties
+
+| Name           | Type   | Required | Restrictions | Description |
+| -------------- | ------ | -------- | ------------ | ----------- |
+| `old_password` | string | false    |              |             |
+| `password`     | string | true     |              |             |
+
+## codersdk.UpdateUserProfileRequest
+
+```json
+{
+  "username": "string"
+}
+```
+
+### Properties
+
+| Name       | Type   | Required | Restrictions | Description |
+| ---------- | ------ | -------- | ------------ | ----------- |
+| `username` | string | true     |              |             |
 
 ## codersdk.UpdateWorkspaceAutostartRequest
 
@@ -3207,12 +4347,12 @@ Parameter represents a set value for the scope.
 
 ```json
 {
-  "avatar_url": "string",
-  "created_at": "string",
-  "email": "string",
-  "id": "string",
-  "last_seen_at": "string",
-  "organization_ids": ["string"],
+  "avatar_url": "http://example.com",
+  "created_at": "2019-08-24T14:15:22Z",
+  "email": "user@example.com",
+  "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+  "last_seen_at": "2019-08-24T14:15:22Z",
+  "organization_ids": ["497f6eca-6276-4993-bfeb-53cbbbba6f08"],
   "roles": [
     {
       "display_name": "string",
@@ -3237,6 +4377,13 @@ Parameter represents a set value for the scope.
 | `roles`            | array of [codersdk.Role](#codersdkrole)    | false    |              |             |
 | `status`           | [codersdk.UserStatus](#codersdkuserstatus) | false    |              |             |
 | `username`         | string                                     | true     |              |             |
+
+#### Enumerated Values
+
+| Property | Value       |
+| -------- | ----------- |
+| `status` | `active`    |
+| `status` | `suspended` |
 
 ## codersdk.UserStatus
 
@@ -3526,6 +4673,70 @@ Parameter represents a set value for the scope.
 | Name            | Type   | Required | Restrictions | Description |
 | --------------- | ------ | -------- | ------------ | ----------- |
 | `session_token` | string | false    |              |             |
+
+## codersdk.WorkspaceAgentConnectionInfo
+
+```json
+{
+  "derp_map": {
+    "omitDefaultRegions": true,
+    "regions": {
+      "property1": {
+        "avoid": true,
+        "embeddedRelay": true,
+        "nodes": [
+          {
+            "certName": "string",
+            "derpport": 0,
+            "forceHTTP": true,
+            "hostName": "string",
+            "insecureForTests": true,
+            "ipv4": "string",
+            "ipv6": "string",
+            "name": "string",
+            "regionID": 0,
+            "stunonly": true,
+            "stunport": 0,
+            "stuntestIP": "string"
+          }
+        ],
+        "regionCode": "string",
+        "regionID": 0,
+        "regionName": "string"
+      },
+      "property2": {
+        "avoid": true,
+        "embeddedRelay": true,
+        "nodes": [
+          {
+            "certName": "string",
+            "derpport": 0,
+            "forceHTTP": true,
+            "hostName": "string",
+            "insecureForTests": true,
+            "ipv4": "string",
+            "ipv6": "string",
+            "name": "string",
+            "regionID": 0,
+            "stunonly": true,
+            "stunport": 0,
+            "stuntestIP": "string"
+          }
+        ],
+        "regionCode": "string",
+        "regionID": 0,
+        "regionName": "string"
+      }
+    }
+  }
+}
+```
+
+### Properties
+
+| Name       | Type                               | Required | Restrictions | Description |
+| ---------- | ---------------------------------- | -------- | ------------ | ----------- |
+| `derp_map` | [tailcfg.DERPMap](#tailcfgderpmap) | false    |              |             |
 
 ## codersdk.WorkspaceAgentGitAuthResponse
 
@@ -3899,6 +5110,38 @@ Parameter represents a set value for the scope.
 | `transition` | `stop`      |
 | `transition` | `delete`    |
 
+## codersdk.WorkspaceBuildParameter
+
+```json
+{
+  "name": "string",
+  "value": "string"
+}
+```
+
+### Properties
+
+| Name    | Type   | Required | Restrictions | Description |
+| ------- | ------ | -------- | ------------ | ----------- |
+| `name`  | string | false    |              |             |
+| `value` | string | false    |              |             |
+
+## codersdk.WorkspaceQuota
+
+```json
+{
+  "budget": 0,
+  "credits_consumed": 0
+}
+```
+
+### Properties
+
+| Name               | Type    | Required | Restrictions | Description |
+| ------------------ | ------- | -------- | ------------ | ----------- |
+| `budget`           | integer | false    |              |             |
+| `credits_consumed` | integer | false    |              |             |
+
 ## codersdk.WorkspaceResource
 
 ```json
@@ -4194,6 +5437,103 @@ Parameter represents a set value for the scope.
 | ------------ | ------------------------------------------------- | -------- | ------------ | ----------- |
 | `count`      | integer                                           | false    |              |             |
 | `workspaces` | array of [codersdk.Workspace](#codersdkworkspace) | false    |              |             |
+
+## database.ParameterDestinationScheme
+
+```json
+"none"
+```
+
+### Properties
+
+#### Enumerated Values
+
+| Value                  |
+| ---------------------- |
+| `none`                 |
+| `environment_variable` |
+| `provisioner_variable` |
+
+## database.ParameterScope
+
+```json
+"template"
+```
+
+### Properties
+
+#### Enumerated Values
+
+| Value        |
+| ------------ |
+| `template`   |
+| `import_job` |
+| `workspace`  |
+
+## database.ParameterSourceScheme
+
+```json
+"none"
+```
+
+### Properties
+
+#### Enumerated Values
+
+| Value  |
+| ------ |
+| `none` |
+| `data` |
+
+## parameter.ComputedValue
+
+```json
+{
+  "created_at": "string",
+  "default_source_value": true,
+  "destination_scheme": "none",
+  "id": "string",
+  "name": "string",
+  "schema_id": "string",
+  "scope": "template",
+  "scope_id": "string",
+  "source_scheme": "none",
+  "source_value": "string",
+  "updated_at": "string"
+}
+```
+
+### Properties
+
+| Name                   | Type                                                                       | Required | Restrictions | Description |
+| ---------------------- | -------------------------------------------------------------------------- | -------- | ------------ | ----------- |
+| `created_at`           | string                                                                     | false    |              |             |
+| `default_source_value` | boolean                                                                    | false    |              |             |
+| `destination_scheme`   | [database.ParameterDestinationScheme](#databaseparameterdestinationscheme) | false    |              |             |
+| `id`                   | string                                                                     | false    |              |             |
+| `name`                 | string                                                                     | false    |              |             |
+| `schema_id`            | string                                                                     | false    |              |             |
+| `scope`                | [database.ParameterScope](#databaseparameterscope)                         | false    |              |             |
+| `scope_id`             | string                                                                     | false    |              |             |
+| `source_scheme`        | [database.ParameterSourceScheme](#databaseparametersourcescheme)           | false    |              |             |
+| `source_value`         | string                                                                     | false    |              |             |
+| `updated_at`           | string                                                                     | false    |              |             |
+
+## sql.NullTime
+
+```json
+{
+  "time": "string",
+  "valid": true
+}
+```
+
+### Properties
+
+| Name    | Type    | Required | Restrictions | Description                       |
+| ------- | ------- | -------- | ------------ | --------------------------------- |
+| `time`  | string  | false    |              |                                   |
+| `valid` | boolean | false    |              | Valid is true if Time is not NULL |
 
 ## tailcfg.DERPMap
 

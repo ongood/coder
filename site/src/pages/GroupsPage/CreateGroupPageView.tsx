@@ -39,7 +39,7 @@ export const CreateGroupPageView: FC<CreateGroupPageViewProps> = ({
 
   return (
     <Margins>
-      <FullPageForm title="创建用户组" onCancel={onCancel}>
+      <FullPageForm title="创建用户组">
         <form onSubmit={form.handleSubmit}>
           <TextField
             {...getFieldHelpers("name")}
