@@ -3,7 +3,7 @@ import { FieldError } from "api/errors"
 import { everyOneGroup } from "util/groups"
 import * as Types from "../api/types"
 import * as TypesGen from "../api/typesGenerated"
-import { range } from "lodash"
+import range from "lodash/range"
 import { Permissions } from "xServices/auth/authXService"
 
 export const MockTemplateDAUResponse: TypesGen.TemplateDAUsResponse = {
@@ -982,6 +982,8 @@ export const MockEntitlementsWithAuditLog: TypesGen.Entitlements = {
   }),
 }
 
+export const MockExperiments: TypesGen.Experiment[] = []
+
 export const MockAuditLog: TypesGen.AuditLog = {
   id: "fbd2116a-8961-4954-87ae-e4575bd29ce0",
   request_id: "53bded77-7b9d-4e82-8771-991a34d759f9",
@@ -1062,6 +1064,22 @@ export const MockAuditLogWithWorkspaceBuild: TypesGen.AuditLog = {
 export const MockAuditLogWithDeletedResource: TypesGen.AuditLog = {
   ...MockAuditLog,
   is_deleted: true,
+}
+
+export const MockAuditLogGitSSH: TypesGen.AuditLog = {
+  ...MockAuditLog,
+  diff: {
+    private_key: {
+      old: "",
+      new: "",
+      secret: true,
+    },
+    public_key: {
+      old: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINRUPjBSNtOAnL22+r07OSu9t3Lnm8/5OX8bRHECKS9g\n",
+      new: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEwoUPJPMekuSzMZyV0rA82TGGNzw/Uj/dhLbwiczTpV\n",
+      secret: false,
+    },
+  },
 }
 
 export const MockWorkspaceQuota: TypesGen.WorkspaceQuota = {
