@@ -52,7 +52,7 @@ export const Sidebar: React.FC = () => {
         href="appearance"
         icon={<SidebarNavItemIcon icon={Brush} />}
       >
-        Appearance
+        外观
       </SidebarNavItem>
       <SidebarNavItem
         href="userauth"

@@ -70,12 +70,11 @@ const UpdateGroupForm: FC<{
           autoFocus
           fullWidth
           type="number"
-          label="Quota Allowance"
+          label="配额积分"
           variant="outlined"
         />
         <span>
-          This group gives {form.values.quota_allowance} quota credits to each
-          of its members.
+          这个用户组给每个成员 {form.values.quota_allowance} 个配额积分。
         </span>
 
         <FormFooter onCancel={onCancel} isLoading={isLoading} />

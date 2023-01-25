@@ -50,7 +50,7 @@ export const Language = {
   buildTimeLabel: "创建时间",
   usedByLabel: "使用者",
   lastUpdatedLabel: "最近更新",
-  templateTooltipTitle: "What is template?",
+  templateTooltipTitle: "什么是模板?",
   templateTooltipText:
     "您可以使用 Terraform 为您的工作空间创建通用配置模板。",
   templateTooltipLink: "管理模板",
@@ -130,7 +130,7 @@ const TemplateRow: FC<{ template: Template }> = ({ template }) => {
             navigate(`/templates/${template.name}/workspace`)
           }}
         >
-          Use template
+          使用模板
         </Button>
       </TableCell>
     </TableRow>
