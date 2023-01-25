@@ -22,7 +22,7 @@ export const Fieldset: FC<{
         <div className={styles.validation}>{validation}</div>
         {button || (
           <Button type="submit" disabled={isSubmitting}>
-            Submit
+            提交
           </Button>
         )}
       </footer>

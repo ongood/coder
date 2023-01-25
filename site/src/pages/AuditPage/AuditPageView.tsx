@@ -42,7 +42,7 @@ const presetFilters = [
   },
   {
     query: "resource_type:workspace_build action:start build_reason:initiator",
-    name: "Builds started by a user",
+    name: "由用户启动的构建",
   },
 ]
 
