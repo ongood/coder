@@ -3,5 +3,6 @@
   "emptyCreateWorkspaceDescription": "开始编辑您的源代码并构建您的软件。",
   "createFromTemplateButton": "从模板创建",
   "emptyResultsMessage": "没有结果符合您的搜索",
-  "emptyPageMessage": "此页无结果"
+  "emptyPageMessage": "此页无结果",
+  "updateVersionError": "升级工作区版本时出错"
 }

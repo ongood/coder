@@ -36,10 +36,13 @@
     "pending": "等待中"
   },
   "agentStatus": {
-    "connected": "已连接",
-    "connecting": "连接中...",
-    "disconnected": "未连接",
-    "timeout": "超时"
+    "connected": {
+      "ready": "Ready",
+      "starting": "Starting..."
+    },
+    "connecting": "Connecting...",
+    "disconnected": "Disconnected",
+    "timeout": "Timeout"
   },
   "buildMessage": {
     "start": "启动",

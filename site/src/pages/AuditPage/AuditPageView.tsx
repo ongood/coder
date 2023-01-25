@@ -40,6 +40,10 @@ const presetFilters = [
     query: "resource_type:workspace_build action:start",
     name: "已开始的构建",
   },
+  {
+    query: "resource_type:workspace_build action:start build_reason:initiator",
+    name: "Builds started by a user",
+  },
 ]
 
 export interface AuditPageViewProps {

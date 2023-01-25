@@ -12,12 +12,24 @@
     "noApps": "None"
   },
   "status": {
-    "timeout": "超时"
+    "timeout": "超时",
+    "startTimeout": "启动超时",
+    "startError": "错误"
   },
   "timeoutTooltip": {
     "title": "代理连接时间太长",
     "message": "我们注意到这个代理连接的时间比预期的要长。",
     "link": "Troubleshoot"
   },
-  "unableToConnect": "无法连接"
+  "startTimeoutTooltip": {
+    "title": "Agent is taking too long to start",
+    "message": "We noticed this agent is taking longer than expected to start.",
+    "link": "Troubleshoot"
+  },
+  "startErrorTooltip": {
+    "title": "Error starting agent",
+    "message": "Something went wrong during the agent start.",
+    "link": "Troubleshoot"
+  },
+  "unableToConnect": "Unable to connect"
 }
