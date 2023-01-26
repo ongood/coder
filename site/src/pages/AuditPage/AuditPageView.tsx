@@ -32,17 +32,17 @@ export const Language = {
 const presetFilters = [
   {
     query: "resource_type:workspace action:create",
-    name: "已创建的工作区",
+    name: "创建工作区",
   },
-  { query: "resource_type:template action:create", name: "已添加的模板" },
-  { query: "resource_type:user action:delete", name: "已删除的用户" },
+  { query: "resource_type:template action:create", name: "添加模板" },
+  { query: "resource_type:user action:delete", name: "删除用户" },
   {
     query: "resource_type:workspace_build action:start",
-    name: "已开始的构建",
+    name: "启动工作区",
   },
   {
     query: "resource_type:workspace_build action:start build_reason:initiator",
-    name: "由用户启动的构建",
+    name: "用户启动工作区",
   },
 ]
 
