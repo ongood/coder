@@ -342,6 +342,11 @@ export interface DeploymentConfigField<T extends Flaggable> {
   readonly value: T
 }
 
+// From codersdk/insights.go
+export interface DeploymentDAUsResponse {
+  readonly entries: DAUEntry[]
+}
+
 // From codersdk/features.go
 export interface Entitlements {
   readonly features: Record<FeatureName, Feature>
@@ -934,7 +939,7 @@ export interface WorkspaceAgent {
   readonly latency?: Record<string, DERPRegion>
   readonly connection_timeout_seconds: number
   readonly troubleshooting_url: string
-  readonly delay_login_until_ready: boolean
+  readonly login_before_ready: boolean
   readonly startup_script_timeout_seconds: number
 }
 
@@ -1097,8 +1102,8 @@ export const Entitlements: Entitlement[] = [
 ]
 
 // From codersdk/experiments.go
-export type Experiment = never
-export const Experiments: Experiment[] = []
+export type Experiment = "authz_querier"
+export const Experiments: Experiment[] = ["authz_querier"]
 
 // From codersdk/features.go
 export type FeatureName =
@@ -1196,7 +1201,6 @@ export type ResourceType =
   | "api_key"
   | "git_ssh_key"
   | "group"
-  | "organization"
   | "template"
   | "template_version"
   | "user"
@@ -1206,7 +1210,6 @@ export const ResourceTypes: ResourceType[] = [
   "api_key",
   "git_ssh_key",
   "group",
-  "organization",
   "template",
   "template_version",
   "user",

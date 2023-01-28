@@ -330,7 +330,7 @@
   "resource_id": "4d5215ed-38bb-48ed-879a-fdb9ca58522f",
   "resource_link": "string",
   "resource_target": "string",
-  "resource_type": "organization",
+  "resource_type": "template",
   "status_code": 0,
   "time": "2019-08-24T14:15:22Z",
   "user": {
@@ -406,7 +406,7 @@
       "resource_id": "4d5215ed-38bb-48ed-879a-fdb9ca58522f",
       "resource_link": "string",
       "resource_target": "string",
-      "resource_type": "organization",
+      "resource_type": "template",
       "status_code": 0,
       "time": "2019-08-24T14:15:22Z",
       "user": {
@@ -785,7 +785,7 @@ CreateParameterRequest is a structure used to create a new parameter value for a
   "action": "create",
   "build_reason": "autostart",
   "resource_id": "4d5215ed-38bb-48ed-879a-fdb9ca58522f",
-  "resource_type": "organization",
+  "resource_type": "template",
   "time": "2019-08-24T14:15:22Z"
 }
 ```
@@ -812,15 +812,13 @@ CreateParameterRequest is a structure used to create a new parameter value for a
 | `build_reason`  | `autostart`        |
 | `build_reason`  | `autostop`         |
 | `build_reason`  | `initiator`        |
-| `resource_type` | `organization`     |
 | `resource_type` | `template`         |
 | `resource_type` | `template_version` |
 | `resource_type` | `user`             |
 | `resource_type` | `workspace`        |
 | `resource_type` | `workspace_build`  |
 | `resource_type` | `git_ssh_key`      |
-| `resource_type` | `api_key`          |
-| `resource_type` | `group`            |
+| `resource_type` | `auditable_group`  |
 
 ## codersdk.CreateTokenRequest
 
@@ -2385,6 +2383,25 @@ CreateParameterRequest is a structure used to create a new parameter value for a
 | `usage`      | string  | false    |              |             |
 | `value`      | integer | false    |              |             |
 
+## codersdk.DeploymentDAUsResponse
+
+```json
+{
+  "entries": [
+    {
+      "amount": 0,
+      "date": "2019-08-24T14:15:22Z"
+    }
+  ]
+}
+```
+
+### Properties
+
+| Name      | Type                                            | Required | Restrictions | Description |
+| --------- | ----------------------------------------------- | -------- | ------------ | ----------- |
+| `entries` | array of [codersdk.DAUEntry](#codersdkdauentry) | false    |              |             |
+
 ## codersdk.Entitlement
 
 ```json
@@ -2438,6 +2455,20 @@ CreateParameterRequest is a structure used to create a new parameter value for a
 | `has_license`      | boolean                              | false    |              |                                       |
 | `trial`            | boolean                              | false    |              |                                       |
 | `warnings`         | array of string                      | false    |              |                                       |
+
+## codersdk.Experiment
+
+```json
+"authz_querier"
+```
+
+### Properties
+
+#### Enumerated Values
+
+| Value           |
+| --------------- |
+| `authz_querier` |
 
 ## codersdk.Feature
 
@@ -3706,7 +3737,7 @@ Parameter represents a set value for the scope.
 ## codersdk.ResourceType
 
 ```json
-"organization"
+"template"
 ```
 
 ### Properties
@@ -3715,7 +3746,6 @@ Parameter represents a set value for the scope.
 
 | Value              |
 | ------------------ |
-| `organization`     |
 | `template`         |
 | `template_version` |
 | `user`             |
@@ -4585,7 +4615,6 @@ Parameter represents a set value for the scope.
             "architecture": "string",
             "connection_timeout_seconds": 0,
             "created_at": "2019-08-24T14:15:22Z",
-            "delay_login_until_ready": true,
             "directory": "string",
             "disconnected_at": "2019-08-24T14:15:22Z",
             "environment_variables": {
@@ -4607,6 +4636,7 @@ Parameter represents a set value for the scope.
               }
             },
             "lifecycle_state": "created",
+            "login_before_ready": true,
             "name": "string",
             "operating_system": "string",
             "resource_id": "4d5215ed-38bb-48ed-879a-fdb9ca58522f",
@@ -4707,7 +4737,6 @@ Parameter represents a set value for the scope.
   "architecture": "string",
   "connection_timeout_seconds": 0,
   "created_at": "2019-08-24T14:15:22Z",
-  "delay_login_until_ready": true,
   "directory": "string",
   "disconnected_at": "2019-08-24T14:15:22Z",
   "environment_variables": {
@@ -4729,6 +4758,7 @@ Parameter represents a set value for the scope.
     }
   },
   "lifecycle_state": "created",
+  "login_before_ready": true,
   "name": "string",
   "operating_system": "string",
   "resource_id": "4d5215ed-38bb-48ed-879a-fdb9ca58522f",
@@ -4749,7 +4779,6 @@ Parameter represents a set value for the scope.
 | `architecture`                   | string                                                               | false    |              |                                                                                                                                                                                                            |
 | `connection_timeout_seconds`     | integer                                                              | false    |              |                                                                                                                                                                                                            |
 | `created_at`                     | string                                                               | false    |              |                                                                                                                                                                                                            |
-| `delay_login_until_ready`        | boolean                                                              | false    |              | Delay login until ready if true, the agent will delay logins until it is ready (e.g. executing startup script has ended).                                                                                  |
 | `directory`                      | string                                                               | false    |              |                                                                                                                                                                                                            |
 | `disconnected_at`                | string                                                               | false    |              |                                                                                                                                                                                                            |
 | `environment_variables`          | object                                                               | false    |              |                                                                                                                                                                                                            |
@@ -4761,6 +4790,7 @@ Parameter represents a set value for the scope.
 | `latency`                        | object                                                               | false    |              | Latency is mapped by region name (e.g. "New York City", "Seattle").                                                                                                                                        |
 | » `[any property]`               | [codersdk.DERPRegion](#codersdkderpregion)                           | false    |              |                                                                                                                                                                                                            |
 | `lifecycle_state`                | [codersdk.WorkspaceAgentLifecycle](#codersdkworkspaceagentlifecycle) | false    |              |                                                                                                                                                                                                            |
+| `login_before_ready`             | boolean                                                              | false    |              | Login before ready if true, the agent will delay logins until it is ready (e.g. executing startup script has ended).                                                                                       |
 | `name`                           | string                                                               | false    |              |                                                                                                                                                                                                            |
 | `operating_system`               | string                                                               | false    |              |                                                                                                                                                                                                            |
 | `resource_id`                    | string                                                               | false    |              |                                                                                                                                                                                                            |
@@ -5136,7 +5166,6 @@ Parameter represents a set value for the scope.
           "architecture": "string",
           "connection_timeout_seconds": 0,
           "created_at": "2019-08-24T14:15:22Z",
-          "delay_login_until_ready": true,
           "directory": "string",
           "disconnected_at": "2019-08-24T14:15:22Z",
           "environment_variables": {
@@ -5158,6 +5187,7 @@ Parameter represents a set value for the scope.
             }
           },
           "lifecycle_state": "created",
+          "login_before_ready": true,
           "name": "string",
           "operating_system": "string",
           "resource_id": "4d5215ed-38bb-48ed-879a-fdb9ca58522f",
@@ -5304,7 +5334,6 @@ Parameter represents a set value for the scope.
       "architecture": "string",
       "connection_timeout_seconds": 0,
       "created_at": "2019-08-24T14:15:22Z",
-      "delay_login_until_ready": true,
       "directory": "string",
       "disconnected_at": "2019-08-24T14:15:22Z",
       "environment_variables": {
@@ -5326,6 +5355,7 @@ Parameter represents a set value for the scope.
         }
       },
       "lifecycle_state": "created",
+      "login_before_ready": true,
       "name": "string",
       "operating_system": "string",
       "resource_id": "4d5215ed-38bb-48ed-879a-fdb9ca58522f",
@@ -5494,7 +5524,6 @@ Parameter represents a set value for the scope.
                 "architecture": "string",
                 "connection_timeout_seconds": 0,
                 "created_at": "2019-08-24T14:15:22Z",
-                "delay_login_until_ready": true,
                 "directory": "string",
                 "disconnected_at": "2019-08-24T14:15:22Z",
                 "environment_variables": {
@@ -5516,6 +5545,7 @@ Parameter represents a set value for the scope.
                   }
                 },
                 "lifecycle_state": "created",
+                "login_before_ready": true,
                 "name": "string",
                 "operating_system": "string",
                 "resource_id": "4d5215ed-38bb-48ed-879a-fdb9ca58522f",
