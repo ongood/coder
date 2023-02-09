@@ -82,8 +82,8 @@ main() {
 	)"
 	mapfile -t pr_metadata_raw <<<"$pr_list_out"
 	declare -A authors labels
-	# for entry in "${pr_labels_raw[@]}"; do
-	for entry in "${pr_metadata_raw[@]}"; do
+	for entry in "${pr_labels_raw[@]}"; do
+	# for entry in "${pr_metadata_raw[@]}"; do
 		commit_sha_long=${entry%% *}
 		commit_author=${entry#* author:}
 		commit_author=${commit_author%% *}
