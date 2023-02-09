@@ -279,18 +279,28 @@ func (api *API) workspaceByOwnerAndName(rw http.ResponseWriter, r *http.Request)
 // @Router /organizations/{organization}/members/{user}/workspaces [post]
 func (api *API) postWorkspacesByOrganization(rw http.ResponseWriter, r *http.Request) {
 	var (
-		ctx               = r.Context()
-		organization      = httpmw.OrganizationParam(r)
-		apiKey            = httpmw.APIKey(r)
-		auditor           = api.Auditor.Load()
-		user              = httpmw.UserParam(r)
-		aReq, commitAudit = audit.InitRequest[database.Workspace](rw, &audit.RequestParams{
-			Audit:   *auditor,
-			Log:     api.Logger,
-			Request: r,
-			Action:  database.AuditActionCreate,
-		})
+		ctx                   = r.Context()
+		organization          = httpmw.OrganizationParam(r)
+		apiKey                = httpmw.APIKey(r)
+		auditor               = api.Auditor.Load()
+		user                  = httpmw.UserParam(r)
+		workspaceResourceInfo = audit.AdditionalFields{
+			WorkspaceOwner: user.Username,
+		}
 	)
+
+	wriBytes, err := json.Marshal(workspaceResourceInfo)
+	if err != nil {
+		api.Logger.Warn(ctx, "marshal workspace owner name")
+	}
+
+	aReq, commitAudit := audit.InitRequest[database.Workspace](rw, &audit.RequestParams{
+		Audit:            *auditor,
+		Log:              api.Logger,
+		Request:          r,
+		Action:           database.AuditActionCreate,
+		AdditionalFields: wriBytes,
+	})
 
 	defer commitAudit()
 
@@ -409,7 +419,7 @@ func (api *API) postWorkspacesByOrganization(rw http.ResponseWriter, r *http.Req
 		return
 	}
 
-	err = codersdk.ValidateWorkspaceBuildParameters(templateVersionParameters, createWorkspace.RichParameterValues)
+	err = codersdk.ValidateNewWorkspaceParameters(templateVersionParameters, createWorkspace.RichParameterValues)
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
 			Message: "Error validating workspace build parameters.",

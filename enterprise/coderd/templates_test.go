@@ -1,6 +1,7 @@
 package coderd_test
 
 import (
+	"bytes"
 	"context"
 	"net/http"
 	"testing"
@@ -33,8 +34,8 @@ func TestTemplateACL(t *testing.T) {
 			},
 		})
 
-		_, user2 := coderdtest.CreateAnotherUserWithUser(t, client, user.OrganizationID)
-		_, user3 := coderdtest.CreateAnotherUserWithUser(t, client, user.OrganizationID)
+		_, user2 := coderdtest.CreateAnotherUser(t, client, user.OrganizationID)
+		_, user3 := coderdtest.CreateAnotherUser(t, client, user.OrganizationID)
 		version := coderdtest.CreateTemplateVersion(t, client, user.OrganizationID, nil)
 		template := coderdtest.CreateTemplate(t, client, user.OrganizationID, version.ID)
 
@@ -66,7 +67,7 @@ func TestTemplateACL(t *testing.T) {
 		require.Contains(t, acl.Users, templateUser3)
 	})
 
-	t.Run("allUsersGroup", func(t *testing.T) {
+	t.Run("everyoneGroup", func(t *testing.T) {
 		t.Parallel()
 		client := coderdenttest.New(t, nil)
 		user := coderdtest.CreateFirstUser(t, client)
@@ -76,7 +77,8 @@ func TestTemplateACL(t *testing.T) {
 			},
 		})
 
-		_, user1 := coderdtest.CreateAnotherUserWithUser(t, client, user.OrganizationID)
+		// Create a user to assert they aren't returned in the response.
+		_, _ = coderdtest.CreateAnotherUser(t, client, user.OrganizationID)
 		version := coderdtest.CreateTemplateVersion(t, client, user.OrganizationID, nil)
 		template := coderdtest.CreateTemplate(t, client, user.OrganizationID, version.ID)
 
@@ -87,8 +89,8 @@ func TestTemplateACL(t *testing.T) {
 		require.NoError(t, err)
 
 		require.Len(t, acl.Groups, 1)
-		require.Len(t, acl.Groups[0].Members, 2)
-		require.Contains(t, acl.Groups[0].Members, user1)
+		// We don't return members for the 'Everyone' group.
+		require.Len(t, acl.Groups[0].Members, 0)
 		require.Len(t, acl.Users, 0)
 	})
 
@@ -102,7 +104,7 @@ func TestTemplateACL(t *testing.T) {
 			},
 		})
 
-		client1, _ := coderdtest.CreateAnotherUserWithUser(t, client, user.OrganizationID)
+		client1, _ := coderdtest.CreateAnotherUser(t, client, user.OrganizationID)
 		version := coderdtest.CreateTemplateVersion(t, client, user.OrganizationID, nil)
 		template := coderdtest.CreateTemplate(t, client, user.OrganizationID, version.ID)
 
@@ -154,7 +156,7 @@ func TestTemplateACL(t *testing.T) {
 			},
 		})
 
-		_, user1 := coderdtest.CreateAnotherUserWithUser(t, client, user.OrganizationID)
+		_, user1 := coderdtest.CreateAnotherUser(t, client, user.OrganizationID)
 		version := coderdtest.CreateTemplateVersion(t, client, user.OrganizationID, nil)
 		template := coderdtest.CreateTemplate(t, client, user.OrganizationID, version.ID)
 
@@ -194,7 +196,7 @@ func TestTemplateACL(t *testing.T) {
 			},
 		})
 
-		_, user1 := coderdtest.CreateAnotherUserWithUser(t, client, user.OrganizationID)
+		_, user1 := coderdtest.CreateAnotherUser(t, client, user.OrganizationID)
 		version := coderdtest.CreateTemplateVersion(t, client, user.OrganizationID, nil)
 		template := coderdtest.CreateTemplate(t, client, user.OrganizationID, version.ID)
 
@@ -284,7 +286,7 @@ func TestTemplateACL(t *testing.T) {
 			},
 		})
 
-		client1, user1 := coderdtest.CreateAnotherUserWithUser(t, client, user.OrganizationID)
+		client1, user1 := coderdtest.CreateAnotherUser(t, client, user.OrganizationID)
 		version := coderdtest.CreateTemplateVersion(t, client, user.OrganizationID, nil)
 		template := coderdtest.CreateTemplate(t, client, user.OrganizationID, version.ID)
 
@@ -299,7 +301,7 @@ func TestTemplateACL(t *testing.T) {
 
 		data, err := echo.Tar(nil)
 		require.NoError(t, err)
-		file, err := client1.Upload(context.Background(), codersdk.ContentTypeTar, data)
+		file, err := client1.Upload(context.Background(), codersdk.ContentTypeTar, bytes.NewReader(data))
 		require.NoError(t, err)
 
 		_, err = client1.CreateTemplateVersion(ctx, user.OrganizationID, codersdk.CreateTemplateVersionRequest{
@@ -342,8 +344,8 @@ func TestUpdateTemplateACL(t *testing.T) {
 			},
 		})
 
-		_, user2 := coderdtest.CreateAnotherUserWithUser(t, client, user.OrganizationID)
-		_, user3 := coderdtest.CreateAnotherUserWithUser(t, client, user.OrganizationID)
+		_, user2 := coderdtest.CreateAnotherUser(t, client, user.OrganizationID)
+		_, user3 := coderdtest.CreateAnotherUser(t, client, user.OrganizationID)
 		version := coderdtest.CreateTemplateVersion(t, client, user.OrganizationID, nil)
 		template := coderdtest.CreateTemplate(t, client, user.OrganizationID, version.ID)
 
@@ -429,8 +431,8 @@ func TestUpdateTemplateACL(t *testing.T) {
 			},
 		})
 
-		_, user2 := coderdtest.CreateAnotherUserWithUser(t, client, user.OrganizationID)
-		_, user3 := coderdtest.CreateAnotherUserWithUser(t, client, user.OrganizationID)
+		_, user2 := coderdtest.CreateAnotherUser(t, client, user.OrganizationID)
+		_, user3 := coderdtest.CreateAnotherUser(t, client, user.OrganizationID)
 		version := coderdtest.CreateTemplateVersion(t, client, user.OrganizationID, nil)
 		template := coderdtest.CreateTemplate(t, client, user.OrganizationID, version.ID)
 		req := codersdk.UpdateTemplateACL{
@@ -546,7 +548,7 @@ func TestUpdateTemplateACL(t *testing.T) {
 			},
 		})
 
-		_, user2 := coderdtest.CreateAnotherUserWithUser(t, client, user.OrganizationID)
+		_, user2 := coderdtest.CreateAnotherUser(t, client, user.OrganizationID)
 		version := coderdtest.CreateTemplateVersion(t, client, user.OrganizationID, nil)
 		template := coderdtest.CreateTemplate(t, client, user.OrganizationID, version.ID)
 		req := codersdk.UpdateTemplateACL{
@@ -574,7 +576,7 @@ func TestUpdateTemplateACL(t *testing.T) {
 			},
 		})
 
-		client2, user2 := coderdtest.CreateAnotherUserWithUser(t, client, user.OrganizationID)
+		client2, user2 := coderdtest.CreateAnotherUser(t, client, user.OrganizationID)
 		version := coderdtest.CreateTemplateVersion(t, client, user.OrganizationID, nil)
 		template := coderdtest.CreateTemplate(t, client, user.OrganizationID, version.ID)
 		req := codersdk.UpdateTemplateACL{
@@ -611,8 +613,8 @@ func TestUpdateTemplateACL(t *testing.T) {
 			},
 		})
 
-		client2, user2 := coderdtest.CreateAnotherUserWithUser(t, client, user.OrganizationID)
-		_, user3 := coderdtest.CreateAnotherUserWithUser(t, client, user.OrganizationID)
+		client2, user2 := coderdtest.CreateAnotherUser(t, client, user.OrganizationID)
+		_, user3 := coderdtest.CreateAnotherUser(t, client, user.OrganizationID)
 		version := coderdtest.CreateTemplateVersion(t, client, user.OrganizationID, nil)
 		template := coderdtest.CreateTemplate(t, client, user.OrganizationID, version.ID)
 		req := codersdk.UpdateTemplateACL{
@@ -679,7 +681,7 @@ func TestUpdateTemplateACL(t *testing.T) {
 			},
 		})
 
-		client1, user1 := coderdtest.CreateAnotherUserWithUser(t, client, user.OrganizationID)
+		client1, user1 := coderdtest.CreateAnotherUser(t, client, user.OrganizationID)
 		version := coderdtest.CreateTemplateVersion(t, client, user.OrganizationID, nil)
 		template := coderdtest.CreateTemplate(t, client, user.OrganizationID, version.ID)
 
@@ -746,7 +748,7 @@ func TestUpdateTemplateACL(t *testing.T) {
 			},
 		})
 
-		client1, _ := coderdtest.CreateAnotherUserWithUser(t, client, user.OrganizationID)
+		client1, _ := coderdtest.CreateAnotherUser(t, client, user.OrganizationID)
 		version := coderdtest.CreateTemplateVersion(t, client, user.OrganizationID, nil)
 		template := coderdtest.CreateTemplate(t, client, user.OrganizationID, version.ID)
 
@@ -839,7 +841,7 @@ func TestTemplateAccess(t *testing.T) {
 	// - template 3, user_acl read for member
 	// - template 4, group_acl read for groupMember
 
-	templateAdmin := coderdtest.CreateAnotherUser(t, ownerClient, owner.OrganizationID, rbac.RoleTemplateAdmin())
+	templateAdmin, _ := coderdtest.CreateAnotherUser(t, ownerClient, owner.OrganizationID, rbac.RoleTemplateAdmin())
 
 	makeTemplate := func(t *testing.T, client *codersdk.Client, orgID uuid.UUID, acl codersdk.UpdateTemplateACL) codersdk.Template {
 		version := coderdtest.CreateTemplateVersion(t, client, orgID, nil)
@@ -860,9 +862,9 @@ func TestTemplateAccess(t *testing.T) {
 		newOrg, err := ownerClient.CreateOrganization(ctx, codersdk.CreateOrganizationRequest{Name: orgName})
 		require.NoError(t, err, "failed to create org")
 
-		adminCli, adminUsr := coderdtest.CreateAnotherUserWithUser(t, ownerClient, newOrg.ID, rbac.RoleOrgAdmin(newOrg.ID))
-		groupMemCli, groupMemUsr := coderdtest.CreateAnotherUserWithUser(t, ownerClient, newOrg.ID, rbac.RoleOrgMember(newOrg.ID))
-		memberCli, memberUsr := coderdtest.CreateAnotherUserWithUser(t, ownerClient, newOrg.ID, rbac.RoleOrgMember(newOrg.ID))
+		adminCli, adminUsr := coderdtest.CreateAnotherUser(t, ownerClient, newOrg.ID, rbac.RoleOrgAdmin(newOrg.ID))
+		groupMemCli, groupMemUsr := coderdtest.CreateAnotherUser(t, ownerClient, newOrg.ID, rbac.RoleOrgMember(newOrg.ID))
+		memberCli, memberUsr := coderdtest.CreateAnotherUser(t, ownerClient, newOrg.ID, rbac.RoleOrgMember(newOrg.ID))
 
 		// Make group
 		group, err := adminCli.CreateGroup(ctx, newOrg.ID, codersdk.CreateGroupRequest{

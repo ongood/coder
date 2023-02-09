@@ -153,7 +153,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/codersdk.GetAppHostResponse"
+                            "$ref": "#/definitions/codersdk.AppHostResponse"
                         }
                     }
                 }
@@ -1330,6 +1330,104 @@ const docTemplate = `{
                 }
             }
         },
+        "/organizations/{organization}/templates/{templatename}/versions/{templateversionname}": {
+            "get": {
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Templates"
+                ],
+                "summary": "Get template version by organization, template, and name",
+                "operationId": "get-template-version-by-organization-template-and-name",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Organization ID",
+                        "name": "organization",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Template name",
+                        "name": "templatename",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Template version name",
+                        "name": "templateversionname",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.TemplateVersion"
+                        }
+                    }
+                }
+            }
+        },
+        "/organizations/{organization}/templates/{templatename}/versions/{templateversionname}/previous": {
+            "get": {
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Templates"
+                ],
+                "summary": "Get previous template version by organization, template, and name",
+                "operationId": "get-previous-template-version-by-organization-template-and-name",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Organization ID",
+                        "name": "organization",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Template name",
+                        "name": "templatename",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Template version name",
+                        "name": "templateversionname",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.TemplateVersion"
+                        }
+                    }
+                }
+            }
+        },
         "/organizations/{organization}/templateversions": {
             "post": {
                 "security": [
@@ -1370,90 +1468,6 @@ const docTemplate = `{
                 "responses": {
                     "201": {
                         "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/codersdk.TemplateVersion"
-                        }
-                    }
-                }
-            }
-        },
-        "/organizations/{organization}/templateversions/{templateversionname}": {
-            "get": {
-                "security": [
-                    {
-                        "CoderSessionToken": []
-                    }
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Templates"
-                ],
-                "summary": "Get template version by organization and name",
-                "operationId": "get-template-version-by-organization-and-name",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "format": "uuid",
-                        "description": "Organization ID",
-                        "name": "organization",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Template version name",
-                        "name": "templateversionname",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/codersdk.TemplateVersion"
-                        }
-                    }
-                }
-            }
-        },
-        "/organizations/{organization}/templateversions/{templateversionname}/previous": {
-            "get": {
-                "security": [
-                    {
-                        "CoderSessionToken": []
-                    }
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Templates"
-                ],
-                "summary": "Get previous template version by organization and name",
-                "operationId": "get-previous-template-version-by-organization-and-name",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "format": "uuid",
-                        "description": "Organization ID",
-                        "name": "organization",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Template version name",
-                        "name": "templateversionname",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/codersdk.TemplateVersion"
                         }
@@ -2622,7 +2636,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/parameter.ComputedValue"
+                                "$ref": "#/definitions/codersdk.TemplateVersionParameter"
                             }
                         }
                     }
@@ -2865,11 +2879,6 @@ const docTemplate = `{
         },
         "/users/login": {
             "post": {
-                "security": [
-                    {
-                        "CoderSessionToken": []
-                    }
-                ],
                 "consumes": [
                     "application/json"
                 ],
@@ -3781,7 +3790,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/codersdk.AWSInstanceIdentityToken"
+                            "$ref": "#/definitions/agentsdk.AWSInstanceIdentityToken"
                         }
                     }
                 ],
@@ -3789,7 +3798,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/codersdk.WorkspaceAgentAuthenticateResponse"
+                            "$ref": "#/definitions/agentsdk.AuthenticateResponse"
                         }
                     }
                 }
@@ -3820,7 +3829,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/codersdk.AzureInstanceIdentityToken"
+                            "$ref": "#/definitions/agentsdk.AzureInstanceIdentityToken"
                         }
                     }
                 ],
@@ -3828,7 +3837,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/codersdk.WorkspaceAgentAuthenticateResponse"
+                            "$ref": "#/definitions/agentsdk.AuthenticateResponse"
                         }
                     }
                 }
@@ -3859,7 +3868,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/codersdk.GoogleInstanceIdentityToken"
+                            "$ref": "#/definitions/agentsdk.GoogleInstanceIdentityToken"
                         }
                     }
                 ],
@@ -3867,7 +3876,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/codersdk.WorkspaceAgentAuthenticateResponse"
+                            "$ref": "#/definitions/agentsdk.AuthenticateResponse"
                         }
                     }
                 }
@@ -3898,7 +3907,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/codersdk.PostWorkspaceAppHealthsRequest"
+                            "$ref": "#/definitions/agentsdk.PostAppHealthsRequest"
                         }
                     }
                 ],
@@ -3964,7 +3973,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/codersdk.WorkspaceAgentGitAuthResponse"
+                            "$ref": "#/definitions/agentsdk.GitAuthResponse"
                         }
                     }
                 }
@@ -3989,7 +3998,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/codersdk.AgentGitSSHKey"
+                            "$ref": "#/definitions/agentsdk.GitSSHKey"
                         }
                     }
                 }
@@ -4014,7 +4023,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/codersdk.WorkspaceAgentMetadata"
+                            "$ref": "#/definitions/agentsdk.Metadata"
                         }
                     }
                 }
@@ -4042,7 +4051,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/codersdk.PostWorkspaceAgentLifecycleRequest"
+                            "$ref": "#/definitions/agentsdk.PostLifecycleRequest"
                         }
                     }
                 ],
@@ -4081,7 +4090,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/codersdk.AgentStats"
+                            "$ref": "#/definitions/agentsdk.Stats"
                         }
                     }
                 ],
@@ -4089,13 +4098,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/codersdk.AgentStatsResponse"
+                            "$ref": "#/definitions/agentsdk.StatsResponse"
                         }
                     }
                 }
             }
         },
-        "/workspaceagents/me/version": {
+        "/workspaceagents/me/startup": {
             "post": {
                 "security": [
                     {
@@ -4111,16 +4120,16 @@ const docTemplate = `{
                 "tags": [
                     "Agents"
                 ],
-                "summary": "Submit workspace agent version",
-                "operationId": "submit-workspace-agent-version",
+                "summary": "Submit workspace agent startup",
+                "operationId": "submit-workspace-agent-startup",
                 "parameters": [
                     {
-                        "description": "Version request",
+                        "description": "Startup request",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/codersdk.PostWorkspaceAgentVersionRequest"
+                            "$ref": "#/definitions/agentsdk.PostStartupRequest"
                         }
                     }
                 ],
@@ -4262,7 +4271,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/codersdk.ListeningPortsResponse"
+                            "$ref": "#/definitions/codersdk.WorkspaceAgentListeningPortsResponse"
                         }
                     }
                 }
@@ -4957,6 +4966,191 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "agentsdk.AWSInstanceIdentityToken": {
+            "type": "object",
+            "required": [
+                "document",
+                "signature"
+            ],
+            "properties": {
+                "document": {
+                    "type": "string"
+                },
+                "signature": {
+                    "type": "string"
+                }
+            }
+        },
+        "agentsdk.AuthenticateResponse": {
+            "type": "object",
+            "properties": {
+                "session_token": {
+                    "type": "string"
+                }
+            }
+        },
+        "agentsdk.AzureInstanceIdentityToken": {
+            "type": "object",
+            "required": [
+                "encoding",
+                "signature"
+            ],
+            "properties": {
+                "encoding": {
+                    "type": "string"
+                },
+                "signature": {
+                    "type": "string"
+                }
+            }
+        },
+        "agentsdk.GitAuthResponse": {
+            "type": "object",
+            "properties": {
+                "password": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "agentsdk.GitSSHKey": {
+            "type": "object",
+            "properties": {
+                "private_key": {
+                    "type": "string"
+                },
+                "public_key": {
+                    "type": "string"
+                }
+            }
+        },
+        "agentsdk.GoogleInstanceIdentityToken": {
+            "type": "object",
+            "required": [
+                "json_web_token"
+            ],
+            "properties": {
+                "json_web_token": {
+                    "type": "string"
+                }
+            }
+        },
+        "agentsdk.Metadata": {
+            "type": "object",
+            "properties": {
+                "apps": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/codersdk.WorkspaceApp"
+                    }
+                },
+                "derpmap": {
+                    "$ref": "#/definitions/tailcfg.DERPMap"
+                },
+                "directory": {
+                    "type": "string"
+                },
+                "environment_variables": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "git_auth_configs": {
+                    "description": "GitAuthConfigs stores the number of Git configurations\nthe Coder deployment has. If this number is \u003e0, we\nset up special configuration in the workspace.",
+                    "type": "integer"
+                },
+                "motd_file": {
+                    "type": "string"
+                },
+                "startup_script": {
+                    "type": "string"
+                },
+                "startup_script_timeout": {
+                    "type": "integer"
+                },
+                "vscode_port_proxy_uri": {
+                    "type": "string"
+                }
+            }
+        },
+        "agentsdk.PostAppHealthsRequest": {
+            "type": "object",
+            "properties": {
+                "healths": {
+                    "description": "Healths is a map of the workspace app name and the health of the app.",
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/codersdk.WorkspaceAppHealth"
+                    }
+                }
+            }
+        },
+        "agentsdk.PostLifecycleRequest": {
+            "type": "object",
+            "properties": {
+                "state": {
+                    "$ref": "#/definitions/codersdk.WorkspaceAgentLifecycle"
+                }
+            }
+        },
+        "agentsdk.PostStartupRequest": {
+            "type": "object",
+            "properties": {
+                "expanded_directory": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "string"
+                }
+            }
+        },
+        "agentsdk.Stats": {
+            "type": "object",
+            "properties": {
+                "conns_by_proto": {
+                    "description": "ConnsByProto is a count of connections by protocol.",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
+                },
+                "num_comms": {
+                    "description": "NumConns is the number of connections received by an agent.",
+                    "type": "integer"
+                },
+                "rx_bytes": {
+                    "description": "RxBytes is the number of received bytes.",
+                    "type": "integer"
+                },
+                "rx_packets": {
+                    "description": "RxPackets is the number of received packets.",
+                    "type": "integer"
+                },
+                "tx_bytes": {
+                    "description": "TxBytes is the number of transmitted bytes.",
+                    "type": "integer"
+                },
+                "tx_packets": {
+                    "description": "TxPackets is the number of transmitted bytes.",
+                    "type": "integer"
+                }
+            }
+        },
+        "agentsdk.StatsResponse": {
+            "type": "object",
+            "properties": {
+                "report_interval": {
+                    "description": "ReportInterval is the duration after which the agent should send stats\nagain.",
+                    "type": "integer"
+                }
+            }
+        },
         "coderd.SCIMUser": {
             "type": "object",
             "properties": {
@@ -5107,21 +5301,6 @@ const docTemplate = `{
                 "APIKeyScopeApplicationConnect"
             ]
         },
-        "codersdk.AWSInstanceIdentityToken": {
-            "type": "object",
-            "required": [
-                "document",
-                "signature"
-            ],
-            "properties": {
-                "document": {
-                    "type": "string"
-                },
-                "signature": {
-                    "type": "string"
-                }
-            }
-        },
         "codersdk.AddLicenseRequest": {
             "type": "object",
             "required": [
@@ -5133,55 +5312,12 @@ const docTemplate = `{
                 }
             }
         },
-        "codersdk.AgentGitSSHKey": {
+        "codersdk.AppHostResponse": {
             "type": "object",
             "properties": {
-                "private_key": {
+                "host": {
+                    "description": "Host is the externally accessible URL for the Coder instance.",
                     "type": "string"
-                },
-                "public_key": {
-                    "type": "string"
-                }
-            }
-        },
-        "codersdk.AgentStats": {
-            "type": "object",
-            "properties": {
-                "conns_by_proto": {
-                    "description": "ConnsByProto is a count of connections by protocol.",
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "integer"
-                    }
-                },
-                "num_comms": {
-                    "description": "NumConns is the number of connections received by an agent.",
-                    "type": "integer"
-                },
-                "rx_bytes": {
-                    "description": "RxBytes is the number of received bytes.",
-                    "type": "integer"
-                },
-                "rx_packets": {
-                    "description": "RxPackets is the number of received packets.",
-                    "type": "integer"
-                },
-                "tx_bytes": {
-                    "description": "TxBytes is the number of transmitted bytes.",
-                    "type": "integer"
-                },
-                "tx_packets": {
-                    "description": "TxPackets is the number of transmitted bytes.",
-                    "type": "integer"
-                }
-            }
-        },
-        "codersdk.AgentStatsResponse": {
-            "type": "object",
-            "properties": {
-                "report_interval": {
-                    "description": "ReportInterval is the duration after which the agent should send stats\nagain.",
-                    "type": "integer"
                 }
             }
         },
@@ -5217,14 +5353,18 @@ const docTemplate = `{
                 "write",
                 "delete",
                 "start",
-                "stop"
+                "stop",
+                "login",
+                "logout"
             ],
             "x-enum-varnames": [
                 "AuditActionCreate",
                 "AuditActionWrite",
                 "AuditActionDelete",
                 "AuditActionStart",
-                "AuditActionStop"
+                "AuditActionStop",
+                "AuditActionLogin",
+                "AuditActionLogout"
             ]
         },
         "codersdk.AuditDiff": {
@@ -5325,17 +5465,25 @@ const docTemplate = `{
                 }
             }
         },
+        "codersdk.AuthMethod": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                }
+            }
+        },
         "codersdk.AuthMethods": {
             "type": "object",
             "properties": {
                 "github": {
-                    "type": "boolean"
+                    "$ref": "#/definitions/codersdk.AuthMethod"
                 },
                 "oidc": {
-                    "type": "boolean"
+                    "$ref": "#/definitions/codersdk.OIDCAuthMethod"
                 },
                 "password": {
-                    "type": "boolean"
+                    "$ref": "#/definitions/codersdk.AuthMethod"
                 }
             }
         },
@@ -5400,21 +5548,6 @@ const docTemplate = `{
             "type": "object",
             "additionalProperties": {
                 "type": "boolean"
-            }
-        },
-        "codersdk.AzureInstanceIdentityToken": {
-            "type": "object",
-            "required": [
-                "encoding",
-                "signature"
-            ],
-            "properties": {
-                "encoding": {
-                    "type": "string"
-                },
-                "signature": {
-                    "type": "string"
-                }
             }
         },
         "codersdk.BuildInfoResponse": {
@@ -5629,6 +5762,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/codersdk.AuditAction"
                         }
                     ]
+                },
+                "additional_fields": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
                 },
                 "build_reason": {
                     "enum": [
@@ -5880,7 +6019,13 @@ const docTemplate = `{
                 "derp": {
                     "$ref": "#/definitions/codersdk.DERP"
                 },
+                "disable_password_auth": {
+                    "$ref": "#/definitions/codersdk.DeploymentConfigField-bool"
+                },
                 "disable_path_apps": {
+                    "$ref": "#/definitions/codersdk.DeploymentConfigField-bool"
+                },
+                "disable_session_expiry_refresh": {
                     "$ref": "#/definitions/codersdk.DeploymentConfigField-bool"
                 },
                 "experimental": {
@@ -5905,6 +6050,9 @@ const docTemplate = `{
                 },
                 "logging": {
                     "$ref": "#/definitions/codersdk.LoggingConfig"
+                },
+                "max_session_expiry": {
+                    "$ref": "#/definitions/codersdk.DeploymentConfigField-time_Duration"
                 },
                 "max_token_lifetime": {
                     "$ref": "#/definitions/codersdk.DeploymentConfigField-time_Duration"
@@ -5938,6 +6086,9 @@ const docTemplate = `{
                 },
                 "rate_limit": {
                     "$ref": "#/definitions/codersdk.RateLimitConfig"
+                },
+                "redirect_to_access_url": {
+                    "$ref": "#/definitions/codersdk.DeploymentConfigField-bool"
                 },
                 "scim_api_key": {
                     "$ref": "#/definitions/codersdk.DeploymentConfigField-string"
@@ -6232,10 +6383,12 @@ const docTemplate = `{
         "codersdk.Experiment": {
             "type": "string",
             "enum": [
-                "authz_querier"
+                "authz_querier",
+                "template_editor"
             ],
             "x-enum-varnames": [
-                "ExperimentAuthzQuerier"
+                "ExperimentAuthzQuerier",
+                "ExperimentTemplateEditor"
             ]
         },
         "codersdk.Feature": {
@@ -6259,15 +6412,6 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "key": {
-                    "type": "string"
-                }
-            }
-        },
-        "codersdk.GetAppHostResponse": {
-            "type": "object",
-            "properties": {
-                "host": {
-                    "description": "Host is the externally accessible URL for the Coder instance.",
                     "type": "string"
                 }
             }
@@ -6341,17 +6485,6 @@ const docTemplate = `{
                 }
             }
         },
-        "codersdk.GoogleInstanceIdentityToken": {
-            "type": "object",
-            "required": [
-                "json_web_token"
-            ],
-            "properties": {
-                "json_web_token": {
-                    "type": "string"
-                }
-            }
-        },
         "codersdk.Group": {
             "type": "object",
             "properties": {
@@ -6415,47 +6548,6 @@ const docTemplate = `{
                 "uuid": {
                     "type": "string",
                     "format": "uuid"
-                }
-            }
-        },
-        "codersdk.ListeningPort": {
-            "type": "object",
-            "properties": {
-                "network": {
-                    "description": "only \"tcp\" at the moment",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/codersdk.ListeningPortNetwork"
-                        }
-                    ]
-                },
-                "port": {
-                    "type": "integer"
-                },
-                "process_name": {
-                    "description": "may be empty",
-                    "type": "string"
-                }
-            }
-        },
-        "codersdk.ListeningPortNetwork": {
-            "type": "string",
-            "enum": [
-                "tcp"
-            ],
-            "x-enum-varnames": [
-                "ListeningPortNetworkTCP"
-            ]
-        },
-        "codersdk.ListeningPortsResponse": {
-            "type": "object",
-            "properties": {
-                "ports": {
-                    "description": "If there are no ports in the list, nothing should be displayed in the UI.\nThere must not be a \"no ports available\" message or anything similar, as\nthere will always be no ports displayed on platforms where our port\ndetection logic is unsupported.",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/codersdk.ListeningPort"
-                    }
                 }
             }
         },
@@ -6577,6 +6669,20 @@ const docTemplate = `{
                 }
             }
         },
+        "codersdk.OIDCAuthMethod": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "iconUrl": {
+                    "type": "string"
+                },
+                "signInText": {
+                    "type": "string"
+                }
+            }
+        },
         "codersdk.OIDCConfig": {
             "type": "object",
             "properties": {
@@ -6592,6 +6698,9 @@ const docTemplate = `{
                 "email_domain": {
                     "$ref": "#/definitions/codersdk.DeploymentConfigField-array_string"
                 },
+                "icon_url": {
+                    "$ref": "#/definitions/codersdk.DeploymentConfigField-string"
+                },
                 "ignore_email_verified": {
                     "$ref": "#/definitions/codersdk.DeploymentConfigField-bool"
                 },
@@ -6600,6 +6709,9 @@ const docTemplate = `{
                 },
                 "scopes": {
                     "$ref": "#/definitions/codersdk.DeploymentConfigField-array_string"
+                },
+                "sign_in_text": {
+                    "$ref": "#/definitions/codersdk.DeploymentConfigField-string"
                 },
                 "username_field": {
                     "$ref": "#/definitions/codersdk.DeploymentConfigField-string"
@@ -6835,35 +6947,6 @@ const docTemplate = `{
                 "ParameterSourceSchemeNone",
                 "ParameterSourceSchemeData"
             ]
-        },
-        "codersdk.PostWorkspaceAgentLifecycleRequest": {
-            "type": "object",
-            "properties": {
-                "state": {
-                    "$ref": "#/definitions/codersdk.WorkspaceAgentLifecycle"
-                }
-            }
-        },
-        "codersdk.PostWorkspaceAgentVersionRequest": {
-            "description": "x-apidocgen:skip",
-            "type": "object",
-            "properties": {
-                "version": {
-                    "type": "string"
-                }
-            }
-        },
-        "codersdk.PostWorkspaceAppHealthsRequest": {
-            "type": "object",
-            "properties": {
-                "healths": {
-                    "description": "Healths is a map of the workspace app name and the health of the app.",
-                    "type": "object",
-                    "additionalProperties": {
-                        "$ref": "#/definitions/codersdk.WorkspaceAppHealth"
-                    }
-                }
-            }
         },
         "codersdk.PprofConfig": {
             "type": "object",
@@ -7294,9 +7377,6 @@ const docTemplate = `{
                 "updated_at": {
                     "type": "string",
                     "format": "date-time"
-                },
-                "workspace_owner_count": {
-                    "type": "integer"
                 }
             }
         },
@@ -7463,6 +7543,83 @@ const docTemplate = `{
                 "updated_at": {
                     "type": "string",
                     "format": "date-time"
+                }
+            }
+        },
+        "codersdk.TemplateVersionParameter": {
+            "type": "object",
+            "properties": {
+                "default_value": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "description_plaintext": {
+                    "type": "string"
+                },
+                "icon": {
+                    "type": "string"
+                },
+                "mutable": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "options": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/codersdk.TemplateVersionParameterOption"
+                    }
+                },
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "string",
+                        "number",
+                        "bool"
+                    ]
+                },
+                "validation_error": {
+                    "type": "string"
+                },
+                "validation_max": {
+                    "type": "integer"
+                },
+                "validation_min": {
+                    "type": "integer"
+                },
+                "validation_monotonic": {
+                    "enum": [
+                        "increasing",
+                        "decreasing"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/codersdk.ValidationMonotonicOrder"
+                        }
+                    ]
+                },
+                "validation_regex": {
+                    "type": "string"
+                }
+            }
+        },
+        "codersdk.TemplateVersionParameterOption": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "icon": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "string"
                 }
             }
         },
@@ -7692,6 +7849,17 @@ const docTemplate = `{
                 }
             }
         },
+        "codersdk.ValidationMonotonicOrder": {
+            "type": "string",
+            "enum": [
+                "increasing",
+                "decreasing"
+            ],
+            "x-enum-varnames": [
+                "MonotonicOrderIncreasing",
+                "MonotonicOrderDecreasing"
+            ]
+        },
         "codersdk.Workspace": {
             "type": "object",
             "properties": {
@@ -7783,6 +7951,9 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
+                "expanded_directory": {
+                    "type": "string"
+                },
                 "first_connected_at": {
                     "type": "string",
                     "format": "date-time"
@@ -7844,33 +8015,11 @@ const docTemplate = `{
                 }
             }
         },
-        "codersdk.WorkspaceAgentAuthenticateResponse": {
-            "type": "object",
-            "properties": {
-                "session_token": {
-                    "type": "string"
-                }
-            }
-        },
         "codersdk.WorkspaceAgentConnectionInfo": {
             "type": "object",
             "properties": {
                 "derp_map": {
                     "$ref": "#/definitions/tailcfg.DERPMap"
-                }
-            }
-        },
-        "codersdk.WorkspaceAgentGitAuthResponse": {
-            "type": "object",
-            "properties": {
-                "password": {
-                    "type": "string"
-                },
-                "url": {
-                    "type": "string"
-                },
-                "username": {
-                    "type": "string"
                 }
             }
         },
@@ -7891,42 +8040,31 @@ const docTemplate = `{
                 "WorkspaceAgentLifecycleReady"
             ]
         },
-        "codersdk.WorkspaceAgentMetadata": {
+        "codersdk.WorkspaceAgentListeningPort": {
             "type": "object",
             "properties": {
-                "apps": {
+                "network": {
+                    "description": "only \"tcp\" at the moment",
+                    "type": "string"
+                },
+                "port": {
+                    "type": "integer"
+                },
+                "process_name": {
+                    "description": "may be empty",
+                    "type": "string"
+                }
+            }
+        },
+        "codersdk.WorkspaceAgentListeningPortsResponse": {
+            "type": "object",
+            "properties": {
+                "ports": {
+                    "description": "If there are no ports in the list, nothing should be displayed in the UI.\nThere must not be a \"no ports available\" message or anything similar, as\nthere will always be no ports displayed on platforms where our port\ndetection logic is unsupported.",
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/codersdk.WorkspaceApp"
+                        "$ref": "#/definitions/codersdk.WorkspaceAgentListeningPort"
                     }
-                },
-                "derpmap": {
-                    "$ref": "#/definitions/tailcfg.DERPMap"
-                },
-                "directory": {
-                    "type": "string"
-                },
-                "environment_variables": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                },
-                "git_auth_configs": {
-                    "description": "GitAuthConfigs stores the number of Git configurations\nthe Coder deployment has. If this number is \u003e0, we\nset up special configuration in the workspace.",
-                    "type": "integer"
-                },
-                "motd_file": {
-                    "type": "string"
-                },
-                "startup_script": {
-                    "type": "string"
-                },
-                "startup_script_timeout": {
-                    "type": "integer"
-                },
-                "vscode_port_proxy_uri": {
-                    "type": "string"
                 }
             }
         },

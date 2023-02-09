@@ -77,7 +77,7 @@ const (
 // @Security CoderSessionToken
 // @Produce json
 // @Tags Applications
-// @Success 200 {object} codersdk.GetAppHostResponse
+// @Success 200 {object} codersdk.AppHostResponse
 // @Router /applications/host [get]
 func (api *API) appHost(rw http.ResponseWriter, r *http.Request) {
 	host := api.AppHostname
@@ -85,7 +85,7 @@ func (api *API) appHost(rw http.ResponseWriter, r *http.Request) {
 		host += fmt.Sprintf(":%s", api.AccessURL.Port())
 	}
 
-	httpapi.Write(r.Context(), rw, http.StatusOK, codersdk.GetAppHostResponse{
+	httpapi.Write(r.Context(), rw, http.StatusOK, codersdk.AppHostResponse{
 		Host: host,
 	})
 }
@@ -733,23 +733,18 @@ func (api *API) workspaceApplicationAuth(rw http.ResponseWriter, r *http.Request
 	}
 
 	// Create the application_connect-scoped API key with the same lifetime as
-	// the current session (defaulting to 1 day, capped to 1 week).
+	// the current session.
 	exp := apiKey.ExpiresAt
-	if exp.IsZero() {
-		exp = database.Now().Add(time.Hour * 24)
+	lifetimeSeconds := apiKey.LifetimeSeconds
+	if exp.IsZero() || time.Until(exp) > api.DeploymentConfig.SessionDuration.Value {
+		exp = database.Now().Add(api.DeploymentConfig.SessionDuration.Value)
+		lifetimeSeconds = int64(api.DeploymentConfig.SessionDuration.Value.Seconds())
 	}
-	if time.Until(exp) > time.Hour*24*7 {
-		exp = database.Now().Add(time.Hour * 24 * 7)
-	}
-	lifetime := apiKey.LifetimeSeconds
-	if lifetime > int64((time.Hour * 24 * 7).Seconds()) {
-		lifetime = int64((time.Hour * 24 * 7).Seconds())
-	}
-	cookie, err := api.createAPIKey(ctx, createAPIKeyParams{
+	cookie, _, err := api.createAPIKey(ctx, createAPIKeyParams{
 		UserID:          apiKey.UserID,
 		LoginType:       database.LoginTypePassword,
 		ExpiresAt:       exp,
-		LifetimeSeconds: lifetime,
+		LifetimeSeconds: lifetimeSeconds,
 		Scope:           database.APIKeyScopeApplicationConnect,
 	})
 	if err != nil {
@@ -862,9 +857,9 @@ func (api *API) proxyWorkspaceApplication(proxyApp proxyApplication, rw http.Res
 			return
 		}
 
-		if portInt < codersdk.MinimumListeningPort {
+		if portInt < codersdk.WorkspaceAgentMinimumListeningPort {
 			httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
-				Message: fmt.Sprintf("Application port %d is not permitted. Coder reserves ports less than %d for internal use.", portInt, codersdk.MinimumListeningPort),
+				Message: fmt.Sprintf("Application port %d is not permitted. Coder reserves ports less than %d for internal use.", portInt, codersdk.WorkspaceAgentMinimumListeningPort),
 			})
 			return
 		}

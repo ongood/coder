@@ -433,9 +433,10 @@ func runRemoteSSH(sshClient *gossh.Client, stdin io.Reader, cmd string) ([]byte,
 
 	stderr := bytes.NewBuffer(nil)
 	sess.Stdin = stdin
-	sess.Stderr = stderr
-
-	out, err := sess.Output(cmd)
+	// On fish, this was outputting to stderr instead of stdout.
+	// The tests pass differently on different Linux machines,
+	// so it's best we capture the output of both.
+	out, err := sess.CombinedOutput(cmd)
 	if err != nil {
 		return out, xerrors.Errorf(
 			"`%s` failed: stderr: %s\n\nstdout: %s:\n\n%w",
@@ -457,7 +458,7 @@ func uploadGPGKeys(ctx context.Context, sshClient *gossh.Client) error {
 	//
 	// Note: we sleep after killing the agent because it doesn't always die
 	//       immediately.
-	agentSocketBytes, err := runRemoteSSH(sshClient, nil, `
+	agentSocketBytes, err := runRemoteSSH(sshClient, nil, `sh -c '
 set -eux
 agent_socket=$(gpgconf --list-dir agent-socket)
 echo "$agent_socket"
@@ -469,7 +470,7 @@ if [ -S "$agent_socket" ]; then
 fi
 
 test ! -S "$agent_socket"
-`)
+'`)
 	agentSocket := strings.TrimSpace(string(agentSocketBytes))
 	if err != nil {
 		return xerrors.Errorf("check if agent socket is running (check if %q exists): %w", agentSocket, err)

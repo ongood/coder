@@ -24,7 +24,7 @@ import (
 	"github.com/coder/coder/agent"
 	"github.com/coder/coder/cli/clitest"
 	"github.com/coder/coder/coderd/coderdtest"
-	"github.com/coder/coder/codersdk"
+	"github.com/coder/coder/codersdk/agentsdk"
 	"github.com/coder/coder/provisioner/echo"
 	"github.com/coder/coder/provisionersdk/proto"
 	"github.com/coder/coder/pty/ptytest"
@@ -104,7 +104,7 @@ func TestConfigSSH(t *testing.T) {
 	template := coderdtest.CreateTemplate(t, client, user.OrganizationID, version.ID)
 	workspace := coderdtest.CreateWorkspace(t, client, user.OrganizationID, template.ID)
 	coderdtest.AwaitWorkspaceBuildJob(t, client, workspace.LatestBuild.ID)
-	agentClient := codersdk.New(client.URL)
+	agentClient := agentsdk.New(client.URL)
 	agentClient.SetSessionToken(authToken)
 	agentCloser := agent.New(agent.Options{
 		Client: agentClient,
@@ -528,6 +528,36 @@ func TestConfigSSH_FileWriteAndOptionsFlow(t *testing.T) {
 				"--dry-run",
 				"--yes",
 			},
+		},
+		{
+			name:    "Start/End out of order",
+			matches: []match{
+				// {match: "Continue?", write: "yes"},
+			},
+			writeConfig: writeConfig{
+				ssh: strings.Join([]string{
+					"# Content before coder block",
+					headerEnd,
+					headerStart,
+					"# Content after coder block",
+				}, "\n"),
+			},
+			wantErr: true,
+		},
+		{
+			name:    "Multiple sections",
+			matches: []match{
+				// {match: "Continue?", write: "yes"},
+			},
+			writeConfig: writeConfig{
+				ssh: strings.Join([]string{
+					headerStart,
+					headerEnd,
+					headerStart,
+					headerEnd,
+				}, "\n"),
+			},
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {

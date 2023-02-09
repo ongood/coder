@@ -20,9 +20,11 @@ import (
 	"github.com/coder/coder/coderd/autobuild/schedule"
 	"github.com/coder/coder/coderd/coderdtest"
 	"github.com/coder/coder/coderd/database"
+	"github.com/coder/coder/coderd/parameter"
 	"github.com/coder/coder/coderd/rbac"
 	"github.com/coder/coder/coderd/util/ptr"
 	"github.com/coder/coder/codersdk"
+	"github.com/coder/coder/codersdk/agentsdk"
 	"github.com/coder/coder/cryptorand"
 	"github.com/coder/coder/provisioner/echo"
 	"github.com/coder/coder/provisionersdk/proto"
@@ -174,7 +176,7 @@ func TestAdminViewAllWorkspaces(t *testing.T) {
 
 	// This other user is not in the first user's org. Since other is an admin, they can
 	// still see the "first" user's workspace.
-	otherOwner := coderdtest.CreateAnotherUser(t, client, otherOrg.ID, rbac.RoleOwner())
+	otherOwner, _ := coderdtest.CreateAnotherUser(t, client, otherOrg.ID, rbac.RoleOwner())
 	otherWorkspaces, err := otherOwner.Workspaces(ctx, codersdk.WorkspaceFilter{})
 	require.NoError(t, err, "(other) fetch workspaces")
 
@@ -184,7 +186,7 @@ func TestAdminViewAllWorkspaces(t *testing.T) {
 	require.ElementsMatch(t, otherWorkspaces.Workspaces, firstWorkspaces.Workspaces)
 	require.Equal(t, len(firstWorkspaces.Workspaces), 1, "should be 1 workspace present")
 
-	memberView := coderdtest.CreateAnotherUser(t, client, otherOrg.ID)
+	memberView, _ := coderdtest.CreateAnotherUser(t, client, otherOrg.ID)
 	memberViewWorkspaces, err := memberView.Workspaces(ctx, codersdk.WorkspaceFilter{})
 	require.NoError(t, err, "(member) fetch workspaces")
 	require.Equal(t, 0, len(memberViewWorkspaces.Workspaces), "member in other org should see 0 workspaces")
@@ -215,7 +217,7 @@ func TestPostWorkspacesByOrganization(t *testing.T) {
 		client := coderdtest.New(t, nil)
 		first := coderdtest.CreateFirstUser(t, client)
 
-		other := coderdtest.CreateAnotherUser(t, client, first.OrganizationID, rbac.RoleMember(), rbac.RoleOwner())
+		other, _ := coderdtest.CreateAnotherUser(t, client, first.OrganizationID, rbac.RoleMember(), rbac.RoleOwner())
 
 		ctx, cancel := context.WithTimeout(context.Background(), testutil.WaitLong)
 		defer cancel()
@@ -269,8 +271,8 @@ func TestPostWorkspacesByOrganization(t *testing.T) {
 		coderdtest.AwaitTemplateVersionJob(t, client, version.ID)
 		_ = coderdtest.CreateWorkspace(t, client, user.OrganizationID, template.ID)
 
-		require.Len(t, auditor.AuditLogs, 4)
-		assert.Equal(t, database.AuditActionCreate, auditor.AuditLogs[3].Action)
+		require.Len(t, auditor.AuditLogs, 5)
+		assert.Equal(t, database.AuditActionCreate, auditor.AuditLogs[4].Action)
 	})
 
 	t.Run("CreateWithDeletedTemplate", func(t *testing.T) {
@@ -509,11 +511,10 @@ func TestWorkspaceFilter(t *testing.T) {
 
 	users := make([]coderUser, 0)
 	for i := 0; i < 10; i++ {
-		userClient := coderdtest.CreateAnotherUser(t, client, first.OrganizationID, rbac.RoleOwner())
-		user, err := userClient.User(ctx, codersdk.Me)
-		require.NoError(t, err, "fetch me")
+		userClient, user := coderdtest.CreateAnotherUser(t, client, first.OrganizationID, rbac.RoleOwner())
 
 		if i%3 == 0 {
+			var err error
 			user, err = client.UpdateUserProfile(ctx, user.ID.String(), codersdk.UpdateUserProfileRequest{
 				Username: strings.ToUpper(user.Username),
 			})
@@ -900,7 +901,7 @@ func TestWorkspaceFilterManual(t *testing.T) {
 		workspace := coderdtest.CreateWorkspace(t, client, user.OrganizationID, template.ID)
 		coderdtest.AwaitWorkspaceBuildJob(t, client, workspace.LatestBuild.ID)
 
-		agentClient := codersdk.New(client.URL)
+		agentClient := agentsdk.New(client.URL)
 		agentClient.SetSessionToken(authToken)
 		agentCloser := agent.New(agent.Options{
 			Client: agentClient,
@@ -1282,8 +1283,8 @@ func TestWorkspaceUpdateAutostart(t *testing.T) {
 			interval := next.Sub(testCase.at)
 			require.Equal(t, testCase.expectedInterval, interval, "unexpected interval")
 
-			require.Len(t, auditor.AuditLogs, 6)
-			assert.Equal(t, database.AuditActionWrite, auditor.AuditLogs[5].Action)
+			require.Len(t, auditor.AuditLogs, 7)
+			assert.Equal(t, database.AuditActionWrite, auditor.AuditLogs[6].Action)
 		})
 	}
 
@@ -1397,8 +1398,8 @@ func TestWorkspaceUpdateTTL(t *testing.T) {
 
 			require.Equal(t, testCase.ttlMillis, updated.TTLMillis, "expected autostop ttl to equal requested")
 
-			require.Len(t, auditor.AuditLogs, 6)
-			assert.Equal(t, database.AuditActionWrite, auditor.AuditLogs[5].Action)
+			require.Len(t, auditor.AuditLogs, 7)
+			assert.Equal(t, database.AuditActionWrite, auditor.AuditLogs[6].Action)
 		})
 	}
 
@@ -1551,7 +1552,7 @@ func TestWorkspaceWatcher(t *testing.T) {
 	wait("agent timeout after create")
 	wait("agent timeout after start")
 
-	agentClient := codersdk.New(client.URL)
+	agentClient := agentsdk.New(client.URL)
 	agentClient.SetSessionToken(authToken)
 	agentCloser := agent.New(agent.Options{
 		Client: agentClient,
@@ -1787,12 +1788,15 @@ func TestWorkspaceWithRichParameters(t *testing.T) {
 
 	const (
 		firstParameterName        = "first_parameter"
-		firstParameterDescription = "This is first parameter"
+		firstParameterType        = "string"
+		firstParameterDescription = "This is _first_ *parameter*"
 		firstParameterValue       = "1"
 
-		secondParameterName        = "second_parameter"
-		secondParameterDescription = "This is second parameter"
-		secondParameterValue       = "2"
+		secondParameterName                = "second_parameter"
+		secondParameterType                = "number"
+		secondParameterDescription         = "_This_ is second *parameter*"
+		secondParameterValue               = "2"
+		secondParameterValidationMonotonic = codersdk.MonotonicOrderIncreasing
 	)
 
 	client := coderdtest.New(t, &coderdtest.Options{IncludeProvisionerDaemon: true})
@@ -1804,8 +1808,19 @@ func TestWorkspaceWithRichParameters(t *testing.T) {
 				Type: &proto.Provision_Response_Complete{
 					Complete: &proto.Provision_Complete{
 						Parameters: []*proto.RichParameter{
-							{Name: firstParameterName, Description: firstParameterDescription},
-							{Name: secondParameterName, Description: secondParameterDescription},
+							{
+								Name:        firstParameterName,
+								Type:        firstParameterType,
+								Description: firstParameterDescription,
+							},
+							{
+								Name:                secondParameterName,
+								Type:                secondParameterType,
+								Description:         secondParameterDescription,
+								ValidationMin:       1,
+								ValidationMax:       3,
+								ValidationMonotonic: string(secondParameterValidationMonotonic),
+							},
 						},
 					},
 				},
@@ -1821,11 +1836,24 @@ func TestWorkspaceWithRichParameters(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), testutil.WaitLong)
 	defer cancel()
 
+	firstParameterDescriptionPlaintext, err := parameter.Plaintext(firstParameterDescription)
+	require.NoError(t, err)
+	secondParameterDescriptionPlaintext, err := parameter.Plaintext(secondParameterDescription)
+	require.NoError(t, err)
+
 	templateRichParameters, err := client.TemplateVersionRichParameters(ctx, version.ID)
 	require.NoError(t, err)
 	require.Len(t, templateRichParameters, 2)
-	require.Equal(t, templateRichParameters[0].Name, firstParameterName)
-	require.Equal(t, templateRichParameters[1].Name, secondParameterName)
+	require.Equal(t, firstParameterName, templateRichParameters[0].Name)
+	require.Equal(t, firstParameterType, templateRichParameters[0].Type)
+	require.Equal(t, firstParameterDescription, templateRichParameters[0].Description)
+	require.Equal(t, firstParameterDescriptionPlaintext, templateRichParameters[0].DescriptionPlaintext)
+	require.Equal(t, codersdk.ValidationMonotonicOrder(""), templateRichParameters[0].ValidationMonotonic) // no validation for string
+	require.Equal(t, secondParameterName, templateRichParameters[1].Name)
+	require.Equal(t, secondParameterType, templateRichParameters[1].Type)
+	require.Equal(t, secondParameterDescription, templateRichParameters[1].Description)
+	require.Equal(t, secondParameterDescriptionPlaintext, templateRichParameters[1].DescriptionPlaintext)
+	require.Equal(t, secondParameterValidationMonotonic, templateRichParameters[1].ValidationMonotonic)
 
 	expectedBuildParameters := []codersdk.WorkspaceBuildParameter{
 		{Name: firstParameterName, Value: firstParameterValue},

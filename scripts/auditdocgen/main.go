@@ -110,41 +110,42 @@ func updateAuditDoc(doc []byte, auditableResourcesMap AuditableResourcesMap) ([]
 	tableEndIndex := tableStartIndex + j
 
 	var buffer bytes.Buffer
-	buffer.Write(doc[:tableStartIndex])
-	buffer.WriteByte('\n')
+	_, _ = buffer.Write(doc[:tableStartIndex])
+	_ = buffer.WriteByte('\n')
 
-	buffer.WriteString("|<b>Resource<b>||\n")
-	buffer.WriteString("|--|-----------------|\n")
+	_, _ = buffer.WriteString("|<b>Resource<b>||\n")
+	_, _ = buffer.WriteString("|--|-----------------|\n")
 
 	for _, resourceName := range sortedResourceNames {
+		readableResourceName := resourceName
+		// AuditableGroup is really a combination of Group and GroupMember resources
+		// but we use the label 'Group' in our docs to avoid confusion.
+		if resourceName == "AuditableGroup" {
+			readableResourceName = "Group"
+		}
+
 		// Create a string of audit actions for each resource
 		var auditActions []string
-		for _, action := range audit.AuditActionMap[resourceName] {
+		for _, action := range audit.AuditActionMap[readableResourceName] {
 			auditActions = append(auditActions, string(action))
 		}
 		auditActionsString := strings.Join(auditActions, ", ")
 
-		// AuditableGroup is really a combination of Group and GroupMember resources
-		// but we use the label 'Group' in our docs to avoid confusion.
-		if resourceName == "AuditableGroup" {
-			resourceName = "Group"
-		}
-
-		buffer.WriteString("|" + resourceName + "<br><i>" + auditActionsString + "</i>|<table><thead><tr><th>Field</th><th>Tracked</th></tr></thead><tbody>")
+		_, _ = buffer.WriteString("|" + readableResourceName + "<br><i>" + auditActionsString + "</i>|<table><thead><tr><th>Field</th><th>Tracked</th></tr></thead><tbody>")
 
 		// We must sort the field names to ensure sub-table ordering
 		sortedFieldNames := sortKeys(auditableResourcesMap[resourceName])
 
 		for _, fieldName := range sortedFieldNames {
 			isTracked := auditableResourcesMap[resourceName][fieldName]
-			buffer.WriteString("<tr><td>" + fieldName + "</td><td>" + strconv.FormatBool(isTracked) + "</td></tr>")
+			_, _ = buffer.WriteString("<tr><td>" + fieldName + "</td><td>" + strconv.FormatBool(isTracked) + "</td></tr>")
 		}
 
-		buffer.WriteString("</tbody></table>\n")
+		_, _ = buffer.WriteString("</tbody></table>\n")
 	}
 
-	buffer.WriteString("\n")
-	buffer.Write(doc[tableEndIndex:])
+	_, _ = buffer.WriteString("\n")
+	_, _ = buffer.Write(doc[tableEndIndex:])
 	return buffer.Bytes(), nil
 }
 

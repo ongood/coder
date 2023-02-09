@@ -3,8 +3,10 @@ alog = "alog"
 Jetbrains = "JetBrains"
 IST = "IST"
 MacOS = "macOS"
+AKS = "AKS"
 
 [default.extend-words]
+AKS = "AKS"
 # do as sudo replacement
 doas = "doas"
 darcula = "darcula"

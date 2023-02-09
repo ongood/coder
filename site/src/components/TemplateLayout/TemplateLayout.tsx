@@ -31,6 +31,7 @@ import { Avatar } from "components/Avatar/Avatar"
 
 const Language = {
   settingsButton: "设置",
+  editButton: "编辑",
   createButton: "创建工作区",
   noDescription: "",
 }

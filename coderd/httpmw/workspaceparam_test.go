@@ -17,7 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/coder/coder/coderd/database"
-	"github.com/coder/coder/coderd/database/databasefake"
+	"github.com/coder/coder/coderd/database/dbfake"
 	"github.com/coder/coder/coderd/httpmw"
 	"github.com/coder/coder/codersdk"
 	"github.com/coder/coder/cryptorand"
@@ -32,7 +32,7 @@ func TestWorkspaceParam(t *testing.T) {
 			hashed     = sha256.Sum256([]byte(secret))
 		)
 		r := httptest.NewRequest("GET", "/", nil)
-		r.Header.Set(codersdk.SessionCustomHeader, fmt.Sprintf("%s-%s", id, secret))
+		r.Header.Set(codersdk.SessionTokenHeader, fmt.Sprintf("%s-%s", id, secret))
 
 		userID := uuid.New()
 		username, err := cryptorand.String(8)
@@ -67,7 +67,7 @@ func TestWorkspaceParam(t *testing.T) {
 
 	t.Run("None", func(t *testing.T) {
 		t.Parallel()
-		db := databasefake.New()
+		db := dbfake.New()
 		rtr := chi.NewRouter()
 		rtr.Use(httpmw.ExtractWorkspaceParam(db))
 		rtr.Get("/", nil)
@@ -82,7 +82,7 @@ func TestWorkspaceParam(t *testing.T) {
 
 	t.Run("NotFound", func(t *testing.T) {
 		t.Parallel()
-		db := databasefake.New()
+		db := dbfake.New()
 		rtr := chi.NewRouter()
 		rtr.Use(httpmw.ExtractWorkspaceParam(db))
 		rtr.Get("/", nil)
@@ -98,7 +98,7 @@ func TestWorkspaceParam(t *testing.T) {
 
 	t.Run("Found", func(t *testing.T) {
 		t.Parallel()
-		db := databasefake.New()
+		db := dbfake.New()
 		rtr := chi.NewRouter()
 		rtr.Use(
 			httpmw.ExtractAPIKey(httpmw.ExtractAPIKeyConfig{
@@ -339,13 +339,13 @@ type setupConfig struct {
 
 func setupWorkspaceWithAgents(t testing.TB, cfg setupConfig) (database.Store, *http.Request) {
 	t.Helper()
-	db := databasefake.New()
+	db := dbfake.New()
 	var (
 		id, secret = randomAPIKeyParts()
 		hashed     = sha256.Sum256([]byte(secret))
 	)
 	r := httptest.NewRequest("GET", "/", nil)
-	r.Header.Set(codersdk.SessionCustomHeader, fmt.Sprintf("%s-%s", id, secret))
+	r.Header.Set(codersdk.SessionTokenHeader, fmt.Sprintf("%s-%s", id, secret))
 
 	userID := uuid.New()
 	username, err := cryptorand.String(8)

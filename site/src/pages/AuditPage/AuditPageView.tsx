@@ -37,12 +37,12 @@ const presetFilters = [
   { query: "resource_type:template action:create", name: "添加模板" },
   { query: "resource_type:user action:delete", name: "删除用户" },
   {
-    query: "resource_type:workspace_build action:start",
-    name: "启动工作区",
-  },
-  {
     query: "resource_type:workspace_build action:start build_reason:initiator",
     name: "用户启动工作区",
+  },
+  {
+    query: "resource_type:api_key action:login",
+    name: "User logins",
   },
 ]
 

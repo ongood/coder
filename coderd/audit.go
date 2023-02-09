@@ -17,6 +17,7 @@ import (
 	"golang.org/x/xerrors"
 
 	"cdr.dev/slog"
+	"github.com/coder/coder/coderd/audit"
 	"github.com/coder/coder/coderd/database"
 	"github.com/coder/coder/coderd/httpapi"
 	"github.com/coder/coder/coderd/httpmw"
@@ -56,19 +57,10 @@ func (api *API) auditLogs(rw http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
+	filter.Offset = int32(page.Offset)
+	filter.Limit = int32(page.Limit)
 
-	dblogs, err := api.Database.GetAuditLogsOffset(ctx, database.GetAuditLogsOffsetParams{
-		Offset:       int32(page.Offset),
-		Limit:        int32(page.Limit),
-		ResourceType: filter.ResourceType,
-		ResourceID:   filter.ResourceID,
-		Action:       filter.Action,
-		Username:     filter.Username,
-		Email:        filter.Email,
-		DateFrom:     filter.DateFrom,
-		DateTo:       filter.DateTo,
-		BuildReason:  filter.BuildReason,
-	})
+	dblogs, err := api.Database.GetAuditLogsOffset(ctx, filter)
 	if err != nil {
 		httpapi.InternalServerError(rw, err)
 		return
@@ -147,6 +139,9 @@ func (api *API) generateFakeAuditLog(rw http.ResponseWriter, r *http.Request) {
 	if params.Time.IsZero() {
 		params.Time = time.Now()
 	}
+	if len(params.AdditionalFields) == 0 {
+		params.AdditionalFields = json.RawMessage("{}")
+	}
 
 	_, err = api.Database.InsertAuditLog(ctx, database.InsertAuditLogParams{
 		ID:               uuid.New(),
@@ -160,7 +155,7 @@ func (api *API) generateFakeAuditLog(rw http.ResponseWriter, r *http.Request) {
 		Action:           database.AuditAction(params.Action),
 		Diff:             diff,
 		StatusCode:       http.StatusOK,
-		AdditionalFields: []byte("{}"),
+		AdditionalFields: params.AdditionalFields,
 	})
 	if err != nil {
 		httpapi.InternalServerError(rw, err)
@@ -178,12 +173,6 @@ func (api *API) convertAuditLogs(ctx context.Context, dblogs []database.GetAudit
 	}
 
 	return alogs
-}
-
-type AdditionalFields struct {
-	WorkspaceName string               `json:"workspace_name"`
-	BuildNumber   string               `json:"build_number"`
-	BuildReason   database.BuildReason `json:"build_reason"`
 }
 
 func (api *API) convertAuditLog(ctx context.Context, dblog database.GetAuditLogsOffsetRow) codersdk.AuditLog {
@@ -213,16 +202,18 @@ func (api *API) convertAuditLog(ctx context.Context, dblog database.GetAuditLogs
 
 	var (
 		additionalFieldsBytes = []byte(dblog.AdditionalFields)
-		additionalFields      AdditionalFields
+		additionalFields      audit.AdditionalFields
 		err                   = json.Unmarshal(additionalFieldsBytes, &additionalFields)
 	)
 	if err != nil {
 		api.Logger.Error(ctx, "unmarshal additional fields", slog.Error(err))
-		resourceInfo := map[string]string{
-			"workspaceName": "unknown",
-			"buildNumber":   "unknown",
-			"buildReason":   "unknown",
+		resourceInfo := audit.AdditionalFields{
+			WorkspaceName:  "unknown",
+			BuildNumber:    "unknown",
+			BuildReason:    "unknown",
+			WorkspaceOwner: "unknown",
 		}
+
 		dblog.AdditionalFields, err = json.Marshal(resourceInfo)
 		api.Logger.Error(ctx, "marshal additional fields", slog.Error(err))
 	}
@@ -259,10 +250,16 @@ func (api *API) convertAuditLog(ctx context.Context, dblog database.GetAuditLogs
 	}
 }
 
-func auditLogDescription(alog database.GetAuditLogsOffsetRow, additionalFields AdditionalFields) string {
+func auditLogDescription(alog database.GetAuditLogsOffsetRow, additionalFields audit.AdditionalFields) string {
 	str := fmt.Sprintf("{user} %s",
-		codersdk.AuditAction(alog.Action).FriendlyString(),
+		codersdk.AuditAction(alog.Action).Friendly(),
 	)
+
+	// API Key resources do not have targets and follow the below format:
+	// "User {logged in | logged out}"
+	if alog.ResourceType == database.ResourceTypeApiKey {
+		return str
+	}
 
 	// Strings for starting/stopping workspace builds follow the below format:
 	// "{user | 'Coder automatically'} started build #{build_number} for workspace {target}"
@@ -344,14 +341,16 @@ func (api *API) auditLogIsResourceDeleted(ctx context.Context, alog database.Get
 	}
 }
 
-func (api *API) auditLogResourceLink(ctx context.Context, alog database.GetAuditLogsOffsetRow, additionalFields AdditionalFields) string {
+func (api *API) auditLogResourceLink(ctx context.Context, alog database.GetAuditLogsOffsetRow, additionalFields audit.AdditionalFields) string {
 	switch alog.ResourceType {
 	case database.ResourceTypeTemplate:
 		return fmt.Sprintf("/templates/%s",
 			alog.ResourceTarget)
+
 	case database.ResourceTypeUser:
 		return fmt.Sprintf("/users?filter=%s",
 			alog.ResourceTarget)
+
 	case database.ResourceTypeWorkspace:
 		workspace, getWorkspaceErr := api.Database.GetWorkspaceByID(ctx, alog.ResourceID)
 		if getWorkspaceErr != nil {
@@ -363,6 +362,7 @@ func (api *API) auditLogResourceLink(ctx context.Context, alog database.GetAudit
 		}
 		return fmt.Sprintf("/@%s/%s",
 			workspaceOwner.Username, alog.ResourceTarget)
+
 	case database.ResourceTypeWorkspaceBuild:
 		if len(additionalFields.WorkspaceName) == 0 || len(additionalFields.BuildNumber) == 0 {
 			return ""
@@ -381,6 +381,7 @@ func (api *API) auditLogResourceLink(ctx context.Context, alog database.GetAudit
 		}
 		return fmt.Sprintf("/@%s/%s/builds/%s",
 			workspaceOwner.Username, additionalFields.WorkspaceName, additionalFields.BuildNumber)
+
 	default:
 		return ""
 	}
@@ -483,6 +484,10 @@ func actionFromString(actionString string) string {
 	case codersdk.AuditActionStart:
 		return actionString
 	case codersdk.AuditActionStop:
+		return actionString
+	case codersdk.AuditActionLogin:
+		return actionString
+	case codersdk.AuditActionLogout:
 		return actionString
 	default:
 	}

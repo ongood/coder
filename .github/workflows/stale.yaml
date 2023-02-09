@@ -1,35 +1,48 @@
-name: Stale Issue Cron
+name: Stale Issue and Branch Cleanup
 on:
   schedule:
     # Every day at midnight
     - cron: "0 0 * * *"
   workflow_dispatch:
 jobs:
-  stale:
+  issues:
     runs-on: ubuntu-latest
     permissions:
       issues: write
       pull-requests: write
     steps:
-      # v5.1.0 has a weird bug that makes stalebot add then remove its own label
-      # https://github.com/actions/stale/pull/775
       - uses: actions/stale@v7.0.0
         with:
           stale-issue-label: "stale"
           stale-pr-label: "stale"
+          days-before-stale: 90
           # Pull Requests become stale more quickly due to merge conflicts.
           # Also, we promote minimizing WIP.
           days-before-pr-stale: 7
           days-before-pr-close: 3
           stale-pr-message: >
-            This Pull Request is becoming stale. In order to minimize WIP, 
+            This Pull Request is becoming stale. In order to minimize WIP,
             prevent merge conflicts and keep the tracker readable, I'm going
             close to this PR in 3 days if there isn't more activity.
           stale-issue-message: >
             This issue is becoming stale. In order to keep the tracker readable
-            and actionable, I'm going close to this issue in 7 days if there 
+            and actionable, I'm going close to this issue in 7 days if there
             isn't more activity.
           # Upped from 30 since we have a big tracker and was hitting the limit.
           operations-per-run: 60
           # Start with the oldest issues, always.
           ascending: true
+  branches:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+      - name: Run delete-old-branches-action
+        uses: beatlabs/delete-old-branches-action@v0.0.9
+        with:
+          repo_token: ${{ github.token }}
+          date: "6 months ago"
+          dry_run: false
+          delete_tags: false
+          # extra_protected_branch_regex: ^(foo|bar)$
+          exclude_open_pr_branches: true

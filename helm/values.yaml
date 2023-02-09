@@ -22,6 +22,14 @@ coder:
     pullSecrets: []
     #  - name: "pull-secret"
 
+  # coder.initContainers -- Init containers for the deployment. See:
+  # https://kubernetes.io/docs/concepts/workloads/pods/init-containers/
+  initContainers:
+    []
+    # - name: init-container
+    #   image: busybox:1.28
+    #   command: ['sh', '-c', "sleep 2"]
+
   # coder.annotations -- The Deployment annotations. See:
   # https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/
   annotations: {}
@@ -39,6 +47,8 @@ coder:
     workspacePerms: true
     # coder.serviceAccount.annotations -- The Coder service account annotations.
     annotations: {}
+    # coder.serviceAccount.name -- The service account name
+    name: coder
 
   # coder.env -- The environment variables to set for Coder. These can be used
   # to configure all aspects of `coder server`. Please see `coder server --help`
@@ -188,3 +198,15 @@ coder:
       # coder.ingress.tls.wildcardSecretName -- The name of the TLS secret to
       # use for the wildcard host.
       wildcardSecretName: ""
+
+# extraTemplates -- Array of extra objects to deploy with the release. Strings
+# are evaluated as a template and can use template expansions and functions. All
+# other objects are used as yaml.
+extraTemplates:
+  #- |
+  #    apiVersion: v1
+  #    kind: ConfigMap
+  #    metadata:
+  #      name: my-configmap
+  #    data:
+  #      key: {{ .Values.myCustomValue | quote }}

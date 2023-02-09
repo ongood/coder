@@ -34,10 +34,10 @@ func TestCheckACLPermissions(t *testing.T) {
 		},
 	})
 
-	memberClient := coderdtest.CreateAnotherUser(t, adminClient, adminUser.OrganizationID)
+	memberClient, _ := coderdtest.CreateAnotherUser(t, adminClient, adminUser.OrganizationID)
 	memberUser, err := memberClient.User(ctx, codersdk.Me)
 	require.NoError(t, err)
-	orgAdminClient := coderdtest.CreateAnotherUser(t, adminClient, adminUser.OrganizationID, rbac.RoleOrgAdmin(adminUser.OrganizationID))
+	orgAdminClient, _ := coderdtest.CreateAnotherUser(t, adminClient, adminUser.OrganizationID, rbac.RoleOrgAdmin(adminUser.OrganizationID))
 	orgAdminUser, err := orgAdminClient.User(ctx, codersdk.Me)
 	require.NoError(t, err)
 
@@ -106,7 +106,7 @@ func TestCheckACLPermissions(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), testutil.WaitLong)
 			t.Cleanup(cancel)
 
-			resp, err := c.Client.CheckAuthorization(ctx, codersdk.AuthorizationRequest{Checks: params})
+			resp, err := c.Client.AuthCheck(ctx, codersdk.AuthorizationRequest{Checks: params})
 			require.NoError(t, err, "check perms")
 			require.Equal(t, c.Check, resp)
 		})

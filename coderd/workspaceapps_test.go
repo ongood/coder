@@ -27,6 +27,7 @@ import (
 	"github.com/coder/coder/coderd/httpmw"
 	"github.com/coder/coder/coderd/rbac"
 	"github.com/coder/coder/codersdk"
+	"github.com/coder/coder/codersdk/agentsdk"
 	"github.com/coder/coder/provisioner/echo"
 	"github.com/coder/coder/provisionersdk/proto"
 	"github.com/coder/coder/testutil"
@@ -96,12 +97,12 @@ func TestGetAppHost(t *testing.T) {
 			defer cancel()
 
 			// Should not leak to unauthenticated users.
-			host, err := client.GetAppHost(ctx)
+			host, err := client.AppHost(ctx)
 			require.Error(t, err)
 			require.Equal(t, "", host.Host)
 
 			_ = coderdtest.CreateFirstUser(t, client)
-			host, err = client.GetAppHost(ctx)
+			host, err = client.AppHost(ctx)
 			require.NoError(t, err)
 			require.Equal(t, c.expected, host.Host)
 		})
@@ -134,7 +135,7 @@ func setupProxyTest(t *testing.T, opts *setupProxyTestOpts) (*codersdk.Client, c
 	server := http.Server{
 		ReadHeaderTimeout: time.Minute,
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			_, err := r.Cookie(codersdk.SessionTokenKey)
+			_, err := r.Cookie(codersdk.SessionTokenCookie)
 			assert.ErrorIs(t, err, http.ErrNoCookie)
 			w.Header().Set("X-Forwarded-For", r.Header.Get("X-Forwarded-For"))
 			w.WriteHeader(http.StatusOK)
@@ -252,10 +253,10 @@ func createWorkspaceWithApps(t *testing.T, client *codersdk.Client, orgID uuid.U
 	user, err := client.User(ctx, codersdk.Me)
 	require.NoError(t, err)
 
-	agentClient := codersdk.New(client.URL)
+	agentClient := agentsdk.New(client.URL)
 	agentClient.SetSessionToken(authToken)
 	if appHost != "" {
-		metadata, err := agentClient.WorkspaceAgentMetadata(context.Background())
+		metadata, err := agentClient.Metadata(context.Background())
 		require.NoError(t, err)
 		proxyURL := fmt.Sprintf(
 			"http://{{port}}--%s--%s--%s%s",
@@ -336,7 +337,7 @@ func TestWorkspaceAppsProxyPath(t *testing.T) {
 	t.Run("NoAccessShould404", func(t *testing.T) {
 		t.Parallel()
 
-		userClient := coderdtest.CreateAnotherUser(t, client, firstUser.OrganizationID, rbac.RoleMember())
+		userClient, _ := coderdtest.CreateAnotherUser(t, client, firstUser.OrganizationID, rbac.RoleMember())
 		userClient.HTTPClient.CheckRedirect = client.HTTPClient.CheckRedirect
 		userClient.HTTPClient.Transport = client.HTTPClient.Transport
 
@@ -437,7 +438,7 @@ func TestWorkspaceApplicationAuth(t *testing.T) {
 		// Get the current user and API key.
 		user, err := client.User(ctx, codersdk.Me)
 		require.NoError(t, err)
-		currentAPIKey, err := client.GetAPIKey(ctx, firstUser.UserID.String(), strings.Split(client.SessionToken(), "-")[0])
+		currentAPIKey, err := client.APIKey(ctx, firstUser.UserID.String(), strings.Split(client.SessionToken(), "-")[0])
 		require.NoError(t, err)
 
 		// Try to load the application without authentication.
@@ -499,11 +500,12 @@ func TestWorkspaceApplicationAuth(t *testing.T) {
 		apiKey := cookies[0].Value
 
 		// Fetch the API key.
-		apiKeyInfo, err := client.GetAPIKey(ctx, firstUser.UserID.String(), strings.Split(apiKey, "-")[0])
+		apiKeyInfo, err := client.APIKey(ctx, firstUser.UserID.String(), strings.Split(apiKey, "-")[0])
 		require.NoError(t, err)
 		require.Equal(t, user.ID, apiKeyInfo.UserID)
 		require.Equal(t, codersdk.LoginTypePassword, apiKeyInfo.LoginType)
 		require.WithinDuration(t, currentAPIKey.ExpiresAt, apiKeyInfo.ExpiresAt, 5*time.Second)
+		require.EqualValues(t, currentAPIKey.LifetimeSeconds, apiKeyInfo.LifetimeSeconds)
 
 		// Verify the API key permissions
 		appClient := codersdk.New(client.URL)
@@ -515,7 +517,7 @@ func TestWorkspaceApplicationAuth(t *testing.T) {
 			canCreateApplicationConnect = "can-create-application_connect"
 			canReadUserMe               = "can-read-user-me"
 		)
-		authRes, err := appClient.CheckAuthorization(ctx, codersdk.AuthorizationRequest{
+		authRes, err := appClient.AuthCheck(ctx, codersdk.AuthorizationRequest{
 			Checks: map[string]codersdk.AuthorizationCheck{
 				canCreateApplicationConnect: {
 					Object: codersdk.AuthorizationObject{
@@ -546,7 +548,7 @@ func TestWorkspaceApplicationAuth(t *testing.T) {
 		t.Log("navigating to: ", gotLocation.String())
 		req, err = http.NewRequestWithContext(ctx, "GET", gotLocation.String(), nil)
 		require.NoError(t, err)
-		req.Header.Set(codersdk.SessionCustomHeader, apiKey)
+		req.Header.Set(codersdk.SessionTokenHeader, apiKey)
 		resp, err = doWithRetries(t, client, req)
 		require.NoError(t, err)
 		resp.Body.Close()
@@ -730,7 +732,7 @@ func TestWorkspaceAppsProxySubdomain(t *testing.T) {
 		require.NoError(t, err, "get workspaces")
 		require.Len(t, res.Workspaces, 1, "expected 1 workspace")
 
-		appHost, err := client.GetAppHost(ctx)
+		appHost, err := client.AppHost(ctx)
 		require.NoError(t, err, "get app host")
 
 		subdomain := httpapi.ApplicationURL{
@@ -763,7 +765,7 @@ func TestWorkspaceAppsProxySubdomain(t *testing.T) {
 	t.Run("NoAccessShould401", func(t *testing.T) {
 		t.Parallel()
 
-		userClient := coderdtest.CreateAnotherUser(t, client, firstUser.OrganizationID, rbac.RoleMember())
+		userClient, _ := coderdtest.CreateAnotherUser(t, client, firstUser.OrganizationID, rbac.RoleMember())
 		userClient.HTTPClient.CheckRedirect = client.HTTPClient.CheckRedirect
 		userClient.HTTPClient.Transport = client.HTTPClient.Transport
 
@@ -858,7 +860,7 @@ func TestWorkspaceAppsProxySubdomain(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), testutil.WaitLong)
 		defer cancel()
 
-		port := uint16(codersdk.MinimumListeningPort - 1)
+		port := uint16(codersdk.WorkspaceAgentMinimumListeningPort - 1)
 		resp, err := requestWithRetries(ctx, t, client, http.MethodGet, proxyURL(t, client, port, "/", proxyTestAppQuery), nil)
 		require.NoError(t, err)
 		defer resp.Body.Close()
@@ -1049,7 +1051,7 @@ func TestAppSubdomainLogout(t *testing.T) {
 			_, err := client.User(ctx, codersdk.Me)
 			require.NoError(t, err)
 
-			appHost, err := client.GetAppHost(ctx)
+			appHost, err := client.AppHost(ctx)
 			require.NoError(t, err, "get app host")
 
 			if c.cookie == "-" {
@@ -1087,7 +1089,7 @@ func TestAppSubdomainLogout(t *testing.T) {
 			// The header is prioritized over the devurl cookie if both are
 			// set, so this ensures we can trigger the logout code path with
 			// bad cookies during tests.
-			req.Header.Set(codersdk.SessionCustomHeader, client.SessionToken())
+			req.Header.Set(codersdk.SessionTokenHeader, client.SessionToken())
 			if c.cookie != "" {
 				req.AddCookie(&http.Cookie{
 					Name:  httpmw.DevURLSessionTokenCookie,
@@ -1526,7 +1528,7 @@ func TestWorkspaceAppsNonCanonicalHeaders(t *testing.T) {
 		secWebSocketKey := "test-dean-was-here"
 		req.Header["Sec-WebSocket-Key"] = []string{secWebSocketKey}
 
-		req.Header.Set(codersdk.SessionCustomHeader, client.SessionToken())
+		req.Header.Set(codersdk.SessionTokenHeader, client.SessionToken())
 		resp, err := doWithRetries(t, client, req)
 		require.NoError(t, err)
 		defer resp.Body.Close()
@@ -1578,7 +1580,7 @@ func TestWorkspaceAppsNonCanonicalHeaders(t *testing.T) {
 		secWebSocketKey := "test-dean-was-here"
 		req.Header["Sec-WebSocket-Key"] = []string{secWebSocketKey}
 
-		req.Header.Set(codersdk.SessionCustomHeader, client.SessionToken())
+		req.Header.Set(codersdk.SessionTokenHeader, client.SessionToken())
 		resp, err := doWithRetries(t, client, req)
 		require.NoError(t, err)
 		defer resp.Body.Close()

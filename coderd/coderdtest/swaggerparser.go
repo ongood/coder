@@ -260,7 +260,7 @@ func assertGoCommentFirst(t *testing.T, comment SwaggerComment) {
 		text := strings.TrimSpace(line.Text)
 
 		if inSwaggerBlock {
-			if !strings.HasPrefix(text, "// @") {
+			if !strings.HasPrefix(text, "// @") && !strings.HasPrefix(text, "// nolint:") {
 				assert.Fail(t, "Go function comment must be placed before swagger comments")
 				return
 			}
@@ -297,7 +297,8 @@ func assertPathParametersDefined(t *testing.T, comment SwaggerComment) {
 func assertSecurityDefined(t *testing.T, comment SwaggerComment) {
 	if comment.router == "/updatecheck" ||
 		comment.router == "/buildinfo" ||
-		comment.router == "/" {
+		comment.router == "/" ||
+		comment.router == "/users/login" {
 		return // endpoints do not require authorization
 	}
 	assert.Equal(t, "CoderSessionToken", comment.security, "@Security must be equal CoderSessionToken")
@@ -343,7 +344,7 @@ func assertProduce(t *testing.T, comment SwaggerComment) {
 		assert.Contains(t, allowedProduceTypes, comment.produce, "@Produce value is limited to specific types: %s", strings.Join(allowedProduceTypes, ","))
 	} else {
 		if (comment.router == "/workspaceagents/me/app-health" && comment.method == "post") ||
-			(comment.router == "/workspaceagents/me/version" && comment.method == "post") ||
+			(comment.router == "/workspaceagents/me/startup" && comment.method == "post") ||
 			(comment.router == "/licenses/{id}" && comment.method == "delete") ||
 			(comment.router == "/debug/coordinator" && comment.method == "get") {
 			return // Exception: HTTP 200 is returned without response entity

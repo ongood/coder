@@ -24,19 +24,28 @@ type TemplateVersion struct {
 	CreatedBy      User           `json:"created_by"`
 }
 
+type ValidationMonotonicOrder string
+
+const (
+	MonotonicOrderIncreasing ValidationMonotonicOrder = "increasing"
+	MonotonicOrderDecreasing ValidationMonotonicOrder = "decreasing"
+)
+
 // TemplateVersionParameter represents a parameter for a template version.
 type TemplateVersionParameter struct {
-	Name            string                           `json:"name"`
-	Description     string                           `json:"description"`
-	Type            string                           `json:"type"`
-	Mutable         bool                             `json:"mutable"`
-	DefaultValue    string                           `json:"default_value"`
-	Icon            string                           `json:"icon"`
-	Options         []TemplateVersionParameterOption `json:"options"`
-	ValidationError string                           `json:"validation_error"`
-	ValidationRegex string                           `json:"validation_regex"`
-	ValidationMin   int32                            `json:"validation_min"`
-	ValidationMax   int32                            `json:"validation_max"`
+	Name                 string                           `json:"name"`
+	Description          string                           `json:"description"`
+	DescriptionPlaintext string                           `json:"description_plaintext"`
+	Type                 string                           `json:"type" enums:"string,number,bool"`
+	Mutable              bool                             `json:"mutable"`
+	DefaultValue         string                           `json:"default_value"`
+	Icon                 string                           `json:"icon"`
+	Options              []TemplateVersionParameterOption `json:"options"`
+	ValidationError      string                           `json:"validation_error,omitempty"`
+	ValidationRegex      string                           `json:"validation_regex,omitempty"`
+	ValidationMin        int32                            `json:"validation_min,omitempty"`
+	ValidationMax        int32                            `json:"validation_max,omitempty"`
+	ValidationMonotonic  ValidationMonotonicOrder         `json:"validation_monotonic,omitempty" enums:"increasing,decreasing"`
 }
 
 // TemplateVersionParameterOption represents a selectable option for a template parameter.
@@ -55,7 +64,7 @@ func (c *Client) TemplateVersion(ctx context.Context, id uuid.UUID) (TemplateVer
 	}
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusOK {
-		return TemplateVersion{}, readBodyAsError(res)
+		return TemplateVersion{}, ReadBodyAsError(res)
 	}
 	var version TemplateVersion
 	return version, json.NewDecoder(res.Body).Decode(&version)
@@ -69,7 +78,7 @@ func (c *Client) CancelTemplateVersion(ctx context.Context, version uuid.UUID) e
 	}
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusOK {
-		return readBodyAsError(res)
+		return ReadBodyAsError(res)
 	}
 	return nil
 }
@@ -82,7 +91,7 @@ func (c *Client) TemplateVersionRichParameters(ctx context.Context, version uuid
 	}
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusOK {
-		return nil, readBodyAsError(res)
+		return nil, ReadBodyAsError(res)
 	}
 	var params []TemplateVersionParameter
 	return params, json.NewDecoder(res.Body).Decode(&params)
@@ -96,7 +105,7 @@ func (c *Client) TemplateVersionSchema(ctx context.Context, version uuid.UUID) (
 	}
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusOK {
-		return nil, readBodyAsError(res)
+		return nil, ReadBodyAsError(res)
 	}
 	var params []ParameterSchema
 	return params, json.NewDecoder(res.Body).Decode(&params)
@@ -110,7 +119,7 @@ func (c *Client) TemplateVersionParameters(ctx context.Context, version uuid.UUI
 	}
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusOK {
-		return nil, readBodyAsError(res)
+		return nil, ReadBodyAsError(res)
 	}
 	var params []ComputedParameter
 	return params, json.NewDecoder(res.Body).Decode(&params)
@@ -124,7 +133,7 @@ func (c *Client) TemplateVersionResources(ctx context.Context, version uuid.UUID
 	}
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusOK {
-		return nil, readBodyAsError(res)
+		return nil, ReadBodyAsError(res)
 	}
 	var resources []WorkspaceResource
 	return resources, json.NewDecoder(res.Body).Decode(&resources)
@@ -157,7 +166,7 @@ func (c *Client) CreateTemplateVersionDryRun(ctx context.Context, version uuid.U
 	}
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusCreated {
-		return ProvisionerJob{}, readBodyAsError(res)
+		return ProvisionerJob{}, ReadBodyAsError(res)
 	}
 
 	var job ProvisionerJob
@@ -173,7 +182,7 @@ func (c *Client) TemplateVersionDryRun(ctx context.Context, version, job uuid.UU
 	}
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusOK {
-		return ProvisionerJob{}, readBodyAsError(res)
+		return ProvisionerJob{}, ReadBodyAsError(res)
 	}
 
 	var j ProvisionerJob
@@ -189,7 +198,7 @@ func (c *Client) TemplateVersionDryRunResources(ctx context.Context, version, jo
 	}
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusOK {
-		return nil, readBodyAsError(res)
+		return nil, ReadBodyAsError(res)
 	}
 
 	var resources []WorkspaceResource
@@ -216,19 +225,19 @@ func (c *Client) CancelTemplateVersionDryRun(ctx context.Context, version, job u
 	}
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusOK {
-		return readBodyAsError(res)
+		return ReadBodyAsError(res)
 	}
 	return nil
 }
 
-func (c *Client) PreviousTemplateVersion(ctx context.Context, organization uuid.UUID, versionName string) (TemplateVersion, error) {
-	res, err := c.Request(ctx, http.MethodGet, fmt.Sprintf("/api/v2/organizations/%s/templateversions/%s/previous", organization, versionName), nil)
+func (c *Client) PreviousTemplateVersion(ctx context.Context, organization uuid.UUID, templateName, versionName string) (TemplateVersion, error) {
+	res, err := c.Request(ctx, http.MethodGet, fmt.Sprintf("/api/v2/organizations/%s/templates/%s/versions/%s/previous", organization, templateName, versionName), nil)
 	if err != nil {
 		return TemplateVersion{}, err
 	}
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusOK {
-		return TemplateVersion{}, readBodyAsError(res)
+		return TemplateVersion{}, ReadBodyAsError(res)
 	}
 	var version TemplateVersion
 	return version, json.NewDecoder(res.Body).Decode(&version)

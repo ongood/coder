@@ -1,4 +1,4 @@
-name: "Security"
+name: "security"
 
 permissions:
   actions: read
@@ -26,36 +26,26 @@ concurrency:
 
 jobs:
   codeql:
-    name: CodeQL
-    runs-on: ${{ github.repository_owner == 'coder' && 'ubuntu-latest-16-cores' || 'ubuntu-latest' }}
-    strategy:
-      fail-fast: false
-      matrix:
-        language: ["go", "javascript"]
-
+    runs-on: ${{ github.repository_owner == 'coder' && 'ubuntu-latest-8-cores' || 'ubuntu-latest' }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v2
         with:
-          languages: ${{ matrix.language }}
+          languages: go, javascript
 
       - name: Setup Go
-        if: matrix.language == 'go'
         uses: actions/setup-go@v3
         with:
-          go-version: "~1.19"
+          go-version: "~1.20"
 
       - name: Go Cache Paths
-        if: matrix.language == 'go'
         id: go-cache-paths
         run: |
           echo "GOMODCACHE=$(go env GOMODCACHE)" >> $GITHUB_OUTPUT
 
       - name: Go Mod Cache
-        if: matrix.language == 'go'
         uses: actions/cache@v3
         with:
           path: ${{ steps.go-cache-paths.outputs.GOMODCACHE }}
@@ -63,18 +53,14 @@ jobs:
 
       # Workaround to prevent CodeQL from building the dashboard.
       - name: Remove Makefile
-        if: matrix.language == 'go'
         run: |
           rm Makefile
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v2
-        with:
-          category: "/language:${{matrix.language}}"
 
   trivy:
-    name: Trivy
-    runs-on: ${{ github.repository_owner == 'coder' && 'ubuntu-latest-16-cores' || 'ubuntu-latest' }}
+    runs-on: ${{ github.repository_owner == 'coder' && 'ubuntu-latest-8-cores' || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v3
         with:
@@ -82,7 +68,7 @@ jobs:
 
       - uses: actions/setup-go@v3
         with:
-          go-version: "~1.19"
+          go-version: "~1.20"
 
       - name: Go Cache Paths
         id: go-cache-paths
@@ -106,16 +92,42 @@ jobs:
           restore-keys: |
             js-${{ runner.os }}-
 
+      - name: Install yq
+        run: go run github.com/mikefarah/yq/v4@v4.30.6
+
       - name: Build Coder linux amd64 Docker image
         id: build
         run: |
           set -euo pipefail
-          image_job="build/coder_$(./scripts/version.sh)_linux_amd64.tag"
-          DOCKER_IMAGE_NO_PREREQUISITES=true make -j "$image_job"
+
+          version="$(./scripts/version.sh)"
+          image_job="build/coder_${version}_linux_amd64.tag"
+
+          # This environment variable force make to not build packages and
+          # archives (which the Docker image depends on due to technical reasons
+          # related to concurrent FS writes).
+          export DOCKER_IMAGE_NO_PREREQUISITES=true
+          # This environment variables forces scripts/build_docker.sh to build
+          # the base image tag locally instead of using the cached version from
+          # the registry.
+          export CODER_IMAGE_BUILD_BASE_TAG="$(CODER_IMAGE_BASE=coder-base ./scripts/image_tag.sh --version "$version")"
+
+          make -j "$image_job"
           echo "image=$(cat "$image_job")" >> $GITHUB_OUTPUT
 
+      - name: Build Coder linux amd64 Docker image (ironbank)
+        id: build-ironbank
+        run: |
+          set -euo pipefail
+          # NOTE: This is not a real image tag we publish.
+          image_tag="${{ steps.build.outputs.image }}-ironbank"
+          ./scripts/ironbank/build_ironbank.sh \
+            --target "$image_tag" \
+            "build/coder_$(./scripts/version.sh)_linux_amd64"
+          echo "image=$image_tag" >> $GITHUB_OUTPUT
+
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@7b7aa264d83dc58691451798b4d117d53d21edfe
+        uses: aquasecurity/trivy-action@9ab158e8597f3b310480b9a69402b419bc03dbd5
         with:
           image-ref: ${{ steps.build.outputs.image }}
           format: sarif
@@ -126,10 +138,36 @@ jobs:
         uses: github/codeql-action/upload-sarif@v2
         with:
           sarif_file: trivy-results.sarif
+          category: "Trivy"
+
+      - name: Run Trivy vulnerability scanner (ironbank)
+        uses: aquasecurity/trivy-action@7b7aa264d83dc58691451798b4d117d53d21edfe
+        with:
+          image-ref: ${{ steps.build-ironbank.outputs.image }}
+          format: sarif
+          output: trivy-results-ironbank.sarif
+          severity: "CRITICAL,HIGH"
+
+      # Update the tool name field in the ironbank SARIF file so it's not
+      # indistinguishable from findings in the non-ironbank SARIF file in the
+      # GitHub UI. Without this, findings from both scans would show up as
+      # "Trivy".
+      - name: Update tool name in SARIF file (ironbank)
+        run: |
+          set -euo pipefail
+          yq eval -i '.runs[0].tool.driver.name = "Trivy Ironbank"' trivy-results-ironbank.sarif
+
+      - name: Upload Trivy scan results to GitHub Security tab (ironbank)
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: trivy-results-ironbank.sarif
+          category: "Trivy Ironbank"
 
       - name: Upload Trivy scan results as an artifact
         uses: actions/upload-artifact@v2
         with:
           name: trivy
-          path: trivy-results.sarif
+          path: |
+            trivy-results.sarif
+            trivy-results-ironbank.sarif
           retention-days: 7
