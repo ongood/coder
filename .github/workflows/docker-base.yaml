@@ -57,4 +57,4 @@ jobs:
           no-cache: true
           push: true
           tags: |
-            ghcr.io/coder/coder-base:latest
+            ghcr.io/ongood/coder-base:latest

@@ -170,7 +170,7 @@ jobs:
             # Empty value means use the default and avoid building a fresh one.
             echo "tag=" >> $GITHUB_OUTPUT
           else
-            echo "tag=$(CODER_IMAGE_BASE=ghcr.io/coder/coder-base ./scripts/image_tag.sh)" >> $GITHUB_OUTPUT
+            echo "tag=$(CODER_IMAGE_BASE=ghcr.io/ongood/coder-base ./scripts/image_tag.sh)" >> $GITHUB_OUTPUT
           fi
 
       - name: Create empty base-build-context directory
