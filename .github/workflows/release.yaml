@@ -269,8 +269,8 @@ jobs:
           version="$(./scripts/version.sh)"
           mkdir -p build/helm
           cp "build/coder_helm_${version}.tgz" build/helm
-          gsutil cp gs://helm.coder.com/v2/index.yaml build/helm/index.yaml
-          helm repo index build/helm --url https://helm.coder.com/v2 --merge build/helm/index.yaml
+          gsutil cp gs://ongood/coder/v2/index.yaml build/helm/index.yaml
+          helm repo index build/helm --url https://console.cloud.google.com/storage/browser/ongood/coder/v2 --merge build/helm/index.yaml
           gsutil -h "Cache-Control:no-cache,max-age=0" cp build/helm/coder_helm_${version}.tgz gs://helm.coder.com/v2
           gsutil -h "Cache-Control:no-cache,max-age=0" cp build/helm/index.yaml gs://helm.coder.com/v2
 
