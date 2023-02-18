@@ -2693,6 +2693,44 @@ const docTemplate = `{
                 }
             }
         },
+        "/templateversions/{templateversion}/variables": {
+            "get": {
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Templates"
+                ],
+                "summary": "Get template variables by template version",
+                "operationId": "get-template-variables-by-template-version",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Template version ID",
+                        "name": "templateversion",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/codersdk.TemplateVersionVariable"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/updatecheck": {
             "get": {
                 "produces": [
@@ -5753,6 +5791,12 @@ const docTemplate = `{
                         "$ref": "#/definitions/codersdk.WorkspaceBuildParameter"
                     }
                 },
+                "user_variable_values": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/codersdk.VariableValue"
+                    }
+                },
                 "workspace_name": {
                     "type": "string"
                 }
@@ -6420,6 +6464,9 @@ const docTemplate = `{
                     }
                 },
                 "has_license": {
+                    "type": "boolean"
+                },
+                "require_telemetry": {
                     "type": "boolean"
                 },
                 "trial": {
@@ -7255,7 +7302,8 @@ const docTemplate = `{
                 "workspace_build",
                 "git_ssh_key",
                 "api_key",
-                "group"
+                "group",
+                "license"
             ],
             "x-enum-varnames": [
                 "ResourceTypeTemplate",
@@ -7265,7 +7313,8 @@ const docTemplate = `{
                 "ResourceTypeWorkspaceBuild",
                 "ResourceTypeGitSSHKey",
                 "ResourceTypeAPIKey",
-                "ResourceTypeGroup"
+                "ResourceTypeGroup",
+                "ResourceTypeLicense"
             ]
         },
         "codersdk.Response": {
@@ -7676,6 +7725,37 @@ const docTemplate = `{
                 }
             }
         },
+        "codersdk.TemplateVersionVariable": {
+            "type": "object",
+            "properties": {
+                "default_value": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "required": {
+                    "type": "boolean"
+                },
+                "sensitive": {
+                    "type": "boolean"
+                },
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "string",
+                        "number",
+                        "bool"
+                    ]
+                },
+                "value": {
+                    "type": "string"
+                }
+            }
+        },
         "codersdk.TraceConfig": {
             "type": "object",
             "properties": {
@@ -7912,6 +7992,17 @@ const docTemplate = `{
                 "MonotonicOrderIncreasing",
                 "MonotonicOrderDecreasing"
             ]
+        },
+        "codersdk.VariableValue": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "string"
+                }
+            }
         },
         "codersdk.Workspace": {
             "type": "object",

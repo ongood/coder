@@ -42,6 +42,7 @@ import (
 	"github.com/coder/coder/coderd/audit"
 	"github.com/coder/coder/coderd/awsidentity"
 	"github.com/coder/coder/coderd/database"
+	"github.com/coder/coder/coderd/database/dbauthz"
 	"github.com/coder/coder/coderd/database/dbtype"
 	"github.com/coder/coder/coderd/gitauth"
 	"github.com/coder/coder/coderd/gitsshkey"
@@ -157,13 +158,6 @@ func New(options *Options) *API {
 		options = &Options{}
 	}
 	experiments := initExperiments(options.Logger, options.DeploymentConfig.Experiments.Value, options.DeploymentConfig.Experimental.Value)
-	// TODO: remove this once we promote authz_querier out of experiments.
-	if experiments.Enabled(codersdk.ExperimentAuthzQuerier) {
-		panic("Coming soon!")
-		// if _, ok := (options.Database).(*authzquery.AuthzQuerier); !ok {
-		// 	options.Database = authzquery.NewAuthzQuerier(options.Database, options.Authorizer)
-		// }
-	}
 	if options.AppHostname != "" && options.AppHostnameRegex == nil || options.AppHostname == "" && options.AppHostnameRegex != nil {
 		panic("coderd: both AppHostname and AppHostnameRegex must be set or unset")
 	}
@@ -193,7 +187,7 @@ func New(options *Options) *API {
 		options.PrometheusRegistry = prometheus.NewRegistry()
 	}
 	if options.Authorizer == nil {
-		options.Authorizer = rbac.NewAuthorizer(options.PrometheusRegistry)
+		options.Authorizer = rbac.NewCachingAuthorizer(options.PrometheusRegistry)
 	}
 	if options.TailnetCoordinator == nil {
 		options.TailnetCoordinator = tailnet.NewCoordinator()
@@ -203,6 +197,14 @@ func New(options *Options) *API {
 	}
 	if options.Auditor == nil {
 		options.Auditor = audit.NewNop()
+	}
+	// TODO: remove this once we promote authz_querier out of experiments.
+	if experiments.Enabled(codersdk.ExperimentAuthzQuerier) {
+		options.Database = dbauthz.New(
+			options.Database,
+			options.Authorizer,
+			options.Logger.Named("authz_querier"),
+		)
 	}
 	if options.SetUserGroups == nil {
 		options.SetUserGroups = func(context.Context, database.Store, uuid.UUID, []string) error { return nil }
@@ -287,6 +289,7 @@ func New(options *Options) *API {
 		tracing.StatusWriterMiddleware,
 		tracing.Middleware(api.TracerProvider),
 		httpmw.AttachRequestID,
+		httpmw.AttachAuthzCache,
 		httpmw.ExtractRealIP(api.RealIPConfig),
 		httpmw.Logger(api.Logger),
 		httpmw.Prometheus(options.PrometheusRegistry),
@@ -304,8 +307,10 @@ func New(options *Options) *API {
 				DisableSessionExpiryRefresh: options.DeploymentConfig.DisableSessionExpiryRefresh.Value,
 				Optional:                    true,
 			}),
-			httpmw.ExtractUserParam(api.Database, false),
-			httpmw.ExtractWorkspaceAndAgentParam(api.Database),
+			httpmw.AsAuthzSystem(
+				httpmw.ExtractUserParam(api.Database, false),
+				httpmw.ExtractWorkspaceAndAgentParam(api.Database),
+			),
 		),
 		// Build-Version is helpful for debugging.
 		func(next http.Handler) http.Handler {
@@ -332,11 +337,13 @@ func New(options *Options) *API {
 				DisableSessionExpiryRefresh: options.DeploymentConfig.DisableSessionExpiryRefresh.Value,
 				Optional:                    true,
 			}),
-			// Redirect to the login page if the user tries to open an app with
-			// "me" as the username and they are not logged in.
-			httpmw.ExtractUserParam(api.Database, true),
-			// Extracts the <workspace.agent> from the url
-			httpmw.ExtractWorkspaceAndAgentParam(api.Database),
+			httpmw.AsAuthzSystem(
+				// Redirect to the login page if the user tries to open an app with
+				// "me" as the username and they are not logged in.
+				httpmw.ExtractUserParam(api.Database, true),
+				// Extracts the <workspace.agent> from the url
+				httpmw.ExtractWorkspaceAndAgentParam(api.Database),
+			),
 		)
 		r.HandleFunc("/*", api.workspaceAppsProxyPath)
 	}
@@ -472,6 +479,7 @@ func New(options *Options) *API {
 			r.Get("/schema", api.templateVersionSchema)
 			r.Get("/parameters", api.templateVersionParameters)
 			r.Get("/rich-parameters", api.templateVersionRichParameters)
+			r.Get("/variables", api.templateVersionVariables)
 			r.Get("/resources", api.templateVersionResources)
 			r.Get("/logs", api.templateVersionLogs)
 			r.Route("/dry-run", func(r chi.Router) {
