@@ -294,7 +294,7 @@ jobs:
         uses: peter-evans/repository-dispatch@v2
         with:
           token: ${{ secrets.CDRCI_GITHUB_TOKEN }}
-          repository: coder/packages
+          repository: ongood/packages
           event-type: coder-release
           client-payload: '{"coder_version": "${{ steps.version.outputs.version }}"}'
 
