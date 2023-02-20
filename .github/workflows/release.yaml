@@ -326,7 +326,7 @@ jobs:
           # we do it again to be safe.
           $version = "${{ needs.release.outputs.version }}".Trim('v')
 
-          $release_assets = gh release view --repo coder/coder "v${version}" --json assets | `
+          $release_assets = gh release view --repo ongood/coder "v${version}" --json assets | `
             ConvertFrom-Json
           # Get the installer URL from the release assets.
           $installer_url = $release_assets.assets | `
