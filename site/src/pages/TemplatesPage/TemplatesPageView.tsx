@@ -149,8 +149,12 @@ export const TemplatesPageView: FC<
       <PageHeader
         actions={
           <Maybe condition={permissions.createTemplates}>
-            <Button component={RouterLink} to="/starter-templates">
-              入门模板
+            <Button
+              variant="outlined"
+              component={RouterLink}
+              to="/starter-templates"
+            >
+              Starter templates
             </Button>
             <Button startIcon={<AddIcon />} component={RouterLink} to="new">
               添加模板

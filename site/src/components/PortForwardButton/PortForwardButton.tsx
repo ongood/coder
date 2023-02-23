@@ -148,6 +148,7 @@ export const PortForwardButton: React.FC<PortForwardButtonProps> = (props) => {
   return (
     <>
       <Button
+        className={styles.button}
         startIcon={<OpenInNewOutlined />}
         size="small"
         ref={anchorRef}
@@ -206,5 +207,14 @@ const useStyles = makeStyles((theme) => ({
 
   form: {
     margin: theme.spacing(1.5, 0, 0),
+  },
+
+  button: {
+    whiteSpace: "nowrap",
+    backgroundColor: theme.palette.background.default,
+
+    "&:hover": {
+      backgroundColor: `${theme.palette.background.default} !important`,
+    },
   },
 }))
