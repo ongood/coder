@@ -1,41 +1,41 @@
 {
   "generalInfo": {
-    "title": "General info",
-    "description": "The name is used to identify the template in URLs and the API. It must be unique."
+    "title": "基本信息",
+    "description": "名称用于在URL和API中标识模板。它必须是唯一的。"
   },
   "displayInfo": {
-    "title": "Display info",
-    "description": "Give your template a friendly name, description, and icon."
+    "title": "显示信息",
+    "description": "为您的模板命名，并添加友好的描述和图标。"
   },
   "schedule": {
-    "title": "Schedule",
-    "description": "Define when workspaces created from this template automatically stop."
+    "title": "计划",
+    "description": "定义从此模板创建的工作区自动停止的时间。"
   },
   "operations": {
-    "title": "Operations",
-    "description": "Regulate actions allowed on workspaces created from this template."
+    "title": "操作",
+    "description": "规定从此模板创建的工作区允许的操作。"
   },
   "parameters": {
-    "title": "Template variables",
-    "description": "These variables are provided by your template's Terraform configuration."
+    "title": "模板变量",
+    "description": "这些变量由您模板的 Terraform 配置提供。"
   },
   "fields": {
-    "name": "Name",
-    "displayName": "Display name",
-    "description": "Description",
-    "icon": "Icon",
-    "autoStop": "Auto-stop default",
-    "allowUsersToCancel": "Allow users to cancel in-progress workspace jobs"
+    "name": "名称",
+    "displayName": "显示名称",
+    "description": "描述",
+    "icon": "图标",
+    "autoStop": "自动停止默认值",
+    "allowUsersToCancel": "允许用户取消正在进行的工作区作业"
   },
   "helperText": {
-    "autoStop": "Time in hours",
-    "allowUsersToCancel": "If checked, users may be able to corrupt their workspace."
+    "autoStop": "时间（以小时为单位）",
+    "allowUsersToCancel": "如果选中，用户可能会使其工作区损坏。"
   },
   "upload": {
-    "removeTitle": "Remove file",
-    "title": "Upload template"
+    "removeTitle": "删除文件",
+    "title": "上传模板"
   },
   "tooltip": {
-    "allowUsersToCancel": "Depending on your template, canceling builds may leave workspaces in an unhealthy state. This option isn't recommended for most use cases."
+    "allowUsersToCancel": "根据您的模板，取消构建可能会使工作区处于不健康状态。此选项不适用于大多数情况。"
   }
 }

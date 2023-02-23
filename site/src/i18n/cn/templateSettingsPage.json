@@ -17,19 +17,19 @@
   "allowUserCancelWorkspaceJobsNotice": "根据您的模板，取消构建可能会使工作区处于不健康的状态。此选项并不适用于大多数用例。",
   "allowUsersCancelHelperText": "如果选中，用户可能会破坏他们的工作区。",
   "generalInfo": {
-  "title": "一般信息",
-  "description": "名称用于在 URL 和 API 中识别模板。它必须在您的组织内唯一。"
+    "title": "一般信息",
+    "description": "名称用于在 URL 和 API 中识别模板。它必须在您的组织内唯一。"
   },
   "displayInfo": {
-  "title": "显示信息",
-  "description": "为您的模板提供友好的名称、描述和图标。"
+    "title": "显示信息",
+    "description": "为您的模板提供友好的名称、描述和图标。"
   },
   "schedule": {
-  "title": "计划",
-  "description": "定义从此模板创建的工作区何时自动停止。"
+    "title": "计划",
+    "description": "定义从此模板创建的工作区何时自动停止。"
   },
   "operations": {
-  "title": "操作",
-  "description": "规定从此模板创建的工作区允许的操作。"
+    "title": "操作",
+    "description": "规定从此模板创建的工作区允许的操作。"
   }
 }

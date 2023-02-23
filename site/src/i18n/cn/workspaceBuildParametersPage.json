@@ -1,11 +1,11 @@
 {
-  "title": "Workspace build parameters",
-  "detail": "Those values were provided by the workspace owner.",
-  "noParametersDefined": "This template does not use any rich parameters.",
-  "validationRequiredParameter": "Parameter is required.",
-  "validationNumberNotInRange": "Value must be between {{min}} and {{max}}.",
-  "validationPatternNotMatched": "{{error}} (value does not match the pattern {{pattern}}).",
-  "updateWorkspace": "Update workspace",
-  "validationNumberNotIncreasing": "The value must be equal or greater than the previous one {{last}}.",
-  "validationNumberNotDecreasing": "The value must be equal or lower than the previous one {{last}}."
+  "title": "工作区构建参数",
+  "detail": "这些值由工作区所有者提供。",
+  "noParametersDefined": "此模板不使用任何丰富的参数。",
+  "validationRequiredParameter": "参数是必需的。",
+  "validationNumberNotInRange": "值必须在{{min}}和{{max}}之间。",
+  "validationPatternNotMatched": "{{error}}（值不符合{{pattern}}模式）。",
+  "updateWorkspace": "更新工作区",
+  "validationNumberNotIncreasing": "该值必须等于或大于上一个值{{last}}。",
+  "validationNumberNotDecreasing": "该值必须等于或小于上一个值{{last}}。"
 }

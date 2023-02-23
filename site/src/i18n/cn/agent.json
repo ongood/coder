@@ -22,14 +22,14 @@
     "link": "Troubleshoot"
   },
   "startTimeoutTooltip": {
-    "title": "Agent is taking too long to start",
-    "message": "We noticed this agent is taking longer than expected to start.",
-    "link": "Troubleshoot"
-  },
-  "startErrorTooltip": {
-    "title": "Error starting agent",
-    "message": "Something went wrong during the agent start.",
-    "link": "Troubleshoot"
-  },
-  "unableToConnect": "Unable to connect"
+    "title": "代理正在启动的时间过长",
+    "message": "我们注意到此代理启动所需的时间比预期的时间长。",
+    "link": "故障排除"
+    },
+    "startErrorTooltip": {
+    "title": "启动代理时出错",
+    "message": "代理启动过程中出现了问题。",
+    "link": "故障排除"
+    },
+    "unableToConnect": "无法连接"
 }

@@ -1,4 +1,4 @@
 {
-  "securityUpdateSuccessMessage": "更新密码.",
-  "sshRegenerateSuccessMessage": "SSH Key regenerated successfully."
+  "securityUpdateSuccessMessage": "密码更新成功。",
+  "sshRegenerateSuccessMessage": "SSH密钥已成功重新生成。"
 }

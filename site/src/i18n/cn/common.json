@@ -37,7 +37,7 @@
     "select": "选择表情"
   },
   "updateCheck": {
-    "message": "Coder {{version}} is now available. View the <4>release notes</4> and <7>upgrade instructions</7> for more information.",
-    "error": "Coder update check failed."
+    "message": "Coder {{version}}现在可用。查看<4>发行说明</4>和<7>升级说明</7>获取更多信息。",
+    "error": "Coder更新检查失败。"
   }
 }

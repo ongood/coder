@@ -30,9 +30,9 @@
       "allowUsersToCancel": "允许用户取消正在进行的工作区作业"
     },
     "helperText": {
-      "autoStop": "Time in hours",
-      "allowUsersToCancel": "If checked, users may be able to corrupt their workspace."
-    },
+      "autoStop": "时间（以小时为单位）",
+      "allowUsersToCancel": "如果选中，用户可能会使其工作区损坏。"
+    },    
     "upload": {
       "removeTitle": "删除文件",
       "title": "上传模板"
