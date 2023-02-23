@@ -20,7 +20,7 @@ import starterTemplatePage from "./starterTemplatePage.json"
 import createTemplatePage from "./createTemplatePage.json"
 import userSettingsPage from "./userSettingsPage.json"
 
-export const en = {
+export const cn = {
   common,
   workspacePage,
   auditLog,
