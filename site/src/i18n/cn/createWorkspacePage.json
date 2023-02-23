@@ -1,0 +1,9 @@
+{
+  "templateLabel": "Template",
+  "nameLabel": "Workspace Name",
+  "ownerLabel": "Owner",
+  "createWorkspace": "Create workspace",
+  "validationRequiredParameter": "Parameter is required.",
+  "validationNumberNotInRange": "Value must be between {{min}} and {{max}}.",
+  "validationPatternNotMatched": "{{error}} (value does not match the pattern {{pattern}})."
+}

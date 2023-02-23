@@ -1,8 +1,8 @@
 {
-  "emptyCreateWorkspaceMessage": "创建你的第一个工作区",
-  "emptyCreateWorkspaceDescription": "开始编辑您的源代码并构建您的软件。",
-  "createFromTemplateButton": "从模板创建",
-  "emptyResultsMessage": "搜索无结果",
-  "emptyPageMessage": "此页无结果",
-  "updateVersionError": "升级工作区版本时出错"
+  "emptyCreateWorkspaceMessage": "Create your first workspace",
+  "emptyCreateWorkspaceDescription": "Start editing your source code and building your software",
+  "createFromTemplateButton": "Create from template",
+  "emptyResultsMessage": "No results matched your search",
+  "emptyPageMessage": "No results on this page",
+  "updateVersionError": "Error on update workspace version"
 }

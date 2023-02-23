@@ -1,0 +1,11 @@
+{
+  "title": "入门模板",
+  "subtitle": "选择一个内置模板开始使用 Coder",
+  "filterCaption": "过滤器",
+  "tags": {
+    "all": "所有模板",
+    "digitalocean": "数字海洋",
+    "aws": "AWS",
+    "google": "谷歌云"
+  }
+}

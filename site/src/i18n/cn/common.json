@@ -1,0 +1,43 @@
+{
+  "coder": "Coder",
+  "workspaceStatus": {
+    "loading": "加载中",
+    "running": "运行中",
+    "starting": "启动中",
+    "stopping": "停止中",
+    "stopped": "已停止",
+    "deleting": "删除中",
+    "deleted": "已删除",
+    "canceling": "正在取消动作",
+    "canceled": "已取消动作",
+    "failed": "失败",
+    "pending": "等待中"
+  },
+  "deleteDialog": {
+    "title": "删除{{entity}}",
+    "intro": "删除这个{{entity}}是不可逆的!",
+    "confirm": "您确定要继续吗？在下方输入{{entity}}的名称以确认。",
+    "confirmLabel": "输入{{entity}}的名称以删除",
+    "incorrectName": "不正确的{{entity}}名称。"
+  },
+  "schedule": {
+    "autoStartLabel": "启动于",
+    "autoStopLabel": "停止于"
+  },
+  "ctas": {
+    "dismissCta": "驳回",
+    "expand": "点击这里了解更多",
+    "collapse": "点击这里以隐藏",
+    "retry": "重试"
+  },
+  "warningsAndErrors": {
+    "somethingWentWrong": "遇到了点问题."
+  },
+  "emojiPicker": {
+    "select": "选择表情"
+  },
+  "updateCheck": {
+    "message": "Coder {{version}} is now available. View the <4>release notes</4> and <7>upgrade instructions</7> for more information.",
+    "error": "Coder update check failed."
+  }
+}

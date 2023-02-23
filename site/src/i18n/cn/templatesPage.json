@@ -1,0 +1,10 @@
+{
+  "errors": {
+    "getOrganizationError": "获取组织时出错。",
+    "getTemplatesError": "获取模板时出错。"
+  },
+  "empty": {
+    "message": "创建你的第一个模板",
+    "descriptionWithoutPermissions": "联系您的Coder管理员创建模板。您可以在下方分享代码。"
+  }
+}

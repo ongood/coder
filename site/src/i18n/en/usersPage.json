@@ -1,19 +1,19 @@
 {
-  "emptyMessage": "没有找到用户",
-  "emptyPageMessage": "此页未找到用户",
-  "suspendMenuItem": "暂停",
-  "deleteMenuItem": "删除",
-  "listWorkspacesMenuItem": "查看工作区",
-  "activateMenuItem": "激活",
-  "resetPasswordMenuItem": "重置密码",
-  "editUserRolesTooltip": "编辑用户角色",
-  "fieldSetRolesTooltip": "可用角色",
+  "emptyMessage": "No users found",
+  "emptyPageMessage": "No users found on this page",
+  "suspendMenuItem": "Suspend",
+  "deleteMenuItem": "Delete",
+  "listWorkspacesMenuItem": "View workspaces",
+  "activateMenuItem": "Activate",
+  "resetPasswordMenuItem": "Reset password",
+  "editUserRolesTooltip": "Edit user roles",
+  "fieldSetRolesTooltip": "Available roles",
   "roleDescription": {
-    "owner": "所有者可以管理所有资源，包括用户、组、模板和工作区。",
-    "user-admin": "用户admin可以管理所有用户和组。",
-    "template-admin": "模板管理员可以管理所有模板和工作区。",
-    "auditor": "审计员可以访问审计日志。",
-    "member": "每个人都是成员。这是所有用户共享的默认角色。"
+    "owner": "Owner can manage all resources, including users, groups, templates, and workspaces.",
+    "user-admin": "User admin can manage all users and groups.",
+    "template-admin": "Template admin can manage all templates and workspaces.",
+    "auditor": "Auditor can access the audit logs.",
+    "member": "Everybody is a member. This is a shared and default role for all users."
   },
-  "member": "成员"
+  "member": "Member"
 }

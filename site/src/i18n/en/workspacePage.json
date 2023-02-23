@@ -1,40 +1,40 @@
 {
   "deleteDialog": {
-    "info": "工作区创建于 {{timeAgo}}."
+    "info": "This workspace was created {{timeAgo}}."
   },
   "workspaceScheduleButton": {
-    "schedule": "日程",
-    "editDeadlineMinus": "减去小时数",
-    "editDeadlinePlus": "增加小时数",
-    "submitDeadline": "设定",
-    "hours": "小时"
+    "schedule": "Schedule",
+    "editDeadlineMinus": "Subtract hours",
+    "editDeadlinePlus": "Add hours",
+    "submitDeadline": "Set",
+    "hours": "Hours"
   },
   "ctas": {
-    "createWorkspaceCta": "创建新工作区",
-    "extendScheduleCta": "延长"
+    "createWorkspaceCta": "Create new workspace",
+    "extendScheduleCta": "Extend"
   },
   "warningsAndErrors": {
-    "workspaceRefreshWarning": "我们在获取最新的工作区状态时遇到了困难。刷新页面以查看最新的更改。",
-    "workspaceDeletedWarning": "此工作区已被删除，无法编辑。",
-    "workspaceShutdownWarning": "您的工作区计划很快自动关闭。"
+    "workspaceRefreshWarning": "We're having difficulty fetching the latest workspace state. Refresh the page to see the newest changes.",
+    "workspaceDeletedWarning": "This workspace has been deleted and cannot be edited.",
+    "workspaceShutdownWarning": "Your workspace is scheduled to automatically shut down soon."
   },
   "actionButton": {
-    "start": "启动",
-    "stop": "停止",
-    "delete": "删除",
-    "cancel": "取消",
-    "update": "升级",
-    "updating": "升级中",
-    "starting": "启动中...",
-    "stopping": "停止中...",
-    "deleting": "删除中...",
-    "changeVersion": "变更版本",
-    "buildParameters": "构建参数"
+    "start": "Start",
+    "stop": "Stop",
+    "delete": "Delete",
+    "cancel": "Cancel",
+    "update": "Update",
+    "updating": "Updating",
+    "starting": "Starting...",
+    "stopping": "Stopping...",
+    "deleting": "Deleting...",
+    "changeVersion": "Change version",
+    "buildParameters": "Build parameters"
   },
   "disabledButton": {
-    "canceling": "取消中",
-    "deleted": "已删除",
-    "pending": "等待中"
+    "canceling": "Canceling",
+    "deleted": "Deleted",
+    "pending": "Pending"
   },
   "agentStatus": {
     "connected": {
@@ -46,11 +46,11 @@
     "timeout": "Timeout"
   },
   "buildMessage": {
-    "start": "启动",
-    "stop": "停止",
-    "delete": "删除",
-    "theWorkspace": "工作区",
-    "automatically": "自动地 "
+    "start": "started",
+    "stop": "stopped",
+    "delete": "deleted",
+    "theWorkspace": "the workspace",
+    "automatically": "automatically "
   },
   "buildData": {
     "reason": "Reason",

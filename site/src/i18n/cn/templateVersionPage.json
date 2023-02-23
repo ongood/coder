@@ -1,0 +1,11 @@
+{
+  "title": "版本",
+  "header": {
+    "caption": "版本"
+  },
+  "stats": {
+    "template": "模板",
+    "createdBy": "创建者",
+    "created": "已创建"
+  }
+}

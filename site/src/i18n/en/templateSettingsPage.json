@@ -1,35 +1,35 @@
 {
-  "title": "模板设置",
-  "nameLabel": "名称",
-  "displayNameLabel": "显示名称",
-  "descriptionLabel": "描述",
-  "descriptionMaxError": "请输入少于或等于128个字符的描述。",
-  "defaultTtlLabel": "自动停止默认时间",
-  "iconLabel": "图标",
-  "formAriaLabel": "模板设置表单",
-  "selectEmoji": "选择表情符号",
-  "ttlMaxError": "请输入少于或等于168小时（7天）的限制时间。",
-  "ttlMinError": "自动停止的默认时间不得小于0。",
-  "ttlHelperText_zero": "从此模板创建的工作区将一直运行，直到手动停止。",
-  "ttlHelperText_one": "从此模板创建的工作区将默认在 {{count}} 小时后停止。",
-  "ttlHelperText_other": "从此模板创建的工作区将默认在 {{count}} 小时后停止。",
-  "allowUserCancelWorkspaceJobsLabel": "允许用户取消进行中的工作区任务。",
-  "allowUserCancelWorkspaceJobsNotice": "根据您的模板，取消构建可能会使工作区处于不健康的状态。此选项并不适用于大多数用例。",
-  "allowUsersCancelHelperText": "如果选中，用户可能会破坏他们的工作区。",
+  "title": "Template settings",
+  "nameLabel": "Name",
+  "displayNameLabel": "Display name",
+  "descriptionLabel": "Description",
+  "descriptionMaxError": "Please enter a description that is less than or equal to 128 characters.",
+  "defaultTtlLabel": "Auto-stop default",
+  "iconLabel": "Icon",
+  "formAriaLabel": "Template settings form",
+  "selectEmoji": "Select emoji",
+  "ttlMaxError": "Please enter a limit that is less than or equal to 168 hours (7 days).",
+  "ttlMinError": "Default time until auto-stop must not be less than 0.",
+  "ttlHelperText_zero": "Workspaces created from this template will run until stopped manually.",
+  "ttlHelperText_one": "Workspaces created from this template will default to stopping after {{count}} hour.",
+  "ttlHelperText_other": "Workspaces created from this template will default to stopping after {{count}} hours.",
+  "allowUserCancelWorkspaceJobsLabel": "Allow users to cancel in-progress workspace jobs.",
+  "allowUserCancelWorkspaceJobsNotice": "Depending on your template, canceling builds may leave workspaces in an unhealthy state. This option isn't recommended for most use cases.",
+  "allowUsersCancelHelperText": "If checked, users may be able to corrupt their workspace.",
   "generalInfo": {
-  "title": "一般信息",
-  "description": "名称用于在 URL 和 API 中识别模板。它必须在您的组织内唯一。"
+    "title": "General info",
+    "description": "The name is used to identify the template in URLs and the API. It must be unique within your organization."
   },
   "displayInfo": {
-  "title": "显示信息",
-  "description": "为您的模板提供友好的名称、描述和图标。"
+    "title": "Display info",
+    "description": "Give your template a friendly name, description, and icon."
   },
   "schedule": {
-  "title": "计划",
-  "description": "定义从此模板创建的工作区何时自动停止。"
+    "title": "Schedule",
+    "description": "Define when workspaces created from this template automatically stop."
   },
   "operations": {
-  "title": "操作",
-  "description": "规定从此模板创建的工作区允许的操作。"
+    "title": "Operations",
+    "description": "Regulate actions allowed on workspaces created from this template."
   }
 }
