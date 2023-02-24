@@ -38,17 +38,14 @@ dayjs.extend(relativeTime)
 dayjs.extend(timezone)
 
 export const Language = {
-  errorNoDayOfWeek:
-    "如果启用自动启动，则必须至少设置一周中的某一天。",
-  errorNoTime: "启用自动启动时需要启动时间。",
-  errorTime: "时间必须是 HH:mm 格式（24 小时）。",
+  errorNoDayOfWeek: "如果启用了自动启动，则必须设置至少一天。",
+  errorNoTime: "启动时间是自动启动时必需的。",
+  errorTime: "时间必须是 HH:mm 格式（24小时制）。",
   errorTimezone: "时区无效。",
-  errorNoStop:
-    "启用自动停止时，距离停止的时间必须大于零。",
-  errorTtlMax:
-    "请输入小于或等于 168 小时（7 天）的限制。",
-  daysOfWeekLabel: "星期",
-  daySundayLabel: "星期日",
+  errorNoStop: "自动停止时，停止时间必须大于零。",
+  errorTtlMax: "请设置小于或等于 168 小时（7天）的限制。",
+  daysOfWeekLabel: "星期几",
+  daySundayLabel: "星期天",
   dayMondayLabel: "星期一",
   dayTuesdayLabel: "星期二",
   dayWednesdayLabel: "星期三",
@@ -56,15 +53,14 @@ export const Language = {
   dayFridayLabel: "星期五",
   daySaturdayLabel: "星期六",
   startTimeLabel: "启动时间",
-  startTimeHelperText: "此时您的工作区将自动启动。",
-  noStartTimeHelperText: "您的工作区不会自动启动。",
+  startTimeHelperText: "您的工作区将在此时间自动启动。",
+  noStartTimeHelperText: "您的工作区将不会自动启动。",
   timezoneLabel: "时区",
-  ttlLabel: "自动停止前的工作时间（小时）",
-  ttlCausesShutdownHelperText: "您的工作区将自动停止于每次启动之后的",
+  ttlLabel: "自动停止时间（小时）",
+  ttlCausesShutdownHelperText: "您的工作区将在下一次启动后停止",
   ttlCausesShutdownAfterStart:
-    "after its next start. We delay shutdown by this time whenever we detect activity",
-  ttlCausesNoShutdownHelperText:
-    "您的工作区不会自动停止。",
+    "我们在检测到活动时延迟关闭时间。",
+  ttlCausesNoShutdownHelperText: "您的工作区将不会自动关闭。",
   formTitle: "工作区时间表",
   startSection: "启动",
   startSwitch: "自动启动",
@@ -194,205 +190,205 @@ export const WorkspaceScheduleForm: FC<
   initialTouched,
   defaultTTL,
 }) => {
-  const styles = useStyles()
+    const styles = useStyles()
 
-  const form = useFormik<WorkspaceScheduleFormValues>({
-    initialValues,
-    onSubmit,
-    validationSchema,
-    initialTouched,
-  })
-  const formHelpers = getFormHelpers<WorkspaceScheduleFormValues>(
-    form,
-    submitScheduleError,
-  )
+    const form = useFormik<WorkspaceScheduleFormValues>({
+      initialValues,
+      onSubmit,
+      validationSchema,
+      initialTouched,
+    })
+    const formHelpers = getFormHelpers<WorkspaceScheduleFormValues>(
+      form,
+      submitScheduleError,
+    )
 
-  const checkboxes: Array<{ value: boolean; name: string; label: string }> = [
-    {
-      value: form.values.sunday,
-      name: "sunday",
-      label: Language.daySundayLabel,
-    },
-    {
-      value: form.values.monday,
-      name: "monday",
-      label: Language.dayMondayLabel,
-    },
-    {
-      value: form.values.tuesday,
-      name: "tuesday",
-      label: Language.dayTuesdayLabel,
-    },
-    {
-      value: form.values.wednesday,
-      name: "wednesday",
-      label: Language.dayWednesdayLabel,
-    },
-    {
-      value: form.values.thursday,
-      name: "thursday",
-      label: Language.dayThursdayLabel,
-    },
-    {
-      value: form.values.friday,
-      name: "friday",
-      label: Language.dayFridayLabel,
-    },
-    {
-      value: form.values.saturday,
-      name: "saturday",
-      label: Language.daySaturdayLabel,
-    },
-  ]
+    const checkboxes: Array<{ value: boolean; name: string; label: string }> = [
+      {
+        value: form.values.sunday,
+        name: "sunday",
+        label: Language.daySundayLabel,
+      },
+      {
+        value: form.values.monday,
+        name: "monday",
+        label: Language.dayMondayLabel,
+      },
+      {
+        value: form.values.tuesday,
+        name: "tuesday",
+        label: Language.dayTuesdayLabel,
+      },
+      {
+        value: form.values.wednesday,
+        name: "wednesday",
+        label: Language.dayWednesdayLabel,
+      },
+      {
+        value: form.values.thursday,
+        name: "thursday",
+        label: Language.dayThursdayLabel,
+      },
+      {
+        value: form.values.friday,
+        name: "friday",
+        label: Language.dayFridayLabel,
+      },
+      {
+        value: form.values.saturday,
+        name: "saturday",
+        label: Language.daySaturdayLabel,
+      },
+    ]
 
-  const handleToggleAutoStart = async (e: ChangeEvent) => {
-    form.handleChange(e)
-    if (form.values.autoStartEnabled) {
-      // disable autostart, clear values
-      await form.setValues({
-        ...form.values,
-        autoStartEnabled: false,
-        ...emptySchedule,
-      })
-    } else {
-      // enable autostart, fill with defaults
-      await form.setValues({
-        ...form.values,
-        autoStartEnabled: true,
-        ...defaultSchedule(),
-      })
+    const handleToggleAutoStart = async (e: ChangeEvent) => {
+      form.handleChange(e)
+      if (form.values.autoStartEnabled) {
+        // disable autostart, clear values
+        await form.setValues({
+          ...form.values,
+          autoStartEnabled: false,
+          ...emptySchedule,
+        })
+      } else {
+        // enable autostart, fill with defaults
+        await form.setValues({
+          ...form.values,
+          autoStartEnabled: true,
+          ...defaultSchedule(),
+        })
+      }
     }
-  }
 
-  const handleToggleAutoStop = async (e: ChangeEvent) => {
-    form.handleChange(e)
-    if (form.values.autoStopEnabled) {
-      // disable autostop, set TTL 0
-      await form.setValues({ ...form.values, autoStopEnabled: false, ttl: 0 })
-    } else {
-      // enable autostop, fill with default TTL
-      await form.setValues({
-        ...form.values,
-        autoStopEnabled: true,
-        ttl: defaultTTL,
-      })
+    const handleToggleAutoStop = async (e: ChangeEvent) => {
+      form.handleChange(e)
+      if (form.values.autoStopEnabled) {
+        // disable autostop, set TTL 0
+        await form.setValues({ ...form.values, autoStopEnabled: false, ttl: 0 })
+      } else {
+        // enable autostop, fill with default TTL
+        await form.setValues({
+          ...form.values,
+          autoStopEnabled: true,
+          ttl: defaultTTL,
+        })
+      }
     }
-  }
 
-  return (
-    <FullPageForm title={Language.formTitle}>
-      <form onSubmit={form.handleSubmit} className={styles.form}>
-        <Stack>
-          {Boolean(submitScheduleError) && (
-            <AlertBanner severity="error" error={submitScheduleError} />
-          )}
-          <Section title={Language.startSection}>
-            <FormControlLabel
-              control={
-                <Switch
-                  name="autoStartEnabled"
-                  checked={form.values.autoStartEnabled}
-                  onChange={handleToggleAutoStart}
-                  color="primary"
-                />
-              }
-              label={Language.startSwitch}
-            />
-            <TextField
-              {...formHelpers(
-                "startTime",
-                form.values.autoStartEnabled
-                  ? Language.startTimeHelperText
-                  : Language.noStartTimeHelperText,
-              )}
-              disabled={isLoading || !form.values.autoStartEnabled}
-              InputLabelProps={{
-                shrink: true,
-              }}
-              label={Language.startTimeLabel}
-              type="time"
-              fullWidth
-            />
-
-            <TextField
-              {...formHelpers("timezone")}
-              disabled={isLoading || !form.values.autoStartEnabled}
-              InputLabelProps={{
-                shrink: true,
-              }}
-              label={Language.timezoneLabel}
-              select
-              fullWidth
-            >
-              {zones.map((zone) => (
-                <MenuItem key={zone} value={zone}>
-                  {zone}
-                </MenuItem>
-              ))}
-            </TextField>
-
-            <FormControl
-              component="fieldset"
-              error={Boolean(form.errors.monday)}
-            >
-              <FormLabel className={styles.daysOfWeekLabel} component="legend">
-                {Language.daysOfWeekLabel}
-              </FormLabel>
-
-              <FormGroup>
-                {checkboxes.map((checkbox) => (
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={checkbox.value}
-                        disabled={isLoading || !form.values.autoStartEnabled}
-                        onChange={form.handleChange}
-                        name={checkbox.name}
-                        color="primary"
-                        size="small"
-                        disableRipple
-                      />
-                    }
-                    key={checkbox.name}
-                    label={checkbox.label}
+    return (
+      <FullPageForm title={Language.formTitle}>
+        <form onSubmit={form.handleSubmit} className={styles.form}>
+          <Stack>
+            {Boolean(submitScheduleError) && (
+              <AlertBanner severity="error" error={submitScheduleError} />
+            )}
+            <Section title={Language.startSection}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    name="autoStartEnabled"
+                    checked={form.values.autoStartEnabled}
+                    onChange={handleToggleAutoStart}
+                    color="primary"
                   />
+                }
+                label={Language.startSwitch}
+              />
+              <TextField
+                {...formHelpers(
+                  "startTime",
+                  form.values.autoStartEnabled
+                    ? Language.startTimeHelperText
+                    : Language.noStartTimeHelperText,
+                )}
+                disabled={isLoading || !form.values.autoStartEnabled}
+                InputLabelProps={{
+                  shrink: true,
+                }}
+                label={Language.startTimeLabel}
+                type="time"
+                fullWidth
+              />
+
+              <TextField
+                {...formHelpers("timezone")}
+                disabled={isLoading || !form.values.autoStartEnabled}
+                InputLabelProps={{
+                  shrink: true,
+                }}
+                label={Language.timezoneLabel}
+                select
+                fullWidth
+              >
+                {zones.map((zone) => (
+                  <MenuItem key={zone} value={zone}>
+                    {zone}
+                  </MenuItem>
                 ))}
-              </FormGroup>
+              </TextField>
 
-              {form.errors.monday && (
-                <FormHelperText>{Language.errorNoDayOfWeek}</FormHelperText>
-              )}
-            </FormControl>
-          </Section>
+              <FormControl
+                component="fieldset"
+                error={Boolean(form.errors.monday)}
+              >
+                <FormLabel className={styles.daysOfWeekLabel} component="legend">
+                  {Language.daysOfWeekLabel}
+                </FormLabel>
 
-          <Section title={Language.stopSection}>
-            <FormControlLabel
-              control={
-                <Switch
-                  name="autoStopEnabled"
-                  checked={form.values.autoStopEnabled}
-                  onChange={handleToggleAutoStop}
-                  color="primary"
-                />
-              }
-              label={Language.stopSwitch}
-            />
-            <TextField
-              {...formHelpers("ttl", ttlShutdownAt(form.values.ttl), "ttl_ms")}
-              disabled={isLoading || !form.values.autoStopEnabled}
-              inputProps={{ min: 0, step: 1 }}
-              label={Language.ttlLabel}
-              type="number"
-              fullWidth
-            />
-          </Section>
+                <FormGroup>
+                  {checkboxes.map((checkbox) => (
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={checkbox.value}
+                          disabled={isLoading || !form.values.autoStartEnabled}
+                          onChange={form.handleChange}
+                          name={checkbox.name}
+                          color="primary"
+                          size="small"
+                          disableRipple
+                        />
+                      }
+                      key={checkbox.name}
+                      label={checkbox.label}
+                    />
+                  ))}
+                </FormGroup>
 
-          <FormFooter onCancel={onCancel} isLoading={isLoading} />
-        </Stack>
-      </form>
-    </FullPageForm>
-  )
-}
+                {form.errors.monday && (
+                  <FormHelperText>{Language.errorNoDayOfWeek}</FormHelperText>
+                )}
+              </FormControl>
+            </Section>
+
+            <Section title={Language.stopSection}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    name="autoStopEnabled"
+                    checked={form.values.autoStopEnabled}
+                    onChange={handleToggleAutoStop}
+                    color="primary"
+                  />
+                }
+                label={Language.stopSwitch}
+              />
+              <TextField
+                {...formHelpers("ttl", ttlShutdownAt(form.values.ttl), "ttl_ms")}
+                disabled={isLoading || !form.values.autoStopEnabled}
+                inputProps={{ min: 0, step: 1 }}
+                label={Language.ttlLabel}
+                type="number"
+                fullWidth
+              />
+            </Section>
+
+            <FormFooter onCancel={onCancel} isLoading={isLoading} />
+          </Stack>
+        </form>
+      </FullPageForm>
+    )
+  }
 
 export const ttlShutdownAt = (formTTL: number): string => {
   if (formTTL < 1) {

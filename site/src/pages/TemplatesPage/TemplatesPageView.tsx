@@ -154,7 +154,7 @@ export const TemplatesPageView: FC<
               component={RouterLink}
               to="/starter-templates"
             >
-              Starter templates
+              入门模板
             </Button>
             <Button startIcon={<AddIcon />} component={RouterLink} to="new">
               添加模板

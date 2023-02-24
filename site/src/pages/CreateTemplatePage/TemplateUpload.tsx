@@ -105,7 +105,7 @@ export const TemplateUpload: FC<TemplateUploadProps> = ({
           <Stack alignItems="center" spacing={0.5}>
             <span className={styles.title}>{t("form.upload.title")}</span>
             <span className={styles.description}>
-              The template has to be a .tar file. You can also use our{" "}
+            模板必须是一个.tar文件。您也可以使用我们的{" "}
               <Link
                 component={RouterLink}
                 to="/starter-templates"
@@ -114,9 +114,9 @@ export const TemplateUpload: FC<TemplateUploadProps> = ({
                   e.stopPropagation()
                 }}
               >
-                starter templates
+                入门模板
               </Link>{" "}
-              to getting started with Coder.
+              开始使用 Coder.
             </span>
           </Stack>
         </Stack>
