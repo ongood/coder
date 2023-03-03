@@ -10,7 +10,13 @@ export interface APIKey {
   readonly updated_at: string
   readonly login_type: LoginType
   readonly scope: APIKeyScope
+  readonly token_name: string
   readonly lifetime_seconds: number
+}
+
+// From codersdk/apikey.go
+export interface APIKeyWithOwner extends APIKey {
+  readonly username: string
 }
 
 // From codersdk/licenses.go
@@ -219,6 +225,7 @@ export interface CreateTokenRequest {
   // This is likely an enum in an external package ("time.Duration")
   readonly lifetime: number
   readonly scope: APIKeyScope
+  readonly token_name: string
 }
 
 // From codersdk/users.go
@@ -769,6 +776,14 @@ export interface TemplateVersion {
 }
 
 // From codersdk/templateversions.go
+export interface TemplateVersionGitAuth {
+  readonly id: string
+  readonly type: GitProvider
+  readonly authenticate_url: string
+  readonly authenticated: boolean
+}
+
+// From codersdk/templateversions.go
 export interface TemplateVersionParameter {
   readonly name: string
   readonly description: string
@@ -1156,6 +1171,15 @@ export const FeatureNames: FeatureName[] = [
   "scim",
   "template_rbac",
   "user_limit",
+]
+
+// From codersdk/workspaceagents.go
+export type GitProvider = "azure-devops" | "bitbucket" | "github" | "gitlab"
+export const GitProviders: GitProvider[] = [
+  "azure-devops",
+  "bitbucket",
+  "github",
+  "gitlab",
 ]
 
 // From codersdk/provisionerdaemons.go

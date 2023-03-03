@@ -284,6 +284,9 @@ func New(options *Options) *API {
 	// replicas or instances of this middleware.
 	apiRateLimiter := httpmw.RateLimit(options.APIRateLimit, time.Minute)
 
+	derpHandler := derphttp.Handler(api.DERPServer)
+	derpHandler, api.derpCloseFunc = tailnet.WithWebsocketSupport(api.DERPServer, derpHandler)
+
 	r.Use(
 		httpmw.Recover(api.Logger),
 		tracing.StatusWriterMiddleware,
@@ -363,7 +366,7 @@ func New(options *Options) *API {
 	r.Route("/%40{user}/{workspace_and_agent}/apps/{workspaceapp}", apps)
 	r.Route("/@{user}/{workspace_and_agent}/apps/{workspaceapp}", apps)
 	r.Route("/derp", func(r chi.Router) {
-		r.Get("/", derphttp.Handler(api.DERPServer).ServeHTTP)
+		r.Get("/", derpHandler.ServeHTTP)
 		// This is used when UDP is blocked, and latency must be checked via HTTP(s).
 		r.Get("/latency-check", func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
@@ -489,6 +492,7 @@ func New(options *Options) *API {
 			r.Get("/schema", api.templateVersionSchema)
 			r.Get("/parameters", api.templateVersionParameters)
 			r.Get("/rich-parameters", api.templateVersionRichParameters)
+			r.Get("/gitauth", api.templateVersionGitAuth)
 			r.Get("/variables", api.templateVersionVariables)
 			r.Get("/resources", api.templateVersionResources)
 			r.Get("/logs", api.templateVersionLogs)
@@ -555,9 +559,12 @@ func New(options *Options) *API {
 						r.Route("/tokens", func(r chi.Router) {
 							r.Post("/", api.postToken)
 							r.Get("/", api.tokens)
+							r.Route("/{keyname}", func(r chi.Router) {
+								r.Get("/", api.apiKeyByName)
+							})
 						})
 						r.Route("/{keyid}", func(r chi.Router) {
-							r.Get("/", api.apiKey)
+							r.Get("/", api.apiKeyByID)
 							r.Delete("/", api.deleteAPIKey)
 						})
 					})
@@ -725,6 +732,7 @@ type API struct {
 
 	WebsocketWaitMutex sync.Mutex
 	WebsocketWaitGroup sync.WaitGroup
+	derpCloseFunc      func()
 
 	metricsCache        *metricscache.Cache
 	workspaceAgentCache *wsconncache.Cache
@@ -738,6 +746,7 @@ type API struct {
 // Close waits for all WebSocket connections to drain before returning.
 func (api *API) Close() error {
 	api.cancel()
+	api.derpCloseFunc()
 
 	api.WebsocketWaitMutex.Lock()
 	api.WebsocketWaitGroup.Wait()
@@ -805,12 +814,18 @@ func (api *API) CreateInMemoryProvisionerDaemon(ctx context.Context, debounce ti
 	}
 
 	mux := drpcmux.New()
+
+	gitAuthProviders := make([]string, 0, len(api.GitAuthConfigs))
+	for _, cfg := range api.GitAuthConfigs {
+		gitAuthProviders = append(gitAuthProviders, cfg.ID)
+	}
 	err = proto.DRPCRegisterProvisionerDaemon(mux, &provisionerdserver.Server{
 		AccessURL:          api.AccessURL,
 		ID:                 daemon.ID,
 		Database:           api.Database,
 		Pubsub:             api.Pubsub,
 		Provisioners:       daemon.Provisioners,
+		GitAuthProviders:   gitAuthProviders,
 		Telemetry:          api.Telemetry,
 		Tags:               tags,
 		QuotaCommitter:     &api.QuotaCommitter,

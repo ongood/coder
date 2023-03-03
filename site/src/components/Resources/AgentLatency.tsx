@@ -69,7 +69,7 @@ export const AgentLatency: FC<{ agent: WorkspaceAgent }> = ({ agent }) => {
       >
         <HelpTooltipTitle>延迟</HelpTooltipTitle>
         <HelpTooltipText>
-          这是非对等连接的延迟开销.星号表示首选中继服务器.
+        这是非点对点连接的延迟开销。第一行是首选中继。
         </HelpTooltipText>
 
         <HelpTooltipText>
