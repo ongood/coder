@@ -89,7 +89,7 @@ func (api *API) postLogin(rw http.ResponseWriter, r *http.Request) {
 
 	// If password authentication is disabled and the user does not have the
 	// owner role, block the request.
-	if api.DeploymentConfig.DisablePasswordAuth.Value {
+	if api.DeploymentValues.DisablePasswordAuth {
 		httpapi.Write(ctx, rw, http.StatusForbidden, codersdk.Response{
 			Message: "Password authentication is disabled.",
 		})
@@ -197,11 +197,11 @@ func (api *API) postLogout(rw http.ResponseWriter, r *http.Request) {
 	// Deployments should not host app tokens on the same domain as the
 	// primary deployment. But in the case they are, we should also delete this
 	// token.
-	if appCookie, _ := r.Cookie(httpmw.DevURLSessionTokenCookie); appCookie != nil {
+	if appCookie, _ := r.Cookie(codersdk.DevURLSessionTokenCookie); appCookie != nil {
 		appCookieRemove := &http.Cookie{
 			// MaxAge < 0 means to delete the cookie now.
 			MaxAge: -1,
-			Name:   httpmw.DevURLSessionTokenCookie,
+			Name:   codersdk.DevURLSessionTokenCookie,
 			Path:   "/",
 			Domain: "." + api.AccessURL.Hostname(),
 		}
@@ -285,7 +285,7 @@ func (api *API) userAuthMethods(rw http.ResponseWriter, r *http.Request) {
 
 	httpapi.Write(r.Context(), rw, http.StatusOK, codersdk.AuthMethods{
 		Password: codersdk.AuthMethod{
-			Enabled: !api.DeploymentConfig.DisablePasswordAuth.Value,
+			Enabled: !api.DeploymentValues.DisablePasswordAuth.Value(),
 		},
 		Github: codersdk.AuthMethod{Enabled: api.GithubOAuth2Config != nil},
 		OIDC: codersdk.OIDCAuthMethod{
@@ -304,7 +304,9 @@ func (api *API) userAuthMethods(rw http.ResponseWriter, r *http.Request) {
 // @Router /users/oauth2/github/callback [get]
 func (api *API) userOAuth2Github(rw http.ResponseWriter, r *http.Request) {
 	var (
-		ctx               = r.Context()
+		// userOAuth2Github is a system function.
+		//nolint:gocritic
+		ctx               = dbauthz.AsSystemRestricted(r.Context())
 		state             = httpmw.OAuth2(r)
 		auditor           = api.Auditor.Load()
 		aReq, commitAudit = audit.InitRequest[database.APIKey](rw, &audit.RequestParams{
@@ -422,7 +424,6 @@ func (api *API) userOAuth2Github(rw http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	aReq.UserID = user.ID
 
 	cookie, key, err := api.oauthLogin(r, oauthLoginParams{
 		User:         user,
@@ -451,6 +452,7 @@ func (api *API) userOAuth2Github(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 	aReq.New = key
+	aReq.UserID = key.UserID
 
 	http.SetCookie(rw, cookie)
 
@@ -475,6 +477,14 @@ type OIDCConfig struct {
 	// UsernameField selects the claim field to be used as the created user's
 	// username.
 	UsernameField string
+	// GroupField selects the claim field to be used as the created user's
+	// groups. If the group field is the empty string, then no group updates
+	// will ever come from the OIDC provider.
+	GroupField string
+	// GroupMapping controls how groups returned by the OIDC provider get mapped
+	// to groups within Coder.
+	// map[oidcGroupName]coderGroupName
+	GroupMapping map[string]string
 	// SignInText is the text to display on the OIDC login button
 	SignInText string
 	// IconURL points to the URL of an icon to display on the OIDC login button
@@ -489,7 +499,9 @@ type OIDCConfig struct {
 // @Router /users/oidc/callback [get]
 func (api *API) userOIDC(rw http.ResponseWriter, r *http.Request) {
 	var (
-		ctx               = r.Context()
+		// userOIDC is a system function.
+		//nolint:gocritic
+		ctx               = dbauthz.AsSystemRestricted(r.Context())
 		state             = httpmw.OAuth2(r)
 		auditor           = api.Auditor.Load()
 		aReq, commitAudit = audit.InitRequest[database.APIKey](rw, &audit.RequestParams{
@@ -561,6 +573,20 @@ func (api *API) userOIDC(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Log all of the field names returned in the ID token claims, and the
+	// userinfo returned from the provider.
+	{
+		fields := make([]string, 0, len(claims))
+		for f := range claims {
+			fields = append(fields, f)
+		}
+
+		api.Logger.Debug(ctx, "got oidc claims",
+			slog.F("user_info", userInfo),
+			slog.F("claim_fields", fields),
+		)
+	}
+
 	usernameRaw, ok := claims[api.OIDCConfig.UsernameField]
 	var username string
 	if ok {
@@ -605,21 +631,41 @@ func (api *API) userOIDC(rw http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	var usingGroups bool
 	var groups []string
-	groupsRaw, ok := claims["groups"]
-	if ok {
-		// Convert the []interface{} we get to a []string.
-		groupsInterface, ok := groupsRaw.([]interface{})
-		if ok {
-			for _, groupInterface := range groupsInterface {
-				group, ok := groupInterface.(string)
-				if !ok {
-					httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
-						Message: fmt.Sprintf("Invalid group type. Expected string, got: %t", emailRaw),
-					})
-					return
+	// If the GroupField is the empty string, then groups from OIDC are not used.
+	// This is so we can support manual group assignment.
+	if api.OIDCConfig.GroupField != "" {
+		usingGroups = true
+		groupsRaw, ok := claims[api.OIDCConfig.GroupField]
+		if ok && api.OIDCConfig.GroupField != "" {
+			// Convert the []interface{} we get to a []string.
+			groupsInterface, ok := groupsRaw.([]interface{})
+			if ok {
+				api.Logger.Debug(ctx, "groups returned in oidc claims",
+					slog.F("len", len(groupsInterface)),
+					slog.F("groups", groupsInterface),
+				)
+
+				for _, groupInterface := range groupsInterface {
+					group, ok := groupInterface.(string)
+					if !ok {
+						httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
+							Message: fmt.Sprintf("Invalid group type. Expected string, got: %t", emailRaw),
+						})
+						return
+					}
+
+					if mappedGroup, ok := api.OIDCConfig.GroupMapping[group]; ok {
+						group = mappedGroup
+					}
+
+					groups = append(groups, group)
 				}
-				groups = append(groups, group)
+			} else {
+				api.Logger.Debug(ctx, "groups field was an unknown type",
+					slog.F("type", fmt.Sprintf("%T", groupsRaw)),
+				)
 			}
 		}
 	}
@@ -668,7 +714,6 @@ func (api *API) userOIDC(rw http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	aReq.UserID = user.ID
 
 	cookie, key, err := api.oauthLogin(r, oauthLoginParams{
 		User:         user,
@@ -680,6 +725,7 @@ func (api *API) userOIDC(rw http.ResponseWriter, r *http.Request) {
 		Email:        email,
 		Username:     username,
 		AvatarURL:    picture,
+		UsingGroups:  usingGroups,
 		Groups:       groups,
 	})
 	var httpErr httpError
@@ -698,6 +744,7 @@ func (api *API) userOIDC(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 	aReq.New = key
+	aReq.UserID = key.UserID
 
 	http.SetCookie(rw, cookie)
 
@@ -721,7 +768,10 @@ type oauthLoginParams struct {
 	Email        string
 	Username     string
 	AvatarURL    string
-	Groups       []string
+	// Is UsingGroups is true, then the user will be assigned
+	// to the Groups provided.
+	UsingGroups bool
+	Groups      []string
 }
 
 type httpError struct {
@@ -861,7 +911,7 @@ func (api *API) oauthLogin(r *http.Request, params oauthLoginParams) (*http.Cook
 		}
 
 		// Ensure groups are correct.
-		if len(params.Groups) > 0 {
+		if params.UsingGroups {
 			//nolint:gocritic
 			err := api.Options.SetUserGroups(dbauthz.AsSystemRestricted(ctx), tx, user.ID, params.Groups)
 			if err != nil {

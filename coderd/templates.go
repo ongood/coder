@@ -19,6 +19,7 @@ import (
 	"github.com/coder/coder/coderd/httpapi"
 	"github.com/coder/coder/coderd/httpmw"
 	"github.com/coder/coder/coderd/rbac"
+	"github.com/coder/coder/coderd/schedule"
 	"github.com/coder/coder/coderd/telemetry"
 	"github.com/coder/coder/codersdk"
 	"github.com/coder/coder/examples"
@@ -37,11 +38,6 @@ import (
 func (api *API) template(rw http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	template := httpmw.TemplateParam(r)
-
-	if !api.Authorize(r, rbac.ActionRead, template) {
-		httpapi.ResourceNotFound(rw)
-		return
-	}
 
 	createdByNameMap, err := getCreatedByNamesByTemplateIDs(ctx, api.Database, []database.Template{template})
 	if err != nil {
@@ -77,11 +73,6 @@ func (api *API) deleteTemplate(rw http.ResponseWriter, r *http.Request) {
 	)
 	defer commitAudit()
 	aReq.Old = template
-
-	if !api.Authorize(r, rbac.ActionDelete, template) {
-		httpapi.ResourceNotFound(rw)
-		return
-	}
 
 	// This is just to get the workspace count, so we use a system context to
 	// return ALL workspaces. Not just workspaces the user can view.
@@ -155,11 +146,6 @@ func (api *API) postTemplateByOrganization(rw http.ResponseWriter, r *http.Reque
 	defer commitTemplateAudit()
 	defer commitTemplateVersionAudit()
 
-	if !api.Authorize(r, rbac.ActionCreate, rbac.ResourceTemplate.InOrg(organization.ID)) {
-		httpapi.ResourceNotFound(rw)
-		return
-	}
-
 	if !httpapi.Read(ctx, rw, r, &createTemplate) {
 		return
 	}
@@ -212,16 +198,31 @@ func (api *API) postTemplateByOrganization(rw http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	var ttl time.Duration
+	var (
+		defaultTTL time.Duration
+		maxTTL     time.Duration
+	)
 	if createTemplate.DefaultTTLMillis != nil {
-		ttl = time.Duration(*createTemplate.DefaultTTLMillis) * time.Millisecond
+		defaultTTL = time.Duration(*createTemplate.DefaultTTLMillis) * time.Millisecond
 	}
-	if ttl < 0 {
+	if createTemplate.MaxTTLMillis != nil {
+		maxTTL = time.Duration(*createTemplate.MaxTTLMillis) * time.Millisecond
+	}
+
+	var validErrs []codersdk.ValidationError
+	if defaultTTL < 0 {
+		validErrs = append(validErrs, codersdk.ValidationError{Field: "default_ttl_ms", Detail: "Must be a positive integer."})
+	}
+	if maxTTL < 0 {
+		validErrs = append(validErrs, codersdk.ValidationError{Field: "max_ttl_ms", Detail: "Must be a positive integer."})
+	}
+	if maxTTL != 0 && defaultTTL > maxTTL {
+		validErrs = append(validErrs, codersdk.ValidationError{Field: "default_ttl_ms", Detail: "Must be less than or equal to max_ttl_ms if max_ttl_ms is set."})
+	}
+	if len(validErrs) > 0 {
 		httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
-			Message: "Invalid create template request.",
-			Validations: []codersdk.ValidationError{
-				{Field: "default_ttl_ms", Detail: "Must be a positive integer."},
-			},
+			Message:     "Invalid create template request.",
+			Validations: validErrs,
 		})
 		return
 	}
@@ -244,7 +245,6 @@ func (api *API) postTemplateByOrganization(rw http.ResponseWriter, r *http.Reque
 			Provisioner:     importJob.Provisioner,
 			ActiveVersionID: templateVersion.ID,
 			Description:     createTemplate.Description,
-			DefaultTTL:      int64(ttl),
 			CreatedBy:       apiKey.UserID,
 			UserACL:         database.TemplateACL{},
 			GroupACL: database.TemplateACL{
@@ -258,15 +258,25 @@ func (api *API) postTemplateByOrganization(rw http.ResponseWriter, r *http.Reque
 			return xerrors.Errorf("insert template: %s", err)
 		}
 
+		dbTemplate, err = (*api.TemplateScheduleStore.Load()).SetTemplateScheduleOptions(ctx, tx, dbTemplate, schedule.TemplateScheduleOptions{
+			UserSchedulingEnabled: true,
+			DefaultTTL:            defaultTTL,
+			MaxTTL:                maxTTL,
+		})
+		if err != nil {
+			return xerrors.Errorf("set template schedule options: %s", err)
+		}
+
 		templateAudit.New = dbTemplate
 
-		err = tx.UpdateTemplateVersionByID(ctx, database.UpdateTemplateVersionByIDParams{
+		_, err = tx.UpdateTemplateVersionByID(ctx, database.UpdateTemplateVersionByIDParams{
 			ID: templateVersion.ID,
 			TemplateID: uuid.NullUUID{
 				UUID:  dbTemplate.ID,
 				Valid: true,
 			},
 			UpdatedAt: database.Now(),
+			Name:      templateVersion.Name,
 		})
 		if err != nil {
 			return xerrors.Errorf("insert template version: %s", err)
@@ -438,11 +448,6 @@ func (api *API) patchTemplateMeta(rw http.ResponseWriter, r *http.Request) {
 	defer commitAudit()
 	aReq.Old = template
 
-	if !api.Authorize(r, rbac.ActionUpdate, template) {
-		httpapi.ResourceNotFound(rw)
-		return
-	}
-
 	var req codersdk.UpdateTemplateMeta
 	if !httpapi.Read(ctx, rw, r, &req) {
 		return
@@ -451,6 +456,12 @@ func (api *API) patchTemplateMeta(rw http.ResponseWriter, r *http.Request) {
 	var validErrs []codersdk.ValidationError
 	if req.DefaultTTLMillis < 0 {
 		validErrs = append(validErrs, codersdk.ValidationError{Field: "default_ttl_ms", Detail: "Must be a positive integer."})
+	}
+	if req.MaxTTLMillis < 0 {
+		validErrs = append(validErrs, codersdk.ValidationError{Field: "max_ttl_ms", Detail: "Must be a positive integer."})
+	}
+	if req.MaxTTLMillis != 0 && req.DefaultTTLMillis > req.MaxTTLMillis {
+		validErrs = append(validErrs, codersdk.ValidationError{Field: "default_ttl_ms", Detail: "Must be less than or equal to max_ttl_ms if max_ttl_ms is set."})
 	}
 
 	if len(validErrs) > 0 {
@@ -468,7 +479,8 @@ func (api *API) patchTemplateMeta(rw http.ResponseWriter, r *http.Request) {
 			req.DisplayName == template.DisplayName &&
 			req.Icon == template.Icon &&
 			req.AllowUserCancelWorkspaceJobs == template.AllowUserCancelWorkspaceJobs &&
-			req.DefaultTTLMillis == time.Duration(template.DefaultTTL).Milliseconds() {
+			req.DefaultTTLMillis == time.Duration(template.DefaultTTL).Milliseconds() &&
+			req.MaxTTLMillis == time.Duration(template.MaxTTL).Milliseconds() {
 			return nil
 		}
 
@@ -479,7 +491,6 @@ func (api *API) patchTemplateMeta(rw http.ResponseWriter, r *http.Request) {
 		displayName := req.DisplayName
 		desc := req.Description
 		icon := req.Icon
-		maxTTL := time.Duration(req.DefaultTTLMillis) * time.Millisecond
 		allowUserCancelWorkspaceJobs := req.AllowUserCancelWorkspaceJobs
 
 		if name == "" {
@@ -497,11 +508,23 @@ func (api *API) patchTemplateMeta(rw http.ResponseWriter, r *http.Request) {
 			DisplayName:                  displayName,
 			Description:                  desc,
 			Icon:                         icon,
-			DefaultTTL:                   int64(maxTTL),
 			AllowUserCancelWorkspaceJobs: allowUserCancelWorkspaceJobs,
 		})
 		if err != nil {
-			return err
+			return xerrors.Errorf("update template metadata: %w", err)
+		}
+
+		defaultTTL := time.Duration(req.DefaultTTLMillis) * time.Millisecond
+		maxTTL := time.Duration(req.MaxTTLMillis) * time.Millisecond
+		if defaultTTL != time.Duration(template.DefaultTTL) || maxTTL != time.Duration(template.MaxTTL) {
+			updated, err = (*api.TemplateScheduleStore.Load()).SetTemplateScheduleOptions(ctx, tx, updated, schedule.TemplateScheduleOptions{
+				UserSchedulingEnabled: true,
+				DefaultTTL:            defaultTTL,
+				MaxTTL:                maxTTL,
+			})
+			if err != nil {
+				return xerrors.Errorf("set template schedule options: %w", err)
+			}
 		}
 
 		return nil
@@ -635,6 +658,7 @@ func (api *API) convertTemplate(
 		Description:                  template.Description,
 		Icon:                         template.Icon,
 		DefaultTTLMillis:             time.Duration(template.DefaultTTL).Milliseconds(),
+		MaxTTLMillis:                 time.Duration(template.MaxTTL).Milliseconds(),
 		CreatedByID:                  template.CreatedBy,
 		CreatedByName:                createdByName,
 		AllowUserCancelWorkspaceJobs: template.AllowUserCancelWorkspaceJobs,

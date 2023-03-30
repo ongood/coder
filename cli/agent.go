@@ -11,11 +11,11 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"sync"
 	"time"
 
 	"cloud.google.com/go/compute/metadata"
-	"github.com/spf13/cobra"
 	"golang.org/x/xerrors"
 	"gopkg.in/natefinch/lumberjack.v2"
 
@@ -24,33 +24,28 @@ import (
 	"github.com/coder/coder/agent"
 	"github.com/coder/coder/agent/reaper"
 	"github.com/coder/coder/buildinfo"
-	"github.com/coder/coder/cli/cliflag"
+	"github.com/coder/coder/cli/clibase"
 	"github.com/coder/coder/codersdk/agentsdk"
 )
 
-func workspaceAgent() *cobra.Command {
+func (r *RootCmd) workspaceAgent() *clibase.Cmd {
 	var (
-		auth         string
-		logDir       string
-		pprofAddress string
-		noReap       bool
+		auth          string
+		logDir        string
+		pprofAddress  string
+		noReap        bool
+		sshMaxTimeout time.Duration
 	)
-	cmd := &cobra.Command{
-		Use: "agent",
+	cmd := &clibase.Cmd{
+		Use:   "agent",
+		Short: `Starts the Coder workspace agent.`,
 		// This command isn't useful to manually execute.
 		Hidden: true,
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			ctx, cancel := context.WithCancel(cmd.Context())
+		Handler: func(inv *clibase.Invocation) error {
+			ctx, cancel := context.WithCancel(inv.Context())
 			defer cancel()
 
-			rawURL, err := cmd.Flags().GetString(varAgentURL)
-			if err != nil {
-				return xerrors.Errorf("CODER_AGENT_URL must be set: %w", err)
-			}
-			coderURL, err := url.Parse(rawURL)
-			if err != nil {
-				return xerrors.Errorf("parse %q: %w", rawURL, err)
-			}
+			agentPorts := map[int]string{}
 
 			isLinux := runtime.GOOS == "linux"
 
@@ -62,7 +57,7 @@ func workspaceAgent() *cobra.Command {
 					MaxSize:  5, // MB
 				}
 				defer logWriter.Close()
-				logger := slog.Make(sloghuman.Sink(cmd.ErrOrStderr()), sloghuman.Sink(logWriter)).Leveled(slog.LevelDebug)
+				logger := slog.Make(sloghuman.Sink(inv.Stderr), sloghuman.Sink(logWriter)).Leveled(slog.LevelDebug)
 
 				logger.Info(ctx, "spawning reaper process")
 				// Do not start a reaper on the child process. It's important
@@ -104,24 +99,31 @@ func workspaceAgent() *cobra.Command {
 			logWriter := &closeWriter{w: ljLogger}
 			defer logWriter.Close()
 
-			logger := slog.Make(sloghuman.Sink(cmd.ErrOrStderr()), sloghuman.Sink(logWriter)).Leveled(slog.LevelDebug)
+			logger := slog.Make(sloghuman.Sink(inv.Stderr), sloghuman.Sink(logWriter)).Leveled(slog.LevelDebug)
 
 			version := buildinfo.Version()
 			logger.Info(ctx, "starting agent",
-				slog.F("url", coderURL),
+				slog.F("url", r.agentURL),
 				slog.F("auth", auth),
 				slog.F("version", version),
 			)
-			client := agentsdk.New(coderURL)
+			client := agentsdk.New(r.agentURL)
 			client.SDK.Logger = logger
 			// Set a reasonable timeout so requests can't hang forever!
-			client.SDK.HTTPClient.Timeout = 10 * time.Second
+			// The timeout needs to be reasonably long, because requests
+			// with large payloads can take a bit. e.g. startup scripts
+			// may take a while to insert.
+			client.SDK.HTTPClient.Timeout = 30 * time.Second
 
 			// Enable pprof handler
 			// This prevents the pprof import from being accidentally deleted.
 			_ = pprof.Handler
 			pprofSrvClose := serveHandler(ctx, logger, nil, pprofAddress, "pprof")
 			defer pprofSrvClose()
+			// Do a best effort here. If this fails, it's not a big deal.
+			if port, err := urlPort(pprofAddress); err == nil {
+				agentPorts[port] = "pprof"
+			}
 
 			// exchangeToken returns a session token.
 			// This is abstracted to allow for the same looping condition
@@ -129,7 +131,7 @@ func workspaceAgent() *cobra.Command {
 			var exchangeToken func(context.Context) (agentsdk.AuthenticateResponse, error)
 			switch auth {
 			case "token":
-				token, err := cmd.Flags().GetString(varAgentToken)
+				token, err := inv.ParsedFlags().GetString(varAgentToken)
 				if err != nil {
 					return xerrors.Errorf("CODER_AGENT_TOKEN must be set for token auth: %w", err)
 				}
@@ -202,16 +204,52 @@ func workspaceAgent() *cobra.Command {
 				EnvironmentVariables: map[string]string{
 					"GIT_ASKPASS": executablePath,
 				},
+				AgentPorts:    agentPorts,
+				SSHMaxTimeout: sshMaxTimeout,
 			})
 			<-ctx.Done()
 			return closer.Close()
 		},
 	}
 
-	cliflag.StringVarP(cmd.Flags(), &auth, "auth", "", "CODER_AGENT_AUTH", "token", "Specify the authentication type to use for the agent")
-	cliflag.StringVarP(cmd.Flags(), &logDir, "log-dir", "", "CODER_AGENT_LOG_DIR", os.TempDir(), "Specify the location for the agent log files")
-	cliflag.StringVarP(cmd.Flags(), &pprofAddress, "pprof-address", "", "CODER_AGENT_PPROF_ADDRESS", "127.0.0.1:6060", "The address to serve pprof.")
-	cliflag.BoolVarP(cmd.Flags(), &noReap, "no-reap", "", "", false, "Do not start a process reaper.")
+	cmd.Options = clibase.OptionSet{
+		{
+			Flag:        "auth",
+			Default:     "token",
+			Description: "Specify the authentication type to use for the agent.",
+			Env:         "CODER_AGENT_AUTH",
+			Value:       clibase.StringOf(&auth),
+		},
+		{
+			Flag:        "log-dir",
+			Default:     os.TempDir(),
+			Description: "Specify the location for the agent log files.",
+			Env:         "CODER_AGENT_LOG_DIR",
+			Value:       clibase.StringOf(&logDir),
+		},
+		{
+			Flag:        "pprof-address",
+			Default:     "127.0.0.1:6060",
+			Env:         "CODER_AGENT_PPROF_ADDRESS",
+			Value:       clibase.StringOf(&pprofAddress),
+			Description: "The address to serve pprof.",
+		},
+		{
+			Flag: "no-reap",
+
+			Env:         "",
+			Description: "Do not start a process reaper.",
+			Value:       clibase.BoolOf(&noReap),
+		},
+		{
+			Flag:        "ssh-max-timeout",
+			Default:     "0",
+			Env:         "CODER_AGENT_SSH_MAX_TIMEOUT",
+			Description: "Specify the max timeout for a SSH connection.",
+			Value:       clibase.DurationOf(&sshMaxTimeout),
+		},
+	}
+
 	return cmd
 }
 
@@ -263,4 +301,36 @@ func (c *closeWriter) Write(p []byte) (int, error) {
 		return 0, io.ErrClosedPipe
 	}
 	return c.w.Write(p)
+}
+
+// extractPort handles different url strings.
+// - localhost:6060
+// - http://localhost:6060
+func extractPort(u string) (int, error) {
+	port, firstError := urlPort(u)
+	if firstError == nil {
+		return port, nil
+	}
+
+	// Try with a scheme
+	port, err := urlPort("http://" + u)
+	if err == nil {
+		return port, nil
+	}
+	return -1, xerrors.Errorf("invalid url %q: %w", u, firstError)
+}
+
+// urlPort extracts the port from a valid URL.
+func urlPort(u string) (int, error) {
+	parsed, err := url.Parse(u)
+	if err != nil {
+		return -1, xerrors.Errorf("invalid url %q: %w", u, err)
+	}
+	if parsed.Port() != "" {
+		port, err := strconv.ParseInt(parsed.Port(), 10, 64)
+		if err == nil && port > 0 {
+			return int(port), nil
+		}
+	}
+	return -1, xerrors.Errorf("invalid port: %s", u)
 }

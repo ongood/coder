@@ -1,7 +1,15 @@
 import axios, { AxiosRequestHeaders } from "axios"
 import dayjs from "dayjs"
 import * as Types from "./types"
+import { DeploymentConfig } from "./types"
 import * as TypesGen from "./typesGenerated"
+
+// Adds 304 for the default axios validateStatus function
+// https://github.com/axios/axios#handling-errors
+// Check status here https://httpstatusdogs.com/
+axios.defaults.validateStatus = (status) => {
+  return (status >= 200 && status < 300) || status === 304
+}
 
 export const hardCodedCSRFCookie = (): string => {
   // This is a hard coded CSRF token/cookie pair for local development.
@@ -152,8 +160,20 @@ export const getTokens = async (
   return response.data
 }
 
-export const deleteAPIKey = async (keyId: string): Promise<void> => {
+export const deleteToken = async (keyId: string): Promise<void> => {
   await axios.delete("/api/v2/users/me/keys/" + keyId)
+}
+
+export const createToken = async (
+  params: TypesGen.CreateTokenRequest,
+): Promise<TypesGen.GenerateAPIKeyResponse> => {
+  const response = await axios.post(`/api/v2/users/me/keys/tokens`, params)
+  return response.data
+}
+
+export const getTokenConfig = async (): Promise<TypesGen.TokenConfig> => {
+  const response = await axios.get("/api/v2/users/me/keys/tokens/tokenconfig")
+  return response.data
 }
 
 export const getUsers = async (
@@ -353,6 +373,17 @@ export const updateActiveTemplateVersion = async (
   return response.data
 }
 
+export const patchTemplateVersion = async (
+  templateVersionId: string,
+  data: TypesGen.PatchTemplateVersionRequest,
+) => {
+  const response = await axios.patch<TypesGen.TemplateVersion>(
+    `/api/v2/templateversions/${templateVersionId}`,
+    data,
+  )
+  return response.data
+}
+
 export const updateTemplateMeta = async (
   templateId: string,
   data: TypesGen.UpdateTemplateMeta,
@@ -503,6 +534,13 @@ export const createWorkspace = async (
     workspace,
   )
   return response.data
+}
+
+export const patchWorkspace = async (
+  workspaceId: string,
+  data: TypesGen.UpdateWorkspaceRequest,
+) => {
+  await axios.patch(`/api/v2/workspaces/${workspaceId}`, data)
 }
 
 export const getBuildInfo = async (): Promise<TypesGen.BuildInfoResponse> => {
@@ -667,6 +705,15 @@ export const getWorkspaceBuildLogs = async (
   return response.data
 }
 
+export const getWorkspaceAgentStartupLogs = async (
+  agentID: string,
+): Promise<TypesGen.WorkspaceAgentStartupLog[]> => {
+  const response = await axios.get<TypesGen.WorkspaceAgentStartupLog[]>(
+    `/api/v2/workspaceagents/${agentID}/startup-logs`,
+  )
+  return response.data
+}
+
 export const putWorkspaceExtension = async (
   workspaceId: string,
   newDeadline: dayjs.Dayjs,
@@ -684,7 +731,6 @@ export const getEntitlements = async (): Promise<TypesGen.Entitlements> => {
     if (axios.isAxiosError(ex) && ex.response?.status === 404) {
       return {
         errors: [],
-        experimental: false,
         features: withDefaultFeatures({}),
         has_license: false,
         require_telemetry: false,
@@ -806,9 +852,21 @@ export const getAgentListeningPorts = async (
   return response.data
 }
 
-export const getDeploymentConfig =
-  async (): Promise<TypesGen.DeploymentConfig> => {
-    const response = await axios.get(`/api/v2/config/deployment`)
+// getDeploymentSSHConfig is used by the VSCode-Extension.
+export const getDeploymentSSHConfig =
+  async (): Promise<TypesGen.SSHConfigResponse> => {
+    const response = await axios.get(`/api/v2/deployment/ssh`)
+    return response.data
+  }
+
+export const getDeploymentValues = async (): Promise<DeploymentConfig> => {
+  const response = await axios.get(`/api/v2/deployment/config`)
+  return response.data
+}
+
+export const getDeploymentStats =
+  async (): Promise<TypesGen.DeploymentStats> => {
+    const response = await axios.get(`/api/v2/deployment/stats`)
     return response.data
   }
 
@@ -891,4 +949,108 @@ export const getWorkspaceBuildParameters = async (
     `/api/v2/workspacebuilds/${workspaceBuildId}/parameters`,
   )
   return response.data
+}
+
+export class MissingBuildParameters extends Error {
+  parameters: TypesGen.TemplateVersionParameter[] = []
+
+  constructor(parameters: TypesGen.TemplateVersionParameter[]) {
+    super("Missing build parameters.")
+    this.parameters = parameters
+  }
+}
+
+/** Steps to update the workspace
+ * - Get the latest template to access the latest active version
+ * - Get the current build parameters
+ * - Get the template parameters
+ * - Update the build parameters and check if there are missed parameters for the newest version
+ *   - If there are missing parameters raise an error
+ * - Create a build with the latest version and updated build parameters
+ */
+export const updateWorkspace = async (
+  workspace: TypesGen.Workspace,
+  newBuildParameters: TypesGen.WorkspaceBuildParameter[] = [],
+): Promise<TypesGen.WorkspaceBuild> => {
+  const [template, oldBuildParameters] = await Promise.all([
+    getTemplate(workspace.template_id),
+    getWorkspaceBuildParameters(workspace.latest_build.id),
+  ])
+  const activeVersionId = template.active_version_id
+  const templateParameters = await getTemplateVersionRichParameters(
+    activeVersionId,
+  )
+  const missingParameters = getMissingParameters(
+    oldBuildParameters,
+    newBuildParameters,
+    templateParameters,
+  )
+
+  if (missingParameters.length > 0) {
+    throw new MissingBuildParameters(missingParameters)
+  }
+
+  return postWorkspaceBuild(workspace.id, {
+    transition: "start",
+    template_version_id: activeVersionId,
+    rich_parameter_values: newBuildParameters,
+  })
+}
+
+const getMissingParameters = (
+  oldBuildParameters: TypesGen.WorkspaceBuildParameter[],
+  newBuildParameters: TypesGen.WorkspaceBuildParameter[],
+  templateParameters: TypesGen.TemplateVersionParameter[],
+) => {
+  const missingParameters: TypesGen.TemplateVersionParameter[] = []
+  const requiredParameters = templateParameters.filter(
+    // It is required
+    // and it can be changed
+    // and it is not from a legacy variable
+    (p) => p.required && p.mutable && p.legacy_variable_name === undefined,
+  )
+
+  for (const parameter of requiredParameters) {
+    // Check if there is a new value
+    let buildParameter = newBuildParameters.find(
+      (p) => p.name === parameter.name,
+    )
+
+    // If not, get the old one
+    if (!buildParameter) {
+      buildParameter = oldBuildParameters.find((p) => p.name === parameter.name)
+    }
+
+    // If there is a value from the new or old one, it is not missed
+    if (buildParameter) {
+      continue
+    }
+
+    missingParameters.push(parameter)
+  }
+
+  return missingParameters
+}
+
+export const watchBuildLogs = (
+  versionId: string,
+  onMessage: (log: TypesGen.ProvisionerJobLog) => void,
+) => {
+  return new Promise<void>((resolve, reject) => {
+    const proto = location.protocol === "https:" ? "wss:" : "ws:"
+    const socket = new WebSocket(
+      `${proto}//${location.host}/api/v2/templateversions/${versionId}/logs?follow=true`,
+    )
+    socket.binaryType = "blob"
+    socket.addEventListener("message", (event) =>
+      onMessage(JSON.parse(event.data) as TypesGen.ProvisionerJobLog),
+    )
+    socket.addEventListener("error", () => {
+      reject(new Error("Connection for logs failed."))
+    })
+    socket.addEventListener("close", () => {
+      // When the socket closes, logs have finished streaming!
+      resolve()
+    })
+  })
 }

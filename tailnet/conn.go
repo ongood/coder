@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/http"
 	"net/netip"
 	"reflect"
 	"strconv"
@@ -50,8 +51,9 @@ func init() {
 }
 
 type Options struct {
-	Addresses []netip.Prefix
-	DERPMap   *tailcfg.DERPMap
+	Addresses  []netip.Prefix
+	DERPMap    *tailcfg.DERPMap
+	DERPHeader *http.Header
 
 	// BlockEndpoints specifies whether P2P endpoints are blocked.
 	// If so, only DERPs can establish connections.
@@ -158,6 +160,9 @@ func NewConn(options *Options) (conn *Conn, err error) {
 	tunDevice, magicConn, dnsManager, ok := wireguardInternals.GetInternals()
 	if !ok {
 		return nil, xerrors.New("get wireguard internals")
+	}
+	if options.DERPHeader != nil {
+		magicConn.SetDERPHeader(options.DERPHeader.Clone())
 	}
 
 	// Update the keys for the magic connection!
@@ -348,6 +353,11 @@ func (c *Conn) SetDERPMap(derpMap *tailcfg.DERPMap) {
 	netMapCopy := *c.netMap
 	c.logger.Debug(context.Background(), "updating network map")
 	c.wireguardEngine.SetNetworkMap(&netMapCopy)
+}
+
+// SetDERPRegionDialer updates the dialer to use for connecting to DERP regions.
+func (c *Conn) SetDERPRegionDialer(dialer func(ctx context.Context, region *tailcfg.DERPRegion) net.Conn) {
+	c.magicConn.SetDERPRegionDialer(dialer)
 }
 
 func (c *Conn) RemoveAllPeers() error {
@@ -657,11 +667,13 @@ func (c *Conn) selfNode() *Node {
 	}
 	var preferredDERP int
 	var derpLatency map[string]float64
-	var derpForcedWebsocket map[int]string
+	derpForcedWebsocket := make(map[int]string, 0)
 	if c.lastNetInfo != nil {
 		preferredDERP = c.lastNetInfo.PreferredDERP
 		derpLatency = c.lastNetInfo.DERPLatency
-		derpForcedWebsocket = c.lastDERPForcedWebsockets
+		for k, v := range c.lastDERPForcedWebsockets {
+			derpForcedWebsocket[k] = v
+		}
 	}
 
 	node := &Node{

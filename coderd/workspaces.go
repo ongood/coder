@@ -18,12 +18,12 @@ import (
 
 	"cdr.dev/slog"
 	"github.com/coder/coder/coderd/audit"
-	"github.com/coder/coder/coderd/autobuild/schedule"
 	"github.com/coder/coder/coderd/database"
 	"github.com/coder/coder/coderd/httpapi"
 	"github.com/coder/coder/coderd/httpmw"
 	"github.com/coder/coder/coderd/provisionerdserver"
 	"github.com/coder/coder/coderd/rbac"
+	"github.com/coder/coder/coderd/schedule"
 	"github.com/coder/coder/coderd/searchquery"
 	"github.com/coder/coder/coderd/telemetry"
 	"github.com/coder/coder/coderd/tracing"
@@ -53,10 +53,6 @@ var (
 func (api *API) workspace(rw http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	workspace := httpmw.WorkspaceParam(r)
-	if !api.Authorize(r, rbac.ActionRead, workspace) {
-		httpapi.ResourceNotFound(rw)
-		return
-	}
 
 	var (
 		deletedStr  = r.URL.Query().Get("include_deleted")
@@ -242,10 +238,6 @@ func (api *API) workspaceByOwnerAndName(rw http.ResponseWriter, r *http.Request)
 		})
 		return
 	}
-	if !api.Authorize(r, rbac.ActionRead, workspace) {
-		httpapi.ResourceNotFound(rw)
-		return
-	}
 
 	data, err := api.workspaceData(ctx, []database.Workspace{workspace})
 	if err != nil {
@@ -253,6 +245,11 @@ func (api *API) workspaceByOwnerAndName(rw http.ResponseWriter, r *http.Request)
 			Message: "Internal error fetching workspace resources.",
 			Detail:  err.Error(),
 		})
+		return
+	}
+
+	if len(data.builds) == 0 || len(data.templates) == 0 {
+		httpapi.ResourceNotFound(rw)
 		return
 	}
 
@@ -304,6 +301,7 @@ func (api *API) postWorkspacesByOrganization(rw http.ResponseWriter, r *http.Req
 
 	defer commitAudit()
 
+	// Do this upfront to save work.
 	if !api.Authorize(r, rbac.ActionCreate,
 		rbac.ResourceWorkspace.InOrg(organization.ID).WithOwner(user.ID.String())) {
 		httpapi.ResourceNotFound(rw)
@@ -339,10 +337,6 @@ func (api *API) postWorkspacesByOrganization(rw http.ResponseWriter, r *http.Req
 		})
 		return
 	}
-	if !api.Authorize(r, rbac.ActionRead, template) {
-		httpapi.ResourceNotFound(rw)
-		return
-	}
 
 	if organization.ID != template.OrganizationID {
 		httpapi.Write(ctx, rw, http.StatusUnauthorized, codersdk.Response{
@@ -360,7 +354,16 @@ func (api *API) postWorkspacesByOrganization(rw http.ResponseWriter, r *http.Req
 		return
 	}
 
-	dbTTL, err := validWorkspaceTTLMillis(createWorkspace.TTLMillis, template.DefaultTTL)
+	templateSchedule, err := (*api.TemplateScheduleStore.Load()).GetTemplateScheduleOptions(ctx, api.Database, template.ID)
+	if err != nil {
+		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
+			Message: "Internal error fetching template schedule.",
+			Detail:  err.Error(),
+		})
+		return
+	}
+
+	dbTTL, err := validWorkspaceTTLMillis(createWorkspace.TTLMillis, templateSchedule.DefaultTTL, templateSchedule.MaxTTL)
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
 			Message:     "Invalid Workspace Time to Shutdown.",
@@ -634,11 +637,6 @@ func (api *API) patchWorkspace(rw http.ResponseWriter, r *http.Request) {
 	defer commitAudit()
 	aReq.Old = workspace
 
-	if !api.Authorize(r, rbac.ActionUpdate, workspace) {
-		httpapi.ResourceNotFound(rw)
-		return
-	}
-
 	var req codersdk.UpdateWorkspaceRequest
 	if !httpapi.Read(ctx, rw, r, &req) {
 		return
@@ -723,11 +721,6 @@ func (api *API) putWorkspaceAutostart(rw http.ResponseWriter, r *http.Request) {
 	defer commitAudit()
 	aReq.Old = workspace
 
-	if !api.Authorize(r, rbac.ActionUpdate, workspace) {
-		httpapi.ResourceNotFound(rw)
-		return
-	}
-
 	var req codersdk.UpdateWorkspaceAutostartRequest
 	if !httpapi.Read(ctx, rw, r, &req) {
 		return
@@ -785,11 +778,6 @@ func (api *API) putWorkspaceTTL(rw http.ResponseWriter, r *http.Request) {
 	defer commitAudit()
 	aReq.Old = workspace
 
-	if !api.Authorize(r, rbac.ActionUpdate, workspace) {
-		httpapi.ResourceNotFound(rw)
-		return
-	}
-
 	var req codersdk.UpdateWorkspaceTTLRequest
 	if !httpapi.Read(ctx, rw, r, &req) {
 		return
@@ -798,9 +786,15 @@ func (api *API) putWorkspaceTTL(rw http.ResponseWriter, r *http.Request) {
 	var dbTTL sql.NullInt64
 
 	err := api.Database.InTx(func(s database.Store) error {
+		templateSchedule, err := (*api.TemplateScheduleStore.Load()).GetTemplateScheduleOptions(ctx, s, workspace.TemplateID)
+		if err != nil {
+			return xerrors.Errorf("get template schedule: %w", err)
+		}
+
+		// don't override 0 ttl with template default here because it indicates
+		// disabled auto-stop
 		var validityErr error
-		// don't override 0 ttl with template default here because it indicates disabled auto-stop
-		dbTTL, validityErr = validWorkspaceTTLMillis(req.TTLMillis, 0)
+		dbTTL, validityErr = validWorkspaceTTLMillis(req.TTLMillis, 0, templateSchedule.MaxTTL)
 		if validityErr != nil {
 			return codersdk.ValidationError{Field: "ttl_ms", Detail: validityErr.Error()}
 		}
@@ -849,11 +843,6 @@ func (api *API) putWorkspaceTTL(rw http.ResponseWriter, r *http.Request) {
 func (api *API) putExtendWorkspace(rw http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	workspace := httpmw.WorkspaceParam(r)
-
-	if !api.Authorize(r, rbac.ActionUpdate, workspace) {
-		httpapi.ResourceNotFound(rw)
-		return
-	}
 
 	var req codersdk.PutExtendWorkspaceRequest
 	if !httpapi.Read(ctx, rw, r, &req) {
@@ -905,12 +894,18 @@ func (api *API) putExtendWorkspace(rw http.ResponseWriter, r *http.Request) {
 			resp.Message = "Cannot extend workspace: " + err.Error()
 			return err
 		}
+		if !build.MaxDeadline.IsZero() && newDeadline.After(build.MaxDeadline) {
+			code = http.StatusBadRequest
+			resp.Message = "Cannot extend workspace beyond max deadline."
+			return xerrors.New("Cannot extend workspace: deadline is beyond max deadline imposed by template")
+		}
 
 		if _, err := s.UpdateWorkspaceBuildByID(ctx, database.UpdateWorkspaceBuildByIDParams{
 			ID:               build.ID,
 			UpdatedAt:        build.UpdatedAt,
 			ProvisionerState: build.ProvisionerState,
 			Deadline:         newDeadline,
+			MaxDeadline:      build.MaxDeadline,
 		}); err != nil {
 			code = http.StatusInternalServerError
 			resp.Message = "Failed to extend workspace deadline."
@@ -938,10 +933,6 @@ func (api *API) putExtendWorkspace(rw http.ResponseWriter, r *http.Request) {
 func (api *API) watchWorkspace(rw http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	workspace := httpmw.WorkspaceParam(r)
-	if !api.Authorize(r, rbac.ActionRead, workspace) {
-		httpapi.ResourceNotFound(rw)
-		return
-	}
 
 	sendEvent, senderClosed, err := httpapi.ServerSentEventSender(rw, r)
 	if err != nil {
@@ -1157,6 +1148,7 @@ func convertWorkspace(
 		UpdatedAt:                            workspace.UpdatedAt,
 		OwnerID:                              workspace.OwnerID,
 		OwnerName:                            owner.Username,
+		OrganizationID:                       workspace.OrganizationID,
 		TemplateID:                           workspace.TemplateID,
 		LatestBuild:                          workspaceBuild,
 		TemplateName:                         template.Name,
@@ -1180,14 +1172,25 @@ func convertWorkspaceTTLMillis(i sql.NullInt64) *int64 {
 	return &millis
 }
 
-func validWorkspaceTTLMillis(millis *int64, def int64) (sql.NullInt64, error) {
+func validWorkspaceTTLMillis(millis *int64, templateDefault, templateMax time.Duration) (sql.NullInt64, error) {
+	if templateDefault == 0 && templateMax != 0 || (templateMax > 0 && templateDefault > templateMax) {
+		templateDefault = templateMax
+	}
+
 	if ptr.NilOrZero(millis) {
-		if def == 0 {
+		if templateDefault == 0 {
+			if templateMax > 0 {
+				return sql.NullInt64{
+					Int64: int64(templateMax),
+					Valid: true,
+				}, nil
+			}
+
 			return sql.NullInt64{}, nil
 		}
 
 		return sql.NullInt64{
-			Int64: def,
+			Int64: int64(templateDefault),
 			Valid: true,
 		}, nil
 	}
@@ -1200,6 +1203,10 @@ func validWorkspaceTTLMillis(millis *int64, def int64) (sql.NullInt64, error) {
 
 	if truncated > ttlMax {
 		return sql.NullInt64{}, errTTLMax
+	}
+
+	if templateMax > 0 && truncated > templateMax {
+		return sql.NullInt64{}, xerrors.Errorf("time until shutdown must be less than or equal to the template's maximum TTL %q", templateMax.String())
 	}
 
 	return sql.NullInt64{

@@ -58,10 +58,12 @@ INSERT INTO
 		troubleshooting_url,
 		motd_file,
 		login_before_ready,
-		startup_script_timeout_seconds
+		startup_script_timeout_seconds,
+		shutdown_script,
+		shutdown_script_timeout_seconds
 	)
 VALUES
-	($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19) RETURNING *;
+	($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21) RETURNING *;
 
 -- name: UpdateWorkspaceAgentConnectionByID :exec
 UPDATE
@@ -91,3 +93,42 @@ SET
 	lifecycle_state = $2
 WHERE
 	id = $1;
+
+-- name: UpdateWorkspaceAgentStartupLogOverflowByID :exec
+UPDATE
+	workspace_agents
+SET
+	startup_logs_overflowed = $2
+WHERE
+	id = $1;
+
+-- name: GetWorkspaceAgentStartupLogsAfter :many
+SELECT
+	*
+FROM
+	workspace_agent_startup_logs
+WHERE
+	agent_id = $1
+	AND (
+		id > @created_after
+	) ORDER BY id ASC;
+
+-- name: InsertWorkspaceAgentStartupLogs :many
+WITH new_length AS (
+	UPDATE workspace_agents SET
+	startup_logs_length = startup_logs_length + @output_length WHERE workspace_agents.id = @agent_id
+)
+INSERT INTO
+		workspace_agent_startup_logs
+	SELECT
+		@agent_id :: uuid AS agent_id,
+		unnest(@created_at :: timestamptz [ ]) AS created_at,
+		unnest(@output :: VARCHAR(1024) [ ]) AS output
+	RETURNING workspace_agent_startup_logs.*;
+
+-- If an agent hasn't connected in the last 7 days, we purge it's logs.
+-- Logs can take up a lot of space, so it's important we clean up frequently.
+-- name: DeleteOldWorkspaceAgentStartupLogs :exec
+DELETE FROM workspace_agent_startup_logs WHERE agent_id IN
+	(SELECT id FROM workspace_agents WHERE last_connected_at IS NOT NULL
+		AND last_connected_at < NOW() - INTERVAL '7 day');

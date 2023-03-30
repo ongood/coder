@@ -10,7 +10,9 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"database/sql"
+	"encoding/hex"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -24,6 +26,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -38,8 +41,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/afero"
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/mod/semver"
 	"golang.org/x/oauth2"
@@ -48,6 +49,7 @@ import (
 	"golang.org/x/xerrors"
 	"google.golang.org/api/idtoken"
 	"google.golang.org/api/option"
+	"gopkg.in/yaml.v3"
 	"tailscale.com/tailcfg"
 
 	"cdr.dev/slog"
@@ -55,13 +57,14 @@ import (
 	"cdr.dev/slog/sloggers/slogjson"
 	"cdr.dev/slog/sloggers/slogstackdriver"
 	"github.com/coder/coder/buildinfo"
+	"github.com/coder/coder/cli/clibase"
 	"github.com/coder/coder/cli/cliui"
 	"github.com/coder/coder/cli/config"
-	"github.com/coder/coder/cli/deployment"
 	"github.com/coder/coder/coderd"
 	"github.com/coder/coder/coderd/autobuild/executor"
 	"github.com/coder/coder/coderd/database"
 	"github.com/coder/coder/coderd/database/dbfake"
+	"github.com/coder/coder/coderd/database/dbpurge"
 	"github.com/coder/coder/coderd/database/migrations"
 	"github.com/coder/coder/coderd/devtunnel"
 	"github.com/coder/coder/coderd/gitauth"
@@ -72,6 +75,7 @@ import (
 	"github.com/coder/coder/coderd/telemetry"
 	"github.com/coder/coder/coderd/tracing"
 	"github.com/coder/coder/coderd/updatecheck"
+	"github.com/coder/coder/coderd/util/slice"
 	"github.com/coder/coder/codersdk"
 	"github.com/coder/coder/cryptorand"
 	"github.com/coder/coder/provisioner/echo"
@@ -81,60 +85,180 @@ import (
 	"github.com/coder/coder/provisionersdk"
 	sdkproto "github.com/coder/coder/provisionersdk/proto"
 	"github.com/coder/coder/tailnet"
+	"github.com/coder/wgtunnel/tunnelsdk"
 )
 
+// ReadGitAuthProvidersFromEnv is provided for compatibility purposes with the
+// viper CLI.
+// DEPRECATED
+func ReadGitAuthProvidersFromEnv(environ []string) ([]codersdk.GitAuthConfig, error) {
+	// The index numbers must be in-order.
+	sort.Strings(environ)
+
+	var providers []codersdk.GitAuthConfig
+	for _, v := range clibase.ParseEnviron(environ, "CODER_GITAUTH_") {
+		tokens := strings.SplitN(v.Name, "_", 2)
+		if len(tokens) != 2 {
+			return nil, xerrors.Errorf("invalid env var: %s", v.Name)
+		}
+
+		providerNum, err := strconv.Atoi(tokens[0])
+		if err != nil {
+			return nil, xerrors.Errorf("parse number: %s", v.Name)
+		}
+
+		var provider codersdk.GitAuthConfig
+		switch {
+		case len(providers) < providerNum:
+			return nil, xerrors.Errorf(
+				"provider num %v skipped: %s",
+				len(providers),
+				v.Name,
+			)
+		case len(providers) == providerNum:
+			// At the next next provider.
+			providers = append(providers, provider)
+		case len(providers) == providerNum+1:
+			// At the current provider.
+			provider = providers[providerNum]
+		}
+
+		key := tokens[1]
+		switch key {
+		case "ID":
+			provider.ID = v.Value
+		case "TYPE":
+			provider.Type = v.Value
+		case "CLIENT_ID":
+			provider.ClientID = v.Value
+		case "CLIENT_SECRET":
+			provider.ClientSecret = v.Value
+		case "AUTH_URL":
+			provider.AuthURL = v.Value
+		case "TOKEN_URL":
+			provider.TokenURL = v.Value
+		case "VALIDATE_URL":
+			provider.ValidateURL = v.Value
+		case "REGEX":
+			provider.Regex = v.Value
+		case "NO_REFRESH":
+			b, err := strconv.ParseBool(key)
+			if err != nil {
+				return nil, xerrors.Errorf("parse bool: %s", v.Value)
+			}
+			provider.NoRefresh = b
+		case "SCOPES":
+			provider.Scopes = strings.Split(v.Value, " ")
+		}
+		providers[providerNum] = provider
+	}
+	return providers, nil
+}
+
 // nolint:gocyclo
-func Server(vip *viper.Viper, newAPI func(context.Context, *coderd.Options) (*coderd.API, io.Closer, error)) *cobra.Command {
-	root := &cobra.Command{
-		Use:   "server",
-		Short: "Start a Coder server",
-		RunE: func(cmd *cobra.Command, args []string) error {
+func (r *RootCmd) Server(newAPI func(context.Context, *coderd.Options) (*coderd.API, io.Closer, error)) *clibase.Cmd {
+	var (
+		cfg  = new(codersdk.DeploymentValues)
+		opts = cfg.Options()
+	)
+	serverCmd := &clibase.Cmd{
+		Use:        "server",
+		Short:      "Start a Coder server",
+		Options:    opts,
+		Middleware: clibase.RequireNArgs(0),
+		Handler: func(inv *clibase.Invocation) error {
 			// Main command context for managing cancellation of running
 			// services.
-			ctx, cancel := context.WithCancel(cmd.Context())
+			ctx, cancel := context.WithCancel(inv.Context())
 			defer cancel()
+
+			if cfg.WriteConfig {
+				// TODO: this should output to a file.
+				n, err := opts.ToYAML()
+				if err != nil {
+					return xerrors.Errorf("generate yaml: %w", err)
+				}
+				enc := yaml.NewEncoder(inv.Stderr)
+				err = enc.Encode(n)
+				if err != nil {
+					return xerrors.Errorf("encode yaml: %w", err)
+				}
+				err = enc.Close()
+				if err != nil {
+					return xerrors.Errorf("close yaml encoder: %w", err)
+				}
+				return nil
+			}
+
+			// Print deprecation warnings.
+			for _, opt := range opts {
+				if opt.UseInstead == nil {
+					continue
+				}
+
+				if opt.Value.String() == opt.Default {
+					continue
+				}
+
+				warnStr := opt.Name + " is deprecated, please use "
+				for i, use := range opt.UseInstead {
+					warnStr += use.Name + " "
+					if i != len(opt.UseInstead)-1 {
+						warnStr += "and "
+					}
+				}
+				warnStr += "instead.\n"
+
+				cliui.Warn(inv.Stderr,
+					warnStr,
+				)
+			}
 
 			go dumpHandler(ctx)
 
-			cfg, err := deployment.Config(cmd.Flags(), vip)
-			if err != nil {
-				return xerrors.Errorf("getting deployment config: %w", err)
-			}
-
 			// Validate bind addresses.
-			if cfg.Address.Value != "" {
-				cmd.PrintErr(cliui.Styles.Warn.Render("WARN:") + " --address and -a are deprecated, please use --http-address and --tls-address instead")
-				if cfg.TLS.Enable.Value {
-					cfg.HTTPAddress.Value = ""
-					cfg.TLS.Address.Value = cfg.Address.Value
+			if cfg.Address.String() != "" {
+				if cfg.TLS.Enable {
+					cfg.HTTPAddress = ""
+					cfg.TLS.Address = cfg.Address
 				} else {
-					cfg.HTTPAddress.Value = cfg.Address.Value
-					cfg.TLS.Address.Value = ""
+					_ = cfg.HTTPAddress.Set(cfg.Address.String())
+					cfg.TLS.Address.Host = ""
+					cfg.TLS.Address.Port = ""
 				}
 			}
-			if cfg.TLS.Enable.Value && cfg.TLS.Address.Value == "" {
+			if cfg.TLS.Enable && cfg.TLS.Address.String() == "" {
 				return xerrors.Errorf("TLS address must be set if TLS is enabled")
 			}
-			if !cfg.TLS.Enable.Value && cfg.HTTPAddress.Value == "" {
+			if !cfg.TLS.Enable && cfg.HTTPAddress.String() == "" {
 				return xerrors.Errorf("TLS is disabled. Enable with --tls-enable or specify a HTTP address")
+			}
+
+			if cfg.AccessURL.String() != "" &&
+				!(cfg.AccessURL.Scheme == "http" || cfg.AccessURL.Scheme == "https") {
+				return xerrors.Errorf("access-url must include a scheme (e.g. 'http://' or 'https://)")
 			}
 
 			// Disable rate limits if the `--dangerous-disable-rate-limits` flag
 			// was specified.
 			loginRateLimit := 60
 			filesRateLimit := 12
-			if cfg.RateLimit.DisableAll.Value {
-				cfg.RateLimit.API.Value = -1
+			if cfg.RateLimit.DisableAll {
+				cfg.RateLimit.API = -1
 				loginRateLimit = -1
 				filesRateLimit = -1
 			}
 
-			printLogo(cmd)
-			logger, logCloser, err := buildLogger(cmd, cfg)
+			printLogo(inv)
+			logger, logCloser, err := buildLogger(inv, cfg)
 			if err != nil {
 				return xerrors.Errorf("make logger: %w", err)
 			}
 			defer logCloser()
+
+			// This line is helpful in tests.
+			logger.Debug(ctx, "started debug logging")
+			logger.Sync()
 
 			// Register signals early on so that graceful shutdown can't
 			// be interrupted by additional signals. Note that we avoid
@@ -150,7 +274,7 @@ func Server(vip *viper.Viper, newAPI func(context.Context, *coderd.Options) (*co
 			defer notifyStop()
 
 			// Ensure we have a unique cache directory for this process.
-			cacheDir := filepath.Join(cfg.CacheDirectory.Value, uuid.NewString())
+			cacheDir := filepath.Join(cfg.CacheDir.String(), uuid.NewString())
 			err = os.MkdirAll(cacheDir, 0o700)
 			if err != nil {
 				return xerrors.Errorf("create cache directory: %w", err)
@@ -169,18 +293,18 @@ func Server(vip *viper.Viper, newAPI func(context.Context, *coderd.Options) (*co
 
 			// Coder tracing should be disabled if telemetry is disabled unless
 			// --telemetry-trace was explicitly provided.
-			shouldCoderTrace := cfg.Telemetry.Enable.Value && !isTest()
+			shouldCoderTrace := cfg.Telemetry.Enable.Value() && !isTest()
 			// Only override if telemetryTraceEnable was specifically set.
 			// By default we want it to be controlled by telemetryEnable.
-			if cmd.Flags().Changed("telemetry-trace") {
-				shouldCoderTrace = cfg.Telemetry.Trace.Value
+			if inv.ParsedFlags().Changed("telemetry-trace") {
+				shouldCoderTrace = cfg.Telemetry.Trace.Value()
 			}
 
-			if cfg.Trace.Enable.Value || shouldCoderTrace || cfg.Trace.HoneycombAPIKey.Value != "" {
+			if cfg.Trace.Enable.Value() || shouldCoderTrace || cfg.Trace.HoneycombAPIKey != "" {
 				sdkTracerProvider, closeTracing, err := tracing.TracerProvider(ctx, "coderd", tracing.TracerOpts{
-					Default:   cfg.Trace.Enable.Value,
+					Default:   cfg.Trace.Enable.Value(),
 					Coder:     shouldCoderTrace,
-					Honeycomb: cfg.Trace.HoneycombAPIKey.Value,
+					Honeycomb: cfg.Trace.HoneycombAPIKey.String(),
 				})
 				if err != nil {
 					logger.Warn(ctx, "start telemetry exporter", slog.Error(err))
@@ -201,24 +325,30 @@ func Server(vip *viper.Viper, newAPI func(context.Context, *coderd.Options) (*co
 				}
 			}
 
-			config := createConfig(cmd)
+			config := r.createConfig()
+
 			builtinPostgres := false
 			// Only use built-in if PostgreSQL URL isn't specified!
-			if !cfg.InMemoryDatabase.Value && cfg.PostgresURL.Value == "" {
+			if !cfg.InMemoryDatabase && cfg.PostgresURL == "" {
 				var closeFunc func() error
-				cmd.Printf("Using built-in PostgreSQL (%s)\n", config.PostgresPath())
-				cfg.PostgresURL.Value, closeFunc, err = startBuiltinPostgres(ctx, config, logger)
+				cliui.Infof(inv.Stdout, "Using built-in PostgreSQL (%s)", config.PostgresPath())
+				pgURL, closeFunc, err := startBuiltinPostgres(ctx, config, logger)
+				if err != nil {
+					return err
+				}
+
+				err = cfg.PostgresURL.Set(pgURL)
 				if err != nil {
 					return err
 				}
 				builtinPostgres = true
 				defer func() {
-					cmd.Printf("Stopping built-in PostgreSQL...\n")
+					cliui.Infof(inv.Stdout, "Stopping built-in PostgreSQL...")
 					// Gracefully shut PostgreSQL down!
 					if err := closeFunc(); err != nil {
-						cmd.Printf("Failed to stop built-in PostgreSQL: %v\n", err)
+						cliui.Errorf(inv.Stderr, "Failed to stop built-in PostgreSQL: %v", err)
 					} else {
-						cmd.Printf("Stopped built-in PostgreSQL\n")
+						cliui.Infof(inv.Stdout, "Stopped built-in PostgreSQL")
 					}
 				}()
 			}
@@ -227,10 +357,10 @@ func Server(vip *viper.Viper, newAPI func(context.Context, *coderd.Options) (*co
 				httpListener net.Listener
 				httpURL      *url.URL
 			)
-			if cfg.HTTPAddress.Value != "" {
-				httpListener, err = net.Listen("tcp", cfg.HTTPAddress.Value)
+			if cfg.HTTPAddress.String() != "" {
+				httpListener, err = net.Listen("tcp", cfg.HTTPAddress.String())
 				if err != nil {
-					return xerrors.Errorf("listen %q: %w", cfg.HTTPAddress.Value, err)
+					return err
 				}
 				defer httpListener.Close()
 
@@ -239,13 +369,13 @@ func Server(vip *viper.Viper, newAPI func(context.Context, *coderd.Options) (*co
 				// httpListener.Addr().String() likes to return it as an ipv6
 				// address (i.e. [::]:x). If the input ip is 0.0.0.0, try to
 				// coerce the output back to ipv4 to make it less confusing.
-				if strings.Contains(cfg.HTTPAddress.Value, "0.0.0.0") {
+				if strings.Contains(cfg.HTTPAddress.String(), "0.0.0.0") {
 					listenAddrStr = strings.ReplaceAll(listenAddrStr, "[::]", "0.0.0.0")
 				}
 
 				// We want to print out the address the user supplied, not the
 				// loopback device.
-				cmd.Println("Started HTTP listener at", (&url.URL{Scheme: "http", Host: listenAddrStr}).String())
+				_, _ = fmt.Fprintf(inv.Stdout, "Started HTTP listener at %s\n", (&url.URL{Scheme: "http", Host: listenAddrStr}).String())
 
 				// Set the http URL we want to use when connecting to ourselves.
 				tcpAddr, tcpAddrValid := httpListener.Addr().(*net.TCPAddr)
@@ -266,31 +396,31 @@ func Server(vip *viper.Viper, newAPI func(context.Context, *coderd.Options) (*co
 				httpsListener net.Listener
 				httpsURL      *url.URL
 			)
-			if cfg.TLS.Enable.Value {
-				if cfg.TLS.Address.Value == "" {
+			if cfg.TLS.Enable {
+				if cfg.TLS.Address.String() == "" {
 					return xerrors.New("tls address must be set if tls is enabled")
 				}
 
 				// DEPRECATED: This redirect used to default to true.
 				// It made more sense to have the redirect be opt-in.
-				if os.Getenv("CODER_TLS_REDIRECT_HTTP") == "true" || cmd.Flags().Changed("tls-redirect-http-to-https") {
-					cmd.PrintErr(cliui.Styles.Warn.Render("WARN:") + " --tls-redirect-http-to-https is deprecated, please use --redirect-to-access-url instead\n")
-					cfg.RedirectToAccessURL.Value = cfg.TLS.RedirectHTTP.Value
+				if inv.Environ.Get("CODER_TLS_REDIRECT_HTTP") == "true" || inv.ParsedFlags().Changed("tls-redirect-http-to-https") {
+					cliui.Warn(inv.Stderr, "--tls-redirect-http-to-https is deprecated, please use --redirect-to-access-url instead")
+					cfg.RedirectToAccessURL = cfg.TLS.RedirectHTTP
 				}
 
 				tlsConfig, err = configureTLS(
-					cfg.TLS.MinVersion.Value,
-					cfg.TLS.ClientAuth.Value,
-					cfg.TLS.CertFiles.Value,
-					cfg.TLS.KeyFiles.Value,
-					cfg.TLS.ClientCAFile.Value,
+					cfg.TLS.MinVersion.String(),
+					cfg.TLS.ClientAuth.String(),
+					cfg.TLS.CertFiles,
+					cfg.TLS.KeyFiles,
+					cfg.TLS.ClientCAFile.String(),
 				)
 				if err != nil {
 					return xerrors.Errorf("configure tls: %w", err)
 				}
-				httpsListenerInner, err := net.Listen("tcp", cfg.TLS.Address.Value)
+				httpsListenerInner, err := net.Listen("tcp", cfg.TLS.Address.String())
 				if err != nil {
-					return xerrors.Errorf("listen %q: %w", cfg.TLS.Address.Value, err)
+					return err
 				}
 				defer httpsListenerInner.Close()
 
@@ -303,13 +433,13 @@ func Server(vip *viper.Viper, newAPI func(context.Context, *coderd.Options) (*co
 				// an ipv6 address (i.e. [::]:x). If the input ip is 0.0.0.0,
 				// try to coerce the output back to ipv4 to make it less
 				// confusing.
-				if strings.Contains(cfg.HTTPAddress.Value, "0.0.0.0") {
+				if strings.Contains(cfg.HTTPAddress.String(), "0.0.0.0") {
 					listenAddrStr = strings.ReplaceAll(listenAddrStr, "[::]", "0.0.0.0")
 				}
 
 				// We want to print out the address the user supplied, not the
 				// loopback device.
-				cmd.Println("Started TLS/HTTPS listener at", (&url.URL{Scheme: "https", Host: listenAddrStr}).String())
+				_, _ = fmt.Fprintf(inv.Stdout, "Started TLS/HTTPS listener at %s\n", (&url.URL{Scheme: "https", Host: listenAddrStr}).String())
 
 				// Set the https URL we want to use when connecting to
 				// ourselves.
@@ -339,70 +469,69 @@ func Server(vip *viper.Viper, newAPI func(context.Context, *coderd.Options) (*co
 
 			ctx, httpClient, err := configureHTTPClient(
 				ctx,
-				cfg.TLS.ClientCertFile.Value,
-				cfg.TLS.ClientKeyFile.Value,
-				cfg.TLS.ClientCAFile.Value,
+				cfg.TLS.ClientCertFile.String(),
+				cfg.TLS.ClientKeyFile.String(),
+				cfg.TLS.ClientCAFile.String(),
 			)
 			if err != nil {
 				return xerrors.Errorf("configure http client: %w", err)
 			}
 
-			var (
-				ctxTunnel, closeTunnel = context.WithCancel(ctx)
-				tunnel                 *devtunnel.Tunnel
-				tunnelErr              <-chan error
-			)
-			defer closeTunnel()
-
 			// If the access URL is empty, we attempt to run a reverse-proxy
 			// tunnel to make the initial setup really simple.
-			if cfg.AccessURL.Value == "" {
-				cmd.Printf("Opening tunnel so workspaces can connect to your deployment. For production scenarios, specify an external access URL\n")
-				tunnel, tunnelErr, err = devtunnel.New(ctxTunnel, logger.Named("devtunnel"))
+			var (
+				tunnel     *tunnelsdk.Tunnel
+				tunnelDone <-chan struct{} = make(chan struct{}, 1)
+			)
+			if cfg.AccessURL.String() == "" {
+				cliui.Infof(inv.Stderr, "Opening tunnel so workspaces can connect to your deployment. For production scenarios, specify an external access URL")
+				tunnel, err = devtunnel.New(ctx, logger.Named("devtunnel"), cfg.WgtunnelHost.String())
 				if err != nil {
 					return xerrors.Errorf("create tunnel: %w", err)
 				}
-				cfg.AccessURL.Value = tunnel.URL
+				defer tunnel.Close()
+				tunnelDone = tunnel.Wait()
+				cfg.AccessURL = clibase.URL(*tunnel.URL)
 
-				if cfg.WildcardAccessURL.Value == "" {
-					u, err := parseURL(tunnel.URL)
-					if err != nil {
-						return xerrors.Errorf("parse tunnel url: %w", err)
-					}
-
+				if cfg.WildcardAccessURL.String() == "" {
 					// Suffixed wildcard access URL.
-					cfg.WildcardAccessURL.Value = fmt.Sprintf("*--%s", u.Hostname())
+					u, err := url.Parse(fmt.Sprintf("*--%s", tunnel.URL.Hostname()))
+					if err != nil {
+						return xerrors.Errorf("parse wildcard url: %w", err)
+					}
+					cfg.WildcardAccessURL = clibase.URL(*u)
 				}
 			}
 
-			accessURLParsed, err := parseURL(cfg.AccessURL.Value)
-			if err != nil {
-				return xerrors.Errorf("parse URL: %w", err)
-			}
-			accessURLPortRaw := accessURLParsed.Port()
+			_, accessURLPortRaw, _ := net.SplitHostPort(cfg.AccessURL.Host)
 			if accessURLPortRaw == "" {
 				accessURLPortRaw = "80"
-				if accessURLParsed.Scheme == "https" {
+				if cfg.AccessURL.Scheme == "https" {
 					accessURLPortRaw = "443"
 				}
 			}
+
 			accessURLPort, err := strconv.Atoi(accessURLPortRaw)
 			if err != nil {
 				return xerrors.Errorf("parse access URL port: %w", err)
 			}
 
 			// Warn the user if the access URL appears to be a loopback address.
-			isLocal, err := isLocalURL(ctx, accessURLParsed)
+			isLocal, err := isLocalURL(ctx, cfg.AccessURL.Value())
 			if isLocal || err != nil {
 				reason := "could not be resolved"
 				if isLocal {
 					reason = "isn't externally reachable"
 				}
-				cmd.Printf("%s The access URL %s %s, this may cause unexpected problems when creating workspaces. Generate a unique *.try.coder.app URL by not specifying an access URL.\n", cliui.Styles.Warn.Render("Warning:"), cliui.Styles.Field.Render(accessURLParsed.String()), reason)
+				cliui.Warnf(
+					inv.Stderr,
+					"The access URL %s %s, this may cause unexpected problems when creating workspaces. Generate a unique *.try.coder.app URL by not specifying an access URL.\n",
+					cliui.Styles.Field.Render(cfg.AccessURL.String()), reason,
+				)
 			}
 
 			// A newline is added before for visibility in terminal output.
-			cmd.Printf("\nView the Web UI: %s\n", accessURLParsed.String())
+			cliui.Infof(inv.Stdout, "\nView the Web UI: %s", cfg.AccessURL.String())
 
 			// Used for zero-trust instance identity with Google Cloud.
 			googleTokenValidator, err := idtoken.NewValidator(ctx, option.WithoutAuthentication())
@@ -410,34 +539,37 @@ func Server(vip *viper.Viper, newAPI func(context.Context, *coderd.Options) (*co
 				return err
 			}
 
-			sshKeygenAlgorithm, err := gitsshkey.ParseAlgorithm(cfg.SSHKeygenAlgorithm.Value)
+			sshKeygenAlgorithm, err := gitsshkey.ParseAlgorithm(cfg.SSHKeygenAlgorithm.String())
 			if err != nil {
-				return xerrors.Errorf("parse ssh keygen algorithm %s: %w", cfg.SSHKeygenAlgorithm.Value, err)
+				return xerrors.Errorf("parse ssh keygen algorithm %s: %w", cfg.SSHKeygenAlgorithm, err)
 			}
 
 			defaultRegion := &tailcfg.DERPRegion{
 				EmbeddedRelay: true,
-				RegionID:      cfg.DERP.Server.RegionID.Value,
-				RegionCode:    cfg.DERP.Server.RegionCode.Value,
-				RegionName:    cfg.DERP.Server.RegionName.Value,
+				RegionID:      int(cfg.DERP.Server.RegionID.Value()),
+				RegionCode:    cfg.DERP.Server.RegionCode.String(),
+				RegionName:    cfg.DERP.Server.RegionName.String(),
 				Nodes: []*tailcfg.DERPNode{{
-					Name:      fmt.Sprintf("%db", cfg.DERP.Server.RegionID.Value),
-					RegionID:  cfg.DERP.Server.RegionID.Value,
-					HostName:  accessURLParsed.Hostname(),
+					Name:      fmt.Sprintf("%db", cfg.DERP.Server.RegionID),
+					RegionID:  int(cfg.DERP.Server.RegionID.Value()),
+					HostName:  cfg.AccessURL.Value().Hostname(),
 					DERPPort:  accessURLPort,
 					STUNPort:  -1,
-					ForceHTTP: accessURLParsed.Scheme == "http",
+					ForceHTTP: cfg.AccessURL.Scheme == "http",
 				}},
 			}
-			if !cfg.DERP.Server.Enable.Value {
+			if !cfg.DERP.Server.Enable {
 				defaultRegion = nil
 			}
-			derpMap, err := tailnet.NewDERPMap(ctx, defaultRegion, cfg.DERP.Server.STUNAddresses.Value, cfg.DERP.Config.URL.Value, cfg.DERP.Config.Path.Value)
+			derpMap, err := tailnet.NewDERPMap(
+				ctx, defaultRegion, cfg.DERP.Server.STUNAddresses,
+				cfg.DERP.Config.URL.String(), cfg.DERP.Config.Path.String(),
+			)
 			if err != nil {
 				return xerrors.Errorf("create derp map: %w", err)
 			}
 
-			appHostname := strings.TrimSpace(cfg.WildcardAccessURL.Value)
+			appHostname := cfg.WildcardAccessURL.String()
 			var appHostnameRegex *regexp.Regexp
 			if appHostname != "" {
 				appHostnameRegex, err = httpapi.CompileHostnamePattern(appHostname)
@@ -446,18 +578,38 @@ func Server(vip *viper.Viper, newAPI func(context.Context, *coderd.Options) (*co
 				}
 			}
 
-			gitAuthConfigs, err := gitauth.ConvertConfig(cfg.GitAuth.Value, accessURLParsed)
+			gitAuthEnv, err := ReadGitAuthProvidersFromEnv(os.Environ())
 			if err != nil {
-				return xerrors.Errorf("parse git auth config: %w", err)
+				return xerrors.Errorf("read git auth providers from env: %w", err)
 			}
 
-			realIPConfig, err := httpmw.ParseRealIPConfig(cfg.ProxyTrustedHeaders.Value, cfg.ProxyTrustedOrigins.Value)
+			cfg.GitAuthProviders.Value = append(cfg.GitAuthProviders.Value, gitAuthEnv...)
+			gitAuthConfigs, err := gitauth.ConvertConfig(
+				cfg.GitAuthProviders.Value,
+				cfg.AccessURL.Value(),
+			)
+			if err != nil {
+				return xerrors.Errorf("convert git auth config: %w", err)
+			}
+			for _, c := range gitAuthConfigs {
+				logger.Debug(
+					ctx, "loaded git auth config",
+					slog.F("id", c.ID),
+				)
+			}
+
+			realIPConfig, err := httpmw.ParseRealIPConfig(cfg.ProxyTrustedHeaders, cfg.ProxyTrustedOrigins)
 			if err != nil {
 				return xerrors.Errorf("parse real ip config: %w", err)
 			}
 
+			configSSHOptions, err := cfg.SSHConfig.ParseOptions()
+			if err != nil {
+				return xerrors.Errorf("parse ssh config options %q: %w", cfg.SSHConfig.SSHConfigOptions.String(), err)
+			}
+
 			options := &coderd.Options{
-				AccessURL:                   accessURLParsed,
+				AccessURL:                   cfg.AccessURL.Value(),
 				AppHostname:                 appHostname,
 				AppHostnameRegex:            appHostnameRegex,
 				Logger:                      logger.Named("coderd"),
@@ -468,31 +620,37 @@ func Server(vip *viper.Viper, newAPI func(context.Context, *coderd.Options) (*co
 				GoogleTokenValidator:        googleTokenValidator,
 				GitAuthConfigs:              gitAuthConfigs,
 				RealIPConfig:                realIPConfig,
-				SecureAuthCookie:            cfg.SecureAuthCookie.Value,
+				SecureAuthCookie:            cfg.SecureAuthCookie.Value(),
 				SSHKeygenAlgorithm:          sshKeygenAlgorithm,
 				TracerProvider:              tracerProvider,
 				Telemetry:                   telemetry.NewNoop(),
-				MetricsCacheRefreshInterval: cfg.MetricsCacheRefreshInterval.Value,
-				AgentStatsRefreshInterval:   cfg.AgentStatRefreshInterval.Value,
-				DeploymentConfig:            cfg,
+				MetricsCacheRefreshInterval: cfg.MetricsCacheRefreshInterval.Value(),
+				AgentStatsRefreshInterval:   cfg.AgentStatRefreshInterval.Value(),
+				DeploymentValues:            cfg,
 				PrometheusRegistry:          prometheus.NewRegistry(),
-				APIRateLimit:                cfg.RateLimit.API.Value,
+				APIRateLimit:                int(cfg.RateLimit.API.Value()),
 				LoginRateLimit:              loginRateLimit,
 				FilesRateLimit:              filesRateLimit,
 				HTTPClient:                  httpClient,
+				SSHConfig: codersdk.SSHConfigResponse{
+					HostnamePrefix:   cfg.SSHConfig.DeploymentName.String(),
+					SSHConfigOptions: configSSHOptions,
+				},
 			}
 			if tlsConfig != nil {
 				options.TLSCertificates = tlsConfig.Certificates
 			}
 
-			if cfg.StrictTransportSecurity.Value > 0 {
-				options.StrictTransportSecurityCfg, err = httpmw.HSTSConfigOptions(cfg.StrictTransportSecurity.Value, cfg.StrictTransportSecurityOptions.Value)
+			if cfg.StrictTransportSecurity > 0 {
+				options.StrictTransportSecurityCfg, err = httpmw.HSTSConfigOptions(
+					int(cfg.StrictTransportSecurity.Value()), cfg.StrictTransportSecurityOptions,
+				)
 				if err != nil {
-					return xerrors.Errorf("coderd: setting hsts header failed (options: %v): %w", cfg.StrictTransportSecurityOptions.Value, err)
+					return xerrors.Errorf("coderd: setting hsts header failed (options: %v): %w", cfg.StrictTransportSecurityOptions, err)
 				}
 			}
 
-			if cfg.UpdateCheck.Value {
+			if cfg.UpdateCheck {
 				options.UpdateCheckOptions = &updatecheck.Options{
 					// Avoid spamming GitHub API checking for updates.
 					Interval: 24 * time.Hour,
@@ -511,67 +669,76 @@ func Server(vip *viper.Viper, newAPI func(context.Context, *coderd.Options) (*co
 				}
 			}
 
-			if cfg.OAuth2.Github.ClientSecret.Value != "" {
-				options.GithubOAuth2Config, err = configureGithubOAuth2(accessURLParsed,
-					cfg.OAuth2.Github.ClientID.Value,
-					cfg.OAuth2.Github.ClientSecret.Value,
-					cfg.OAuth2.Github.AllowSignups.Value,
-					cfg.OAuth2.Github.AllowEveryone.Value,
-					cfg.OAuth2.Github.AllowedOrgs.Value,
-					cfg.OAuth2.Github.AllowedTeams.Value,
-					cfg.OAuth2.Github.EnterpriseBaseURL.Value,
+			if cfg.OAuth2.Github.ClientSecret != "" {
+				options.GithubOAuth2Config, err = configureGithubOAuth2(cfg.AccessURL.Value(),
+					cfg.OAuth2.Github.ClientID.String(),
+					cfg.OAuth2.Github.ClientSecret.String(),
+					cfg.OAuth2.Github.AllowSignups.Value(),
+					cfg.OAuth2.Github.AllowEveryone.Value(),
+					cfg.OAuth2.Github.AllowedOrgs,
+					cfg.OAuth2.Github.AllowedTeams,
+					cfg.OAuth2.Github.EnterpriseBaseURL.String(),
 				)
 				if err != nil {
 					return xerrors.Errorf("configure github oauth2: %w", err)
 				}
 			}
 
-			if cfg.OIDC.ClientSecret.Value != "" {
-				if cfg.OIDC.ClientID.Value == "" {
+			if cfg.OIDC.ClientSecret != "" {
+				if cfg.OIDC.ClientID == "" {
 					return xerrors.Errorf("OIDC client ID be set!")
 				}
-				if cfg.OIDC.IssuerURL.Value == "" {
+				if cfg.OIDC.IssuerURL == "" {
 					return xerrors.Errorf("OIDC issuer URL must be set!")
 				}
 
-				if cfg.OIDC.IgnoreEmailVerified.Value {
+				if cfg.OIDC.IgnoreEmailVerified {
 					logger.Warn(ctx, "coder will not check email_verified for OIDC logins")
 				}
 
-				oidcProvider, err := oidc.NewProvider(ctx, cfg.OIDC.IssuerURL.Value)
+				oidcProvider, err := oidc.NewProvider(
+					ctx, cfg.OIDC.IssuerURL.String(),
+				)
 				if err != nil {
 					return xerrors.Errorf("configure oidc provider: %w", err)
 				}
-				redirectURL, err := accessURLParsed.Parse("/api/v2/users/oidc/callback")
+				redirectURL, err := cfg.AccessURL.Value().Parse("/api/v2/users/oidc/callback")
 				if err != nil {
 					return xerrors.Errorf("parse oidc oauth callback url: %w", err)
 				}
+				// If the scopes contain 'groups', we enable group support.
+				// Do not override any custom value set by the user.
+				if slice.Contains(cfg.OIDC.Scopes, "groups") && cfg.OIDC.GroupField == "" {
+					cfg.OIDC.GroupField = "groups"
+				}
 				options.OIDCConfig = &coderd.OIDCConfig{
 					OAuth2Config: &oauth2.Config{
-						ClientID:     cfg.OIDC.ClientID.Value,
-						ClientSecret: cfg.OIDC.ClientSecret.Value,
+						ClientID:     cfg.OIDC.ClientID.String(),
+						ClientSecret: cfg.OIDC.ClientSecret.String(),
 						RedirectURL:  redirectURL.String(),
 						Endpoint:     oidcProvider.Endpoint(),
-						Scopes:       cfg.OIDC.Scopes.Value,
+						Scopes:       cfg.OIDC.Scopes,
 					},
 					Provider: oidcProvider,
 					Verifier: oidcProvider.Verifier(&oidc.Config{
-						ClientID: cfg.OIDC.ClientID.Value,
+						ClientID: cfg.OIDC.ClientID.String(),
 					}),
-					EmailDomain:         cfg.OIDC.EmailDomain.Value,
-					AllowSignups:        cfg.OIDC.AllowSignups.Value,
-					UsernameField:       cfg.OIDC.UsernameField.Value,
-					SignInText:          cfg.OIDC.SignInText.Value,
-					IconURL:             cfg.OIDC.IconURL.Value,
-					IgnoreEmailVerified: cfg.OIDC.IgnoreEmailVerified.Value,
+					EmailDomain:         cfg.OIDC.EmailDomain,
+					AllowSignups:        cfg.OIDC.AllowSignups.Value(),
+					UsernameField:       cfg.OIDC.UsernameField.String(),
+					GroupField:          cfg.OIDC.GroupField.String(),
+					GroupMapping:        cfg.OIDC.GroupMapping.Value,
+					SignInText:          cfg.OIDC.SignInText.String(),
+					IconURL:             cfg.OIDC.IconURL.String(),
+					IgnoreEmailVerified: cfg.OIDC.IgnoreEmailVerified.Value(),
 				}
 			}
 
-			if cfg.InMemoryDatabase.Value {
+			if cfg.InMemoryDatabase {
 				options.Database = dbfake.New()
 				options.Pubsub = database.NewPubsubInMemory()
 			} else {
-				sqlDB, err := connectToPostgres(ctx, logger, sqlDriver, cfg.PostgresURL.Value)
+				sqlDB, err := connectToPostgres(ctx, logger, sqlDriver, cfg.PostgresURL.String())
 				if err != nil {
 					return xerrors.Errorf("connect to postgres: %w", err)
 				}
@@ -580,43 +747,78 @@ func Server(vip *viper.Viper, newAPI func(context.Context, *coderd.Options) (*co
 				}()
 
 				options.Database = database.New(sqlDB)
-				options.Pubsub, err = database.NewPubsub(ctx, sqlDB, cfg.PostgresURL.Value)
+				options.Pubsub, err = database.NewPubsub(ctx, sqlDB, cfg.PostgresURL.String())
 				if err != nil {
 					return xerrors.Errorf("create pubsub: %w", err)
 				}
 				defer options.Pubsub.Close()
 			}
 
-			deploymentID, err := options.Database.GetDeploymentID(ctx)
-			if errors.Is(err, sql.ErrNoRows) {
-				err = nil
-			}
+			var deploymentID string
+			err = options.Database.InTx(func(tx database.Store) error {
+				// This will block until the lock is acquired, and will be
+				// automatically released when the transaction ends.
+				err := tx.AcquireLock(ctx, database.LockIDDeploymentSetup)
+				if err != nil {
+					return xerrors.Errorf("acquire lock: %w", err)
+				}
+
+				deploymentID, err = tx.GetDeploymentID(ctx)
+				if err != nil && !xerrors.Is(err, sql.ErrNoRows) {
+					return xerrors.Errorf("get deployment id: %w", err)
+				}
+				if deploymentID == "" {
+					deploymentID = uuid.NewString()
+					err = tx.InsertDeploymentID(ctx, deploymentID)
+					if err != nil {
+						return xerrors.Errorf("set deployment id: %w", err)
+					}
+				}
+
+				// Read the app signing key from the DB. We store it hex
+				// encoded since the config table uses strings for the value and
+				// we don't want to deal with automatic encoding issues.
+				appSigningKeyStr, err := tx.GetAppSigningKey(ctx)
+				if err != nil && !xerrors.Is(err, sql.ErrNoRows) {
+					return xerrors.Errorf("get app signing key: %w", err)
+				}
+				if appSigningKeyStr == "" {
+					// Generate 64 byte secure random string.
+					b := make([]byte, 64)
+					_, err := rand.Read(b)
+					if err != nil {
+						return xerrors.Errorf("generate fresh app signing key: %w", err)
+					}
+
+					appSigningKeyStr = hex.EncodeToString(b)
+					err = tx.InsertAppSigningKey(ctx, appSigningKeyStr)
+					if err != nil {
+						return xerrors.Errorf("insert freshly generated app signing key to database: %w", err)
+					}
+				}
+
+				appSigningKey, err := hex.DecodeString(appSigningKeyStr)
+				if err != nil {
+					return xerrors.Errorf("decode app signing key from database as hex: %w", err)
+				}
+				if len(appSigningKey) != 64 {
+					return xerrors.Errorf("app signing key must be 64 bytes, key in database is %d bytes", len(appSigningKey))
+				}
+
+				options.AppSigningKey = appSigningKey
+				return nil
+			}, nil)
 			if err != nil {
-				return xerrors.Errorf("get deployment id: %w", err)
-			}
-			if deploymentID == "" {
-				deploymentID = uuid.NewString()
-				err = options.Database.InsertDeploymentID(ctx, deploymentID)
-				if err != nil {
-					return xerrors.Errorf("set deployment id: %w", err)
-				}
+				return err
 			}
 
-			// Disable telemetry if the in-memory database is used unless explicitly defined!
-			if cfg.InMemoryDatabase.Value && !cmd.Flags().Changed(cfg.Telemetry.Enable.Flag) {
-				cfg.Telemetry.Enable.Value = false
-			}
-			if cfg.Telemetry.Enable.Value {
-				// Parse the raw telemetry URL!
-				telemetryURL, err := parseURL(cfg.Telemetry.URL.Value)
-				if err != nil {
-					return xerrors.Errorf("parse telemetry url: %w", err)
-				}
-
+			if cfg.Telemetry.Enable {
 				gitAuth := make([]telemetry.GitAuth, 0)
+				// TODO:
+				var gitAuthConfigs []codersdk.GitAuthConfig
 				for _, cfg := range gitAuthConfigs {
 					gitAuth = append(gitAuth, telemetry.GitAuth{
-						Type: string(cfg.Type),
+						Type: cfg.Type,
 					})
 				}
 
@@ -625,15 +827,15 @@ func Server(vip *viper.Viper, newAPI func(context.Context, *coderd.Options) (*co
 					DeploymentID:       deploymentID,
 					Database:           options.Database,
 					Logger:             logger.Named("telemetry"),
-					URL:                telemetryURL,
-					Wildcard:           cfg.WildcardAccessURL.Value != "",
-					DERPServerRelayURL: cfg.DERP.Server.RelayURL.Value,
+					URL:                cfg.Telemetry.URL.Value(),
+					Wildcard:           cfg.WildcardAccessURL.String() != "",
+					DERPServerRelayURL: cfg.DERP.Server.RelayURL.String(),
 					GitAuth:            gitAuth,
-					GitHubOAuth:        cfg.OAuth2.Github.ClientID.Value != "",
-					OIDCAuth:           cfg.OIDC.ClientID.Value != "",
-					OIDCIssuerURL:      cfg.OIDC.IssuerURL.Value,
-					Prometheus:         cfg.Prometheus.Enable.Value,
-					STUN:               len(cfg.DERP.Server.STUNAddresses.Value) != 0,
+					GitHubOAuth:        cfg.OAuth2.Github.ClientID != "",
+					OIDCAuth:           cfg.OIDC.ClientID != "",
+					OIDCIssuerURL:      cfg.OIDC.IssuerURL.String(),
+					Prometheus:         cfg.Prometheus.Enable.Value(),
+					STUN:               len(cfg.DERP.Server.STUNAddresses) != 0,
 					Tunnel:             tunnel != nil,
 				})
 				if err != nil {
@@ -644,11 +846,11 @@ func Server(vip *viper.Viper, newAPI func(context.Context, *coderd.Options) (*co
 
 			// This prevents the pprof import from being accidentally deleted.
 			_ = pprof.Handler
-			if cfg.Pprof.Enable.Value {
+			if cfg.Pprof.Enable {
 				//nolint:revive
-				defer serveHandler(ctx, logger, nil, cfg.Pprof.Address.Value, "pprof")()
+				defer serveHandler(ctx, logger, nil, cfg.Pprof.Address.String(), "pprof")()
 			}
-			if cfg.Prometheus.Enable.Value {
+			if cfg.Prometheus.Enable {
 				options.PrometheusRegistry.MustRegister(collectors.NewGoCollector())
 				options.PrometheusRegistry.MustRegister(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
 
@@ -667,11 +869,11 @@ func Server(vip *viper.Viper, newAPI func(context.Context, *coderd.Options) (*co
 				//nolint:revive
 				defer serveHandler(ctx, logger, promhttp.InstrumentMetricHandler(
 					options.PrometheusRegistry, promhttp.HandlerFor(options.PrometheusRegistry, promhttp.HandlerOpts{}),
-				), cfg.Prometheus.Address.Value, "prometheus")()
+				), cfg.Prometheus.Address.String(), "prometheus")()
 			}
 
-			if cfg.Swagger.Enable.Value {
-				options.SwaggerEndpoint = cfg.Swagger.Enable.Value
+			if cfg.Swagger.Enable {
+				options.SwaggerEndpoint = cfg.Swagger.Enable.Value()
 			}
 
 			// We use a separate coderAPICloser so the Enterprise API
@@ -679,7 +881,7 @@ func Server(vip *viper.Viper, newAPI func(context.Context, *coderd.Options) (*co
 			// than abstracting the Coder API itself.
 			coderAPI, coderAPICloser, err := newAPI(ctx, options)
 			if err != nil {
-				return err
+				return xerrors.Errorf("create coder API: %w", err)
 			}
 
 			client := codersdk.New(localURL)
@@ -698,7 +900,10 @@ func Server(vip *viper.Viper, newAPI func(context.Context, *coderd.Options) (*co
 			// This is helpful for tests, but can be silently ignored.
 			// Coder may be ran as users that don't have permission to write in the homedir,
 			// such as via the systemd service.
-			_ = config.URL().Write(client.URL.String())
+			err = config.URL().Write(client.URL.String())
+			if err != nil && flag.Lookup("test.v") != nil {
+				return xerrors.Errorf("write config url: %w", err)
+			}
 
 			// Since errCh only has one buffered slot, all routines
 			// sending on it must be wrapped in a select/default to
@@ -714,10 +919,15 @@ func Server(vip *viper.Viper, newAPI func(context.Context, *coderd.Options) (*co
 					_ = daemon.Close()
 				}
 			}()
+
+			var provisionerdWaitGroup sync.WaitGroup
+			defer provisionerdWaitGroup.Wait()
 			provisionerdMetrics := provisionerd.NewMetrics(options.PrometheusRegistry)
-			for i := 0; i < cfg.Provisioner.Daemons.Value; i++ {
+			for i := int64(0); i < cfg.Provisioner.Daemons.Value(); i++ {
 				daemonCacheDir := filepath.Join(cacheDir, fmt.Sprintf("provisioner-%d", i))
-				daemon, err := newProvisionerDaemon(ctx, coderAPI, provisionerdMetrics, logger, cfg, daemonCacheDir, errCh, false)
+				daemon, err := newProvisionerDaemon(
+					ctx, coderAPI, provisionerdMetrics, logger, cfg, daemonCacheDir, errCh, false, &provisionerdWaitGroup,
+				)
 				if err != nil {
 					return xerrors.Errorf("create provisioner daemon: %w", err)
 				}
@@ -727,11 +937,15 @@ func Server(vip *viper.Viper, newAPI func(context.Context, *coderd.Options) (*co
 			shutdownConnsCtx, shutdownConns := context.WithCancel(ctx)
 			defer shutdownConns()
 
+			// Ensures that old database entries are cleaned up over time!
+			purger := dbpurge.New(ctx, logger, options.Database)
+			defer purger.Close()
+
 			// Wrap the server in middleware that redirects to the access URL if
 			// the request is not to a local IP.
 			var handler http.Handler = coderAPI.RootHandler
-			if cfg.RedirectToAccessURL.Value {
-				handler = redirectToAccessURL(handler, accessURLParsed, tunnel != nil, appHostnameRegex)
+			if cfg.RedirectToAccessURL {
+				handler = redirectToAccessURL(handler, cfg.AccessURL.Value(), tunnel != nil, appHostnameRegex)
 			}
 
 			// ReadHeaderTimeout is purposefully not enabled. It caused some
@@ -793,15 +1007,7 @@ func Server(vip *viper.Viper, newAPI func(context.Context, *coderd.Options) (*co
 				}
 			}()
 
-			hasFirstUser, err := client.HasFirstUser(ctx)
-			if err != nil {
-				cmd.Println("\nFailed to check for the first user: " + err.Error())
-			} else if !hasFirstUser {
-				cmd.Println("\nGet started by creating the first user (in a new terminal):")
-				cmd.Println(cliui.Styles.Code.Render("coder login " + accessURLParsed.String()))
-			}
-
-			cmd.Println("\n==> Logs will stream in below (press ctrl+c to gracefully exit):")
+			cliui.Infof(inv.Stdout, "\n==> Logs will stream in below (press ctrl+c to gracefully exit):")
 
 			// Updates the systemd status from activating to activated.
 			_, err = daemon.SdNotify(false, daemon.SdNotifyReady)
@@ -809,7 +1015,7 @@ func Server(vip *viper.Viper, newAPI func(context.Context, *coderd.Options) (*co
 				return xerrors.Errorf("notify systemd: %w", err)
 			}
 
-			autobuildPoller := time.NewTicker(cfg.AutobuildPollInterval.Value)
+			autobuildPoller := time.NewTicker(cfg.AutobuildPollInterval.Value())
 			defer autobuildPoller.Stop()
 			autobuildExecutor := executor.New(ctx, options.Database, logger, autobuildPoller.C)
 			autobuildExecutor.Run()
@@ -821,17 +1027,15 @@ func Server(vip *viper.Viper, newAPI func(context.Context, *coderd.Options) (*co
 			select {
 			case <-notifyCtx.Done():
 				exitErr = notifyCtx.Err()
-				_, _ = fmt.Fprintln(cmd.OutOrStdout(), cliui.Styles.Bold.Render(
+				_, _ = fmt.Fprintln(inv.Stdout, cliui.Styles.Bold.Render(
 					"Interrupt caught, gracefully exiting. Use ctrl+\\ to force quit",
 				))
-			case exitErr = <-tunnelErr:
-				if exitErr == nil {
-					exitErr = xerrors.New("dev tunnel closed unexpectedly")
-				}
+			case <-tunnelDone:
+				exitErr = xerrors.New("dev tunnel closed unexpectedly")
 			case exitErr = <-errCh:
 			}
 			if exitErr != nil && !xerrors.Is(exitErr, context.Canceled) {
-				cmd.Printf("Unexpected error, shutting down server: %s\n", exitErr)
+				cliui.Errorf(inv.Stderr, "Unexpected error, shutting down server: %s\n", exitErr)
 			}
 
 			// Begin clean shut down stage, we try to shut down services
@@ -843,18 +1047,18 @@ func Server(vip *viper.Viper, newAPI func(context.Context, *coderd.Options) (*co
 
 			_, err = daemon.SdNotify(false, daemon.SdNotifyStopping)
 			if err != nil {
-				cmd.Printf("Notify systemd failed: %s", err)
+				cliui.Errorf(inv.Stderr, "Notify systemd failed: %s", err)
 			}
 
 			// Stop accepting new connections without interrupting
 			// in-flight requests, give in-flight requests 5 seconds to
 			// complete.
-			cmd.Println("Shutting down API server...")
+			cliui.Info(inv.Stdout, "Shutting down API server..."+"\n")
 			err = shutdownWithTimeout(httpServer.Shutdown, 3*time.Second)
 			if err != nil {
-				cmd.Printf("API server shutdown took longer than 3s: %s\n", err)
+				cliui.Errorf(inv.Stderr, "API server shutdown took longer than 3s: %s\n", err)
 			} else {
-				cmd.Printf("Gracefully shut down API server\n")
+				cliui.Info(inv.Stdout, "Gracefully shut down API server\n")
 			}
 			// Cancel any remaining in-flight requests.
 			shutdownConns()
@@ -869,36 +1073,36 @@ func Server(vip *viper.Viper, newAPI func(context.Context, *coderd.Options) (*co
 				go func() {
 					defer wg.Done()
 
-					if ok, _ := cmd.Flags().GetBool(varVerbose); ok {
-						cmd.Printf("Shutting down provisioner daemon %d...\n", id)
+					if ok, _ := inv.ParsedFlags().GetBool(varVerbose); ok {
+						cliui.Infof(inv.Stdout, "Shutting down provisioner daemon %d...\n", id)
 					}
 					err := shutdownWithTimeout(provisionerDaemon.Shutdown, 5*time.Second)
 					if err != nil {
-						cmd.PrintErrf("Failed to shutdown provisioner daemon %d: %s\n", id, err)
+						cliui.Errorf(inv.Stderr, "Failed to shutdown provisioner daemon %d: %s\n", id, err)
 						return
 					}
 					err = provisionerDaemon.Close()
 					if err != nil {
-						cmd.PrintErrf("Close provisioner daemon %d: %s\n", id, err)
+						cliui.Errorf(inv.Stderr, "Close provisioner daemon %d: %s\n", id, err)
 						return
 					}
-					if ok, _ := cmd.Flags().GetBool(varVerbose); ok {
-						cmd.Printf("Gracefully shut down provisioner daemon %d\n", id)
+					if ok, _ := inv.ParsedFlags().GetBool(varVerbose); ok {
+						cliui.Infof(inv.Stdout, "Gracefully shut down provisioner daemon %d\n", id)
 					}
 				}()
 			}
 			wg.Wait()
 
-			cmd.Println("Waiting for WebSocket connections to close...")
+			cliui.Info(inv.Stdout, "Waiting for WebSocket connections to close..."+"\n")
 			_ = coderAPICloser.Close()
-			cmd.Println("Done waiting for WebSocket connections")
+			cliui.Info(inv.Stdout, "Done waiting for WebSocket connections"+"\n")
 
 			// Close tunnel after we no longer have in-flight connections.
 			if tunnel != nil {
-				cmd.Println("Waiting for tunnel to close...")
-				closeTunnel()
-				<-tunnelErr
-				cmd.Println("Done waiting for tunnel")
+				cliui.Infof(inv.Stdout, "Waiting for tunnel to close...")
+				_ = tunnel.Close()
+				<-tunnel.Wait()
+				cliui.Infof(inv.Stdout, "Done waiting for tunnel")
 			}
 
 			// Ensures a last report can be sent before exit!
@@ -907,40 +1111,49 @@ func Server(vip *viper.Viper, newAPI func(context.Context, *coderd.Options) (*co
 			// Trigger context cancellation for any remaining services.
 			cancel()
 
-			if xerrors.Is(exitErr, context.Canceled) {
+			switch {
+			case xerrors.Is(exitErr, context.DeadlineExceeded):
+				cliui.Warnf(inv.Stderr, "Graceful shutdown timed out")
+				// Errors here cause a significant number of benign CI failures.
+				return nil
+			case xerrors.Is(exitErr, context.Canceled):
+				return nil
+			case exitErr != nil:
+				return xerrors.Errorf("graceful shutdown: %w", exitErr)
+			default:
 				return nil
 			}
-			return exitErr
 		},
 	}
 
 	var pgRawURL bool
-	postgresBuiltinURLCmd := &cobra.Command{
+
+	postgresBuiltinURLCmd := &clibase.Cmd{
 		Use:   "postgres-builtin-url",
 		Short: "Output the connection URL for the built-in PostgreSQL deployment.",
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			cfg := createConfig(cmd)
-			url, err := embeddedPostgresURL(cfg)
+		Handler: func(inv *clibase.Invocation) error {
+			url, err := embeddedPostgresURL(r.createConfig())
 			if err != nil {
 				return err
 			}
 			if pgRawURL {
-				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", url)
+				_, _ = fmt.Fprintf(inv.Stdout, "%s\n", url)
 			} else {
-				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", cliui.Styles.Code.Render(fmt.Sprintf("psql %q", url)))
+				_, _ = fmt.Fprintf(inv.Stdout, "%s\n", cliui.Styles.Code.Render(fmt.Sprintf("psql %q", url)))
 			}
 			return nil
 		},
 	}
-	postgresBuiltinServeCmd := &cobra.Command{
+
+	postgresBuiltinServeCmd := &clibase.Cmd{
 		Use:   "postgres-builtin-serve",
 		Short: "Run the built-in PostgreSQL deployment.",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := cmd.Context()
+		Handler: func(inv *clibase.Invocation) error {
+			ctx := inv.Context()
 
-			cfg := createConfig(cmd)
-			logger := slog.Make(sloghuman.Sink(cmd.ErrOrStderr()))
-			if ok, _ := cmd.Flags().GetBool(varVerbose); ok {
+			cfg := r.createConfig()
+			logger := slog.Make(sloghuman.Sink(inv.Stderr))
+			if ok, _ := inv.ParsedFlags().GetBool(varVerbose); ok {
 				logger = logger.Leveled(slog.LevelDebug)
 			}
 
@@ -954,40 +1167,34 @@ func Server(vip *viper.Viper, newAPI func(context.Context, *coderd.Options) (*co
 			defer func() { _ = closePg() }()
 
 			if pgRawURL {
-				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", url)
+				_, _ = fmt.Fprintf(inv.Stdout, "%s\n", url)
 			} else {
-				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", cliui.Styles.Code.Render(fmt.Sprintf("psql %q", url)))
+				_, _ = fmt.Fprintf(inv.Stdout, "%s\n", cliui.Styles.Code.Render(fmt.Sprintf("psql %q", url)))
 			}
 
 			<-ctx.Done()
 			return nil
 		},
 	}
-	postgresBuiltinURLCmd.Flags().BoolVar(&pgRawURL, "raw-url", false, "Output the raw connection URL instead of a psql command.")
-	postgresBuiltinServeCmd.Flags().BoolVar(&pgRawURL, "raw-url", false, "Output the raw connection URL instead of a psql command.")
 
-	createAdminUserCommand := newCreateAdminUserCommand()
-	root.AddCommand(postgresBuiltinURLCmd, postgresBuiltinServeCmd, createAdminUserCommand)
+	createAdminUserCmd := r.newCreateAdminUserCommand()
 
-	deployment.AttachFlags(root.Flags(), vip, false)
+	rawURLOpt := clibase.Option{
+		Flag: "raw-url",
 
-	return root
-}
-
-// parseURL parses a string into a URL.
-func parseURL(u string) (*url.URL, error) {
-	hasScheme := strings.HasPrefix(u, "http:") || strings.HasPrefix(u, "https:")
-
-	if !hasScheme {
-		return nil, xerrors.Errorf("URL %q must have a scheme of either http or https", u)
+		Value:       clibase.BoolOf(&pgRawURL),
+		Description: "Output the raw connection URL instead of a psql command.",
 	}
+	createAdminUserCmd.Options.Add(rawURLOpt)
+	postgresBuiltinURLCmd.Options.Add(rawURLOpt)
+	postgresBuiltinServeCmd.Options.Add(rawURLOpt)
 
-	parsed, err := url.Parse(u)
-	if err != nil {
-		return nil, err
-	}
+	serverCmd.Children = append(
+		serverCmd.Children,
+		createAdminUserCmd, postgresBuiltinURLCmd, postgresBuiltinServeCmd,
+	)
 
-	return parsed, nil
+	return serverCmd
 }
 
 // isLocalURL returns true if the hostname of the provided URL appears to
@@ -1019,10 +1226,11 @@ func newProvisionerDaemon(
 	coderAPI *coderd.API,
 	metrics provisionerd.Metrics,
 	logger slog.Logger,
-	cfg *codersdk.DeploymentConfig,
+	cfg *codersdk.DeploymentValues,
 	cacheDir string,
 	errCh chan error,
 	dev bool,
+	wg *sync.WaitGroup,
 ) (srv *provisionerd.Server, err error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer func() {
@@ -1037,12 +1245,16 @@ func newProvisionerDaemon(
 	}
 
 	terraformClient, terraformServer := provisionersdk.MemTransportPipe()
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		<-ctx.Done()
 		_ = terraformClient.Close()
 		_ = terraformServer.Close()
 	}()
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		defer cancel()
 
 		err := terraform.Serve(ctx, &terraform.ServeOptions{
@@ -1071,12 +1283,16 @@ func newProvisionerDaemon(
 	// include echo provisioner when in dev mode
 	if dev {
 		echoClient, echoServer := provisionersdk.MemTransportPipe()
+		wg.Add(1)
 		go func() {
+			defer wg.Done()
 			<-ctx.Done()
 			_ = echoClient.Close()
 			_ = echoServer.Close()
 		}()
+		wg.Add(1)
 		go func() {
+			defer wg.Done()
 			defer cancel()
 
 			err := echo.Serve(ctx, afero.NewOsFs(), &provisionersdk.ServeOptions{Listener: echoServer})
@@ -1096,11 +1312,11 @@ func newProvisionerDaemon(
 		return coderAPI.CreateInMemoryProvisionerDaemon(ctx, debounce)
 	}, &provisionerd.Options{
 		Logger:              logger,
-		JobPollInterval:     cfg.Provisioner.DaemonPollInterval.Value,
-		JobPollJitter:       cfg.Provisioner.DaemonPollJitter.Value,
+		JobPollInterval:     cfg.Provisioner.DaemonPollInterval.Value(),
+		JobPollJitter:       cfg.Provisioner.DaemonPollJitter.Value(),
 		JobPollDebounce:     debounce,
 		UpdateInterval:      500 * time.Millisecond,
-		ForceCancelInterval: cfg.Provisioner.ForceCancelInterval.Value,
+		ForceCancelInterval: cfg.Provisioner.ForceCancelInterval.Value(),
 		Provisioners:        provisioners,
 		WorkDirectory:       tempDir,
 		TracerProvider:      coderAPI.TracerProvider,
@@ -1109,13 +1325,13 @@ func newProvisionerDaemon(
 }
 
 // nolint: revive
-func printLogo(cmd *cobra.Command) {
+func printLogo(inv *clibase.Invocation) {
 	// Only print the logo in TTYs.
-	if !isTTYOut(cmd) {
+	if !isTTYOut(inv) {
 		return
 	}
 
-	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s - Software development on your infrastucture\n", cliui.Styles.Bold.Render("Coder "+buildinfo.Version()))
+	_, _ = fmt.Fprintf(inv.Stdout, "%s - Your Self-Hosted Remote Development Platform\n", cliui.Styles.Bold.Render("Coder "+buildinfo.Version()))
 }
 
 func loadCertificates(tlsCertFiles, tlsKeyFiles []string) ([]tls.Certificate, error) {
@@ -1128,7 +1344,11 @@ func loadCertificates(tlsCertFiles, tlsKeyFiles []string) ([]tls.Certificate, er
 		certFile, keyFile := tlsCertFiles[i], tlsKeyFiles[i]
 		cert, err := tls.LoadX509KeyPair(certFile, keyFile)
 		if err != nil {
-			return nil, xerrors.Errorf("load TLS key pair %d (%q, %q): %w", i, certFile, keyFile, err)
+			return nil, xerrors.Errorf(
+				"load TLS key pair %d (%q, %q): %w\ncertFiles: %+v\nkeyFiles: %+v",
+				i, certFile, keyFile, err,
+				tlsCertFiles, tlsKeyFiles,
+			)
 		}
 
 		certs[i] = cert
@@ -1170,6 +1390,7 @@ func generateSelfSignedCertificate() (*tls.Certificate, error) {
 func configureTLS(tlsMinVersion, tlsClientAuth string, tlsCertFiles, tlsKeyFiles []string, tlsClientCAFile string) (*tls.Config, error) {
 	tlsConfig := &tls.Config{
 		MinVersion: tls.VersionTLS12,
+		NextProtos: []string{"h2", "http/1.1"},
 	}
 	switch tlsMinVersion {
 	case "tls10":
@@ -1459,6 +1680,7 @@ func configureHTTPClient(ctx context.Context, clientCertFile, clientKeyFile stri
 
 		tlsClientConfig := &tls.Config{ //nolint:gosec
 			Certificates: certificates,
+			NextProtos:   []string{"h2", "http/1.1"},
 		}
 		err = configureCAPool(tlsClientCAFile, tlsClientConfig)
 		if err != nil {
@@ -1510,7 +1732,7 @@ func isLocalhost(host string) bool {
 	return host == "localhost" || host == "127.0.0.1" || host == "::1"
 }
 
-func buildLogger(cmd *cobra.Command, cfg *codersdk.DeploymentConfig) (slog.Logger, func(), error) {
+func buildLogger(inv *clibase.Invocation, cfg *codersdk.DeploymentValues) (slog.Logger, func(), error) {
 	var (
 		sinks   = []slog.Sink{}
 		closers = []func() error{}
@@ -1521,42 +1743,41 @@ func buildLogger(cmd *cobra.Command, cfg *codersdk.DeploymentConfig) (slog.Logge
 		case "":
 
 		case "/dev/stdout":
-			sinks = append(sinks, sinkFn(cmd.OutOrStdout()))
+			sinks = append(sinks, sinkFn(inv.Stdout))
 
 		case "/dev/stderr":
-			sinks = append(sinks, sinkFn(cmd.ErrOrStderr()))
+			sinks = append(sinks, sinkFn(inv.Stderr))
 
 		default:
 			fi, err := os.OpenFile(loc, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0o644)
 			if err != nil {
 				return xerrors.Errorf("open log file %q: %w", loc, err)
 			}
-
 			closers = append(closers, fi.Close)
 			sinks = append(sinks, sinkFn(fi))
 		}
 		return nil
 	}
 
-	err := addSinkIfProvided(sloghuman.Sink, cfg.Logging.Human.Value)
+	err := addSinkIfProvided(sloghuman.Sink, cfg.Logging.Human.String())
 	if err != nil {
 		return slog.Logger{}, nil, xerrors.Errorf("add human sink: %w", err)
 	}
-	err = addSinkIfProvided(slogjson.Sink, cfg.Logging.JSON.Value)
+	err = addSinkIfProvided(slogjson.Sink, cfg.Logging.JSON.String())
 	if err != nil {
 		return slog.Logger{}, nil, xerrors.Errorf("add json sink: %w", err)
 	}
-	err = addSinkIfProvided(slogstackdriver.Sink, cfg.Logging.Stackdriver.Value)
+	err = addSinkIfProvided(slogstackdriver.Sink, cfg.Logging.Stackdriver.String())
 	if err != nil {
 		return slog.Logger{}, nil, xerrors.Errorf("add stackdriver sink: %w", err)
 	}
 
-	if cfg.Trace.CaptureLogs.Value {
+	if cfg.Trace.CaptureLogs {
 		sinks = append(sinks, tracing.SlogSink{})
 	}
 
 	level := slog.LevelInfo
-	if ok, _ := cmd.Flags().GetBool(varVerbose); ok {
+	if cfg.Verbose {
 		level = slog.LevelDebug
 	}
 

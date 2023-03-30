@@ -69,15 +69,17 @@ type Metadata struct {
 	// GitAuthConfigs stores the number of Git configurations
 	// the Coder deployment has. If this number is >0, we
 	// set up special configuration in the workspace.
-	GitAuthConfigs       int                     `json:"git_auth_configs"`
-	VSCodePortProxyURI   string                  `json:"vscode_port_proxy_uri"`
-	Apps                 []codersdk.WorkspaceApp `json:"apps"`
-	DERPMap              *tailcfg.DERPMap        `json:"derpmap"`
-	EnvironmentVariables map[string]string       `json:"environment_variables"`
-	StartupScript        string                  `json:"startup_script"`
-	StartupScriptTimeout time.Duration           `json:"startup_script_timeout"`
-	Directory            string                  `json:"directory"`
-	MOTDFile             string                  `json:"motd_file"`
+	GitAuthConfigs        int                     `json:"git_auth_configs"`
+	VSCodePortProxyURI    string                  `json:"vscode_port_proxy_uri"`
+	Apps                  []codersdk.WorkspaceApp `json:"apps"`
+	DERPMap               *tailcfg.DERPMap        `json:"derpmap"`
+	EnvironmentVariables  map[string]string       `json:"environment_variables"`
+	StartupScript         string                  `json:"startup_script"`
+	StartupScriptTimeout  time.Duration           `json:"startup_script_timeout"`
+	Directory             string                  `json:"directory"`
+	MOTDFile              string                  `json:"motd_file"`
+	ShutdownScript        string                  `json:"shutdown_script"`
+	ShutdownScriptTimeout time.Duration           `json:"shutdown_script_timeout"`
 }
 
 // Metadata fetches metadata for the currently authenticated workspace agent.
@@ -397,7 +399,7 @@ func (c *Client) ReportStats(ctx context.Context, log slog.Logger, statsChan <-c
 	}
 
 	// Send an empty stat to get the interval.
-	postStat(&Stats{ConnectionsByProto: map[string]int64{}})
+	postStat(&Stats{})
 
 	go func() {
 		defer close(exited)
@@ -514,6 +516,29 @@ func (c *Client) PostStartup(ctx context.Context, req PostStartupRequest) error 
 	return nil
 }
 
+type StartupLog struct {
+	CreatedAt time.Time `json:"created_at"`
+	Output    string    `json:"output"`
+}
+
+type PatchStartupLogs struct {
+	Logs []StartupLog `json:"logs"`
+}
+
+// PatchStartupLogs writes log messages to the agent startup script.
+// Log messages are limited to 1MB in total.
+func (c *Client) PatchStartupLogs(ctx context.Context, req PatchStartupLogs) error {
+	res, err := c.SDK.Request(ctx, http.MethodPatch, "/api/v2/workspaceagents/me/startup-logs", req)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		return codersdk.ReadBodyAsError(res)
+	}
+	return nil
+}
+
 type GitAuthResponse struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
@@ -586,4 +611,15 @@ func websocketNetConn(ctx context.Context, conn *websocket.Conn, msgType websock
 		cancel: cancel,
 		Conn:   nc,
 	}
+}
+
+// StartupLogsNotifyChannel returns the channel name responsible for notifying
+// of new startup logs.
+func StartupLogsNotifyChannel(agentID uuid.UUID) string {
+	return fmt.Sprintf("startup-logs:%s", agentID)
+}
+
+type StartupLogsNotifyMessage struct {
+	CreatedAfter int64 `json:"created_after"`
+	EndOfLogs    bool  `json:"end_of_logs"`
 }

@@ -84,6 +84,8 @@ message RichParameter {
     int32 validation_min = 10;
     int32 validation_max = 11;
     string validation_monotonic = 12;
+	bool required = 13;
+	string legacy_variable_name = 14;
 }
 
 // RichParameterValue holds the key/value mapping of a parameter.
@@ -142,6 +144,8 @@ message Agent {
 	string motd_file = 13;
 	bool login_before_ready = 14;
 	int32 startup_script_timeout_seconds = 15;
+	string shutdown_script = 16;
+	int32 shutdown_script_timeout_seconds = 17;
 }
 
 enum AppSharingLevel {
@@ -227,6 +231,7 @@ message Provision {
         string workspace_owner_email = 7;
         string template_name = 8;
         string template_version = 9;
+        string workspace_owner_oidc_access_token = 10;
     }
 
     // Config represents execution configuration shared by both Plan and

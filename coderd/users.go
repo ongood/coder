@@ -37,7 +37,8 @@ import (
 // @Router /users/first [get]
 func (api *API) firstUser(rw http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	userCount, err := api.Database.GetUserCount(ctx)
+	// nolint:gocritic // Getting user count is a system function.
+	userCount, err := api.Database.GetUserCount(dbauthz.AsSystemRestricted(ctx))
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
 			Message: "Internal error fetching user count.",
@@ -70,7 +71,6 @@ func (api *API) firstUser(rw http.ResponseWriter, r *http.Request) {
 // @Success 201 {object} codersdk.CreateFirstUserResponse
 // @Router /users/first [post]
 func (api *API) postFirstUser(rw http.ResponseWriter, r *http.Request) {
-	// TODO: Should this admin system context be in a middleware?
 	ctx := r.Context()
 	var createUser codersdk.CreateFirstUserRequest
 	if !httpapi.Read(ctx, rw, r, &createUser) {
@@ -78,7 +78,8 @@ func (api *API) postFirstUser(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	// This should only function for the first user.
-	userCount, err := api.Database.GetUserCount(ctx)
+	// nolint:gocritic // Getting user count is a system function.
+	userCount, err := api.Database.GetUserCount(dbauthz.AsSystemRestricted(ctx))
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
 			Message: "Internal error fetching user count.",
@@ -278,27 +279,14 @@ func (api *API) postUser(rw http.ResponseWriter, r *http.Request) {
 	})
 	defer commitAudit()
 
-	// Create the user on the site.
-	if !api.Authorize(r, rbac.ActionCreate, rbac.ResourceUser) {
-		httpapi.Forbidden(rw)
-		return
-	}
-
 	var req codersdk.CreateUserRequest
 	if !httpapi.Read(ctx, rw, r, &req) {
 		return
 	}
 
-	// Create the organization member in the org.
-	if !api.Authorize(r, rbac.ActionCreate,
-		rbac.ResourceOrganizationMember.InOrg(req.OrganizationID)) {
-		httpapi.ResourceNotFound(rw)
-		return
-	}
-
 	// If password auth is disabled, don't allow new users to be
 	// created with a password!
-	if api.DeploymentConfig.DisablePasswordAuth.Value {
+	if api.DeploymentValues.DisablePasswordAuth {
 		httpapi.Write(ctx, rw, http.StatusForbidden, codersdk.Response{
 			Message: "You cannot manually provision new users with password authentication disabled!",
 		})
@@ -356,6 +344,12 @@ func (api *API) postUser(rw http.ResponseWriter, r *http.Request) {
 		CreateUserRequest: req,
 		LoginType:         database.LoginTypePassword,
 	})
+	if dbauthz.IsNotAuthorizedError(err) {
+		httpapi.Write(ctx, rw, http.StatusForbidden, codersdk.Response{
+			Message: "You are not authorized to create users.",
+		})
+		return
+	}
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
 			Message: "Internal error creating user.",
@@ -396,11 +390,6 @@ func (api *API) deleteUser(rw http.ResponseWriter, r *http.Request) {
 	aReq.Old = user
 	defer commitAudit()
 
-	if !api.Authorize(r, rbac.ActionDelete, rbac.ResourceUser) {
-		httpapi.Forbidden(rw)
-		return
-	}
-
 	if auth.Actor.ID == user.ID.String() {
 		httpapi.Write(ctx, rw, http.StatusForbidden, codersdk.Response{
 			Message: "You cannot delete yourself!",
@@ -429,6 +418,10 @@ func (api *API) deleteUser(rw http.ResponseWriter, r *http.Request) {
 		ID:      user.ID,
 		Deleted: true,
 	})
+	if dbauthz.IsNotAuthorizedError(err) {
+		httpapi.Forbidden(rw)
+		return
+	}
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
 			Message: "Internal error deleting user.",
@@ -458,12 +451,6 @@ func (api *API) userByName(rw http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	user := httpmw.UserParam(r)
 	organizationIDs, err := userOrganizationIDs(ctx, api, user)
-
-	if !api.Authorize(r, rbac.ActionRead, user) {
-		httpapi.ResourceNotFound(rw)
-		return
-	}
-
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
 			Message: "Internal error fetching user's organizations.",
@@ -499,11 +486,6 @@ func (api *API) putUserProfile(rw http.ResponseWriter, r *http.Request) {
 	)
 	defer commitAudit()
 	aReq.Old = user
-
-	if !api.Authorize(r, rbac.ActionUpdate, user) {
-		httpapi.ResourceNotFound(rw)
-		return
-	}
 
 	var params codersdk.UpdateUserProfileRequest
 	if !httpapi.Read(ctx, rw, r, &params) {
@@ -606,11 +588,6 @@ func (api *API) putUserStatus(status database.UserStatus) func(rw http.ResponseW
 		defer commitAudit()
 		aReq.Old = user
 
-		if !api.Authorize(r, rbac.ActionDelete, user) {
-			httpapi.ResourceNotFound(rw)
-			return
-		}
-
 		if status == database.UserStatusSuspended {
 			// There are some manual protections when suspending a user to
 			// prevent certain situations.
@@ -683,11 +660,6 @@ func (api *API) putUserPassword(rw http.ResponseWriter, r *http.Request) {
 	defer commitAudit()
 	aReq.Old = user
 
-	if !api.Authorize(r, rbac.ActionUpdate, user.UserDataRBACObject()) {
-		httpapi.ResourceNotFound(rw)
-		return
-	}
-
 	if !httpapi.Read(ctx, rw, r, &params) {
 		return
 	}
@@ -707,12 +679,7 @@ func (api *API) putUserPassword(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	// admins can change passwords without sending old_password
-	if params.OldPassword == "" {
-		if !api.Authorize(r, rbac.ActionUpdate, user) {
-			httpapi.Forbidden(rw)
-			return
-		}
-	} else {
+	if params.OldPassword != "" {
 		// if they send something let's validate it
 		ok, err := userpassword.Compare(string(user.HashedPassword), params.OldPassword)
 		if err != nil {
@@ -815,16 +782,6 @@ func (api *API) userRoles(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Only include ones we can read from RBAC.
-	memberships, err = AuthorizeFilter(api.HTTPAuth, r, rbac.ActionRead, memberships)
-	if err != nil {
-		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: "Internal error fetching memberships.",
-			Detail:  err.Error(),
-		})
-		return
-	}
-
 	for _, mem := range memberships {
 		// If we can read the org member, include the roles.
 		if err == nil {
@@ -850,7 +807,6 @@ func (api *API) putUserRoles(rw http.ResponseWriter, r *http.Request) {
 		ctx = r.Context()
 		// User is the user to modify.
 		user              = httpmw.UserParam(r)
-		actorRoles        = httpmw.UserAuthorization(r)
 		apiKey            = httpmw.APIKey(r)
 		auditor           = *api.Auditor.Load()
 		aReq, commitAudit = audit.InitRequest[database.User](rw, &audit.RequestParams{
@@ -875,39 +831,14 @@ func (api *API) putUserRoles(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !api.Authorize(r, rbac.ActionRead, user) {
-		httpapi.ResourceNotFound(rw)
-		return
-	}
-
-	// The member role is always implied.
-	impliedTypes := append(params.Roles, rbac.RoleMember())
-	added, removed := rbac.ChangeRoleSet(user.RBACRoles, impliedTypes)
-
-	// Assigning a role requires the create permission.
-	if len(added) > 0 && !api.Authorize(r, rbac.ActionCreate, rbac.ResourceRoleAssignment) {
-		httpapi.Forbidden(rw)
-		return
-	}
-
-	// Removing a role requires the delete permission.
-	if len(removed) > 0 && !api.Authorize(r, rbac.ActionDelete, rbac.ResourceRoleAssignment) {
-		httpapi.Forbidden(rw)
-		return
-	}
-
-	// Just treat adding & removing as "assigning" for now.
-	for _, roleName := range append(added, removed...) {
-		if !rbac.CanAssignRole(actorRoles.Actor.Roles, roleName) {
-			httpapi.Forbidden(rw)
-			return
-		}
-	}
-
 	updatedUser, err := api.updateSiteUserRoles(ctx, database.UpdateUserRolesParams{
 		GrantedRoles: params.Roles,
 		ID:           user.ID,
 	})
+	if dbauthz.IsNotAuthorizedError(err) {
+		httpapi.Forbidden(rw)
+		return
+	}
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
 			Message: err.Error(),
@@ -1016,11 +947,6 @@ func (api *API) organizationByUserAndName(rw http.ResponseWriter, r *http.Reques
 			Message: "Internal error fetching organization.",
 			Detail:  err.Error(),
 		})
-		return
-	}
-
-	if !api.Authorize(r, rbac.ActionRead, organization) {
-		httpapi.ResourceNotFound(rw)
 		return
 	}
 

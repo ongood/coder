@@ -3,7 +3,12 @@ import {
   MockWorkspace,
   MockWorkspaceAgent,
   MockWorkspaceAgentConnecting,
+  MockWorkspaceAgentOff,
   MockWorkspaceAgentOutdated,
+  MockWorkspaceAgentReady,
+  MockWorkspaceAgentShutdownError,
+  MockWorkspaceAgentShutdownTimeout,
+  MockWorkspaceAgentShuttingDown,
   MockWorkspaceAgentStartError,
   MockWorkspaceAgentStarting,
   MockWorkspaceAgentStartTimeout,
@@ -96,6 +101,41 @@ Starting.args = {
   workspace: MockWorkspace,
   applicationsHost: "",
   showApps: true,
+
+  storybookStartupLogs: [
+    "Cloning Git repository...",
+    "Starting Docker Daemon...",
+    "Adding some 🧙magic🧙...",
+    "Starting VS Code...",
+  ].map((line, index) => ({
+    id: index,
+    level: "info",
+    output: line,
+    time: "",
+  })),
+}
+
+export const Started = Template.bind({})
+Started.args = {
+  agent: {
+    ...MockWorkspaceAgentReady,
+    startup_logs_length: 1,
+  },
+  workspace: MockWorkspace,
+  applicationsHost: "",
+  showApps: true,
+
+  storybookStartupLogs: [
+    "Cloning Git repository...",
+    "Starting Docker Daemon...",
+    "Adding some 🧙magic🧙...",
+    "Starting VS Code...",
+  ].map((line, index) => ({
+    id: index,
+    level: "info",
+    output: line,
+    time: "",
+  })),
 }
 
 export const StartTimeout = Template.bind({})
@@ -109,6 +149,38 @@ StartTimeout.args = {
 export const StartError = Template.bind({})
 StartError.args = {
   agent: MockWorkspaceAgentStartError,
+  workspace: MockWorkspace,
+  applicationsHost: "",
+  showApps: true,
+}
+
+export const ShuttingDown = Template.bind({})
+ShuttingDown.args = {
+  agent: MockWorkspaceAgentShuttingDown,
+  workspace: MockWorkspace,
+  applicationsHost: "",
+  showApps: true,
+}
+
+export const ShutdownTimeout = Template.bind({})
+ShutdownTimeout.args = {
+  agent: MockWorkspaceAgentShutdownTimeout,
+  workspace: MockWorkspace,
+  applicationsHost: "",
+  showApps: true,
+}
+
+export const ShutdownError = Template.bind({})
+ShutdownError.args = {
+  agent: MockWorkspaceAgentShutdownError,
+  workspace: MockWorkspace,
+  applicationsHost: "",
+  showApps: true,
+}
+
+export const Off = Template.bind({})
+Off.args = {
+  agent: MockWorkspaceAgentOff,
   workspace: MockWorkspace,
   applicationsHost: "",
   showApps: true,
