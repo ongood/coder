@@ -4,6 +4,7 @@ import TextField from "@material-ui/core/TextField"
 import {
   ParameterSchema,
   ProvisionerJobLog,
+  Template,
   TemplateExample,
   TemplateVersionVariable,
 } from "api/typesGenerated"
@@ -22,7 +23,7 @@ import {
   getFormHelpers,
   onChangeTrimmed,
   templateDisplayNameValidator,
-} from "util/formUtils"
+} from "utils/formUtils"
 import { CreateTemplateData } from "xServices/createTemplate/createTemplateXService"
 import * as Yup from "yup"
 import { WorkspaceBuildLogs } from "components/WorkspaceBuildLogs/WorkspaceBuildLogs"
@@ -104,30 +105,78 @@ const defaultInitialValues: CreateTemplateData = {
   // you are not licensed. We hide the form value based on entitlements.
   max_ttl_hours: 24 * 7,
   allow_user_cancel_workspace_jobs: false,
+  allow_user_autostart: false,
+  allow_user_autostop: false,
 }
 
-const getInitialValues = (
-  canSetMaxTTL: boolean,
-  starterTemplate?: TemplateExample,
-) => {
+type GetInitialValuesParams = {
+  fromExample?: TemplateExample
+  fromCopy?: Template
+  parameters?: ParameterSchema[]
+  variables?: TemplateVersionVariable[]
+  allowAdvancedScheduling: boolean
+}
+
+const getInitialValues = ({
+  fromExample,
+  fromCopy,
+  allowAdvancedScheduling,
+  variables,
+  parameters,
+}: GetInitialValuesParams) => {
   let initialValues = defaultInitialValues
-  if (!canSetMaxTTL) {
+
+  if (!allowAdvancedScheduling) {
     initialValues = {
       ...initialValues,
       max_ttl_hours: 0,
     }
   }
-  if (!starterTemplate) {
-    return initialValues
+
+  if (fromExample) {
+    initialValues = {
+      ...initialValues,
+      name: fromExample.id,
+      display_name: fromExample.name,
+      icon: fromExample.icon,
+      description: fromExample.description,
+    }
   }
 
-  return {
-    ...initialValues,
-    name: starterTemplate.id,
-    display_name: starterTemplate.name,
-    icon: starterTemplate.icon,
-    description: starterTemplate.description,
+  if (fromCopy) {
+    initialValues = {
+      ...initialValues,
+      ...fromCopy,
+      name: `${fromCopy.name}-copy`,
+      display_name: fromCopy.display_name
+        ? `Copy of ${fromCopy.display_name}`
+        : "",
+    }
   }
+
+  if (variables) {
+    variables.forEach((variable) => {
+      if (!initialValues.user_variable_values) {
+        initialValues.user_variable_values = []
+      }
+      initialValues.user_variable_values.push({
+        name: variable.name,
+        value: variable.sensitive ? "" : variable.value,
+      })
+    })
+  }
+
+  if (parameters) {
+    parameters.forEach((parameter) => {
+      if (!initialValues.parameter_values_by_name) {
+        initialValues.parameter_values_by_name = {}
+      }
+      initialValues.parameter_values_by_name[parameter.name] =
+        parameter.default_source_value
+    })
+  }
+
+  return initialValues
 }
 
 export interface CreateTemplateFormProps {
@@ -141,13 +190,15 @@ export interface CreateTemplateFormProps {
   error?: unknown
   jobError?: string
   logs?: ProvisionerJobLog[]
-  canSetMaxTTL: boolean
+  allowAdvancedScheduling: boolean
+  copiedTemplate?: Template
 }
 
 export const CreateTemplateForm: FC<CreateTemplateFormProps> = ({
   onCancel,
   onSubmit,
   starterTemplate,
+  copiedTemplate,
   parameters,
   variables,
   isSubmitting,
@@ -155,11 +206,17 @@ export const CreateTemplateForm: FC<CreateTemplateFormProps> = ({
   error,
   jobError,
   logs,
-  canSetMaxTTL,
+  allowAdvancedScheduling,
 }) => {
   const styles = useStyles()
   const form = useFormik<CreateTemplateData>({
-    initialValues: getInitialValues(canSetMaxTTL, starterTemplate),
+    initialValues: getInitialValues({
+      allowAdvancedScheduling,
+      fromExample: starterTemplate,
+      fromCopy: copiedTemplate,
+      variables,
+      parameters,
+    }),
     validationSchema,
     onSubmit,
   })
@@ -177,6 +234,8 @@ export const CreateTemplateForm: FC<CreateTemplateFormProps> = ({
         <FormFields>
           {starterTemplate ? (
             <SelectedTemplate template={starterTemplate} />
+          ) : copiedTemplate ? (
+            <SelectedTemplate template={copiedTemplate} />
           ) : (
             <TemplateUpload
               {...upload}
@@ -254,7 +313,7 @@ export const CreateTemplateForm: FC<CreateTemplateFormProps> = ({
               disabled={isSubmitting}
               onChange={onChangeTrimmed(form)}
               fullWidth
-              label={t("form.fields.autoStop")}
+              label={t("form.fields.autostop")}
               variant="outlined"
               type="number"
             />
@@ -262,7 +321,7 @@ export const CreateTemplateForm: FC<CreateTemplateFormProps> = ({
             <TextField
               {...getFieldHelpers(
                 "max_ttl_hours",
-                canSetMaxTTL ? (
+                allowAdvancedScheduling ? (
                   <TTLHelperText
                     translationName="form.helperText.maxTTLHelperText"
                     ttl={form.values.max_ttl_hours}
@@ -277,12 +336,61 @@ export const CreateTemplateForm: FC<CreateTemplateFormProps> = ({
                   </>
                 ),
               )}
-              disabled={isSubmitting || !canSetMaxTTL}
+              disabled={isSubmitting || !allowAdvancedScheduling}
               fullWidth
               label={t("form.fields.maxTTL")}
               variant="outlined"
               type="number"
             />
+          </Stack>
+          <Stack direction="column">
+            <Stack direction="row" alignItems="center">
+              <Checkbox
+                id="allow_user_autostart"
+                size="small"
+                color="primary"
+                disabled={isSubmitting || !allowAdvancedScheduling}
+                onChange={async () => {
+                  await form.setFieldValue(
+                    "allow_user_autostart",
+                    !form.values.allow_user_autostart,
+                  )
+                }}
+                name="allow_user_autostart"
+                checked={form.values.allow_user_autostart}
+              />
+              <Stack spacing={0.5}>
+                <strong>
+                  Allow users to autostart workspaces on a schedule.
+                </strong>
+              </Stack>
+            </Stack>
+            <Stack direction="row" alignItems="center">
+              <Checkbox
+                id="allow-user-autostop"
+                size="small"
+                color="primary"
+                disabled={isSubmitting || !allowAdvancedScheduling}
+                onChange={async () => {
+                  await form.setFieldValue(
+                    "allow_user_autostop",
+                    !form.values.allow_user_autostop,
+                  )
+                }}
+                name="allow-user-autostop"
+                checked={form.values.allow_user_autostop}
+              />
+              <Stack spacing={0.5}>
+                <strong>
+                  Allow users to customize autostop duration for workspaces.
+                </strong>
+                <span className={styles.optionHelperText}>
+                  Workspaces will always use the default TTL if this is set.
+                  Regardless of this setting, workspaces can only stay on for
+                  the max TTL.
+                </span>
+              </Stack>
+            </Stack>
           </Stack>
         </FormFields>
       </FormSection>
@@ -329,7 +437,7 @@ export const CreateTemplateForm: FC<CreateTemplateFormProps> = ({
       </FormSection>
 
       {/* Parameters */}
-      {parameters && (
+      {parameters && parameters.length > 0 && (
         <FormSection
           title={t("form.parameters.title")}
           description={t("form.parameters.description")}
@@ -353,7 +461,7 @@ export const CreateTemplateForm: FC<CreateTemplateFormProps> = ({
       )}
 
       {/* Variables */}
-      {variables && (
+      {variables && variables.length > 0 && (
         <FormSection
           title="Variables"
           description="Input variables allow you to customize templates without altering their source code."
@@ -361,13 +469,14 @@ export const CreateTemplateForm: FC<CreateTemplateFormProps> = ({
           <FormFields>
             {variables.map((variable, index) => (
               <VariableInput
+                defaultValue={variable.value}
                 variable={variable}
                 disabled={isSubmitting}
                 key={variable.name}
                 onChange={async (value) => {
                   await form.setFieldValue("user_variable_values." + index, {
                     name: variable.name,
-                    value: value,
+                    value,
                   })
                 }}
               />

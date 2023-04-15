@@ -1,12 +1,12 @@
 import { withDefaultFeatures } from "./../api/api"
 import { FieldError } from "api/errors"
-import { everyOneGroup } from "util/groups"
+import { everyOneGroup } from "utils/groups"
 import * as Types from "../api/types"
 import * as TypesGen from "../api/typesGenerated"
 import range from "lodash/range"
 import { Permissions } from "xServices/auth/authXService"
-import { TemplateVersionFiles } from "util/templateVersion"
-import { FileTree } from "util/filetree"
+import { TemplateVersionFiles } from "utils/templateVersion"
+import { FileTree } from "utils/filetree"
 
 export const MockOrganization: TypesGen.Organization = {
   id: "fc0774ce-cc9e-48d4-80ae-88f7a4d4a8b0",
@@ -1492,27 +1492,31 @@ export const MockWorkspaceBuildParameter5: TypesGen.WorkspaceBuildParameter = {
   value: "5",
 }
 
+export const MockParameterSchema: TypesGen.ParameterSchema = {
+  id: "000000",
+  job_id: "000000",
+  allow_override_destination: false,
+  allow_override_source: true,
+  created_at: "",
+  default_destination_scheme: "none",
+  default_refresh: "",
+  default_source_scheme: "data",
+  default_source_value: "default-value",
+  name: "parameter name",
+  description: "Some description!",
+  redisplay_value: false,
+  validation_condition: "",
+  validation_contains: [],
+  validation_error: "",
+  validation_type_system: "",
+  validation_value_type: "",
+}
+
 export const mockParameterSchema = (
   partial: Partial<TypesGen.ParameterSchema>,
 ): TypesGen.ParameterSchema => {
   return {
-    id: "000000",
-    job_id: "000000",
-    allow_override_destination: false,
-    allow_override_source: true,
-    created_at: "",
-    default_destination_scheme: "none",
-    default_refresh: "",
-    default_source_scheme: "data",
-    default_source_value: "default-value",
-    name: "parameter name",
-    description: "Some description!",
-    redisplay_value: false,
-    validation_condition: "",
-    validation_contains: [],
-    validation_error: "",
-    validation_type_system: "",
-    validation_value_type: "",
+    ...MockParameterSchema,
     ...partial,
   }
 }

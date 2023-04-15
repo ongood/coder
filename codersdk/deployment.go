@@ -45,6 +45,7 @@ const (
 	FeatureExternalProvisionerDaemons FeatureName = "external_provisioner_daemons"
 	FeatureAppearance                 FeatureName = "appearance"
 	FeatureAdvancedTemplateScheduling FeatureName = "advanced_template_scheduling"
+	FeatureWorkspaceProxy             FeatureName = "workspace_proxy"
 )
 
 // FeatureNames must be kept in-sync with the Feature enum above.
@@ -59,6 +60,7 @@ var FeatureNames = []FeatureName{
 	FeatureExternalProvisionerDaemons,
 	FeatureAppearance,
 	FeatureAdvancedTemplateScheduling,
+	FeatureWorkspaceProxy,
 }
 
 // Humanize returns the feature name in a human-readable format.
@@ -142,7 +144,6 @@ type DeploymentValues struct {
 	MetricsCacheRefreshInterval     clibase.Duration                `json:"metrics_cache_refresh_interval,omitempty" typescript:",notnull"`
 	AgentStatRefreshInterval        clibase.Duration                `json:"agent_stat_refresh_interval,omitempty" typescript:",notnull"`
 	AgentFallbackTroubleshootingURL clibase.URL                     `json:"agent_fallback_troubleshooting_url,omitempty" typescript:",notnull"`
-	AuditLogging                    clibase.Bool                    `json:"audit_logging,omitempty" typescript:",notnull"`
 	BrowserOnly                     clibase.Bool                    `json:"browser_only,omitempty" typescript:",notnull"`
 	SCIMAPIKey                      clibase.String                  `json:"scim_api_key,omitempty" typescript:",notnull"`
 	Provisioner                     ProvisionerConfig               `json:"provisioner,omitempty" typescript:",notnull"`
@@ -161,9 +162,10 @@ type DeploymentValues struct {
 	GitAuthProviders                clibase.Struct[[]GitAuthConfig] `json:"git_auth,omitempty" typescript:",notnull"`
 	SSHConfig                       SSHConfig                       `json:"config_ssh,omitempty" typescript:",notnull"`
 	WgtunnelHost                    clibase.String                  `json:"wgtunnel_host,omitempty" typescript:",notnull"`
+	DisableOwnerWorkspaceExec       clibase.Bool                    `json:"disable_owner_workspace_exec,omitempty" typescript:",notnull"`
 
-	Config      clibase.String `json:"config,omitempty" typescript:",notnull"`
-	WriteConfig clibase.Bool   `json:"write_config,omitempty" typescript:",notnull"`
+	Config      clibase.YAMLConfigPath `json:"config,omitempty" typescript:",notnull"`
+	WriteConfig clibase.Bool           `json:"write_config,omitempty" typescript:",notnull"`
 
 	// DEPRECATED: Use HTTPAddress or TLS.Address instead.
 	Address clibase.HostPort `json:"address,omitempty" typescript:",notnull"`
@@ -223,8 +225,9 @@ type DERPConfig struct {
 }
 
 type PrometheusConfig struct {
-	Enable  clibase.Bool     `json:"enable" typescript:",notnull"`
-	Address clibase.HostPort `json:"address" typescript:",notnull"`
+	Enable            clibase.Bool     `json:"enable" typescript:",notnull"`
+	Address           clibase.HostPort `json:"address" typescript:",notnull"`
+	CollectAgentStats clibase.Bool     `json:"collect_agent_stats" typescript:",notnull"`
 }
 
 type PprofConfig struct {
@@ -255,6 +258,9 @@ type OIDCConfig struct {
 	Scopes              clibase.StringArray               `json:"scopes" typescript:",notnull"`
 	IgnoreEmailVerified clibase.Bool                      `json:"ignore_email_verified" typescript:",notnull"`
 	UsernameField       clibase.String                    `json:"username_field" typescript:",notnull"`
+	EmailField          clibase.String                    `json:"email_field" typescript:",notnull"`
+	AuthURLParams       clibase.Struct[map[string]string] `json:"auth_url_params" typescript:",notnull"`
+	IgnoreUserInfo      clibase.Bool                      `json:"ignore_user_info" typescript:",notnull"`
 	GroupField          clibase.String                    `json:"groups_field" typescript:",notnull"`
 	GroupMapping        clibase.Struct[map[string]string] `json:"group_mapping" typescript:",notnull"`
 	SignInText          clibase.String                    `json:"sign_in_text" typescript:",notnull"`
@@ -344,7 +350,9 @@ func DefaultCacheDir() string {
 		// For compatibility with systemd.
 		defaultCacheDir = dir
 	}
-
+	if dir := os.Getenv("CLIDOCGEN_CACHE_DIRECTORY"); dir != "" {
+		defaultCacheDir = dir
+	}
 	return filepath.Join(defaultCacheDir, "coder")
 }
 
@@ -362,6 +370,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 	var (
 		deploymentGroupNetworking = clibase.Group{
 			Name: "Networking",
+			YAML: "networking",
 		}
 		deploymentGroupNetworkingTLS = clibase.Group{
 			Parent: &deploymentGroupNetworking,
@@ -369,10 +378,12 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 			Description: `Configure TLS / HTTPS for your Coder deployment. If you're running
  Coder behind a TLS-terminating reverse proxy or are accessing Coder over a
  secure link, you can safely ignore these settings.`,
+			YAML: "tls",
 		}
 		deploymentGroupNetworkingHTTP = clibase.Group{
 			Parent: &deploymentGroupNetworking,
 			Name:   "HTTP",
+			YAML:   "http",
 		}
 		deploymentGroupNetworkingDERP = clibase.Group{
 			Parent: &deploymentGroupNetworking,
@@ -381,40 +392,50 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
  between workspaces and users are peer-to-peer. However, when Coder cannot establish
  a peer to peer connection, Coder uses a distributed relay network backed by
  Tailscale and WireGuard.`,
+			YAML: "derp",
 		}
 		deploymentGroupIntrospection = clibase.Group{
 			Name:        "Introspection",
 			Description: `Configure logging, tracing, and metrics exporting.`,
+			YAML:        "introspection",
 		}
 		deploymentGroupIntrospectionPPROF = clibase.Group{
 			Parent: &deploymentGroupIntrospection,
 			Name:   "pprof",
+			YAML:   "pprof",
 		}
 		deploymentGroupIntrospectionPrometheus = clibase.Group{
 			Parent: &deploymentGroupIntrospection,
 			Name:   "Prometheus",
+			YAML:   "prometheus",
 		}
 		deploymentGroupIntrospectionTracing = clibase.Group{
 			Parent: &deploymentGroupIntrospection,
 			Name:   "Tracing",
+			YAML:   "tracing",
 		}
 		deploymentGroupIntrospectionLogging = clibase.Group{
 			Parent: &deploymentGroupIntrospection,
 			Name:   "Logging",
+			YAML:   "logging",
 		}
 		deploymentGroupOAuth2 = clibase.Group{
 			Name:        "OAuth2",
 			Description: `Configure login and user-provisioning with GitHub via oAuth2.`,
+			YAML:        "oauth2",
 		}
 		deploymentGroupOAuth2GitHub = clibase.Group{
 			Parent: &deploymentGroupOAuth2,
 			Name:   "GitHub",
+			YAML:   "github",
 		}
 		deploymentGroupOIDC = clibase.Group{
 			Name: "OIDC",
+			YAML: "oidc",
 		}
 		deploymentGroupTelemetry = clibase.Group{
 			Name: "Telemetry",
+			YAML: "telemetry",
 			Description: `Telemetry is critical to our ability to improve Coder. We strip all personal
 information before sending data to our servers. Please only disable telemetry
 when required by your organization's security policy.`,
@@ -422,14 +443,17 @@ when required by your organization's security policy.`,
 		deploymentGroupProvisioning = clibase.Group{
 			Name:        "Provisioning",
 			Description: `Tune the behavior of the provisioner, which is responsible for creating, updating, and deleting workspace resources.`,
+			YAML:        "provisioning",
 		}
 		deploymentGroupDangerous = clibase.Group{
 			Name: "⚠️ Dangerous",
+			YAML: "dangerous",
 		}
 		deploymentGroupClient = clibase.Group{
 			Name: "Client",
 			Description: "These options change the behavior of how clients interact with the Coder. " +
 				"Clients include the coder cli, vs code extension, and the web UI.",
+			YAML: "client",
 		}
 		deploymentGroupConfig = clibase.Group{
 			Name:        "Config",
@@ -699,6 +723,15 @@ when required by your organization's security policy.`,
 			Group:       &deploymentGroupIntrospectionPrometheus,
 			YAML:        "address",
 		},
+		{
+			Name:        "Prometheus Collect Agent Stats",
+			Description: "Collect agent stats (may increase charges for metrics storage).",
+			Flag:        "prometheus-collect-agent-stats",
+			Env:         "CODER_PROMETHEUS_COLLECT_AGENT_STATS",
+			Value:       &c.Prometheus.CollectAgentStats,
+			Group:       &deploymentGroupIntrospectionPrometheus,
+			YAML:        "collect_agent_stats",
+		},
 		// Pprof settings
 		{
 			Name:        "pprof Enable",
@@ -845,10 +878,9 @@ when required by your organization's security policy.`,
 			Description: "Ignore the email_verified claim from the upstream provider.",
 			Flag:        "oidc-ignore-email-verified",
 			Env:         "CODER_OIDC_IGNORE_EMAIL_VERIFIED",
-
-			Value: &c.OIDC.IgnoreEmailVerified,
-			Group: &deploymentGroupOIDC,
-			YAML:  "ignoreEmailVerified",
+			Value:       &c.OIDC.IgnoreEmailVerified,
+			Group:       &deploymentGroupOIDC,
+			YAML:        "ignoreEmailVerified",
 		},
 		{
 			Name:        "OIDC Username Field",
@@ -859,6 +891,36 @@ when required by your organization's security policy.`,
 			Value:       &c.OIDC.UsernameField,
 			Group:       &deploymentGroupOIDC,
 			YAML:        "usernameField",
+		},
+		{
+			Name:        "OIDC Email Field",
+			Description: "OIDC claim field to use as the email.",
+			Flag:        "oidc-email-field",
+			Env:         "CODER_OIDC_EMAIL_FIELD",
+			Default:     "email",
+			Value:       &c.OIDC.EmailField,
+			Group:       &deploymentGroupOIDC,
+			YAML:        "emailField",
+		},
+		{
+			Name:        "OIDC Auth URL Parameters",
+			Description: "OIDC auth URL parameters to pass to the upstream provider.",
+			Flag:        "oidc-auth-url-params",
+			Env:         "CODER_OIDC_AUTH_URL_PARAMS",
+			Default:     `{"access_type": "offline"}`,
+			Value:       &c.OIDC.AuthURLParams,
+			Group:       &deploymentGroupOIDC,
+			YAML:        "authURLParams",
+		},
+		{
+			Name:        "OIDC Ignore UserInfo",
+			Description: "Ignore the userinfo endpoint and only use the ID token for user information.",
+			Flag:        "oidc-ignore-userinfo",
+			Env:         "CODER_OIDC_IGNORE_USERINFO",
+			Default:     "false",
+			Value:       &c.OIDC.IgnoreUserInfo,
+			Group:       &deploymentGroupOIDC,
+			YAML:        "ignoreUserInfo",
 		},
 		{
 			Name:        "OIDC Group Field",
@@ -879,7 +941,7 @@ when required by your organization's security policy.`,
 			Name:        "OIDC Group Mapping",
 			Description: "A map of OIDC group IDs and the group in Coder it should map to. This is useful for when OIDC providers only return group IDs.",
 			Flag:        "oidc-group-mapping",
-			Env:         "OIDC_GROUP_MAPPING",
+			Env:         "CODER_OIDC_GROUP_MAPPING",
 			Default:     "{}",
 			Value:       &c.OIDC.GroupMapping,
 			Group:       &deploymentGroupOIDC,
@@ -1242,16 +1304,6 @@ when required by your organization's security policy.`,
 			YAML:        "agentFallbackTroubleshootingURL",
 		},
 		{
-			Name:        "Audit Logging",
-			Description: "Specifies whether audit logging is enabled.",
-			Flag:        "audit-logging",
-			Env:         "CODER_AUDIT_LOGGING",
-			Default:     "true",
-			Annotations: clibase.Annotations{}.Mark(flagEnterpriseKey, "true"),
-			Value:       &c.AuditLogging,
-			YAML:        "auditLogging",
-		},
-		{
 			Name:        "Browser Only",
 			Description: "Whether Coder only allows connections to workspaces via the browser.",
 			Flag:        "browser-only",
@@ -1278,6 +1330,15 @@ when required by your organization's security policy.`,
 
 			Value: &c.DisablePathApps,
 			YAML:  "disablePathApps",
+		},
+		{
+			Name:        "Disable Owner Workspace Access",
+			Description: "Remove the permission for the 'owner' role to have workspace execution on all workspaces. This prevents the 'owner' from ssh, apps, and terminal access based on the 'owner' role. They still have their user permissions to access their own workspaces.",
+			Flag:        "disable-owner-workspace-access",
+			Env:         "CODER_DISABLE_OWNER_WORKSPACE_ACCESS",
+
+			Value: &c.DisableOwnerWorkspaceExec,
+			YAML:  "disableOwnerWorkspaceAccess",
 		},
 		{
 			Name:        "Session Duration",
@@ -1315,11 +1376,9 @@ when required by your organization's security policy.`,
 			Flag:          "config",
 			Env:           "CODER_CONFIG_PATH",
 			FlagShorthand: "c",
-			// The config parameters are hidden until they are tested and
-			// documented.
-			Hidden: true,
-			Group:  &deploymentGroupConfig,
-			Value:  &c.Config,
+			Hidden:        false,
+			Group:         &deploymentGroupConfig,
+			Value:         &c.Config,
 		},
 		{
 			Name:        "SSH Host Prefix",
@@ -1347,11 +1406,10 @@ when required by your organization's security policy.`,
 		{
 			Name: "Write Config",
 			Description: `
-Write out the current server configuration to the path specified by --config.`,
+Write out the current server config as YAML to stdout.`,
 			Flag:   "write-config",
-			Env:    "CODER_WRITE_CONFIG",
 			Group:  &deploymentGroupConfig,
-			Hidden: true,
+			Hidden: false,
 			Value:  &c.WriteConfig,
 		},
 		{
@@ -1367,9 +1425,11 @@ Write out the current server configuration to the path specified by --config.`,
 			// Env handling is done in cli.ReadGitAuthFromEnvironment
 			Name:        "Git Auth Providers",
 			Description: "Git Authentication providers.",
-			YAML:        "gitAuthProviders",
-			Value:       &c.GitAuthProviders,
-			Hidden:      true,
+			// We need extra scrutiny to ensure this works, is documented, and
+			// tested before enabling.
+			// YAML:        "gitAuthProviders",
+			Value:  &c.GitAuthProviders,
+			Hidden: true,
 		},
 		{
 			Name:        "Custom wgtunnel Host",
@@ -1548,6 +1608,10 @@ const (
 	// ExperimentTemplateEditor is an internal experiment that enables the template editor
 	// for all users.
 	ExperimentTemplateEditor Experiment = "template_editor"
+
+	// ExperimentMoons enabled the workspace proxy endpoints and CRUD. This
+	// feature is not yet complete in functionality.
+	ExperimentMoons Experiment = "moons"
 
 	// Add new experiments here!
 	// ExperimentExample Experiment = "example"

@@ -11,7 +11,7 @@ import { FC } from "react"
 import { Helmet } from "react-helmet-async"
 import { useTranslation } from "react-i18next"
 import { useNavigate, useSearchParams } from "react-router-dom"
-import { pageTitle } from "util/page"
+import { pageTitle } from "utils/page"
 import { createTemplateMachine } from "xServices/createTemplate/createTemplateXService"
 import { CreateTemplateForm } from "./CreateTemplateForm"
 
@@ -24,6 +24,7 @@ const CreateTemplatePage: FC = () => {
     context: {
       organizationId,
       exampleId: searchParams.get("exampleId"),
+      templateNameToCopy: searchParams.get("fromTemplate"),
     },
     actions: {
       onCreate: (_, { data }) => {
@@ -31,6 +32,7 @@ const CreateTemplatePage: FC = () => {
       },
     },
   })
+
   const {
     starterTemplate,
     parameters,
@@ -42,7 +44,7 @@ const CreateTemplatePage: FC = () => {
   } = state.context
   const shouldDisplayForm = !state.hasTag("loading")
   const { entitlements } = useDashboard()
-  const canSetMaxTTL =
+  const allowAdvancedScheduling =
     entitlements.features["advanced_template_scheduling"].enabled
 
   const onCancel = () => {
@@ -67,7 +69,8 @@ const CreateTemplatePage: FC = () => {
 
           {shouldDisplayForm && (
             <CreateTemplateForm
-              canSetMaxTTL={canSetMaxTTL}
+              copiedTemplate={state.context.copiedTemplate}
+              allowAdvancedScheduling={allowAdvancedScheduling}
               error={error}
               starterTemplate={starterTemplate}
               isSubmitting={state.hasTag("submitting")}

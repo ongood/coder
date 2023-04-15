@@ -17,6 +17,7 @@ import { RequireAuth } from "./components/RequireAuth/RequireAuth"
 import { SettingsLayout } from "./components/SettingsLayout/SettingsLayout"
 import { DeploySettingsLayout } from "components/DeploySettingsLayout/DeploySettingsLayout"
 import { TemplateSettingsLayout } from "pages/TemplateSettingsPage/TemplateSettingsLayout"
+import { WorkspaceSettingsLayout } from "pages/WorkspaceSettingsPage/WorkspaceSettingsLayout"
 
 // Lazy load pages
 // - Pages that are secondary, not in the main navigation or not usually accessed
@@ -45,7 +46,10 @@ const WorkspaceBuildPage = lazy(
 )
 const WorkspacePage = lazy(() => import("./pages/WorkspacePage/WorkspacePage"))
 const WorkspaceSchedulePage = lazy(
-  () => import("./pages/WorkspaceSchedulePage/WorkspaceSchedulePage"),
+  () =>
+    import(
+      "./pages/WorkspaceSettingsPage/WorkspaceSchedulePage/WorkspaceSchedulePage"
+    ),
 )
 const TerminalPage = lazy(() => import("./pages/TerminalPage/TerminalPage"))
 const TemplatePermissionsPage = lazy(
@@ -132,8 +136,18 @@ const WorkspaceSettingsPage = lazy(
 const CreateTokenPage = lazy(
   () => import("./pages/CreateTokenPage/CreateTokenPage"),
 )
+
+const TemplateDocsPage = lazy(
+  () => import("./pages/TemplatePage/TemplateDocsPage/TemplateDocsPage"),
+)
+
 const TemplateFilesPage = lazy(
   () => import("./pages/TemplatePage/TemplateFilesPage/TemplateFilesPage"),
+)
+
+const TemplateVersionsPage = lazy(
+  () =>
+    import("./pages/TemplatePage/TemplateVersionsPage/TemplateVersionsPage"),
 )
 const TemplateSchedulePage = lazy(
   () =>
@@ -170,8 +184,9 @@ export const AppRouter: FC = () => {
                 <Route path=":template">
                   <Route element={<TemplateLayout />}>
                     <Route index element={<TemplateSummaryPage />} />
-
+                    <Route path="docs" element={<TemplateDocsPage />} />
                     <Route path="files" element={<TemplateFilesPage />} />
+                    <Route path="versions" element={<TemplateVersionsPage />} />
                   </Route>
 
                   <Route path="workspace" element={<CreateWorkspacePage />} />
@@ -249,12 +264,17 @@ export const AppRouter: FC = () => {
               <Route path="/@:username">
                 <Route path=":workspace">
                   <Route index element={<WorkspacePage />} />
-                  <Route path="schedule" element={<WorkspaceSchedulePage />} />
                   <Route
                     path="builds/:buildNumber"
                     element={<WorkspaceBuildPage />}
                   />
-                  <Route path="settings" element={<WorkspaceSettingsPage />} />
+                  <Route path="settings" element={<WorkspaceSettingsLayout />}>
+                    <Route index element={<WorkspaceSettingsPage />} />
+                    <Route
+                      path="schedule"
+                      element={<WorkspaceSchedulePage />}
+                    />
+                  </Route>
                 </Route>
               </Route>
             </Route>

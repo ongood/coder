@@ -34,8 +34,8 @@ func (e NotAuthorizedError) Error() string {
 
 // Unwrap will always unwrap to a sql.ErrNoRows so the API returns a 404.
 // So 'errors.Is(err, sql.ErrNoRows)' will always be true.
-func (NotAuthorizedError) Unwrap() error {
-	return sql.ErrNoRows
+func (e NotAuthorizedError) Unwrap() error {
+	return e.Err
 }
 
 func IsNotAuthorizedError(err error) bool {
@@ -137,7 +137,7 @@ var (
 					rbac.ResourceTemplate.Type:  {rbac.ActionRead, rbac.ActionUpdate},
 					rbac.ResourceUser.Type:      {rbac.ActionRead},
 					rbac.ResourceWorkspace.Type: {rbac.ActionRead, rbac.ActionUpdate, rbac.ActionDelete},
-					rbac.ResourceUserData.Type:  {rbac.ActionRead},
+					rbac.ResourceUserData.Type:  {rbac.ActionRead, rbac.ActionUpdate},
 				}),
 				Org:  map[string][]rbac.Permission{},
 				User: []rbac.Permission{},
