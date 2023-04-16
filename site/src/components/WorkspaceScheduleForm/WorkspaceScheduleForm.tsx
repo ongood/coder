@@ -194,56 +194,56 @@ export const WorkspaceScheduleForm: FC<
   initialTouched,
   defaultTTL,
 }) => {
-    const styles = useStyles()
+  const styles = useStyles()
 
-    const form = useFormik<WorkspaceScheduleFormValues>({
-      initialValues,
-      onSubmit,
-      validationSchema,
-      initialTouched,
-    })
-    const formHelpers = getFormHelpers<WorkspaceScheduleFormValues>(
-      form,
-      submitScheduleError,
-    )
+  const form = useFormik<WorkspaceScheduleFormValues>({
+    initialValues,
+    onSubmit,
+    validationSchema,
+    initialTouched,
+  })
+  const formHelpers = getFormHelpers<WorkspaceScheduleFormValues>(
+    form,
+    submitScheduleError,
+  )
 
-    const checkboxes: Array<{ value: boolean; name: string; label: string }> = [
-      {
-        value: form.values.sunday,
-        name: "sunday",
-        label: Language.daySundayLabel,
-      },
-      {
-        value: form.values.monday,
-        name: "monday",
-        label: Language.dayMondayLabel,
-      },
-      {
-        value: form.values.tuesday,
-        name: "tuesday",
-        label: Language.dayTuesdayLabel,
-      },
-      {
-        value: form.values.wednesday,
-        name: "wednesday",
-        label: Language.dayWednesdayLabel,
-      },
-      {
-        value: form.values.thursday,
-        name: "thursday",
-        label: Language.dayThursdayLabel,
-      },
-      {
-        value: form.values.friday,
-        name: "friday",
-        label: Language.dayFridayLabel,
-      },
-      {
-        value: form.values.saturday,
-        name: "saturday",
-        label: Language.daySaturdayLabel,
-      },
-    ]
+  const checkboxes: Array<{ value: boolean; name: string; label: string }> = [
+    {
+      value: form.values.sunday,
+      name: "sunday",
+      label: Language.daySundayLabel,
+    },
+    {
+      value: form.values.monday,
+      name: "monday",
+      label: Language.dayMondayLabel,
+    },
+    {
+      value: form.values.tuesday,
+      name: "tuesday",
+      label: Language.dayTuesdayLabel,
+    },
+    {
+      value: form.values.wednesday,
+      name: "wednesday",
+      label: Language.dayWednesdayLabel,
+    },
+    {
+      value: form.values.thursday,
+      name: "thursday",
+      label: Language.dayThursdayLabel,
+    },
+    {
+      value: form.values.friday,
+      name: "friday",
+      label: Language.dayFridayLabel,
+    },
+    {
+      value: form.values.saturday,
+      name: "saturday",
+      label: Language.daySaturdayLabel,
+    },
+  ]
 
   const handleToggleAutostart = async (e: ChangeEvent) => {
     form.handleChange(e)
@@ -262,6 +262,7 @@ export const WorkspaceScheduleForm: FC<
         ...defaultSchedule(),
       })
     }
+  }
 
   const handleToggleAutostop = async (e: ChangeEvent) => {
     form.handleChange(e)
@@ -276,6 +277,7 @@ export const WorkspaceScheduleForm: FC<
         ttl: defaultTTL,
       })
     }
+  }
 
   return (
     <HorizontalForm onSubmit={form.handleSubmit}>
