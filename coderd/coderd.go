@@ -36,9 +36,11 @@ import (
 	"tailscale.com/util/singleflight"
 
 	"cdr.dev/slog"
-	"github.com/coder/coder/buildinfo"
 
-	// Used to serve the Swagger endpoint
+	"github.com/coder/coder/buildinfo"
+	"github.com/coder/coder/codersdk/agentsdk"
+
+	// Used for swagger docs.
 	_ "github.com/coder/coder/coderd/apidoc"
 	"github.com/coder/coder/coderd/audit"
 	"github.com/coder/coder/coderd/awsidentity"
@@ -146,6 +148,8 @@ type Options struct {
 	SSHConfig codersdk.SSHConfigResponse
 
 	HTTPClient *http.Client
+
+	UpdateAgentMetrics func(ctx context.Context, username, workspaceName, agentName string, metrics []agentsdk.AgentMetric)
 }
 
 // @title Coder API
@@ -221,7 +225,7 @@ func New(options *Options) *API {
 		options.PrometheusRegistry = prometheus.NewRegistry()
 	}
 	if options.TailnetCoordinator == nil {
-		options.TailnetCoordinator = tailnet.NewCoordinator()
+		options.TailnetCoordinator = tailnet.NewCoordinator(options.Logger)
 	}
 	if options.DERPServer == nil {
 		options.DERPServer = derp.NewServer(key.NewNode(), tailnet.Logger(options.Logger.Named("derp")))
@@ -250,7 +254,8 @@ func New(options *Options) *API {
 	if options.HealthcheckFunc == nil {
 		options.HealthcheckFunc = func(ctx context.Context) (*healthcheck.Report, error) {
 			return healthcheck.Run(ctx, &healthcheck.ReportOptions{
-				DERPMap: options.DERPMap.Clone(),
+				AccessURL: options.AccessURL,
+				DERPMap:   options.DERPMap.Clone(),
 			})
 		}
 	}
@@ -290,8 +295,8 @@ func New(options *Options) *API {
 		OIDC:   options.OIDCConfig,
 	}
 
-	r := chi.NewRouter()
 	ctx, cancel := context.WithCancel(context.Background())
+	r := chi.NewRouter()
 	api := &API{
 		ctx:    ctx,
 		cancel: cancel,
@@ -340,16 +345,18 @@ func New(options *Options) *API {
 	api.workspaceAppServer = &workspaceapps.Server{
 		Logger: options.Logger.Named("workspaceapps"),
 
-		DashboardURL:     api.AccessURL,
-		AccessURL:        api.AccessURL,
-		Hostname:         api.AppHostname,
-		HostnameRegex:    api.AppHostnameRegex,
-		DeploymentValues: options.DeploymentValues,
-		RealIPConfig:     options.RealIPConfig,
+		DashboardURL:  api.AccessURL,
+		AccessURL:     api.AccessURL,
+		Hostname:      api.AppHostname,
+		HostnameRegex: api.AppHostnameRegex,
+		RealIPConfig:  options.RealIPConfig,
 
 		SignedTokenProvider: api.WorkspaceAppsProvider,
 		WorkspaceConnCache:  api.workspaceAgentCache,
 		AppSecurityKey:      options.AppSecurityKey,
+
+		DisablePathApps:  options.DeploymentValues.DisablePathApps.Value(),
+		SecureAuthCookie: options.DeploymentValues.SecureAuthCookie.Value(),
 	}
 
 	apiKeyMiddleware := httpmw.ExtractAPIKeyMW(httpmw.ExtractAPIKeyConfig{
@@ -366,6 +373,14 @@ func New(options *Options) *API {
 		RedirectToLogin:             true,
 		DisableSessionExpiryRefresh: options.DeploymentValues.DisableSessionExpiryRefresh.Value(),
 		Optional:                    false,
+	})
+	// Same as the first but it's optional.
+	apiKeyMiddlewareOptional := httpmw.ExtractAPIKeyMW(httpmw.ExtractAPIKeyConfig{
+		DB:                          options.Database,
+		OAuth2Configs:               oauthConfigs,
+		RedirectToLogin:             false,
+		DisableSessionExpiryRefresh: options.DeploymentValues.DisableSessionExpiryRefresh.Value(),
+		Optional:                    true,
 	})
 
 	// API rate limit middleware. The counter is local and not shared between
@@ -389,7 +404,7 @@ func New(options *Options) *API {
 		//
 		// Workspace apps do their own auth and must be BEFORE the auth
 		// middleware.
-		api.workspaceAppServer.SubdomainAppMW(apiRateLimiter),
+		api.workspaceAppServer.HandleSubdomain(apiRateLimiter),
 		// Build-Version is helpful for debugging.
 		func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -450,7 +465,12 @@ func New(options *Options) *API {
 		// All CSP errors will be logged
 		r.Post("/csp/reports", api.logReportCSPViolations)
 
-		r.Get("/buildinfo", buildInfo)
+		r.Get("/buildinfo", buildInfo(api.AccessURL))
+		// /regions is overridden in the enterprise version
+		r.Group(func(r chi.Router) {
+			r.Use(apiKeyMiddleware)
+			r.Get("/regions", api.regions)
+		})
 		r.Route("/deployment", func(r chi.Router) {
 			r.Use(apiKeyMiddleware)
 			r.Get("/config", api.deploymentValues)
@@ -661,7 +681,14 @@ func New(options *Options) *API {
 			})
 			r.Route("/{workspaceagent}", func(r chi.Router) {
 				r.Use(
-					apiKeyMiddleware,
+					// Allow either API key or external workspace proxy auth and require it.
+					apiKeyMiddlewareOptional,
+					httpmw.ExtractWorkspaceProxy(httpmw.ExtractWorkspaceProxyConfig{
+						DB:       options.Database,
+						Optional: true,
+					}),
+					httpmw.RequireAPIKeyOrWorkspaceProxyAuth(),
+
 					httpmw.ExtractWorkspaceAgentParam(options.Database),
 					httpmw.ExtractWorkspaceParam(options.Database),
 				)
@@ -766,7 +793,16 @@ func New(options *Options) *API {
 		r.Get("/swagger/*", globalHTTPSwaggerHandler)
 	}
 
-	r.NotFound(compressHandler(http.HandlerFunc(api.siteHandler.ServeHTTP)).ServeHTTP)
+	// Add CSP headers to all static assets and pages. CSP headers only affect
+	// browsers, so these don't make sense on api routes.
+	cspMW := httpmw.CSPHeaders(func() []string {
+		if f := api.WorkspaceProxyHostsFn.Load(); f != nil {
+			return (*f)()
+		}
+		// By default we do not add extra websocket connections to the CSP
+		return []string{}
+	})
+	r.NotFound(cspMW(compressHandler(http.HandlerFunc(api.siteHandler.ServeHTTP))).ServeHTTP)
 	return api
 }
 
@@ -786,7 +822,12 @@ type API struct {
 	WorkspaceClientCoordinateOverride atomic.Pointer[func(rw http.ResponseWriter) bool]
 	TailnetCoordinator                atomic.Pointer[tailnet.Coordinator]
 	QuotaCommitter                    atomic.Pointer[proto.QuotaCommitter]
-	TemplateScheduleStore             *atomic.Pointer[schedule.TemplateScheduleStore]
+	// WorkspaceProxyHostsFn returns the hosts of healthy workspace proxies
+	// for header reasons.
+	WorkspaceProxyHostsFn atomic.Pointer[func() []string]
+	// TemplateScheduleStore is a pointer to an atomic pointer because this is
+	// passed to another struct, and we want them all to be the same reference.
+	TemplateScheduleStore *atomic.Pointer[schedule.TemplateScheduleStore]
 
 	HTTPAuth *HTTPAuthorizer
 

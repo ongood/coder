@@ -88,6 +88,7 @@ import (
 	"github.com/coder/coder/provisionersdk"
 	sdkproto "github.com/coder/coder/provisionersdk/proto"
 	"github.com/coder/coder/tailnet"
+	"github.com/coder/retry"
 	"github.com/coder/wgtunnel/tunnelsdk"
 )
 
@@ -255,7 +256,13 @@ func (r *RootCmd) Server(newAPI func(context.Context, *coderd.Options) (*coderd.
 			// which is caught by goleaks.
 			defer http.DefaultClient.CloseIdleConnections()
 
-			tracerProvider, sqlDriver := ConfigureTraceProvider(ctx, logger, inv, cfg)
+			tracerProvider, sqlDriver, closeTracing := ConfigureTraceProvider(ctx, logger, inv, cfg)
+			defer func() {
+				logger.Debug(ctx, "closing tracing")
+				traceCloseErr := shutdownWithTimeout(closeTracing, 5*time.Second)
+				logger.Debug(ctx, "tracing closed", slog.Error(traceCloseErr))
+			}()
+
 			httpServers, err := ConfigureHTTPServers(inv, cfg)
 			if err != nil {
 				return xerrors.Errorf("configure http(s): %w", err)
@@ -390,6 +397,19 @@ func (r *RootCmd) Server(newAPI func(context.Context, *coderd.Options) (*coderd.
 			if !cfg.DERP.Server.Enable {
 				defaultRegion = nil
 			}
+
+			// HACK: see https://github.com/coder/coder/issues/6791.
+			for _, addr := range cfg.DERP.Server.STUNAddresses {
+				if addr != "disable" {
+					continue
+				}
+				err := cfg.DERP.Server.STUNAddresses.Replace(nil)
+				if err != nil {
+					panic(err)
+				}
+				break
+			}
+
 			derpMap, err := tailnet.NewDERPMap(
 				ctx, defaultRegion, cfg.DERP.Server.STUNAddresses,
 				cfg.DERP.Config.URL.String(), cfg.DERP.Config.Path.String(),
@@ -710,6 +730,20 @@ func (r *RootCmd) Server(newAPI func(context.Context, *coderd.Options) (*coderd.
 						return xerrors.Errorf("register agent stats prometheus metric: %w", err)
 					}
 					defer closeAgentStatsFunc()
+
+					metricsAggregator, err := prometheusmetrics.NewMetricsAggregator(logger, options.PrometheusRegistry, 0)
+					if err != nil {
+						return xerrors.Errorf("can't initialize metrics aggregator: %w", err)
+					}
+
+					cancelMetricsAggregator := metricsAggregator.Run(ctx)
+					defer cancelMetricsAggregator()
+
+					options.UpdateAgentMetrics = metricsAggregator.Update
+					err = options.PrometheusRegistry.Register(metricsAggregator)
+					if err != nil {
+						return xerrors.Errorf("can't register metrics aggregator as collector: %w", err)
+					}
 				}
 
 				//nolint:revive
@@ -1706,45 +1740,64 @@ func BuildLogger(inv *clibase.Invocation, cfg *codersdk.DeploymentValues) (slog.
 
 func connectToPostgres(ctx context.Context, logger slog.Logger, driver string, dbURL string) (*sql.DB, error) {
 	logger.Debug(ctx, "connecting to postgresql")
-	sqlDB, err := sql.Open(driver, dbURL)
-	if err != nil {
-		return nil, xerrors.Errorf("dial postgres: %w", err)
-	}
 
-	ok := false
+	// Try to connect for 30 seconds.
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	var (
+		sqlDB *sql.DB
+		err   error
+		ok    = false
+		tries int
+	)
+	for r := retry.New(time.Second, 3*time.Second); r.Wait(ctx); {
+		tries++
+
+		sqlDB, err = sql.Open(driver, dbURL)
+		if err != nil {
+			logger.Warn(ctx, "connect to postgres; retrying", slog.Error(err), slog.F("try", tries))
+			continue
+		}
+
+		err = pingPostgres(ctx, sqlDB)
+		if err != nil {
+			logger.Warn(ctx, "ping postgres; retrying", slog.Error(err), slog.F("try", tries))
+			continue
+		}
+
+		break
+	}
+	// Make sure we close the DB in case it opened but the ping failed for some
+	// reason.
 	defer func() {
-		if !ok {
+		if !ok && sqlDB != nil {
 			_ = sqlDB.Close()
 		}
 	}()
-
-	pingCtx, pingCancel := context.WithTimeout(ctx, 15*time.Second)
-	defer pingCancel()
-
-	err = sqlDB.PingContext(pingCtx)
 	if err != nil {
-		return nil, xerrors.Errorf("ping postgres: %w", err)
+		return nil, xerrors.Errorf("connect to postgres; tries %d; last error: %w", tries, err)
 	}
 
 	// Ensure the PostgreSQL version is >=13.0.0!
-	version, err := sqlDB.QueryContext(ctx, "SHOW server_version;")
+	version, err := sqlDB.QueryContext(ctx, "SHOW server_version_num;")
 	if err != nil {
 		return nil, xerrors.Errorf("get postgres version: %w", err)
 	}
 	if !version.Next() {
 		return nil, xerrors.Errorf("no rows returned for version select")
 	}
-	var versionStr string
-	err = version.Scan(&versionStr)
+	var versionNum int
+	err = version.Scan(&versionNum)
 	if err != nil {
 		return nil, xerrors.Errorf("scan version: %w", err)
 	}
 	_ = version.Close()
-	versionStr = strings.Split(versionStr, " ")[0]
-	if semver.Compare("v"+versionStr, "v13") < 0 {
-		return nil, xerrors.New("PostgreSQL version must be v13.0.0 or higher!")
+
+	if versionNum < 130000 {
+		return nil, xerrors.Errorf("PostgreSQL version must be v13.0.0 or higher! Got: %d", versionNum)
 	}
-	logger.Debug(ctx, "connected to postgresql", slog.F("version", versionStr))
+	logger.Debug(ctx, "connected to postgresql", slog.F("version", versionNum))
 
 	err = migrations.Up(sqlDB)
 	if err != nil {
@@ -1770,6 +1823,12 @@ func connectToPostgres(ctx context.Context, logger slog.Logger, driver string, d
 
 	ok = true
 	return sqlDB, nil
+}
+
+func pingPostgres(ctx context.Context, db *sql.DB) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	return db.PingContext(ctx)
 }
 
 type HTTPServers struct {
@@ -1810,9 +1869,15 @@ func (s *HTTPServers) Close() {
 	}
 }
 
-func ConfigureTraceProvider(ctx context.Context, logger slog.Logger, inv *clibase.Invocation, cfg *codersdk.DeploymentValues) (trace.TracerProvider, string) {
+func ConfigureTraceProvider(
+	ctx context.Context,
+	logger slog.Logger,
+	inv *clibase.Invocation,
+	cfg *codersdk.DeploymentValues,
+) (trace.TracerProvider, string, func(context.Context) error) {
 	var (
-		tracerProvider trace.TracerProvider
+		tracerProvider = trace.NewNoopTracerProvider()
+		closeTracing   = func(context.Context) error { return nil }
 		sqlDriver      = "postgres"
 	)
 	// Coder tracing should be disabled if telemetry is disabled unless
@@ -1825,7 +1890,7 @@ func ConfigureTraceProvider(ctx context.Context, logger slog.Logger, inv *clibas
 	}
 
 	if cfg.Trace.Enable.Value() || shouldCoderTrace || cfg.Trace.HoneycombAPIKey != "" {
-		sdkTracerProvider, closeTracing, err := tracing.TracerProvider(ctx, "coderd", tracing.TracerOpts{
+		sdkTracerProvider, _closeTracing, err := tracing.TracerProvider(ctx, "coderd", tracing.TracerOpts{
 			Default:   cfg.Trace.Enable.Value(),
 			Coder:     shouldCoderTrace,
 			Honeycomb: cfg.Trace.HoneycombAPIKey.String(),
@@ -1833,11 +1898,6 @@ func ConfigureTraceProvider(ctx context.Context, logger slog.Logger, inv *clibas
 		if err != nil {
 			logger.Warn(ctx, "start telemetry exporter", slog.Error(err))
 		} else {
-			// allow time for traces to flush even if command context is canceled
-			defer func() {
-				_ = shutdownWithTimeout(closeTracing, 5*time.Second)
-			}()
-
 			d, err := tracing.PostgresDriver(sdkTracerProvider, "coderd.database")
 			if err != nil {
 				logger.Warn(ctx, "start postgres tracing driver", slog.Error(err))
@@ -1846,9 +1906,10 @@ func ConfigureTraceProvider(ctx context.Context, logger slog.Logger, inv *clibas
 			}
 
 			tracerProvider = sdkTracerProvider
+			closeTracing = _closeTracing
 		}
 	}
-	return tracerProvider, sqlDriver
+	return tracerProvider, sqlDriver, closeTracing
 }
 
 func ConfigureHTTPServers(inv *clibase.Invocation, cfg *codersdk.DeploymentValues) (_ *HTTPServers, err error) {

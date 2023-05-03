@@ -16,6 +16,46 @@
 | `document`  | string | true     |              |             |
 | `signature` | string | true     |              |             |
 
+## agentsdk.AgentMetric
+
+```json
+{
+  "name": "string",
+  "type": "counter",
+  "value": 0
+}
+```
+
+### Properties
+
+| Name    | Type                                                 | Required | Restrictions | Description |
+| ------- | ---------------------------------------------------- | -------- | ------------ | ----------- |
+| `name`  | string                                               | true     |              |             |
+| `type`  | [agentsdk.AgentMetricType](#agentsdkagentmetrictype) | true     |              |             |
+| `value` | number                                               | true     |              |             |
+
+#### Enumerated Values
+
+| Property | Value     |
+| -------- | --------- |
+| `type`   | `counter` |
+| `type`   | `gauge`   |
+
+## agentsdk.AgentMetricType
+
+```json
+"counter"
+```
+
+### Properties
+
+#### Enumerated Values
+
+| Value     |
+| --------- |
+| `counter` |
+| `gauge`   |
+
 ## agentsdk.AuthenticateResponse
 
 ```json
@@ -326,6 +366,13 @@
     "property1": 0,
     "property2": 0
   },
+  "metrics": [
+    {
+      "name": "string",
+      "type": "counter",
+      "value": 0
+    }
+  ],
   "rx_bytes": 0,
   "rx_packets": 0,
   "session_count_jetbrains": 0,
@@ -339,20 +386,21 @@
 
 ### Properties
 
-| Name                             | Type    | Required | Restrictions | Description                                                                                                                   |
-| -------------------------------- | ------- | -------- | ------------ | ----------------------------------------------------------------------------------------------------------------------------- |
-| `connection_count`               | integer | false    |              | Connection count is the number of connections received by an agent.                                                           |
-| `connection_median_latency_ms`   | number  | false    |              | Connection median latency ms is the median latency of all connections in milliseconds.                                        |
-| `connections_by_proto`           | object  | false    |              | Connections by proto is a count of connections by protocol.                                                                   |
-| » `[any property]`               | integer | false    |              |                                                                                                                               |
-| `rx_bytes`                       | integer | false    |              | Rx bytes is the number of received bytes.                                                                                     |
-| `rx_packets`                     | integer | false    |              | Rx packets is the number of received packets.                                                                                 |
-| `session_count_jetbrains`        | integer | false    |              | Session count jetbrains is the number of connections received by an agent that are from our JetBrains extension.              |
-| `session_count_reconnecting_pty` | integer | false    |              | Session count reconnecting pty is the number of connections received by an agent that are from the reconnecting web terminal. |
-| `session_count_ssh`              | integer | false    |              | Session count ssh is the number of connections received by an agent that are normal, non-tagged SSH sessions.                 |
-| `session_count_vscode`           | integer | false    |              | Session count vscode is the number of connections received by an agent that are from our VS Code extension.                   |
-| `tx_bytes`                       | integer | false    |              | Tx bytes is the number of transmitted bytes.                                                                                  |
-| `tx_packets`                     | integer | false    |              | Tx packets is the number of transmitted bytes.                                                                                |
+| Name                             | Type                                                  | Required | Restrictions | Description                                                                                                                   |
+| -------------------------------- | ----------------------------------------------------- | -------- | ------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| `connection_count`               | integer                                               | false    |              | Connection count is the number of connections received by an agent.                                                           |
+| `connection_median_latency_ms`   | number                                                | false    |              | Connection median latency ms is the median latency of all connections in milliseconds.                                        |
+| `connections_by_proto`           | object                                                | false    |              | Connections by proto is a count of connections by protocol.                                                                   |
+| » `[any property]`               | integer                                               | false    |              |                                                                                                                               |
+| `metrics`                        | array of [agentsdk.AgentMetric](#agentsdkagentmetric) | false    |              | Metrics collected by the agent                                                                                                |
+| `rx_bytes`                       | integer                                               | false    |              | Rx bytes is the number of received bytes.                                                                                     |
+| `rx_packets`                     | integer                                               | false    |              | Rx packets is the number of received packets.                                                                                 |
+| `session_count_jetbrains`        | integer                                               | false    |              | Session count jetbrains is the number of connections received by an agent that are from our JetBrains extension.              |
+| `session_count_reconnecting_pty` | integer                                               | false    |              | Session count reconnecting pty is the number of connections received by an agent that are from the reconnecting web terminal. |
+| `session_count_ssh`              | integer                                               | false    |              | Session count ssh is the number of connections received by an agent that are normal, non-tagged SSH sessions.                 |
+| `session_count_vscode`           | integer                                               | false    |              | Session count vscode is the number of connections received by an agent that are from our VS Code extension.                   |
+| `tx_bytes`                       | integer                                               | false    |              | Tx bytes is the number of transmitted bytes.                                                                                  |
+| `tx_packets`                     | integer                                               | false    |              | Tx packets is the number of transmitted bytes.                                                                                |
 
 ## agentsdk.StatsResponse
 
@@ -1141,17 +1189,21 @@ AuthorizationObject can represent a "set" of objects, such as: all workspaces in
 
 ```json
 {
+  "dashboard_url": "string",
   "external_url": "string",
-  "version": "string"
+  "version": "string",
+  "workspace_proxy": true
 }
 ```
 
 ### Properties
 
-| Name           | Type   | Required | Restrictions | Description                                                                                                                                                         |
-| -------------- | ------ | -------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `external_url` | string | false    |              | External URL references the current Coder version. For production builds, this will link directly to a release. For development builds, this will link to a commit. |
-| `version`      | string | false    |              | Version returns the semantic version of the build.                                                                                                                  |
+| Name              | Type    | Required | Restrictions | Description                                                                                                                                                         |
+| ----------------- | ------- | -------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dashboard_url`   | string  | false    |              | Dashboard URL is the URL to hit the deployment's dashboard. For external workspace proxies, this is the coderd they are connected to.                               |
+| `external_url`    | string  | false    |              | External URL references the current Coder version. For production builds, this will link directly to a release. For development builds, this will link to a commit. |
+| `version`         | string  | false    |              | Version returns the semantic version of the build.                                                                                                                  |
+| `workspace_proxy` | boolean | false    |              |                                                                                                                                                                     |
 
 ## codersdk.BuildReason
 
@@ -1553,21 +1605,17 @@ CreateParameterRequest is a structure used to create a new parameter value for a
 {
   "display_name": "string",
   "icon": "string",
-  "name": "string",
-  "url": "string",
-  "wildcard_hostname": "string"
+  "name": "string"
 }
 ```
 
 ### Properties
 
-| Name                | Type   | Required | Restrictions | Description |
-| ------------------- | ------ | -------- | ------------ | ----------- |
-| `display_name`      | string | false    |              |             |
-| `icon`              | string | false    |              |             |
-| `name`              | string | false    |              |             |
-| `url`               | string | false    |              |             |
-| `wildcard_hostname` | string | false    |              |             |
+| Name           | Type   | Required | Restrictions | Description |
+| -------------- | ------ | -------- | ------------ | ----------- |
+| `display_name` | string | false    |              |             |
+| `icon`         | string | false    |              |             |
+| `name`         | string | false    |              |             |
 
 ## codersdk.CreateWorkspaceRequest
 
@@ -2447,17 +2495,16 @@ CreateParameterRequest is a structure used to create a new parameter value for a
 ## codersdk.Experiment
 
 ```json
-"template_editor"
+"moons"
 ```
 
 ### Properties
 
 #### Enumerated Values
 
-| Value             |
-| ----------------- |
-| `template_editor` |
-| `moons`           |
+| Value   |
+| ------- |
+| `moons` |
 
 ## codersdk.Feature
 
@@ -2651,6 +2698,36 @@ CreateParameterRequest is a structure used to create a new parameter value for a
 | `interval`  | integer | false    |              | Interval specifies the seconds between each health check.                                        |
 | `threshold` | integer | false    |              | Threshold specifies the number of consecutive failed health checks before returning "unhealthy". |
 | `url`       | string  | false    |              | URL specifies the endpoint to check for the app health.                                          |
+
+## codersdk.IssueReconnectingPTYSignedTokenRequest
+
+```json
+{
+  "agentID": "bc282582-04f9-45ce-b904-3e3bfab66958",
+  "url": "string"
+}
+```
+
+### Properties
+
+| Name      | Type   | Required | Restrictions | Description                                                            |
+| --------- | ------ | -------- | ------------ | ---------------------------------------------------------------------- |
+| `agentID` | string | true     |              |                                                                        |
+| `url`     | string | true     |              | URL is the URL of the reconnecting-pty endpoint you are connecting to. |
+
+## codersdk.IssueReconnectingPTYSignedTokenResponse
+
+```json
+{
+  "signed_token": "string"
+}
+```
+
+### Properties
+
+| Name           | Type   | Required | Restrictions | Description |
+| -------------- | ------ | -------- | ------------ | ----------- |
+| `signed_token` | string | false    |              |             |
 
 ## codersdk.JobErrorCode
 
@@ -3353,6 +3430,39 @@ Parameter represents a set value for the scope.
 | ------ |
 | `file` |
 
+## codersdk.ProxyHealthReport
+
+```json
+{
+  "errors": ["string"],
+  "warnings": ["string"]
+}
+```
+
+### Properties
+
+| Name       | Type            | Required | Restrictions | Description                                                                              |
+| ---------- | --------------- | -------- | ------------ | ---------------------------------------------------------------------------------------- |
+| `errors`   | array of string | false    |              | Errors are problems that prevent the workspace proxy from being healthy                  |
+| `warnings` | array of string | false    |              | Warnings do not prevent the workspace proxy from being healthy, but should be addressed. |
+
+## codersdk.ProxyHealthStatus
+
+```json
+"reachable"
+```
+
+### Properties
+
+#### Enumerated Values
+
+| Value          |
+| -------------- |
+| `reachable`    |
+| `unreachable`  |
+| `unhealthy`    |
+| `unregistered` |
+
 ## codersdk.PutExtendWorkspaceRequest
 
 ```json
@@ -3417,6 +3527,56 @@ Parameter represents a set value for the scope.
 | ------------- | ------- | -------- | ------------ | ----------- |
 | `api`         | integer | false    |              |             |
 | `disable_all` | boolean | false    |              |             |
+
+## codersdk.Region
+
+```json
+{
+  "display_name": "string",
+  "healthy": true,
+  "icon_url": "string",
+  "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+  "name": "string",
+  "path_app_url": "string",
+  "wildcard_hostname": "string"
+}
+```
+
+### Properties
+
+| Name                | Type    | Required | Restrictions | Description                                                                                                                                                                        |
+| ------------------- | ------- | -------- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `display_name`      | string  | false    |              |                                                                                                                                                                                    |
+| `healthy`           | boolean | false    |              |                                                                                                                                                                                    |
+| `icon_url`          | string  | false    |              |                                                                                                                                                                                    |
+| `id`                | string  | false    |              |                                                                                                                                                                                    |
+| `name`              | string  | false    |              |                                                                                                                                                                                    |
+| `path_app_url`      | string  | false    |              | Path app URL is the URL to the base path for path apps. Optional unless wildcard_hostname is set. E.g. https://us.example.com                                                      |
+| `wildcard_hostname` | string  | false    |              | Wildcard hostname is the wildcard hostname for subdomain apps. E.g. _.us.example.com E.g. _--suffix.au.example.com Optional. Does not need to be on the same domain as PathAppURL. |
+
+## codersdk.RegionsResponse
+
+```json
+{
+  "regions": [
+    {
+      "display_name": "string",
+      "healthy": true,
+      "icon_url": "string",
+      "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+      "name": "string",
+      "path_app_url": "string",
+      "wildcard_hostname": "string"
+    }
+  ]
+}
+```
+
+### Properties
+
+| Name      | Type                                        | Required | Restrictions | Description |
+| --------- | ------------------------------------------- | -------- | ------------ | ----------- |
+| `regions` | array of [codersdk.Region](#codersdkregion) | false    |              |             |
 
 ## codersdk.Replica
 
@@ -5163,7 +5323,14 @@ Parameter represents a set value for the scope.
   "icon": "string",
   "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
   "name": "string",
-  "organization_id": "7c60d51f-b44e-4682-87d6-449835ea4de6",
+  "status": {
+    "checked_at": "2019-08-24T14:15:22Z",
+    "report": {
+      "errors": ["string"],
+      "warnings": ["string"]
+    },
+    "status": "reachable"
+  },
   "updated_at": "2019-08-24T14:15:22Z",
   "url": "string",
   "wildcard_hostname": "string"
@@ -5172,17 +5339,38 @@ Parameter represents a set value for the scope.
 
 ### Properties
 
-| Name                | Type    | Required | Restrictions | Description                                                                            |
-| ------------------- | ------- | -------- | ------------ | -------------------------------------------------------------------------------------- |
-| `created_at`        | string  | false    |              |                                                                                        |
-| `deleted`           | boolean | false    |              |                                                                                        |
-| `icon`              | string  | false    |              |                                                                                        |
-| `id`                | string  | false    |              |                                                                                        |
-| `name`              | string  | false    |              |                                                                                        |
-| `organization_id`   | string  | false    |              |                                                                                        |
-| `updated_at`        | string  | false    |              |                                                                                        |
-| `url`               | string  | false    |              | Full URL including scheme of the proxy api url: https://us.example.com                 |
-| `wildcard_hostname` | string  | false    |              | Wildcard hostname with the wildcard for subdomain based app hosting: \*.us.example.com |
+| Name                | Type                                                           | Required | Restrictions | Description                                                                                                                                                                   |
+| ------------------- | -------------------------------------------------------------- | -------- | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `created_at`        | string                                                         | false    |              |                                                                                                                                                                               |
+| `deleted`           | boolean                                                        | false    |              |                                                                                                                                                                               |
+| `icon`              | string                                                         | false    |              |                                                                                                                                                                               |
+| `id`                | string                                                         | false    |              |                                                                                                                                                                               |
+| `name`              | string                                                         | false    |              |                                                                                                                                                                               |
+| `status`            | [codersdk.WorkspaceProxyStatus](#codersdkworkspaceproxystatus) | false    |              | Status is the latest status check of the proxy. This will be empty for deleted proxies. This value can be used to determine if a workspace proxy is healthy and ready to use. |
+| `updated_at`        | string                                                         | false    |              |                                                                                                                                                                               |
+| `url`               | string                                                         | false    |              | Full URL including scheme of the proxy api url: https://us.example.com                                                                                                        |
+| `wildcard_hostname` | string                                                         | false    |              | Wildcard hostname with the wildcard for subdomain based app hosting: \*.us.example.com                                                                                        |
+
+## codersdk.WorkspaceProxyStatus
+
+```json
+{
+  "checked_at": "2019-08-24T14:15:22Z",
+  "report": {
+    "errors": ["string"],
+    "warnings": ["string"]
+  },
+  "status": "reachable"
+}
+```
+
+### Properties
+
+| Name         | Type                                                     | Required | Restrictions | Description                                                               |
+| ------------ | -------------------------------------------------------- | -------- | ------------ | ------------------------------------------------------------------------- |
+| `checked_at` | string                                                   | false    |              |                                                                           |
+| `report`     | [codersdk.ProxyHealthReport](#codersdkproxyhealthreport) | false    |              | Report provides more information about the health of the workspace proxy. |
+| `status`     | [codersdk.ProxyHealthStatus](#codersdkproxyhealthstatus) | false    |              |                                                                           |
 
 ## codersdk.WorkspaceQuota
 
@@ -5562,6 +5750,46 @@ Parameter represents a set value for the scope.
 | `none` |
 | `data` |
 
+## derp.ServerInfoMessage
+
+```json
+{
+  "tokenBucketBytesBurst": 0,
+  "tokenBucketBytesPerSecond": 0
+}
+```
+
+### Properties
+
+| Name                                                                                       | Type    | Required | Restrictions | Description                                                                                                              |
+| ------------------------------------------------------------------------------------------ | ------- | -------- | ------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| `tokenBucketBytesBurst`                                                                    | integer | false    |              | Tokenbucketbytesburst is how many bytes the server will allow to burst, temporarily violating TokenBucketBytesPerSecond. |
+| Zero means unspecified. There might be a limit, but the client need not try to respect it. |
+| `tokenBucketBytesPerSecond`                                                                | integer | false    |              | Tokenbucketbytespersecond is how many bytes per second the server says it will accept, including all framing bytes.      |
+| Zero means unspecified. There might be a limit, but the client need not try to respect it. |
+
+## healthcheck.AccessURLReport
+
+```json
+{
+  "error": null,
+  "healthy": true,
+  "healthzResponse": "string",
+  "reachable": true,
+  "statusCode": 0
+}
+```
+
+### Properties
+
+| Name              | Type    | Required | Restrictions | Description |
+| ----------------- | ------- | -------- | ------------ | ----------- |
+| `error`           | any     | false    |              |             |
+| `healthy`         | boolean | false    |              |             |
+| `healthzResponse` | string  | false    |              |             |
+| `reachable`       | boolean | false    |              |             |
+| `statusCode`      | integer | false    |              |             |
+
 ## healthcheck.DERPNodeReport
 
 ```json
@@ -5569,6 +5797,7 @@ Parameter represents a set value for the scope.
   "can_exchange_messages": true,
   "client_errs": [[null]],
   "client_logs": [["string"]],
+  "error": null,
   "healthy": true,
   "node": {
     "certName": "string",
@@ -5583,6 +5812,10 @@ Parameter represents a set value for the scope.
     "stunonly": true,
     "stunport": 0,
     "stuntestIP": "string"
+  },
+  "node_info": {
+    "tokenBucketBytesBurst": 0,
+    "tokenBucketBytesPerSecond": 0
   },
   "round_trip_ping": 0,
   "stun": {
@@ -5601,8 +5834,10 @@ Parameter represents a set value for the scope.
 | `can_exchange_messages` | boolean                                                  | false    |              |             |
 | `client_errs`           | array of array                                           | false    |              |             |
 | `client_logs`           | array of array                                           | false    |              |             |
+| `error`                 | any                                                      | false    |              |             |
 | `healthy`               | boolean                                                  | false    |              |             |
 | `node`                  | [tailcfg.DERPNode](#tailcfgderpnode)                     | false    |              |             |
+| `node_info`             | [derp.ServerInfoMessage](#derpserverinfomessage)         | false    |              |             |
 | `round_trip_ping`       | integer                                                  | false    |              |             |
 | `stun`                  | [healthcheck.DERPStunReport](#healthcheckderpstunreport) | false    |              |             |
 | `uses_websocket`        | boolean                                                  | false    |              |             |
@@ -5611,12 +5846,14 @@ Parameter represents a set value for the scope.
 
 ```json
 {
+  "error": null,
   "healthy": true,
   "node_reports": [
     {
       "can_exchange_messages": true,
       "client_errs": [[null]],
       "client_logs": [["string"]],
+      "error": null,
       "healthy": true,
       "node": {
         "certName": "string",
@@ -5631,6 +5868,10 @@ Parameter represents a set value for the scope.
         "stunonly": true,
         "stunport": 0,
         "stuntestIP": "string"
+      },
+      "node_info": {
+        "tokenBucketBytesBurst": 0,
+        "tokenBucketBytesPerSecond": 0
       },
       "round_trip_ping": 0,
       "stun": {
@@ -5671,6 +5912,7 @@ Parameter represents a set value for the scope.
 
 | Name           | Type                                                              | Required | Restrictions | Description |
 | -------------- | ----------------------------------------------------------------- | -------- | ------------ | ----------- |
+| `error`        | any                                                               | false    |              |             |
 | `healthy`      | boolean                                                           | false    |              |             |
 | `node_reports` | array of [healthcheck.DERPNodeReport](#healthcheckderpnodereport) | false    |              |             |
 | `region`       | [tailcfg.DERPRegion](#tailcfgderpregion)                          | false    |              |             |
@@ -5679,6 +5921,7 @@ Parameter represents a set value for the scope.
 
 ```json
 {
+  "error": null,
   "healthy": true,
   "netcheck": {
     "captivePortal": "string",
@@ -5710,15 +5953,18 @@ Parameter represents a set value for the scope.
     "udp": true,
     "upnP": "string"
   },
+  "netcheck_err": null,
   "netcheck_logs": ["string"],
   "regions": {
     "property1": {
+      "error": null,
       "healthy": true,
       "node_reports": [
         {
           "can_exchange_messages": true,
           "client_errs": [[null]],
           "client_logs": [["string"]],
+          "error": null,
           "healthy": true,
           "node": {
             "certName": "string",
@@ -5733,6 +5979,10 @@ Parameter represents a set value for the scope.
             "stunonly": true,
             "stunport": 0,
             "stuntestIP": "string"
+          },
+          "node_info": {
+            "tokenBucketBytesBurst": 0,
+            "tokenBucketBytesPerSecond": 0
           },
           "round_trip_ping": 0,
           "stun": {
@@ -5768,12 +6018,14 @@ Parameter represents a set value for the scope.
       }
     },
     "property2": {
+      "error": null,
       "healthy": true,
       "node_reports": [
         {
           "can_exchange_messages": true,
           "client_errs": [[null]],
           "client_logs": [["string"]],
+          "error": null,
           "healthy": true,
           "node": {
             "certName": "string",
@@ -5788,6 +6040,10 @@ Parameter represents a set value for the scope.
             "stunonly": true,
             "stunport": 0,
             "stuntestIP": "string"
+          },
+          "node_info": {
+            "tokenBucketBytesBurst": 0,
+            "tokenBucketBytesPerSecond": 0
           },
           "round_trip_ping": 0,
           "stun": {
@@ -5830,8 +6086,10 @@ Parameter represents a set value for the scope.
 
 | Name               | Type                                                         | Required | Restrictions | Description |
 | ------------------ | ------------------------------------------------------------ | -------- | ------------ | ----------- |
+| `error`            | any                                                          | false    |              |             |
 | `healthy`          | boolean                                                      | false    |              |             |
 | `netcheck`         | [netcheck.Report](#netcheckreport)                           | false    |              |             |
+| `netcheck_err`     | any                                                          | false    |              |             |
 | `netcheck_logs`    | array of string                                              | false    |              |             |
 | `regions`          | object                                                       | false    |              |             |
 | » `[any property]` | [healthcheck.DERPRegionReport](#healthcheckderpregionreport) | false    |              |             |
@@ -5858,7 +6116,15 @@ Parameter represents a set value for the scope.
 
 ```json
 {
+  "access_url": {
+    "error": null,
+    "healthy": true,
+    "healthzResponse": "string",
+    "reachable": true,
+    "statusCode": 0
+  },
   "derp": {
+    "error": null,
     "healthy": true,
     "netcheck": {
       "captivePortal": "string",
@@ -5890,15 +6156,18 @@ Parameter represents a set value for the scope.
       "udp": true,
       "upnP": "string"
     },
+    "netcheck_err": null,
     "netcheck_logs": ["string"],
     "regions": {
       "property1": {
+        "error": null,
         "healthy": true,
         "node_reports": [
           {
             "can_exchange_messages": true,
             "client_errs": [[null]],
             "client_logs": [["string"]],
+            "error": null,
             "healthy": true,
             "node": {
               "certName": "string",
@@ -5913,6 +6182,10 @@ Parameter represents a set value for the scope.
               "stunonly": true,
               "stunport": 0,
               "stuntestIP": "string"
+            },
+            "node_info": {
+              "tokenBucketBytesBurst": 0,
+              "tokenBucketBytesPerSecond": 0
             },
             "round_trip_ping": 0,
             "stun": {
@@ -5948,12 +6221,14 @@ Parameter represents a set value for the scope.
         }
       },
       "property2": {
+        "error": null,
         "healthy": true,
         "node_reports": [
           {
             "can_exchange_messages": true,
             "client_errs": [[null]],
             "client_logs": [["string"]],
+            "error": null,
             "healthy": true,
             "node": {
               "certName": "string",
@@ -5968,6 +6243,10 @@ Parameter represents a set value for the scope.
               "stunonly": true,
               "stunport": 0,
               "stuntestIP": "string"
+            },
+            "node_info": {
+              "tokenBucketBytesBurst": 0,
+              "tokenBucketBytesPerSecond": 0
             },
             "round_trip_ping": 0,
             "stun": {
@@ -6011,11 +6290,12 @@ Parameter represents a set value for the scope.
 
 ### Properties
 
-| Name   | Type                                             | Required | Restrictions | Description                                      |
-| ------ | ------------------------------------------------ | -------- | ------------ | ------------------------------------------------ |
-| `derp` | [healthcheck.DERPReport](#healthcheckderpreport) | false    |              |                                                  |
-| `pass` | boolean                                          | false    |              | Healthy is true if the report returns no errors. |
-| `time` | string                                           | false    |              | Time is the time the report was generated at.    |
+| Name         | Type                                                       | Required | Restrictions | Description                                      |
+| ------------ | ---------------------------------------------------------- | -------- | ------------ | ------------------------------------------------ |
+| `access_url` | [healthcheck.AccessURLReport](#healthcheckaccessurlreport) | false    |              |                                                  |
+| `derp`       | [healthcheck.DERPReport](#healthcheckderpreport)           | false    |              |                                                  |
+| `pass`       | boolean                                                    | false    |              | Healthy is true if the report returns no errors. |
+| `time`       | string                                                     | false    |              | Time is the time the report was generated at.    |
 
 ## netcheck.Report
 
@@ -6287,3 +6567,118 @@ RegionIDs in range 900-999 are reserved for end users to run their own DERP node
 ### Properties
 
 _None_
+
+## workspaceapps.AccessMethod
+
+```json
+"path"
+```
+
+### Properties
+
+#### Enumerated Values
+
+| Value       |
+| ----------- |
+| `path`      |
+| `subdomain` |
+| `terminal`  |
+
+## workspaceapps.IssueTokenRequest
+
+```json
+{
+  "app_hostname": "string",
+  "app_path": "string",
+  "app_query": "string",
+  "app_request": {
+    "access_method": "path",
+    "agent_name_or_id": "string",
+    "app_slug_or_port": "string",
+    "base_path": "string",
+    "username_or_id": "string",
+    "workspace_name_or_id": "string"
+  },
+  "path_app_base_url": "string",
+  "session_token": "string"
+}
+```
+
+### Properties
+
+| Name                | Type                                           | Required | Restrictions | Description                                                                                                     |
+| ------------------- | ---------------------------------------------- | -------- | ------------ | --------------------------------------------------------------------------------------------------------------- |
+| `app_hostname`      | string                                         | false    |              | App hostname is the optional hostname for subdomain apps on the external proxy. It must start with an asterisk. |
+| `app_path`          | string                                         | false    |              | App path is the path of the user underneath the app base path.                                                  |
+| `app_query`         | string                                         | false    |              | App query is the query parameters the user provided in the app request.                                         |
+| `app_request`       | [workspaceapps.Request](#workspaceappsrequest) | false    |              |                                                                                                                 |
+| `path_app_base_url` | string                                         | false    |              | Path app base URL is required.                                                                                  |
+| `session_token`     | string                                         | false    |              | Session token is the session token provided by the user.                                                        |
+
+## workspaceapps.Request
+
+```json
+{
+  "access_method": "path",
+  "agent_name_or_id": "string",
+  "app_slug_or_port": "string",
+  "base_path": "string",
+  "username_or_id": "string",
+  "workspace_name_or_id": "string"
+}
+```
+
+### Properties
+
+| Name                   | Type                                                     | Required | Restrictions | Description                                                                                                                                                                           |
+| ---------------------- | -------------------------------------------------------- | -------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `access_method`        | [workspaceapps.AccessMethod](#workspaceappsaccessmethod) | false    |              |                                                                                                                                                                                       |
+| `agent_name_or_id`     | string                                                   | false    |              | Agent name or ID is not required if the workspace has only one agent.                                                                                                                 |
+| `app_slug_or_port`     | string                                                   | false    |              |                                                                                                                                                                                       |
+| `base_path`            | string                                                   | false    |              | Base path of the app. For path apps, this is the path prefix in the router for this particular app. For subdomain apps, this should be "/". This is used for setting the cookie path. |
+| `username_or_id`       | string                                                   | false    |              | For the following fields, if the AccessMethod is AccessMethodTerminal, then only AgentNameOrID may be set and it must be a UUID. The other fields must be left blank.                 |
+| `workspace_name_or_id` | string                                                   | false    |              |                                                                                                                                                                                       |
+
+## wsproxysdk.IssueSignedAppTokenResponse
+
+```json
+{
+  "signed_token_str": "string"
+}
+```
+
+### Properties
+
+| Name               | Type   | Required | Restrictions | Description                                                 |
+| ------------------ | ------ | -------- | ------------ | ----------------------------------------------------------- |
+| `signed_token_str` | string | false    |              | Signed token str should be set as a cookie on the response. |
+
+## wsproxysdk.RegisterWorkspaceProxyRequest
+
+```json
+{
+  "access_url": "string",
+  "wildcard_hostname": "string"
+}
+```
+
+### Properties
+
+| Name                | Type   | Required | Restrictions | Description                                                                   |
+| ------------------- | ------ | -------- | ------------ | ----------------------------------------------------------------------------- |
+| `access_url`        | string | false    |              | Access URL that hits the workspace proxy api.                                 |
+| `wildcard_hostname` | string | false    |              | Wildcard hostname that the workspace proxy api is serving for subdomain apps. |
+
+## wsproxysdk.RegisterWorkspaceProxyResponse
+
+```json
+{
+  "app_security_key": "string"
+}
+```
+
+### Properties
+
+| Name               | Type   | Required | Restrictions | Description |
+| ------------------ | ------ | -------- | ------------ | ----------- |
+| `app_security_key` | string | false    |              |             |

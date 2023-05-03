@@ -3,7 +3,6 @@ import Link from "@material-ui/core/Link"
 import Popover from "@material-ui/core/Popover"
 import { makeStyles } from "@material-ui/core/styles"
 import TextField from "@material-ui/core/TextField"
-import OpenInNewOutlined from "@material-ui/icons/OpenInNewOutlined"
 import { Stack } from "components/Stack/Stack"
 import { useRef, useState, Fragment } from "react"
 import { colors } from "theme/colors"
@@ -17,6 +16,7 @@ import {
 import { Maybe } from "components/Conditionals/Maybe"
 import { useMachine } from "@xstate/react"
 import { portForwardMachine } from "xServices/portForward/portForwardXService"
+import { SecondaryAgentButton } from "components/Resources/AgentButton"
 
 export interface PortForwardButtonProps {
   host: string
@@ -43,6 +43,7 @@ export const portForwardURL = (
 
 const TooltipView: React.FC<PortForwardButtonProps> = (props) => {
   const { host, workspaceName, agentName, agentId, username } = props
+
   const styles = useStyles()
   const [port, setPort] = useState("3000")
   const urlExample = portForwardURL(
@@ -147,17 +148,14 @@ export const PortForwardButton: React.FC<PortForwardButtonProps> = (props) => {
 
   return (
     <>
-      <Button
-        className={styles.button}
-        startIcon={<OpenInNewOutlined />}
-        size="small"
+      <SecondaryAgentButton
         ref={anchorRef}
         onClick={() => {
           setIsOpen(true)
         }}
       >
-        端口转发
-      </Button>
+        Port forward
+      </SecondaryAgentButton>
       <Popover
         classes={{ paper: styles.popoverPaper }}
         id={id}
@@ -207,14 +205,5 @@ const useStyles = makeStyles((theme) => ({
 
   form: {
     margin: theme.spacing(1.5, 0, 0),
-  },
-
-  button: {
-    whiteSpace: "nowrap",
-    backgroundColor: theme.palette.background.default,
-
-    "&:hover": {
-      backgroundColor: `${theme.palette.background.default} !important`,
-    },
   },
 }))

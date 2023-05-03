@@ -74,8 +74,6 @@ export interface WorkspaceContext {
   // permissions
   permissions?: Permissions
   checkPermissionsError?: Error | unknown
-  // applications
-  applicationsHost?: string
   // debug
   createBuildLogLevel?: TypesGen.CreateWorkspaceBuildRequest["log_level"]
   // SSH Config
@@ -117,31 +115,32 @@ export const checks = {
 const permissionsToCheck = (
   workspace: TypesGen.Workspace,
   template: TypesGen.Template,
-) => ({
-  [checks.readWorkspace]: {
-    object: {
-      resource_type: "workspace",
-      resource_id: workspace.id,
-      owner_id: workspace.owner_id,
+) =>
+  ({
+    [checks.readWorkspace]: {
+      object: {
+        resource_type: "workspace",
+        resource_id: workspace.id,
+        owner_id: workspace.owner_id,
+      },
+      action: "read",
     },
-    action: "read",
-  },
-  [checks.updateWorkspace]: {
-    object: {
-      resource_type: "workspace",
-      resource_id: workspace.id,
-      owner_id: workspace.owner_id,
+    [checks.updateWorkspace]: {
+      object: {
+        resource_type: "workspace",
+        resource_id: workspace.id,
+        owner_id: workspace.owner_id,
+      },
+      action: "update",
     },
-    action: "update",
-  },
-  [checks.updateTemplate]: {
-    object: {
-      resource_type: "template",
-      resource_id: template.id,
+    [checks.updateTemplate]: {
+      object: {
+        resource_type: "template",
+        resource_id: template.id,
+      },
+      action: "update",
     },
-    action: "update",
-  },
-})
+  } as const)
 
 export const workspaceMachine = createMachine(
   {
@@ -187,9 +186,6 @@ export const workspaceMachine = createMachine(
         }
         checkPermissions: {
           data: TypesGen.AuthorizationResponse
-        }
-        getApplicationsHost: {
-          data: TypesGen.AppHostResponse
         }
         getSSHPrefix: {
           data: TypesGen.SSHConfigResponse
@@ -389,7 +385,7 @@ export const workspaceMachine = createMachine(
                 },
               },
               requestingStart: {
-                entry: ["clearBuildError", "updateStatusToPending"],
+                entry: ["clearBuildError"],
                 invoke: {
                   src: "startWorkspace",
                   id: "startWorkspace",
@@ -408,7 +404,7 @@ export const workspaceMachine = createMachine(
                 },
               },
               requestingStop: {
-                entry: ["clearBuildError", "updateStatusToPending"],
+                entry: ["clearBuildError"],
                 invoke: {
                   src: "stopWorkspace",
                   id: "stopWorkspace",
@@ -427,7 +423,7 @@ export const workspaceMachine = createMachine(
                 },
               },
               requestingDelete: {
-                entry: ["clearBuildError", "updateStatusToPending"],
+                entry: ["clearBuildError"],
                 invoke: {
                   src: "deleteWorkspace",
                   id: "deleteWorkspace",
@@ -446,11 +442,7 @@ export const workspaceMachine = createMachine(
                 },
               },
               requestingCancel: {
-                entry: [
-                  "clearCancellationMessage",
-                  "clearCancellationError",
-                  "updateStatusToPending",
-                ],
+                entry: ["clearCancellationMessage", "clearCancellationError"],
                 invoke: {
                   src: "cancelWorkspace",
                   id: "cancelWorkspace",
@@ -500,30 +492,6 @@ export const workspaceMachine = createMachine(
                     cond: "moreBuildsAvailable",
                   },
                 },
-              },
-            },
-          },
-          applications: {
-            initial: "gettingApplicationsHost",
-            states: {
-              gettingApplicationsHost: {
-                invoke: {
-                  src: "getApplicationsHost",
-                  onDone: {
-                    target: "success",
-                    actions: ["assignApplicationsHost"],
-                  },
-                  onError: {
-                    target: "error",
-                    actions: ["displayApplicationsHostError"],
-                  },
-                },
-              },
-              error: {
-                type: "final",
-              },
-              success: {
-                type: "final",
               },
             },
           },
@@ -659,17 +627,6 @@ export const workspaceMachine = createMachine(
       clearGetBuildsError: assign({
         getBuildsError: (_) => undefined,
       }),
-      // Applications
-      assignApplicationsHost: assign({
-        applicationsHost: (_, { data }) => data.host,
-      }),
-      displayApplicationsHostError: (_, { data }) => {
-        const message = getErrorMessage(
-          data,
-          "Error getting the applications host.",
-        )
-        displayError(message)
-      },
       // SSH
       assignSSHPrefix: assign({
         sshPrefix: (_, { data }) => data.hostname_prefix,
@@ -681,24 +638,7 @@ export const workspaceMachine = createMachine(
         )
         displayError(message)
       },
-      // Optimistically update. So when the user clicks on stop, we can show
-      // the "pending" state right away without having to wait 0.5s ~ 2s to
-      // display the visual feedback to the user.
-      updateStatusToPending: assign({
-        workspace: ({ workspace }) => {
-          if (!workspace) {
-            throw new Error("Workspace not defined")
-          }
 
-          return {
-            ...workspace,
-            latest_build: {
-              ...workspace.latest_build,
-              status: "pending" as TypesGen.WorkspaceStatus,
-            },
-          }
-        },
-      }),
       assignMissedParameters: assign({
         missedParameters: (_, { data }) => {
           if (!(data instanceof API.MissingBuildParameters)) {
@@ -851,6 +791,10 @@ export const workspaceMachine = createMachine(
         context.eventSource.onerror = () => {
           send({ type: "EVENT_SOURCE_ERROR", error: "sse error" })
         }
+
+        return () => {
+          context.eventSource?.close()
+        }
       },
       getBuilds: async (context) => {
         if (context.workspace) {
@@ -874,9 +818,6 @@ export const workspaceMachine = createMachine(
         return await API.checkAuthorization({
           checks: permissionsToCheck(workspace, template),
         })
-      },
-      getApplicationsHost: async () => {
-        return API.getApplicationsHost()
       },
       scheduleBannerMachine: workspaceScheduleBannerMachine,
       getSSHPrefix: async () => {

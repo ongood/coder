@@ -30,6 +30,7 @@ import { UpdateBuildParametersDialog } from "./UpdateBuildParametersDialog"
 import { ChangeVersionDialog } from "./ChangeVersionDialog"
 import { useQuery } from "@tanstack/react-query"
 import { getTemplateVersions } from "api/api"
+import { useRestartWorkspace } from "./hooks"
 
 interface WorkspaceReadyPageProps {
   workspaceState: StateFrom<typeof workspaceMachine>
@@ -56,7 +57,6 @@ export const WorkspaceReadyPage = ({
     getBuildsError,
     buildError,
     cancellationError,
-    applicationsHost,
     sshPrefix,
     permissions,
     missedParameters,
@@ -76,7 +76,12 @@ export const WorkspaceReadyPage = ({
     queryFn: () => getTemplateVersions(workspace.template_id),
     enabled: changeVersionDialogOpen,
   })
-  const dashboard = useDashboard()
+
+  const {
+    mutate: restartWorkspace,
+    error: restartBuildError,
+    isLoading: isRestarting,
+  } = useRestartWorkspace()
 
   // keep banner machine in sync with workspace
   useEffect(() => {
@@ -121,10 +126,11 @@ export const WorkspaceReadyPage = ({
           ),
         }}
         isUpdating={workspaceState.matches("ready.build.requestingUpdate")}
+        isRestarting={isRestarting}
         workspace={workspace}
         handleStart={() => workspaceSend({ type: "START" })}
         handleStop={() => workspaceSend({ type: "STOP" })}
-        handleRestart={() => workspaceSend({ type: "START" })}
+        handleRestart={() => restartWorkspace(workspace)}
         handleDelete={() => workspaceSend({ type: "ASK_DELETE" })}
         handleUpdate={() => workspaceSend({ type: "UPDATE" })}
         handleCancel={() => workspaceSend({ type: "CANCEL" })}
@@ -137,18 +143,15 @@ export const WorkspaceReadyPage = ({
         builds={builds}
         canUpdateWorkspace={canUpdateWorkspace}
         canUpdateTemplate={canUpdateTemplate}
-        canChangeVersions={
-          canUpdateTemplate && dashboard.experiments.includes("template_editor")
-        }
+        canChangeVersions={canUpdateTemplate}
         hideSSHButton={featureVisibility["browser_only"]}
         hideVSCodeDesktopButton={featureVisibility["browser_only"]}
         workspaceErrors={{
           [WorkspaceErrors.GET_BUILDS_ERROR]: getBuildsError,
-          [WorkspaceErrors.BUILD_ERROR]: buildError,
+          [WorkspaceErrors.BUILD_ERROR]: buildError || restartBuildError,
           [WorkspaceErrors.CANCELLATION_ERROR]: cancellationError,
         }}
         buildInfo={buildInfo}
-        applicationsHost={applicationsHost}
         sshPrefix={sshPrefix}
         template={template}
         quota_budget={quotaState.context.quota?.budget}
