@@ -136,7 +136,7 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.8.2
 	github.com/swaggo/http-swagger/v2 v2.0.1
-	github.com/swaggo/swag v1.8.6
+	github.com/swaggo/swag v1.16.1
 	github.com/tabbed/pqtype v0.1.1
 	github.com/u-root/u-root v0.11.0
 	github.com/unrolled/secure v1.13.0
@@ -160,7 +160,7 @@ require (
 	golang.org/x/sync v0.1.0
 	golang.org/x/sys v0.7.0
 	golang.org/x/term v0.7.0
-	golang.org/x/tools v0.6.0
+	golang.org/x/tools v0.7.0
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2
 	golang.zx2c4.com/wireguard v0.0.0-20230223181233-21636207a675
 	google.golang.org/api v0.108.0
