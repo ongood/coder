@@ -194,6 +194,8 @@ export interface CreateTemplateRequest {
   readonly allow_user_cancel_workspace_jobs?: boolean
   readonly allow_user_autostart?: boolean
   readonly allow_user_autostop?: boolean
+  readonly failure_ttl_ms?: number
+  readonly inactivity_ttl_ms?: number
 }
 
 // From codersdk/templateversions.go
@@ -841,6 +843,8 @@ export interface Template {
   readonly allow_user_autostart: boolean
   readonly allow_user_autostop: boolean
   readonly allow_user_cancel_workspace_jobs: boolean
+  readonly failure_ttl_ms: number
+  readonly inactivity_ttl_ms: number
 }
 
 // From codersdk/templates.go
@@ -1010,6 +1014,8 @@ export interface UpdateTemplateMeta {
   readonly allow_user_autostart?: boolean
   readonly allow_user_autostop?: boolean
   readonly allow_user_cancel_workspace_jobs?: boolean
+  readonly failure_ttl_ms?: number
+  readonly inactivity_ttl_ms?: number
 }
 
 // From codersdk/users.go
@@ -1361,8 +1367,8 @@ export const Entitlements: Entitlement[] = [
 ]
 
 // From codersdk/deployment.go
-export type Experiment = "moons"
-export const Experiments: Experiment[] = ["moons"]
+export type Experiment = "moons" | "workspace_actions"
+export const Experiments: Experiment[] = ["moons", "workspace_actions"]
 
 // From codersdk/deployment.go
 export type FeatureName =
