@@ -32,7 +32,7 @@ export const AddNewLicensePageView: FC<AddNewLicenseProps> = ({
       onSaveLicenseKey(licenseKey)
 
       fileReader.onerror = () => {
-        displayError("Failed to read file")
+        displayError("读取文件失败")
       }
     }
 
@@ -53,15 +53,15 @@ export const AddNewLicensePageView: FC<AddNewLicenseProps> = ({
         justifyContent="space-between"
       >
         <Header
-          title="Add your license"
-          description="Enterprise licenses unlock more features on your deployment."
+          title="添加您的许可证"
+          description="企业许可证可以在您的部署中解锁更多功能。"
         />
         <Button
           component={RouterLink}
           to="/settings/deployment/licenses"
           variant="outlined"
         >
-          Back to licenses
+          返回
         </Button>
       </Stack>
 
@@ -72,16 +72,16 @@ export const AddNewLicensePageView: FC<AddNewLicenseProps> = ({
       <FileUpload
         isUploading={isUploading}
         onUpload={onUpload}
-        removeLabel="Remove File"
-        title="Upload your license"
-        description="Upload a text file containing your license key"
+        removeLabel="删除文件"
+        title="上传您的许可证"
+        description="上传一个包含许可证密钥的文本文件"
       />
 
       <Stack className={styles.main}>
         <DividerWithText>or</DividerWithText>
 
         <Fieldset
-          title="Paste your license key"
+          title="将您的许可证密钥粘贴在这里"
           onSubmit={(e) => {
             e.preventDefault()
 
@@ -94,13 +94,13 @@ export const AddNewLicensePageView: FC<AddNewLicenseProps> = ({
           }}
           button={
             <Button type="submit" disabled={isSavingLicense}>
-              Add license
+              添加许可证
             </Button>
           }
         >
           <TextField
             name="licenseKey"
-            placeholder="Paste your license key here"
+            placeholder="将您的许可证密钥粘贴在这里"
             multiline
             rows={4}
             fullWidth

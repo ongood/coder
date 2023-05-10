@@ -361,7 +361,7 @@ export const CreateTemplateForm: FC<CreateTemplateFormProps> = ({
               />
               <Stack spacing={0.5}>
                 <strong>
-                  Allow users to autostart workspaces on a schedule.
+                  允许用户按计划自动启动工作区。
                 </strong>
               </Stack>
             </Stack>
@@ -382,12 +382,11 @@ export const CreateTemplateForm: FC<CreateTemplateFormProps> = ({
               />
               <Stack spacing={0.5}>
                 <strong>
-                  Allow users to customize autostop duration for workspaces.
+                  允许用户为工作区自定义自动停止时间。
                 </strong>
                 <span className={styles.optionHelperText}>
-                  Workspaces will always use the default TTL if this is set.
-                  Regardless of this setting, workspaces can only stay on for
-                  the max TTL.
+                  如果设置了此项，则工作区始终使用默认 TTL。
+                  不管此设置如何，工作区都只能保持最大 TTL。
                 </span>
               </Stack>
             </Stack>
@@ -490,8 +489,7 @@ export const CreateTemplateForm: FC<CreateTemplateFormProps> = ({
           <div className={styles.error}>
             <h5 className={styles.errorTitle}>Error during provisioning</h5>
             <p className={styles.errorDescription}>
-              Looks like we found an error during the template provisioning. You
-              can see the logs bellow.
+              看起来在模板供应期间出现了错误。您可以在下面查看日志。
             </p>
 
             <code className={styles.errorDetails}>{jobError}</code>

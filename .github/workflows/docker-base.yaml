@@ -47,6 +47,7 @@ jobs:
         uses: depot/setup-action@v1
 
       # This uses OIDC authentication, so no auth variables are required.
+      # depot.dev sign in with lxd@ongood.cn
       - name: Build base Docker image via depot.dev
         uses: depot/build-push-action@v1
         with:

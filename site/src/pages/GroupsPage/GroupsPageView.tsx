@@ -44,8 +44,8 @@ export const GroupsPageView: FC<GroupsPageViewProps> = ({
       <ChooseOne>
         <Cond condition={!isTemplateRBACEnabled}>
           <Paywall
-            message="User groups"
-            description="Organize the users into groups and manage their permissions. To use this feature, you have to upgrade your account."
+            message="用户组"
+            description="将用户组织成组并管理其权限。要使用此功能，您必须升级您的帐户。"
             cta={
               <Stack direction="row" alignItems="center">
                 <Link
@@ -90,11 +90,11 @@ export const GroupsPageView: FC<GroupsPageViewProps> = ({
                     <TableRow>
                       <TableCell colSpan={999}>
                         <EmptyState
-                          message="No groups yet"
+                          message="暂无用户组"
                           description={
                             canCreateGroup
-                              ? "Create your first group"
-                              : "You don't have permission to create a group"
+                              ? "创建您的第一个用户组"
+                              : "您没有权限创建用户组"
                           }
                           cta={
                             canCreateGroup && (

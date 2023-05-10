@@ -53,7 +53,7 @@ export const UsersLayout: FC = () => {
                   to="/groups/create"
                 >
                   <Button variant="outlined" startIcon={<GroupAdd />}>
-                    Create group
+                    创建用户组
                   </Button>
                 </Link>
               )}

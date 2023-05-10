@@ -48,8 +48,8 @@ const LicensesSettingsPageView: FC<Props> = ({
         justifyContent="space-between"
       >
         <Header
-          title="Licenses"
-          description="Enterprise licenses unlock more features on your deployment."
+          title="许可证"
+          description="企业许可证可以在您的部署中解锁更多功能。"
         />
 
         <Button
