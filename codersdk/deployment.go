@@ -385,8 +385,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		deploymentGroupNetworkingTLS = clibase.Group{
 			Parent: &deploymentGroupNetworking,
 			Name:   "TLS",
-			Description: `为您的 Coder 部署配置 TLS/HTTPS。如果您在 TLS 终止反向代理后运行 Coder，
-			或者通过安全链接访问 Coder，您可以安全地忽略这些设置。`,
+			Description: "为您的 Coder 部署配置 TLS/HTTPS。如果您在 TLS 终止反向代理后运行 Coder，或者通过安全链接访问 Coder，您可以安全地忽略这些设置。",
 			YAML: "tls",
 		}
 		deploymentGroupNetworkingHTTP = clibase.Group{
@@ -397,13 +396,12 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		deploymentGroupNetworkingDERP = clibase.Group{
 			Parent: &deploymentGroupNetworking,
 			Name:   "DERP",
-			Description: `大多数 Coder 部署无需考虑 DERP，因为工作区和用户之间的所有连接都是点对点的。
-			但是，当 Coder 无法建立点对点连接时，Coder 使用由 Tailscale 和 WireGuard 支持的分布式中继网络。`,
+			Description: "大多数 Coder 部署无需考虑 DERP，因为工作区和用户之间的所有连接都是点对点的。但是，当 Coder 无法建立点对点连接时，Coder 使用由 Tailscale 和 WireGuard 支持的分布式中继网络。",
 			YAML: "derp",
 		}
 		deploymentGroupIntrospection = clibase.Group{
 			Name:        "Introspection",
-			Description: `配置日志记录、跟踪和指标导出。`,
+			Description: "配置日志记录、跟踪和指标导出。",
 			YAML:        "introspection",
 		}
 		deploymentGroupIntrospectionPPROF = clibase.Group{
@@ -428,7 +426,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		}
 		deploymentGroupOAuth2 = clibase.Group{
 			Name:        "OAuth2",
-			Description: `Configure login and user-provisioning with GitHub via oAuth2.`,
+			Description: "Configure login and user-provisioning with GitHub via oAuth2.",
 			YAML:        "oauth2",
 		}
 		deploymentGroupOAuth2GitHub = clibase.Group{
@@ -443,12 +441,11 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		deploymentGroupTelemetry = clibase.Group{
 			Name: "Telemetry",
 			YAML: "telemetry",
-			Description: `反馈对于我们改进 Coder 的能力至关重要。在将数据发送到我们的服务器之前，我们会删除所有个人信息。
-			请仅在您的组织安全策略要求时禁用反馈。`,
+			Description: "反馈对于我们改进 Coder 的能力至关重要。在将数据发送到我们的服务器之前，我们会删除所有个人信息。请仅在您的组织安全策略要求时禁用反馈。",
 		}
 		deploymentGroupProvisioning = clibase.Group{
 			Name:        "Provisioning",
-			Description: `调整配置生成器的行为，生成器负责创建、更新和删除工作区资源。`,
+			Description: "调整配置生成器的行为，生成器负责创建、更新和删除工作区资源。",
 			YAML:        "provisioning",
 		}
 		deploymentGroupDangerous = clibase.Group{
@@ -457,13 +454,12 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		}
 		deploymentGroupClient = clibase.Group{
 			Name: "Client",
-			Description: "这些选项更改客户端与 Coder 的交互方式。" +
-				"客户端包括 coder cli、vs code 扩展和 Web UI。",
+			Description: "这些选项更改客户端与 Coder 的交互方式。客户端包括 coder cli、vs code 扩展和 Web UI。",
 			YAML: "client",
 		}
 		deploymentGroupConfig = clibase.Group{
 			Name:        "Config",
-			Description: `当服务器启动变得复杂时，可以使用 YAML 配置文件。`,
+			Description: "当服务器启动变得复杂时，可以使用 YAML 配置文件。",
 		}
 	)
 
@@ -501,7 +497,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 	opts := clibase.OptionSet{
 		{
 			Name:        "Access URL",
-			Description: `用于访问 Coder 部署的URL。`,
+			Description: "用于访问 Coder 部署的URL。",
 			Value:       &c.AccessURL,
 			Flag:        "access-url",
 			Env:         "CODER_ACCESS_URL",
