@@ -14,8 +14,8 @@ ARG CODER_VERSION
 LABEL \
 	org.opencontainers.image.title="Coder" \
 	org.opencontainers.image.description="A tool for provisioning self-hosted development environments with Terraform." \
-	org.opencontainers.image.url="https://github.com/coder/coder" \
-	org.opencontainers.image.source="https://github.com/coder/coder" \
+	org.opencontainers.image.url="https://github.com/ongood/coder" \
+	org.opencontainers.image.source="https://github.com/ongood/coder" \
 	org.opencontainers.image.version="$CODER_VERSION"
 
 # The coder binary is injected by scripts/build_docker.sh.

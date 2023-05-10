@@ -29,7 +29,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    if: github.repository_owner == 'coder'
+    if: github.repository_owner == 'ongood'
     steps:
       - uses: actions/checkout@v3
 
