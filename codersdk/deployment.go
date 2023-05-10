@@ -385,7 +385,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		deploymentGroupNetworkingTLS = clibase.Group{
 			Parent: &deploymentGroupNetworking,
 			Name:   "TLS",
-			Description: "O为您的 Coder 部署配置 TLS/HTTPS。如果您在 TLS 终止反向代理后运行 Coder，或者通过安全链接访问 Coder，您可以安全地忽略这些设置.",
+			Description: "为您的 Coder 部署配置 TLS/HTTPS。如果您在 TLS 终止反向代理后运行 Coder，或者通过安全链接访问 Coder，您可以安全地忽略这些设置。",
 			YAML: "tls",
 		}
 		deploymentGroupNetworkingHTTP = clibase.Group{
@@ -396,12 +396,12 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		deploymentGroupNetworkingDERP = clibase.Group{
 			Parent: &deploymentGroupNetworking,
 			Name:   "DERP",
-			Description: "O大多数 Coder 部署无需考虑 DERP，因为工作区和用户之间的所有连接都是点对点的。但是，当 Coder 无法建立点对点连接时，Coder 使用由 Tailscale 和 WireGuard 支持的分布式中继网络.",
+			Description: "大多数 Coder 部署无需考虑 DERP，因为工作区和用户之间的所有连接都是点对点的。但是，当 Coder 无法建立点对点连接时，Coder 使用由 Tailscale 和 WireGuard 支持的分布式中继网络。",
 			YAML: "derp",
 		}
 		deploymentGroupIntrospection = clibase.Group{
 			Name:        "Introspection",
-			Description: "O配置日志记录、跟踪和指标导出.",
+			Description: "配置日志记录、跟踪和指标导出。",
 			YAML:        "introspection",
 		}
 		deploymentGroupIntrospectionPPROF = clibase.Group{
@@ -441,11 +441,11 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		deploymentGroupTelemetry = clibase.Group{
 			Name: "Telemetry",
 			YAML: "telemetry",
-			Description: "O反馈对于我们改进 Coder 的能力至关重要。在将数据发送到我们的服务器之前，我们会删除所有个人信息。请仅在您的组织安全策略要求时禁用反馈.",
+			Description: "反馈对于我们改进 Coder 的能力至关重要。在将数据发送到我们的服务器之前，我们会删除所有个人信息。请仅在您的组织安全策略要求时禁用反馈。",
 		}
 		deploymentGroupProvisioning = clibase.Group{
 			Name:        "Provisioning",
-			Description: "O调整配置生成器的行为，生成器负责创建、更新和删除工作区资源.",
+			Description: "调整配置生成器的行为，生成器负责创建、更新和删除工作区资源。",
 			YAML:        "provisioning",
 		}
 		deploymentGroupDangerous = clibase.Group{
@@ -454,12 +454,12 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		}
 		deploymentGroupClient = clibase.Group{
 			Name: "Client",
-			Description: "O这些选项更改客户端与 Coder 的交互方式。客户端包括 coder cli、vs code 扩展和 Web UI.",
+			Description: "这些选项更改客户端与 Coder 的交互方式。客户端包括 coder cli、vs code 扩展和 Web UI。",
 			YAML: "client",
 		}
 		deploymentGroupConfig = clibase.Group{
 			Name:        "Config",
-			Description: "O当服务器启动变得复杂时，可以使用 YAML 配置文件.",
+			Description: "当服务器启动变得复杂时，可以使用 YAML 配置文件。",
 		}
 	)
 
@@ -487,7 +487,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 	}
 	redirectToAccessURL := clibase.Option{
 		Name:        "Redirect to Access URL",
-		Description: "O指定是否重定向未匹配访问URL主机的请求.",
+		Description: "指定是否重定向未匹配访问URL主机的请求。",
 		Flag:        "redirect-to-access-url",
 		Env:         "CODER_REDIRECT_TO_ACCESS_URL",
 		Value:       &c.RedirectToAccessURL,
@@ -497,7 +497,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 	opts := clibase.OptionSet{
 		{
 			Name:        "Access URL",
-			Description: "O用于访问 Coder 部署的URL.",
+			Description: "用于访问 Coder 部署的URL。",
 			Value:       &c.AccessURL,
 			Flag:        "access-url",
 			Env:         "CODER_ACCESS_URL",
@@ -507,7 +507,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "Wildcard Access URL",
-			Description: "O指定工作区应用程序使用的通配符主机名，格式为*.example.com.",
+			Description: "指定工作区应用程序使用的通配符主机名，格式为\"*.example.com\"。",
 			Flag:        "wildcard-access-url",
 			Env:         "CODER_WILDCARD_ACCESS_URL",
 			Value:       &c.WildcardAccessURL,
@@ -518,7 +518,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		redirectToAccessURL,
 		{
 			Name:        "Autobuild Poll Interval",
-			Description: "O定期轮询计划中的工作区构建的间隔时间.",
+			Description: "定期轮询计划中的工作区构建的间隔时间。",
 			Flag:        "autobuild-poll-interval",
 			Env:         "CODER_AUTOBUILD_POLL_INTERVAL",
 			Hidden:      true,
@@ -530,7 +530,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		tlsBindAddress,
 		{
 			Name:          "Address",
-			Description:   "O服务器的绑定地址.",
+			Description:   "服务器的绑定地址。",
 			Flag:          "address",
 			FlagShorthand: "a",
 			Env:           "CODER_ADDRESS",
@@ -546,7 +546,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		// TLS settings
 		{
 			Name:        "TLS Enable",
-			Description: "O是否启用 TLS.",
+			Description: "是否启用 TLS。",
 			Flag:        "tls-enable",
 			Env:         "CODER_TLS_ENABLE",
 			Value:       &c.TLS.Enable,
@@ -556,7 +556,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "Redirect HTTP to HTTPS",
-			Description: "O是否将 HTTP 请求重定向到访问 URL（如果是 https URL 并且启用了 TLS）。不管此设置如何，对本地 IP 地址的请求都不会被重定向.",
+			Description: "是否将 HTTP 请求重定向到访问 URL（如果是 https URL 并且启用了 TLS）。不管此设置如何，对本地 IP 地址的请求都不会被重定向。",
 			Flag:        "tls-redirect-http-to-https",
 			Env:         "CODER_TLS_REDIRECT_HTTP_TO_HTTPS",
 			Default:     "true",
@@ -579,7 +579,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "TLS Client CA Files",
-			Description: "O用于检查客户端真实性的 PEM 编码的证书颁发机构文件.",
+			Description: "用于检查客户端真实性的 PEM 编码的证书颁发机构文件。",
 			Flag:        "tls-client-ca-file",
 			Env:         "CODER_TLS_CLIENT_CA_FILE",
 			Value:       &c.TLS.ClientCAFile,
@@ -589,7 +589,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "TLS Client Auth",
-			Description: "TLS 客户端身份验证的服务器策略。接受的值为none,request,require-any,verify-if-given 或 require-and-verify.",
+			Description: "TLS 客户端身份验证的服务器策略。接受的值为\"none\",\"request\",\"require-any\",\"verify-if-given\" 或 \"require-and-verify\"。",
 			Flag:        "tls-client-auth",
 			Env:         "CODER_TLS_CLIENT_AUTH",
 			Default:     "none",
@@ -600,7 +600,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "TLS Key Files",
-			Description: "Paths to the private keys for each of the certificates. It requires a PEM-encoded file.",
+			Description: "每个证书的私钥文件路径。需要使用 PEM 编码的文件。",
 			Flag:        "tls-key-file",
 			Env:         "CODER_TLS_KEY_FILE",
 			Value:       &c.TLS.KeyFiles,
@@ -610,7 +610,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "TLS Minimum Version",
-			Description: "Minimum supported version of TLS. Accepted values are \"tls10\", \"tls11\", \"tls12\" or \"tls13\".",
+			Description: "TLS 的最低支持版本。可接受的值为 \"tls10\"、\"tls11\"、\"tls12\" 或 \"tls13\"。",
 			Flag:        "tls-min-version",
 			Env:         "CODER_TLS_MIN_VERSION",
 			Default:     "tls12",
@@ -621,7 +621,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "TLS Client Cert File",
-			Description: "Path to certificate for client TLS authentication. It requires a PEM-encoded file.",
+			Description: "客户端 TLS 认证的证书路径。需要使用 PEM 编码的文件。",
 			Flag:        "tls-client-cert-file",
 			Env:         "CODER_TLS_CLIENT_CERT_FILE",
 			Value:       &c.TLS.ClientCertFile,
@@ -631,7 +631,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "TLS Client Key File",
-			Description: "Path to key for client TLS authentication. It requires a PEM-encoded file.",
+			Description: "客户端 TLS 认证的密钥路径。需要使用 PEM 编码的文件。",
 			Flag:        "tls-client-key-file",
 			Env:         "CODER_TLS_CLIENT_KEY_FILE",
 			Value:       &c.TLS.ClientKeyFile,
@@ -639,10 +639,10 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 			YAML:        "clientKeyFile",
 			Annotations: clibase.Annotations{}.Mark(annotationExternalProxies, "true"),
 		},
-		// Derp settings
+		// DERP 设置
 		{
 			Name:        "DERP Server Enable",
-			Description: "Whether to enable or disable the embedded DERP relay server.",
+			Description: "是否启用内嵌的 DERP 中继服务器。",
 			Flag:        "derp-server-enable",
 			Env:         "CODER_DERP_SERVER_ENABLE",
 			Default:     "true",
@@ -652,7 +652,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "DERP Server Region ID",
-			Description: "Region ID to use for the embedded DERP server.",
+			Description: "用于内嵌 DERP 服务器的区域 ID。",
 			Flag:        "derp-server-region-id",
 			Env:         "CODER_DERP_SERVER_REGION_ID",
 			Default:     "999",
@@ -662,7 +662,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "DERP Server Region Code",
-			Description: "Region code to use for the embedded DERP server.",
+			Description: "用于内嵌 DERP 服务器的区域代码。",
 			Flag:        "derp-server-region-code",
 			Env:         "CODER_DERP_SERVER_REGION_CODE",
 			Default:     "coder",
@@ -671,18 +671,8 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 			YAML:        "regionCode",
 		},
 		{
-			Name:        "DERP Server Region Name",
-			Description: "Region name that for the embedded DERP server.",
-			Flag:        "derp-server-region-name",
-			Env:         "CODER_DERP_SERVER_REGION_NAME",
-			Default:     "Coder Embedded Relay",
-			Value:       &c.DERP.Server.RegionName,
-			Group:       &deploymentGroupNetworkingDERP,
-			YAML:        "regionName",
-		},
-		{
 			Name:        "DERP Server STUN Addresses",
-			Description: "Addresses for STUN servers to establish P2P connections. Use special value 'disable' to turn off STUN.",
+			Description: "用于建立 P2P 连接的 STUN 服务器地址。使用特殊值 'disable' 可以关闭 STUN。",
 			Flag:        "derp-server-stun-addresses",
 			Env:         "CODER_DERP_SERVER_STUN_ADDRESSES",
 			Default:     "stun.l.google.com:19302",
@@ -692,7 +682,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "DERP Server Relay URL",
-			Description: "An HTTP URL that is accessible by other replicas to relay DERP traffic. Required for high availability.",
+			Description: "其他副本可访问的 HTTP URL，用于中继 DERP 流量。在高可用性情况下需要。",
 			Flag:        "derp-server-relay-url",
 			Env:         "CODER_DERP_SERVER_RELAY_URL",
 			Annotations: clibase.Annotations{}.Mark(annotationEnterpriseKey, "true"),
@@ -702,7 +692,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "DERP Config URL",
-			Description: "URL to fetch a DERP mapping on startup. See: https://tailscale.com/kb/1118/custom-derp-servers/.",
+			Description: "启动时获取 DERP 映射的 URL。参考：https://tailscale.com/kb/1118/custom-derp-servers/。",
 			Flag:        "derp-config-url",
 			Env:         "CODER_DERP_CONFIG_URL",
 			Value:       &c.DERP.Config.URL,
@@ -711,18 +701,18 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "DERP Config Path",
-			Description: "Path to read a DERP mapping from. See: https://tailscale.com/kb/1118/custom-derp-servers/.",
+			Description: "从中读取 DERP 映射的路径。参考：https://tailscale.com/kb/1118/custom-derp-servers/。",
 			Flag:        "derp-config-path",
 			Env:         "CODER_DERP_CONFIG_PATH",
 			Value:       &c.DERP.Config.Path,
 			Group:       &deploymentGroupNetworkingDERP,
 			YAML:        "configPath",
 		},
-		// TODO: support Git Auth settings.
-		// Prometheus settings
+		// TODO: 支持 Git Auth 设置。
+		// Prometheus 设置
 		{
 			Name:        "Prometheus Enable",
-			Description: "Serve prometheus metrics on the address defined by prometheus address.",
+			Description: "在 prometheus address 定义的地址上提供 prometheus 指标服务。",
 			Flag:        "prometheus-enable",
 			Env:         "CODER_PROMETHEUS_ENABLE",
 			Value:       &c.Prometheus.Enable,
@@ -732,7 +722,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "Prometheus Address",
-			Description: "The bind address to serve prometheus metrics.",
+			Description: "用于提供 prometheus 指标服务的绑定地址。",
 			Flag:        "prometheus-address",
 			Env:         "CODER_PROMETHEUS_ADDRESS",
 			Default:     "127.0.0.1:2112",
@@ -743,7 +733,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "Prometheus Collect Agent Stats",
-			Description: "Collect agent stats (may increase charges for metrics storage).",
+			Description: "收集 agent 统计信息（可能增加指标存储的费用）。",
 			Flag:        "prometheus-collect-agent-stats",
 			Env:         "CODER_PROMETHEUS_COLLECT_AGENT_STATS",
 			Value:       &c.Prometheus.CollectAgentStats,
@@ -753,7 +743,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		// Pprof settings
 		{
 			Name:        "pprof Enable",
-			Description: "Serve pprof metrics on the address defined by pprof address.",
+			Description: "在 pprof 地址上提供性能分析指标。",
 			Flag:        "pprof-enable",
 			Env:         "CODER_PPROF_ENABLE",
 			Value:       &c.Pprof.Enable,
@@ -763,7 +753,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "pprof Address",
-			Description: "The bind address to serve pprof.",
+			Description: "用于提供 pprof 的绑定地址。",
 			Flag:        "pprof-address",
 			Env:         "CODER_PPROF_ADDRESS",
 			Default:     "127.0.0.1:6060",
@@ -775,7 +765,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		// oAuth settings
 		{
 			Name:        "OAuth2 GitHub Client ID",
-			Description: "Client ID for Login with GitHub.",
+			Description: "GitHub 登录所需的客户端 ID。",
 			Flag:        "oauth2-github-client-id",
 			Env:         "CODER_OAUTH2_GITHUB_CLIENT_ID",
 			Value:       &c.OAuth2.Github.ClientID,
@@ -784,7 +774,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "OAuth2 GitHub Client Secret",
-			Description: "Client secret for Login with GitHub.",
+			Description: "GitHub 登录所需的客户端密钥。",
 			Flag:        "oauth2-github-client-secret",
 			Env:         "CODER_OAUTH2_GITHUB_CLIENT_SECRET",
 			Value:       &c.OAuth2.Github.ClientSecret,
@@ -793,7 +783,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "OAuth2 GitHub Allowed Orgs",
-			Description: "Organizations the user must be a member of to Login with GitHub.",
+			Description: "要求用户是其中成员才能使用 GitHub 登录的组织。",
 			Flag:        "oauth2-github-allowed-orgs",
 			Env:         "CODER_OAUTH2_GITHUB_ALLOWED_ORGS",
 			Value:       &c.OAuth2.Github.AllowedOrgs,
@@ -802,7 +792,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "OAuth2 GitHub Allowed Teams",
-			Description: "Teams inside organizations the user must be a member of to Login with GitHub. Structured as: <organization-name>/<team-slug>.",
+			Description: "要求用户是其中成员才能使用 GitHub 登录的组织内团队。格式为：<组织名称>/<团队标识>。",
 			Flag:        "oauth2-github-allowed-teams",
 			Env:         "CODER_OAUTH2_GITHUB_ALLOWED_TEAMS",
 			Value:       &c.OAuth2.Github.AllowedTeams,
@@ -811,7 +801,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "OAuth2 GitHub Allow Signups",
-			Description: "Whether new users can sign up with GitHub.",
+			Description: "是否允许新用户使用 GitHub 进行注册。",
 			Flag:        "oauth2-github-allow-signups",
 			Env:         "CODER_OAUTH2_GITHUB_ALLOW_SIGNUPS",
 			Value:       &c.OAuth2.Github.AllowSignups,
@@ -820,7 +810,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "OAuth2 GitHub Allow Everyone",
-			Description: "Allow all logins, setting this option means allowed orgs and teams must be empty.",
+			Description: "允许所有登录，设置此选项意味着允许的组织和团队必须为空。",
 			Flag:        "oauth2-github-allow-everyone",
 			Env:         "CODER_OAUTH2_GITHUB_ALLOW_EVERYONE",
 			Value:       &c.OAuth2.Github.AllowEveryone,
@@ -829,7 +819,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "OAuth2 GitHub Enterprise Base URL",
-			Description: "Base URL of a GitHub Enterprise deployment to use for Login with GitHub.",
+			Description: "用于登录 GitHub 的 GitHub Enterprise 部署的基本 URL。",
 			Flag:        "oauth2-github-enterprise-base-url",
 			Env:         "CODER_OAUTH2_GITHUB_ENTERPRISE_BASE_URL",
 			Value:       &c.OAuth2.Github.EnterpriseBaseURL,
@@ -839,7 +829,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		// OIDC settings.
 		{
 			Name:        "OIDC Allow Signups",
-			Description: "Whether new users can sign up with OIDC.",
+			Description: "是否允许新用户使用 OIDC 进行注册。",
 			Flag:        "oidc-allow-signups",
 			Env:         "CODER_OIDC_ALLOW_SIGNUPS",
 			Default:     "true",
@@ -849,7 +839,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "OIDC Client ID",
-			Description: "Client ID to use for Login with OIDC.",
+			Description: "用于 OIDC 登录的客户端 ID。",
 			Flag:        "oidc-client-id",
 			Env:         "CODER_OIDC_CLIENT_ID",
 			Value:       &c.OIDC.ClientID,
@@ -858,7 +848,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "OIDC Client Secret",
-			Description: "Client secret to use for Login with OIDC.",
+			Description: "用于 OIDC 登录的客户端密钥。",
 			Flag:        "oidc-client-secret",
 			Env:         "CODER_OIDC_CLIENT_SECRET",
 			Annotations: clibase.Annotations{}.Mark(annotationSecretKey, "true"),
@@ -867,7 +857,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "OIDC Email Domain",
-			Description: "Email domains that clients logging in with OIDC must match.",
+			Description: "使用 OIDC 登录的客户端必须匹配的电子邮件域。",
 			Flag:        "oidc-email-domain",
 			Env:         "CODER_OIDC_EMAIL_DOMAIN",
 			Value:       &c.OIDC.EmailDomain,
@@ -876,7 +866,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "OIDC Issuer URL",
-			Description: "Issuer URL to use for Login with OIDC.",
+			Description: "用于 OIDC 登录的发行者 URL。",
 			Flag:        "oidc-issuer-url",
 			Env:         "CODER_OIDC_ISSUER_URL",
 			Value:       &c.OIDC.IssuerURL,
@@ -885,7 +875,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "OIDC Scopes",
-			Description: "Scopes to grant when authenticating with OIDC.",
+			Description: "在使用 OIDC 进行身份验证时授予的作用域。",
 			Flag:        "oidc-scopes",
 			Env:         "CODER_OIDC_SCOPES",
 			Default:     strings.Join([]string{oidc.ScopeOpenID, "profile", "email"}, ","),
@@ -895,7 +885,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "OIDC Ignore Email Verified",
-			Description: "Ignore the email_verified claim from the upstream provider.",
+			Description: "忽略上游提供者中的 email_verified 声明。",
 			Flag:        "oidc-ignore-email-verified",
 			Env:         "CODER_OIDC_IGNORE_EMAIL_VERIFIED",
 			Value:       &c.OIDC.IgnoreEmailVerified,
@@ -904,7 +894,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "OIDC Username Field",
-			Description: "OIDC claim field to use as the username.",
+			Description: "用作用户名的 OIDC 声明字段。",
 			Flag:        "oidc-username-field",
 			Env:         "CODER_OIDC_USERNAME_FIELD",
 			Default:     "preferred_username",
@@ -914,7 +904,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "OIDC Email Field",
-			Description: "OIDC claim field to use as the email.",
+			Description: "用作电子邮件的 OIDC 声明字段。",
 			Flag:        "oidc-email-field",
 			Env:         "CODER_OIDC_EMAIL_FIELD",
 			Default:     "email",
@@ -924,7 +914,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "OIDC Auth URL Parameters",
-			Description: "OIDC auth URL parameters to pass to the upstream provider.",
+			Description: "要传递给上游提供者的 OIDC 认证 URL 参数。",
 			Flag:        "oidc-auth-url-params",
 			Env:         "CODER_OIDC_AUTH_URL_PARAMS",
 			Default:     `{"access_type": "offline"}`,
@@ -934,7 +924,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "OIDC Ignore UserInfo",
-			Description: "Ignore the userinfo endpoint and only use the ID token for user information.",
+			Description: "忽略 userinfo 端点，仅使用 ID 令牌获取用户信息。",
 			Flag:        "oidc-ignore-userinfo",
 			Env:         "CODER_OIDC_IGNORE_USERINFO",
 			Default:     "false",
@@ -944,7 +934,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "OIDC Group Field",
-			Description: "Change the OIDC default 'groups' claim field. By default, will be 'groups' if present in the oidc scopes argument.",
+			Description: "更改OIDC默认的\"groups\"声明字段。如果在oidc scopes参数中存在，默认为\"groups\"。",
 			Flag:        "oidc-group-field",
 			Env:         "CODER_OIDC_GROUP_FIELD",
 			// This value is intentionally blank. If this is empty, then OIDC group
@@ -959,7 +949,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "OIDC Group Mapping",
-			Description: "A map of OIDC group IDs and the group in Coder it should map to. This is useful for when OIDC providers only return group IDs.",
+			Description: "OIDC组ID与应映射到Coder中的组之间的映射关系。这对于OIDC提供程序仅返回组ID时非常有用。",
 			Flag:        "oidc-group-mapping",
 			Env:         "CODER_OIDC_GROUP_MAPPING",
 			Default:     "{}",
@@ -969,7 +959,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "OpenID Connect sign in text",
-			Description: "The text to show on the OpenID Connect sign in button.",
+			Description: "在OpenID Connect登录按钮上显示的文本。",
 			Flag:        "oidc-sign-in-text",
 			Env:         "CODER_OIDC_SIGN_IN_TEXT",
 			Default:     "OpenID Connect",
@@ -979,7 +969,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "OpenID connect icon URL",
-			Description: "URL pointing to the icon to use on the OepnID Connect login button.",
+			Description: "指向在OpenID Connect登录按钮上使用的图标的URL。",
 			Flag:        "oidc-icon-url",
 			Env:         "CODER_OIDC_ICON_URL",
 			Value:       &c.OIDC.IconURL,
@@ -999,7 +989,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "Telemetry Trace",
-			Description: "Whether Opentelemetry traces are sent to Coder. Coder collects anonymized application tracing to help improve our product. Disabling telemetry also disables this option.",
+			Description: "是否启用遥测。Coder收集匿名的使用数据以帮助改进我们的产品。",
 			Flag:        "telemetry-trace",
 			Env:         "CODER_TELEMETRY_TRACE",
 			Default:     strconv.FormatBool(flag.Lookup("test.v") == nil),
@@ -1009,7 +999,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "Telemetry URL",
-			Description: "URL to send telemetry.",
+			Description: "用于发送遥测的URL。",
 			Flag:        "telemetry-url",
 			Env:         "CODER_TELEMETRY_URL",
 			Hidden:      true,
@@ -1021,7 +1011,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		// Trace settings
 		{
 			Name:        "Trace Enable",
-			Description: "Whether application tracing data is collected. It exports to a backend configured by environment variables. See: https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/protocol/exporter.md.",
+			Description: "是否收集应用程序跟踪数据。它会导出到由环境变量配置的后端。参考: https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/protocol/exporter.md.",
 			Flag:        "trace",
 			Env:         "CODER_TRACE_ENABLE",
 			Value:       &c.Trace.Enable,
@@ -1031,7 +1021,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "Trace Honeycomb API Key",
-			Description: "Enables trace exporting to Honeycomb.io using the provided API Key.",
+			Description: "使用提供的API密钥将跟踪导出到Honeycomb.io。",
 			Flag:        "trace-honeycomb-api-key",
 			Env:         "CODER_TRACE_HONEYCOMB_API_KEY",
 			Annotations: clibase.Annotations{}.Mark(annotationSecretKey, "true").Mark(annotationExternalProxies, "true"),
@@ -1040,7 +1030,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "Capture Logs in Traces",
-			Description: "Enables capturing of logs as events in traces. This is useful for debugging, but may result in a very large amount of events being sent to the tracing backend which may incur significant costs. If the verbose flag was supplied, debug-level logs will be included.",
+			Description: "启用在跟踪中将日志作为事件捕获。这对于调试很有用，但可能会导致向跟踪后端发送大量事件，可能会产生显著的成本。如果提供了verbose标志，则会包含调试级别的日志。",
 			Flag:        "trace-logs",
 			Env:         "CODER_TRACE_LOGS",
 			Value:       &c.Trace.CaptureLogs,
@@ -1051,7 +1041,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		// Provisioner settings
 		{
 			Name:        "Provisioner Daemons",
-			Description: "Number of provisioner daemons to create on start. If builds are stuck in queued state for a long time, consider increasing this.",
+			Description: "启动时要创建的配置器守护程序数量。如果构建在排队状态下停滞很长时间，请考虑增加此值。",
 			Flag:        "provisioner-daemons",
 			Env:         "CODER_PROVISIONER_DAEMONS",
 			Default:     "3",
@@ -1061,7 +1051,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "Poll Interval",
-			Description: "Time to wait before polling for a new job.",
+			Description: "在轮询新作业之前等待的时间。",
 			Flag:        "provisioner-daemon-poll-interval",
 			Env:         "CODER_PROVISIONER_DAEMON_POLL_INTERVAL",
 			Default:     time.Second.String(),
@@ -1071,7 +1061,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "Poll Jitter",
-			Description: "Random jitter added to the poll interval.",
+			Description: "添加到轮询间隔的随机抖动。",
 			Flag:        "provisioner-daemon-poll-jitter",
 			Env:         "CODER_PROVISIONER_DAEMON_POLL_JITTER",
 			Default:     (100 * time.Millisecond).String(),
@@ -1081,7 +1071,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "Force Cancel Interval",
-			Description: "Time to force cancel provisioning tasks that are stuck.",
+			Description: "强制取消卡住的配置任务的时间。",
 			Flag:        "provisioner-force-cancel-interval",
 			Env:         "CODER_PROVISIONER_FORCE_CANCEL_INTERVAL",
 			Default:     (10 * time.Minute).String(),
@@ -1092,7 +1082,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		// RateLimit settings
 		{
 			Name:        "Disable All Rate Limits",
-			Description: "Disables all rate limits. This is not recommended in production.",
+			Description: "禁用所有速率限制。这在生产环境中不推荐使用。",
 			Flag:        "dangerous-disable-rate-limits",
 			Env:         "CODER_DANGEROUS_DISABLE_RATE_LIMITS",
 
@@ -1102,7 +1092,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "API Rate Limit",
-			Description: "Maximum number of requests per minute allowed to the API per user, or per IP address for unauthenticated users. Negative values mean no rate limit. Some API endpoints have separate strict rate limits regardless of this value to prevent denial-of-service or brute force attacks.",
+			Description: "每个用户（或未经身份验证的用户的每个IP地址）允许的每分钟最大请求次数。负值表示没有速率限制。某些API端点具有独立的严格速率限制，无论此值如何，以防止拒绝服务或暴力攻击。",
 			// Change the env from the auto-generated CODER_RATE_LIMIT_API to the
 			// old value to avoid breaking existing deployments.
 			Env:         "CODER_API_RATE_LIMIT",
@@ -1115,7 +1105,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		// Logging settings
 		{
 			Name:          "Verbose",
-			Description:   "Output debug-level logs.",
+			Description:   "输出调试级别的日志。",
 			Flag:          "verbose",
 			Env:           "CODER_VERBOSE",
 			FlagShorthand: "v",
@@ -1127,7 +1117,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "Human Log Location",
-			Description: "Output human-readable logs to a given file.",
+			Description: "将可读的日志输出到给定的文件。",
 			Flag:        "log-human",
 			Env:         "CODER_LOGGING_HUMAN",
 			Default:     "/dev/stderr",
@@ -1138,7 +1128,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "JSON Log Location",
-			Description: "Output JSON logs to a given file.",
+			Description: "将JSON日志输出到给定的文件。",
 			Flag:        "log-json",
 			Env:         "CODER_LOGGING_JSON",
 			Default:     "",
@@ -1149,7 +1139,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "Stackdriver Log Location",
-			Description: "Output Stackdriver compatible logs to a given file.",
+			Description: "将与Stackdriver兼容的日志输出到给定的文件。",
 			Flag:        "log-stackdriver",
 			Env:         "CODER_LOGGING_STACKDRIVER",
 			Default:     "",
@@ -1441,8 +1431,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name: "Write Config",
-			Description: `
-Write out the current server config as YAML to stdout.`,
+			Description: `Write out the current server config as YAML to stdout.`,
 			Flag:        "write-config",
 			Group:       &deploymentGroupConfig,
 			Hidden:      false,

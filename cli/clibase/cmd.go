@@ -91,15 +91,16 @@ func (c *Cmd) PrepareAll() error {
 				merr = errors.Join(merr, xerrors.Errorf("option must have a Name, Flag, Env or YAML field"))
 			}
 		}
-		if opt.Description != "" {
-			// Enforce that description uses sentence form.
-			if unicode.IsLower(rune(opt.Description[0])) {
-				merr = errors.Join(merr, xerrors.Errorf("option %q description should start with a capital letter", opt.Name))
-			}
-			if !strings.HasSuffix(opt.Description, ".") {
-				merr = errors.Join(merr, xerrors.Errorf("option %q description should end with a period", opt.Name))
-			}
-		}
+		// 中文汉化Description内容会报错导致无法启动程序，果断注释掉！
+		// if opt.Description != "" {
+		// 	// Enforce that description uses sentence form.
+		// 	if unicode.IsLower(rune(opt.Description[0])) {
+		// 		merr = errors.Join(merr, xerrors.Errorf("option %q description should start with a capital letter", opt.Name))
+		// 	}
+		// 	if !strings.HasSuffix(opt.Description, ".") {
+		// 		merr = errors.Join(merr, xerrors.Errorf("option %q description should end with a period", opt.Name))
+		// 	}
+		// }
 	}
 
 	slices.SortFunc(c.Options, func(a, b Option) bool {
