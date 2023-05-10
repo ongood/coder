@@ -385,7 +385,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		deploymentGroupNetworkingTLS = clibase.Group{
 			Parent: &deploymentGroupNetworking,
 			Name:   "TLS",
-			Description: "为您的 Coder 部署配置 TLS/HTTPS。如果您在 TLS 终止反向代理后运行 Coder，或者通过安全链接访问 Coder，您可以安全地忽略这些设置。",
+			Description: "O为您的 Coder 部署配置 TLS/HTTPS。如果您在 TLS 终止反向代理后运行 Coder，或者通过安全链接访问 Coder，您可以安全地忽略这些设置.",
 			YAML: "tls",
 		}
 		deploymentGroupNetworkingHTTP = clibase.Group{
@@ -396,12 +396,12 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		deploymentGroupNetworkingDERP = clibase.Group{
 			Parent: &deploymentGroupNetworking,
 			Name:   "DERP",
-			Description: "大多数 Coder 部署无需考虑 DERP，因为工作区和用户之间的所有连接都是点对点的。但是，当 Coder 无法建立点对点连接时，Coder 使用由 Tailscale 和 WireGuard 支持的分布式中继网络。",
+			Description: "O大多数 Coder 部署无需考虑 DERP，因为工作区和用户之间的所有连接都是点对点的。但是，当 Coder 无法建立点对点连接时，Coder 使用由 Tailscale 和 WireGuard 支持的分布式中继网络.",
 			YAML: "derp",
 		}
 		deploymentGroupIntrospection = clibase.Group{
 			Name:        "Introspection",
-			Description: "配置日志记录、跟踪和指标导出。",
+			Description: "O配置日志记录、跟踪和指标导出.",
 			YAML:        "introspection",
 		}
 		deploymentGroupIntrospectionPPROF = clibase.Group{
@@ -441,11 +441,11 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		deploymentGroupTelemetry = clibase.Group{
 			Name: "Telemetry",
 			YAML: "telemetry",
-			Description: "反馈对于我们改进 Coder 的能力至关重要。在将数据发送到我们的服务器之前，我们会删除所有个人信息。请仅在您的组织安全策略要求时禁用反馈。",
+			Description: "O反馈对于我们改进 Coder 的能力至关重要。在将数据发送到我们的服务器之前，我们会删除所有个人信息。请仅在您的组织安全策略要求时禁用反馈.",
 		}
 		deploymentGroupProvisioning = clibase.Group{
 			Name:        "Provisioning",
-			Description: "调整配置生成器的行为，生成器负责创建、更新和删除工作区资源。",
+			Description: "O调整配置生成器的行为，生成器负责创建、更新和删除工作区资源.",
 			YAML:        "provisioning",
 		}
 		deploymentGroupDangerous = clibase.Group{
@@ -454,12 +454,12 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		}
 		deploymentGroupClient = clibase.Group{
 			Name: "Client",
-			Description: "这些选项更改客户端与 Coder 的交互方式。客户端包括 coder cli、vs code 扩展和 Web UI。",
+			Description: "O这些选项更改客户端与 Coder 的交互方式。客户端包括 coder cli、vs code 扩展和 Web UI.",
 			YAML: "client",
 		}
 		deploymentGroupConfig = clibase.Group{
 			Name:        "Config",
-			Description: "当服务器启动变得复杂时，可以使用 YAML 配置文件。",
+			Description: "O当服务器启动变得复杂时，可以使用 YAML 配置文件.",
 		}
 	)
 
@@ -487,7 +487,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 	}
 	redirectToAccessURL := clibase.Option{
 		Name:        "Redirect to Access URL",
-		Description: "指定是否重定向未匹配访问URL主机的请求。",
+		Description: "O指定是否重定向未匹配访问URL主机的请求.",
 		Flag:        "redirect-to-access-url",
 		Env:         "CODER_REDIRECT_TO_ACCESS_URL",
 		Value:       &c.RedirectToAccessURL,
@@ -497,7 +497,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 	opts := clibase.OptionSet{
 		{
 			Name:        "Access URL",
-			Description: "用于访问 Coder 部署的URL。",
+			Description: "O用于访问 Coder 部署的URL.",
 			Value:       &c.AccessURL,
 			Flag:        "access-url",
 			Env:         "CODER_ACCESS_URL",
@@ -507,7 +507,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "Wildcard Access URL",
-			Description: "指定工作区应用程序使用的通配符主机名，格式为 \"*.example.com\"。",
+			Description: "O指定工作区应用程序使用的通配符主机名，格式为*.example.com.",
 			Flag:        "wildcard-access-url",
 			Env:         "CODER_WILDCARD_ACCESS_URL",
 			Value:       &c.WildcardAccessURL,
@@ -518,7 +518,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		redirectToAccessURL,
 		{
 			Name:        "Autobuild Poll Interval",
-			Description: "定期轮询计划中的工作区构建的间隔时间。",
+			Description: "O定期轮询计划中的工作区构建的间隔时间.",
 			Flag:        "autobuild-poll-interval",
 			Env:         "CODER_AUTOBUILD_POLL_INTERVAL",
 			Hidden:      true,
@@ -530,7 +530,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		tlsBindAddress,
 		{
 			Name:          "Address",
-			Description:   "服务器的绑定地址。",
+			Description:   "O服务器的绑定地址.",
 			Flag:          "address",
 			FlagShorthand: "a",
 			Env:           "CODER_ADDRESS",
@@ -546,7 +546,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		// TLS settings
 		{
 			Name:        "TLS Enable",
-			Description: "是否启用 TLS。",
+			Description: "O是否启用 TLS.",
 			Flag:        "tls-enable",
 			Env:         "CODER_TLS_ENABLE",
 			Value:       &c.TLS.Enable,
@@ -556,7 +556,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "Redirect HTTP to HTTPS",
-			Description: "是否将 HTTP 请求重定向到访问 URL（如果是 https URL 并且启用了 TLS）。不管此设置如何，对本地 IP 地址的请求都不会被重定向。",
+			Description: "O是否将 HTTP 请求重定向到访问 URL（如果是 https URL 并且启用了 TLS）。不管此设置如何，对本地 IP 地址的请求都不会被重定向.",
 			Flag:        "tls-redirect-http-to-https",
 			Env:         "CODER_TLS_REDIRECT_HTTP_TO_HTTPS",
 			Default:     "true",
@@ -569,7 +569,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "TLS Certificate Files",
-			Description: "TLS 证书的路径。需要一个 PEM 编码的文件。要配置侦听器使用 CA 证书，请将主要证书和 CA 证书连接在一起。主要证书应该先出现在组合文件中。",
+			Description: "TLS 证书的路径。需要一个 PEM 编码的文件。要配置侦听器使用 CA 证书，请将主要证书和 CA 证书连接在一起。主要证书应该先出现在组合文件中.",
 			Flag:        "tls-cert-file",
 			Env:         "CODER_TLS_CERT_FILE",
 			Value:       &c.TLS.CertFiles,
@@ -579,7 +579,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "TLS Client CA Files",
-			Description: "用于检查客户端真实性的 PEM 编码的证书颁发机构文件。",
+			Description: "O用于检查客户端真实性的 PEM 编码的证书颁发机构文件.",
 			Flag:        "tls-client-ca-file",
 			Env:         "CODER_TLS_CLIENT_CA_FILE",
 			Value:       &c.TLS.ClientCAFile,
@@ -589,7 +589,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "TLS Client Auth",
-			Description: "TLS 客户端身份验证的服务器策略。接受的值为 \"none\"、\"request\"、\"require-any\"、\"verify-if-given\" 或 \"require-and-verify\"。",
+			Description: "TLS 客户端身份验证的服务器策略。接受的值为none,request,require-any,verify-if-given 或 require-and-verify.",
 			Flag:        "tls-client-auth",
 			Env:         "CODER_TLS_CLIENT_AUTH",
 			Default:     "none",
