@@ -8,7 +8,7 @@ import (
 	"io"
 	"os"
 	"strings"
-	"unicode"
+	// "unicode"
 
 	"github.com/spf13/pflag"
 	"golang.org/x/exp/slices"
