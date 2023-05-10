@@ -385,9 +385,8 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		deploymentGroupNetworkingTLS = clibase.Group{
 			Parent: &deploymentGroupNetworking,
 			Name:   "TLS",
-			Description: `Configure TLS / HTTPS for your Coder deployment. If you're running
- Coder behind a TLS-terminating reverse proxy or are accessing Coder over a
- secure link, you can safely ignore these settings.`,
+			Description: `为您的 Coder 部署配置 TLS/HTTPS。如果您在 TLS 终止反向代理后运行 Coder，
+			或者通过安全链接访问 Coder，您可以安全地忽略这些设置。`,
 			YAML: "tls",
 		}
 		deploymentGroupNetworkingHTTP = clibase.Group{
@@ -398,15 +397,13 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		deploymentGroupNetworkingDERP = clibase.Group{
 			Parent: &deploymentGroupNetworking,
 			Name:   "DERP",
-			Description: `Most Coder deployments never have to think about DERP because all connections
- between workspaces and users are peer-to-peer. However, when Coder cannot establish
- a peer to peer connection, Coder uses a distributed relay network backed by
- Tailscale and WireGuard.`,
+			Description: `大多数 Coder 部署无需考虑 DERP，因为工作区和用户之间的所有连接都是点对点的。
+			但是，当 Coder 无法建立点对点连接时，Coder 使用由 Tailscale 和 WireGuard 支持的分布式中继网络。`,
 			YAML: "derp",
 		}
 		deploymentGroupIntrospection = clibase.Group{
 			Name:        "Introspection",
-			Description: `Configure logging, tracing, and metrics exporting.`,
+			Description: `配置日志记录、跟踪和指标导出。`,
 			YAML:        "introspection",
 		}
 		deploymentGroupIntrospectionPPROF = clibase.Group{
@@ -446,13 +443,12 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		deploymentGroupTelemetry = clibase.Group{
 			Name: "Telemetry",
 			YAML: "telemetry",
-			Description: `Telemetry is critical to our ability to improve Coder. We strip all personal
-information before sending data to our servers. Please only disable telemetry
-when required by your organization's security policy.`,
+			Description: `反馈对于我们改进 Coder 的能力至关重要。在将数据发送到我们的服务器之前，我们会删除所有个人信息。
+			请仅在您的组织安全策略要求时禁用反馈。`,
 		}
 		deploymentGroupProvisioning = clibase.Group{
 			Name:        "Provisioning",
-			Description: `Tune the behavior of the provisioner, which is responsible for creating, updating, and deleting workspace resources.`,
+			Description: `调整配置生成器的行为，生成器负责创建、更新和删除工作区资源。`,
 			YAML:        "provisioning",
 		}
 		deploymentGroupDangerous = clibase.Group{
@@ -461,13 +457,13 @@ when required by your organization's security policy.`,
 		}
 		deploymentGroupClient = clibase.Group{
 			Name: "Client",
-			Description: "These options change the behavior of how clients interact with the Coder. " +
-				"Clients include the coder cli, vs code extension, and the web UI.",
+			Description: "这些选项更改客户端与 Coder 的交互方式。" +
+				"客户端包括 coder cli、vs code 扩展和 Web UI。",
 			YAML: "client",
 		}
 		deploymentGroupConfig = clibase.Group{
 			Name:        "Config",
-			Description: `Use a YAML configuration file when your server launch become unwieldy.`,
+			Description: `当服务器启动变得复杂时，可以使用 YAML 配置文件。`,
 		}
 	)
 
@@ -495,7 +491,7 @@ when required by your organization's security policy.`,
 	}
 	redirectToAccessURL := clibase.Option{
 		Name:        "Redirect to Access URL",
-		Description: "Specifies whether to redirect requests that do not match the access URL host.",
+		Description: "指定是否重定向未匹配访问URL主机的请求。",
 		Flag:        "redirect-to-access-url",
 		Env:         "CODER_REDIRECT_TO_ACCESS_URL",
 		Value:       &c.RedirectToAccessURL,
@@ -505,7 +501,7 @@ when required by your organization's security policy.`,
 	opts := clibase.OptionSet{
 		{
 			Name:        "Access URL",
-			Description: `The URL that users will use to access the Coder deployment.`,
+			Description: `用于访问 Coder 部署的URL。`,
 			Value:       &c.AccessURL,
 			Flag:        "access-url",
 			Env:         "CODER_ACCESS_URL",
@@ -515,7 +511,7 @@ when required by your organization's security policy.`,
 		},
 		{
 			Name:        "Wildcard Access URL",
-			Description: "Specifies the wildcard hostname to use for workspace applications in the form \"*.example.com\".",
+			Description: "指定工作区应用程序使用的通配符主机名，格式为 \"*.example.com\"。",
 			Flag:        "wildcard-access-url",
 			Env:         "CODER_WILDCARD_ACCESS_URL",
 			Value:       &c.WildcardAccessURL,
@@ -526,7 +522,7 @@ when required by your organization's security policy.`,
 		redirectToAccessURL,
 		{
 			Name:        "Autobuild Poll Interval",
-			Description: "Interval to poll for scheduled workspace builds.",
+			Description: "定期轮询计划中的工作区构建的间隔时间。",
 			Flag:        "autobuild-poll-interval",
 			Env:         "CODER_AUTOBUILD_POLL_INTERVAL",
 			Hidden:      true,
@@ -538,7 +534,7 @@ when required by your organization's security policy.`,
 		tlsBindAddress,
 		{
 			Name:          "Address",
-			Description:   "Bind address of the server.",
+			Description:   "服务器的绑定地址。",
 			Flag:          "address",
 			FlagShorthand: "a",
 			Env:           "CODER_ADDRESS",
@@ -554,7 +550,7 @@ when required by your organization's security policy.`,
 		// TLS settings
 		{
 			Name:        "TLS Enable",
-			Description: "Whether TLS will be enabled.",
+			Description: "是否启用 TLS。",
 			Flag:        "tls-enable",
 			Env:         "CODER_TLS_ENABLE",
 			Value:       &c.TLS.Enable,
@@ -564,7 +560,7 @@ when required by your organization's security policy.`,
 		},
 		{
 			Name:        "Redirect HTTP to HTTPS",
-			Description: "Whether HTTP requests will be redirected to the access URL (if it's a https URL and TLS is enabled). Requests to local IP addresses are never redirected regardless of this setting.",
+			Description: "是否将 HTTP 请求重定向到访问 URL（如果是 https URL 并且启用了 TLS）。不管此设置如何，对本地 IP 地址的请求都不会被重定向。",
 			Flag:        "tls-redirect-http-to-https",
 			Env:         "CODER_TLS_REDIRECT_HTTP_TO_HTTPS",
 			Default:     "true",
@@ -577,7 +573,7 @@ when required by your organization's security policy.`,
 		},
 		{
 			Name:        "TLS Certificate Files",
-			Description: "Path to each certificate for TLS. It requires a PEM-encoded file. To configure the listener to use a CA certificate, concatenate the primary certificate and the CA certificate together. The primary certificate should appear first in the combined file.",
+			Description: "TLS 证书的路径。需要一个 PEM 编码的文件。要配置侦听器使用 CA 证书，请将主要证书和 CA 证书连接在一起。主要证书应该先出现在组合文件中。",
 			Flag:        "tls-cert-file",
 			Env:         "CODER_TLS_CERT_FILE",
 			Value:       &c.TLS.CertFiles,
@@ -587,7 +583,7 @@ when required by your organization's security policy.`,
 		},
 		{
 			Name:        "TLS Client CA Files",
-			Description: "PEM-encoded Certificate Authority file used for checking the authenticity of client.",
+			Description: "用于检查客户端真实性的 PEM 编码的证书颁发机构文件。",
 			Flag:        "tls-client-ca-file",
 			Env:         "CODER_TLS_CLIENT_CA_FILE",
 			Value:       &c.TLS.ClientCAFile,
@@ -597,7 +593,7 @@ when required by your organization's security policy.`,
 		},
 		{
 			Name:        "TLS Client Auth",
-			Description: "Policy the server will follow for TLS Client Authentication. Accepted values are \"none\", \"request\", \"require-any\", \"verify-if-given\", or \"require-and-verify\".",
+			Description: "TLS 客户端身份验证的服务器策略。接受的值为 \"none\"、\"request\"、\"require-any\"、\"verify-if-given\" 或 \"require-and-verify\"。",
 			Flag:        "tls-client-auth",
 			Env:         "CODER_TLS_CLIENT_AUTH",
 			Default:     "none",

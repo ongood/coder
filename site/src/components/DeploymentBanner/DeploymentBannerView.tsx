@@ -87,7 +87,7 @@ export const DeploymentBannerView: FC<DeploymentBannerViewProps> = ({
         </div>
       </Tooltip>
       <div className={styles.group}>
-        <div className={styles.category}>Workspaces</div>
+        <div className={styles.category}>工作区</div>
         <div className={styles.values}>
           <WorkspaceBuildValue
             status="pending"
@@ -117,7 +117,7 @@ export const DeploymentBannerView: FC<DeploymentBannerViewProps> = ({
       </div>
       <div className={styles.group}>
         <Tooltip title={`Activity in the last ~${aggregatedMinutes} minutes`}>
-          <div className={styles.category}>Transmission</div>
+          <div className={styles.category}>传输</div>
         </Tooltip>
 
         <div className={styles.values}>
@@ -150,7 +150,7 @@ export const DeploymentBannerView: FC<DeploymentBannerViewProps> = ({
         </div>
       </div>
       <div className={styles.group}>
-        <div className={styles.category}>Active Connections</div>
+        <div className={styles.category}>活动连接</div>
 
         <div className={styles.values}>
           <Tooltip title="VS Code Editors with the Coder Remote Extension">

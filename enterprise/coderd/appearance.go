@@ -17,17 +17,17 @@ import (
 
 var DefaultSupportLinks = []codersdk.LinkConfig{
 	{
-		Name:   "Documentation",
+		Name:   "帮助文档",
 		Target: "https://coder.com/docs/coder-oss",
 		Icon:   "docs",
 	},
 	{
-		Name:   "Report a bug",
-		Target: "https://github.com/coder/coder/issues/new?labels=needs+grooming&body={CODER_BUILD_INFO}",
+		Name:   "报告 Bug",
+		Target: "https://github.com/ongood/coder/issues/new?labels=needs+grooming&body={CODER_BUILD_INFO}",
 		Icon:   "bug",
 	},
 	{
-		Name:   "Join the Coder Discord",
+		Name:   "加入讨论社区",
 		Target: "https://coder.com/chat?utm_source=coder&utm_medium=coder&utm_campaign=server-footer",
 		Icon:   "chat",
 	},

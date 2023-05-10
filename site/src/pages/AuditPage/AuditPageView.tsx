@@ -42,7 +42,7 @@ const presetFilters = [
   },
   {
     query: "resource_type:api_key action:login",
-    name: "User logins",
+    name: "用户登录",
   },
 ]
 

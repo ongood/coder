@@ -12,11 +12,11 @@ import EmailIcon from "@material-ui/icons/EmailOutlined"
 import { AlertBanner } from "components/AlertBanner/AlertBanner"
 
 export const Language = {
-  emailLabel: "Email",
-  passwordLabel: "Password",
-  emailInvalid: "Please enter a valid email address.",
-  emailRequired: "Please enter an email address.",
-  passwordSignIn: "Sign In",
+  emailLabel: "电子邮件",
+  passwordLabel: "密码",
+  emailInvalid: "请输入有效的电子邮件地址。",
+  emailRequired: "请输入电子邮件地址。",
+  passwordSignIn: "登录",
   githubSignIn: "GitHub",
   oidcSignIn: "OpenID Connect",
 }

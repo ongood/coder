@@ -14,8 +14,8 @@ import LogoutIcon from "@material-ui/icons/ExitToAppOutlined"
 import { combineClasses } from "utils/combineClasses"
 
 export const Language = {
-  accountLabel: "Account",
-  signOutLabel: "Sign Out",
+  accountLabel: "账号",
+  signOutLabel: "退出",
   copyrightText: `\u00a9 ${new Date().getFullYear()} Coder Technologies, Inc.`,
 }
 

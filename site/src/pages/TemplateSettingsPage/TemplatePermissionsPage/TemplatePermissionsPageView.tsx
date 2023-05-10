@@ -236,8 +236,8 @@ export const TemplatePermissionsPageView: FC<
                   <TableRow>
                     <TableCell colSpan={999}>
                       <EmptyState
-                        message="No members yet"
-                        description="Add a member using the controls above"
+                        message="暂无成员"
+                        description="使用上方的控件添加成员"
                       />
                     </TableCell>
                   </TableRow>
@@ -285,7 +285,7 @@ export const TemplatePermissionsPageView: FC<
                             data={group}
                             menuItems={[
                               {
-                                label: "Remove",
+                                label: "删除",
                                 onClick: () => onRemoveGroup(group),
                                 disabled: false,
                               },

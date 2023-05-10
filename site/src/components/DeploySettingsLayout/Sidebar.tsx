@@ -53,7 +53,7 @@ export const Sidebar: React.FC = () => {
         href="licenses"
         icon={<SidebarNavItemIcon icon={ApprovalIcon} />}
       >
-        Licenses
+        许可证
       </SidebarNavItem>
       <SidebarNavItem
         href="appearance"
