@@ -3212,6 +3212,28 @@ Parameter represents a set value for the scope.
 | ------ | ------ | -------- | ------------ | ----------- |
 | `name` | string | false    |              |             |
 
+## codersdk.PatchWorkspaceProxy
+
+```json
+{
+  "display_name": "string",
+  "icon": "string",
+  "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+  "name": "string",
+  "regenerate_token": true
+}
+```
+
+### Properties
+
+| Name               | Type    | Required | Restrictions | Description |
+| ------------------ | ------- | -------- | ------------ | ----------- |
+| `display_name`     | string  | true     |              |             |
+| `icon`             | string  | true     |              |             |
+| `id`               | string  | true     |              |             |
+| `name`             | string  | true     |              |             |
+| `regenerate_token` | boolean | false    |              |             |
+
 ## codersdk.PprofConfig
 
 ```json
@@ -3454,7 +3476,7 @@ Parameter represents a set value for the scope.
 ## codersdk.ProxyHealthStatus
 
 ```json
-"reachable"
+"ok"
 ```
 
 ### Properties
@@ -3463,7 +3485,7 @@ Parameter represents a set value for the scope.
 
 | Value          |
 | -------------- |
-| `reachable`    |
+| `ok`           |
 | `unreachable`  |
 | `unhealthy`    |
 | `unregistered` |
@@ -5329,6 +5351,7 @@ Parameter represents a set value for the scope.
 {
   "created_at": "2019-08-24T14:15:22Z",
   "deleted": true,
+  "display_name": "string",
   "icon": "string",
   "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
   "name": "string",
@@ -5338,7 +5361,7 @@ Parameter represents a set value for the scope.
       "errors": ["string"],
       "warnings": ["string"]
     },
-    "status": "reachable"
+    "status": "ok"
   },
   "updated_at": "2019-08-24T14:15:22Z",
   "url": "string",
@@ -5352,6 +5375,7 @@ Parameter represents a set value for the scope.
 | ------------------- | -------------------------------------------------------------- | -------- | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `created_at`        | string                                                         | false    |              |                                                                                                                                                                               |
 | `deleted`           | boolean                                                        | false    |              |                                                                                                                                                                               |
+| `display_name`      | string                                                         | false    |              |                                                                                                                                                                               |
 | `icon`              | string                                                         | false    |              |                                                                                                                                                                               |
 | `id`                | string                                                         | false    |              |                                                                                                                                                                               |
 | `name`              | string                                                         | false    |              |                                                                                                                                                                               |
@@ -5369,7 +5393,7 @@ Parameter represents a set value for the scope.
     "errors": ["string"],
     "warnings": ["string"]
   },
-  "status": "reachable"
+  "status": "ok"
 }
 ```
 

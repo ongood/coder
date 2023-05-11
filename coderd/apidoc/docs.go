@@ -149,6 +149,7 @@ const docTemplate = `{
                 ],
                 "summary": "Get applications host",
                 "operationId": "get-applications-host",
+                "deprecated": true,
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -5092,6 +5093,34 @@ const docTemplate = `{
                 }
             }
         },
+        "/workspaceproxies/me/goingaway": {
+            "post": {
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Enterprise"
+                ],
+                "summary": "Workspace proxy going away",
+                "operationId": "workspace-proxy-going-away",
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.Response"
+                        }
+                    }
+                },
+                "x-apidocgen": {
+                    "skip": true
+                }
+            }
+        },
         "/workspaceproxies/me/issue-signed-app-token": {
             "post": {
                 "security": [
@@ -5177,6 +5206,39 @@ const docTemplate = `{
             }
         },
         "/workspaceproxies/{workspaceproxy}": {
+            "get": {
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Enterprise"
+                ],
+                "summary": "Get workspace proxy",
+                "operationId": "get-workspace-proxy",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Proxy ID or name",
+                        "name": "workspaceproxy",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.WorkspaceProxy"
+                        }
+                    }
+                }
+            },
             "delete": {
                 "security": [
                     {
@@ -5206,6 +5268,51 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/codersdk.Response"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Enterprise"
+                ],
+                "summary": "Update workspace proxy",
+                "operationId": "update-workspace-proxy",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Proxy ID or name",
+                        "name": "workspaceproxy",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Update workspace proxy request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.PatchWorkspaceProxy"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.WorkspaceProxy"
                         }
                     }
                 }
@@ -8073,6 +8180,33 @@ const docTemplate = `{
                 }
             }
         },
+        "codersdk.PatchWorkspaceProxy": {
+            "type": "object",
+            "required": [
+                "display_name",
+                "icon",
+                "id",
+                "name"
+            ],
+            "properties": {
+                "display_name": {
+                    "type": "string"
+                },
+                "icon": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "regenerate_token": {
+                    "type": "boolean"
+                }
+            }
+        },
         "codersdk.PprofConfig": {
             "type": "object",
             "properties": {
@@ -8313,13 +8447,13 @@ const docTemplate = `{
         "codersdk.ProxyHealthStatus": {
             "type": "string",
             "enum": [
-                "reachable",
+                "ok",
                 "unreachable",
                 "unhealthy",
                 "unregistered"
             ],
             "x-enum-varnames": [
-                "ProxyReachable",
+                "ProxyHealthy",
                 "ProxyUnreachable",
                 "ProxyUnhealthy",
                 "ProxyUnregistered"
@@ -9854,6 +9988,9 @@ const docTemplate = `{
                 },
                 "deleted": {
                     "type": "boolean"
+                },
+                "display_name": {
+                    "type": "string"
                 },
                 "icon": {
                     "type": "string"

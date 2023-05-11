@@ -6,21 +6,21 @@ import {
   EnterpriseBadge,
   EntitledBadge,
 } from "components/DeploySettingsLayout/Badges"
-import InputAdornment from "@material-ui/core/InputAdornment"
+import InputAdornment from "@mui/material/InputAdornment"
 import { Fieldset } from "components/DeploySettingsLayout/Fieldset"
 import { getFormHelpers } from "utils/formUtils"
-import Button from "@material-ui/core/Button"
-import FormControlLabel from "@material-ui/core/FormControlLabel"
-import FormHelperText from "@material-ui/core/FormHelperText"
+import Button from "@mui/material/Button"
+import FormControlLabel from "@mui/material/FormControlLabel"
 import { BlockPicker } from "react-color"
 import { useTranslation } from "react-i18next"
-import makeStyles from "@material-ui/core/styles/makeStyles"
-import Switch from "@material-ui/core/Switch"
-import TextField from "@material-ui/core/TextField"
+import makeStyles from "@mui/styles/makeStyles"
+import Switch from "@mui/material/Switch"
+import TextField from "@mui/material/TextField"
 import { UpdateAppearanceConfig } from "api/typesGenerated"
 import { Stack } from "components/Stack/Stack"
 import { useFormik } from "formik"
-import { useTheme } from "@material-ui/core/styles"
+import { useTheme } from "@mui/styles"
+import Link from "@mui/material/Link"
 
 export type AppearanceSettingsPageViewProps = {
   appearance: UpdateAppearanceConfig
@@ -81,7 +81,8 @@ export const AppearanceSettingsPageView = ({
       </Badges>
 
       <Fieldset
-        title="徽标网址"
+        title="Logo URL"
+        subtitle="指定一个自定义的URL，用于在仪表板左上角显示您的徽标。"
         validation={
           isEntitled
             ? "我们建议使用长宽比为3:1的透明图像。"
@@ -90,9 +91,6 @@ export const AppearanceSettingsPageView = ({
         onSubmit={logoForm.handleSubmit}
         button={!isEntitled && <Button disabled>提交</Button>}
       >
-        <p>
-        为要显示在仪表板左上角的徽标指定自定义URL。
-        </p>
         <TextField
           {...logoFieldHelpers("logo_url")}
           defaultValue={appearance.logo_url}
@@ -117,7 +115,8 @@ export const AppearanceSettingsPageView = ({
       </Fieldset>
 
       <Fieldset
-        title="消息横幅"
+        title="服务横幅"
+        subtitle="配置一个横幅，向所有用户显示一条消息。"
         onSubmit={serviceBannerForm.handleSubmit}
         button={
           !isEntitled && (
@@ -127,7 +126,7 @@ export const AppearanceSettingsPageView = ({
                   {
                     service_banner: {
                       message:
-                        "👋 **This** is a service banner. The banner's color and text are editable.",
+                        "👋 这是一个服务横幅。横幅的颜色和文本可以进行编辑。",
                       background_color: "#004852",
                       enabled: true,
                     },
@@ -144,19 +143,17 @@ export const AppearanceSettingsPageView = ({
           !isEntitled && (
             <p>
               Your license does not include Service Banners.{" "}
-              <a href="mailto:sales@coder.com">Contact sales</a> to learn more.
+              <Link href="mailto:sales@coder.com">Contact sales</Link> to learn
+              more.
             </p>
           )
         }
       >
-        <p>配置向所有用户显示消息的横幅。</p>
-
         {isEntitled && (
           <Stack>
             <FormControlLabel
               control={
                 <Switch
-                  color="primary"
                   checked={serviceBannerForm.values.enabled}
                   onChange={async () => {
                     const newState = !serviceBannerForm.values.enabled
@@ -178,13 +175,14 @@ export const AppearanceSettingsPageView = ({
             />
             <Stack spacing={0}>
               <TextField
-                {...serviceBannerFieldHelpers("message")}
+                {...serviceBannerFieldHelpers(
+                  "message",
+                  t("messageHelperText"),
+                )}
                 fullWidth
-                label="消息"
-                variant="outlined"
+                label="Message"
                 multiline
               />
-              <FormHelperText>{t("messageHelperText")}</FormHelperText>
             </Stack>
 
             <Stack spacing={0}>
