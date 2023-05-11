@@ -75,11 +75,11 @@ export const LicenseCard = ({
           </Stack>
 
           <Stack direction="column" spacing={0} alignItems="center">
-            <span className={styles.secondaryMaincolor}>Valid until</span>
+            <span className={styles.secondaryMaincolor}>有效期至</span>
             <span className={styles.primaryMainColor}>
               {dayjs
                 .unix(license.claims.license_expires)
-                .format("MMMM D, YYYY")}
+                .format("YYYY年M月D日")}
             </span>
           </Stack>
           <div className={styles.actions}>

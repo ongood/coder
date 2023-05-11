@@ -465,7 +465,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 
 	httpAddress := clibase.Option{
 		Name:        "HTTP Address",
-		Description: "HTTP bind address of the server. Unset to disable the HTTP endpoint.",
+		Description: "服务器的HTTP绑定地址。将其设置为未设置以禁用HTTP端点。",
 		Flag:        "http-address",
 		Env:         "CODER_HTTP_ADDRESS",
 		Default:     "127.0.0.1:3000",

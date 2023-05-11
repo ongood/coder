@@ -1,56 +1,55 @@
-
-{
-  "title": "令牌",
-  "description": "令牌用于与Coder API进行身份验证。您可以在此页面上创建令牌，也可以使用Coder CLI使用<1>{{cliCreateCommand}}</1>命令创建令牌。",
-  "emptyState": "未找到任何令牌",
-  "tokenActions": {
-  "addToken": "添加令牌",
-  "deleteToken": {
-  "delete": "删除令牌",
-  "deleteCaption": "您确定要永久删除令牌<strong><4>{{tokenName}}</4></strong>吗？",
-  "deleteSuccess": "令牌已删除",
-  "deleteFailure": "无法删除令牌"
-  }
-  },
-  "table": {
-  "id": "ID",
-  "name": "名称",
-  "lastUsed": "上次使用",
-  "expiresAt": "过期时间",
-  "createdAt": "创建时间"
-  },
-  "createToken": {
-  "title": "创建令牌",
-  "detail": "所有令牌都是非作用域的，因此具有完全的资源访问权限。",
-  "nameSection": {
-  "title": "名称",
-  "description": "这个令牌是用于什么目的？"
-  },
-  "lifetimeSection": {
-  "title": "过期时间",
-  "description": "该令牌将在{{date}}过期。",
-  "emptyDescription": "请设置令牌的过期时间。",
-  "7": "7 天",
-  "30": "30 天",
-  "60": "60 天",
-  "90": "90 天",
-  "custom": "自定义",
-  "noExpiration": "永不过期",
-  "expiresOn": "过期于"
-  },
-  "fields": {
-  "name": "名称",
-  "lifetime": "有效期"
-  },
-  "footer": {
-  "retry": "重试",
-  "submit": "创建令牌"
-  },
-  "createSuccess": "令牌已创建",
-  "createError": "无法创建令牌",
-  "successModal": {
-  "title": "创建成功",
-  "description": "在继续之前，请确保复制以下令牌："
-  }
-  }
+ {
+    "title": "令牌",
+    "description": "令牌用于与Coder API进行身份验证。您可以在此页面上创建令牌，也可以使用Coder CLI使用<1>{{cliCreateCommand}}</1>命令创建令牌。",
+    "emptyState": "未找到任何令牌",
+    "tokenActions": {
+      "addToken": "添加令牌",
+      "deleteToken": {
+        "delete": "删除令牌",
+        "deleteCaption": "您确定要永久删除令牌<strong><4>{{tokenName}}</4></strong>吗？",
+        "deleteSuccess": "令牌已删除",
+        "deleteFailure": "无法删除令牌"
+      }
+    },
+    "table": {
+      "id": "ID",
+      "name": "名称",
+      "lastUsed": "上次使用",
+      "expiresAt": "过期时间",
+      "createdAt": "创建时间"
+    },
+    "createToken": {
+      "title": "创建令牌",
+      "detail": "所有令牌都是非作用域的，因此具有完全的资源访问权限。",
+      "nameSection": {
+      "title": "名称",
+      "description": "这个令牌是用于什么目的？"
+      },
+      "lifetimeSection": {
+        "title": "过期时间",
+        "description": "该令牌将在{{date}}过期。",
+        "emptyDescription": "请设置令牌的过期时间。",
+        "7": "7 天",
+        "30": "30 天",
+        "60": "60 天",
+        "90": "90 天",
+        "custom": "自定义",
+        "noExpiration": "永不过期",
+        "expiresOn": "过期于"
+      },
+      "fields": {
+        "name": "名称",
+        "lifetime": "有效期"
+      },
+      "footer": {
+        "retry": "重试",
+        "submit": "创建令牌"
+      },
+      "createSuccess": "令牌已创建",
+      "createError": "无法创建令牌",
+      "successModal": {
+        "title": "创建成功",
+        "description": "在继续之前，请确保复制以下令牌："
+      }
+    }
   }

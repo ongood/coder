@@ -1,12 +1,12 @@
 {
   "deleteDialog": {
-    "info": "工作区创建于 {{timeAgo}}。"
+    "info": "此工作区创建于{{timeAgo}}。"
   },
   "workspaceScheduleButton": {
     "schedule": "计划",
     "editDeadlineMinus": "减少小时数",
     "editDeadlinePlus": "增加小时数",
-    "submitDeadline": "设定",
+    "submitDeadline": "设置",
     "hours": "小时"
   },
   "ctas": {
@@ -14,36 +14,39 @@
     "extendScheduleCta": "延长"
   },
   "warningsAndErrors": {
-    "workspaceRefreshWarning": "我们在获取最新的工作区状态时遇到了困难。请刷新页面以查看最新的更改。",
-    "workspaceDeletedWarning": "此工作区已被删除，无法编辑。",
-    "workspaceShutdownWarning": "您的工作区计划很快自动关闭。"
+    "workspaceRefreshWarning": "我们无法获取最新的工作区状态。请刷新页面以查看最新更改。",
+    "workspaceDeletedWarning": "此工作区已被删除，无法进行编辑。",
+    "workspaceShutdownWarning": "您的工作区将很快自动关闭。"
   },
   "actionButton": {
     "start": "启动",
     "stop": "停止",
+    "restart": "重启",
     "delete": "删除",
     "cancel": "取消",
-    "update": "升级",
-    "updating": "升级中",
+    "update": "更新",
+    "updating": "更新中",
     "starting": "启动中...",
     "stopping": "停止中...",
     "deleting": "删除中...",
-    "changeVersion": "更改版本",
-    "buildParameters": "构建参数"
+    "settings": "设置",
+    "retryDebugMode": "以调试模式重试"
   },
   "disabledButton": {
     "canceling": "取消中",
     "deleted": "已删除",
-    "pending": "等待中"
+    "pending": "待处理"
   },
   "agentStatus": {
     "connected": {
       "ready": "就绪",
-      "starting": "正在启动..."
+      "starting": "启动中...",
+      "shuttingDown": "停止中...",
+      "off": "已停止"
     },
     "connecting": "连接中...",
     "disconnected": "已断开连接",
-    "timeout": "超时"
+    "timeout": "连接超时"
   },
   "buildMessage": {
     "start": "启动",
@@ -58,10 +61,13 @@
     "version": "版本"
   },
   "agentOutdatedTooltip": {
-    "title": "代理程序已过期",
-    "description": "此代理程序版本早于 Coder 服务器版本。这可能发生在您使用正在运行的工作区更新 Coder 时。要解决此问题，您可以停止并启动工作区。",
+    "title": "代理程序过时",
+    "description": "此代理程序的版本较旧，低于 Coder 服务器版本。在更新 Coder 时运行的工作区可能会出现此情况。要解决此问题，您可以停止并启动工作区。",
     "agentVersionLabel": "代理程序版本",
     "serverVersionLabel": "服务器版本",
     "updateWorkspaceLabel": "更新工作区"
+  },
+  "askParametersDialog": {
+    "message": "新版本需要填写参数以更新工作区。"
   }
 }

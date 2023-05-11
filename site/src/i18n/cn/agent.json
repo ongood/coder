@@ -1,35 +1,47 @@
 {
   "shareTooltip": {
-    "private": "私人的，只有你可以访问",
+    "private": "私人，仅您可以访问",
     "authenticated": "与所有经过身份验证的用户共享",
-    "public": "公开分享",
-    "external": "打开外部 URL"
+    "public": "公开共享",
+    "external": "打开外部链接"
   },
   "labels": {
     "agent": "代理",
-    "os": "OS",
-    "apps": "Apps",
-    "noApps": "None"
+    "os": "操作系统",
+    "apps": "应用程序",
+    "noApps": "无"
   },
   "status": {
     "timeout": "超时",
     "startTimeout": "启动超时",
-    "startError": "错误"
+    "startError": "启动错误",
+    "shutdownTimeout": "停止超时",
+    "shutdownError": "停止错误"
   },
   "timeoutTooltip": {
-    "title": "代理连接时间太长",
-    "message": "我们注意到这个代理连接的时间比预期的要长。",
-    "link": "Troubleshoot"
+    "title": "代理连接时间过长",
+    "message": "我们注意到该代理连接所花费的时间比预期长。",
+    "link": "故障排除"
   },
   "startTimeoutTooltip": {
-    "title": "代理正在启动的时间过长",
-    "message": "我们注意到此代理启动所需的时间比预期的时间长。",
+    "title": "代理启动时间过长",
+    "message": "我们注意到该代理启动所花费的时间比预期长。",
     "link": "故障排除"
-    },
-    "startErrorTooltip": {
+  },
+  "startErrorTooltip": {
     "title": "启动代理时出错",
-    "message": "代理启动过程中出现了问题。",
+    "message": "在代理启动过程中发生了错误。",
     "link": "故障排除"
-    },
-    "unableToConnect": "无法连接"
+  },
+  "shutdownTimeoutTooltip": {
+    "title": "代理停止时间过长",
+    "message": "我们注意到该代理停止所花费的时间比预期长。",
+    "link": "故障排除"
+  },
+  "shutdownErrorTooltip": {
+    "title": "停止代理时出错",
+    "message": "尝试停止代理时发生了错误。",
+    "link": "故障排除"
+  },
+  "unableToConnect": "无法连接"
 }

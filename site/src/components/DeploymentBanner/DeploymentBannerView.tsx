@@ -116,19 +116,19 @@ export const DeploymentBannerView: FC<DeploymentBannerViewProps> = ({
         </div>
       </div>
       <div className={styles.group}>
-        <Tooltip title={`Activity in the last ~${aggregatedMinutes} minutes`}>
+        <Tooltip title={`过去约${aggregatedMinutes}分钟内的活动`}>
           <div className={styles.category}>传输</div>
         </Tooltip>
 
         <div className={styles.values}>
-          <Tooltip title="Data sent to workspaces">
+          <Tooltip title="发送到工作区的数据">
             <div className={styles.value}>
               <DownloadIcon />
               {stats ? prettyBytes(stats.workspaces.rx_bytes) : "-"}
             </div>
           </Tooltip>
           <ValueSeparator />
-          <Tooltip title="Data sent from workspaces">
+          <Tooltip title="从工作区发送的数据">
             <div className={styles.value}>
               <UploadIcon />
               {stats ? prettyBytes(stats.workspaces.tx_bytes) : "-"}
@@ -138,8 +138,8 @@ export const DeploymentBannerView: FC<DeploymentBannerViewProps> = ({
           <Tooltip
             title={
               displayLatency < 0
-                ? "No recent workspace connections have been made"
-                : "The average latency of user connections to workspaces"
+                ? "尚未建立最近的工作区连接"
+                : "用户连接到工作区的平均延迟"
             }
           >
             <div className={styles.value}>
@@ -153,7 +153,7 @@ export const DeploymentBannerView: FC<DeploymentBannerViewProps> = ({
         <div className={styles.category}>活动连接</div>
 
         <div className={styles.values}>
-          <Tooltip title="VS Code Editors with the Coder Remote Extension">
+          <Tooltip title="使用 Coder 远程扩展的 VS Code 编辑器">
             <div className={styles.value}>
               <VSCodeIcon className={styles.iconStripColor} />
               {typeof stats?.session_count.vscode === "undefined"
@@ -162,7 +162,7 @@ export const DeploymentBannerView: FC<DeploymentBannerViewProps> = ({
             </div>
           </Tooltip>
           <ValueSeparator />
-          <Tooltip title="SSH Sessions">
+          <Tooltip title="SSH 会话">
             <div className={styles.value}>
               <TerminalIcon />
               {typeof stats?.session_count.ssh === "undefined"
@@ -171,7 +171,7 @@ export const DeploymentBannerView: FC<DeploymentBannerViewProps> = ({
             </div>
           </Tooltip>
           <ValueSeparator />
-          <Tooltip title="Web Terminal Sessions">
+          <Tooltip title="Web 终端会话">
             <div className={styles.value}>
               <WebTerminalIcon />
               {typeof stats?.session_count.reconnecting_pty === "undefined"
@@ -182,14 +182,14 @@ export const DeploymentBannerView: FC<DeploymentBannerViewProps> = ({
         </div>
       </div>
       <div className={styles.refresh}>
-        <Tooltip title="The last time stats were aggregated. Workspaces report statistics periodically, so it may take a bit for these to update!">
+        <Tooltip title="最后一次统计数据聚合的时间。工作区定期报告统计数据，因此这些数据可能需要一段时间才能更新！">
           <div className={styles.value}>
             <CollectedIcon />
             {lastAggregated}
           </div>
         </Tooltip>
 
-        <Tooltip title="A countdown until stats are fetched again. Click to refresh!">
+        <Tooltip title="距离下次获取统计数据的倒计时。点击刷新！">
           <Button
             className={`${styles.value} ${styles.refreshButton}`}
             onClick={() => {

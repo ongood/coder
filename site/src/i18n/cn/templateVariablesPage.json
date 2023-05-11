@@ -1,0 +1,6 @@
+{
+  "title": "模板变量",
+  "sensitiveVariableHelperText": "这是一个敏感的变量。如果为空，将使用先前的值。",
+  "validationRequiredVariable": "变量是必填项。",
+  "unusedVariablesNotice": "该模板不使用受管理的变量。"
+}

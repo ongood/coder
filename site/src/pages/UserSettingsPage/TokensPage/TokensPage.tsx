@@ -18,14 +18,14 @@ export const TokensPage: FC<PropsWithChildren<unknown>> = () => {
   const cliCreateCommand = "coder tokens create"
   const description = (
     <Trans t={t} i18nKey="description" values={{ cliCreateCommand }}>
-      令牌用于与Coder API进行身份验证。您可以使用Coder CLI使用 <code>{{ cliCreateCommand }}</code>命令创建令牌。
+      令牌用于与Coder API进行身份验证。您可以通过Coder CLI使用 <code>{{ cliCreateCommand }}</code>命令创建令牌。
     </Trans>
   )
 
   const TokenActions = () => (
     <Stack direction="row" justifyContent="end" className={styles.tokenActions}>
       <Button startIcon={<AddIcon />} component={RouterLink} to="new">
-        {t("tokenActions.addToken")}
+        {t("添加令牌")}
       </Button>
     </Stack>
   )

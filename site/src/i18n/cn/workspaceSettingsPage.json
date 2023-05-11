@@ -1,0 +1,10 @@
+{
+  "title": "工作区设置",
+  "defaultErrorMessage": "更新工作区设置时出错",
+  "nameLabel": "名称",
+  "generalInfo": "常规信息",
+  "generalInfoDescription": "您新工作区的名称。",
+  "parameters": "参数",
+  "parametersDescription": "这些值由您模板的 Terraform 配置提供。可以在创建工作区后更改这些值。"
+}
+

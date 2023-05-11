@@ -57,7 +57,7 @@ export const AddNewLicensePageView: FC<AddNewLicenseProps> = ({
           description="企业许可证可以在您的部署中解锁更多功能。"
         />
         <Button component={RouterLink} to="/settings/deployment/licenses">
-          Back to licenses
+          返回
         </Button>
       </Stack>
 

@@ -2,43 +2,56 @@
   "title": "创建模板",
   "form": {
     "generalInfo": {
-      "title": "常规信息",
-      "description": "该名称用于标识 URL 和 API 中的模板。它在您的组织内必须是唯一的。"
+      "title": "基本信息",
+      "description": "该名称用于在URL和API中识别模板。在您的组织内必须是唯一的。"
     },
     "displayInfo": {
       "title": "显示信息",
-      "description": "为您的模板提供一个友好的名称、描述和图标。"
+      "description": "为您的模板提供友好的名称、描述和图标。"
     },
     "schedule": {
-      "title": "时间表",
-      "description": "定义从此模板创建的工作区何时自动停止。"
+      "title": "计划",
+      "description": "定义从该模板创建的工作区自动停止的时间。"
     },
     "operations": {
       "title": "操作",
-      "description": "规定在此模板创建的工作区上允许的操作。"
+      "description": "调整从该模板创建的工作区允许的操作。"
     },
     "parameters": {
       "title": "模板参数",
-      "description": "这些参数由模板的 Terraform 配置提供。"
+      "description": "这些参数由您的模板的Terraform配置提供。"
     },
     "fields": {
       "name": "名称",
       "displayName": "显示名称",
       "description": "描述",
       "icon": "图标",
-      "autoStop": "默认自动停止",
-      "allowUsersToCancel": "允许用户取消正在进行的工作区作业"
+      "autostop": "默认自动停止时间（小时）",
+      "maxTTL": "最大生命周期（小时）",
+      "allowUsersToCancel": "允许用户取消正在进行的工作区任务"
     },
     "helperText": {
-      "autoStop": "时间（以小时为单位）",
-      "allowUsersToCancel": "如果选中，用户可能会使其工作区损坏。"
-    },    
+      "defaultTTLHelperText_zero": "工作区将一直运行，直到手动停止。",
+      "defaultTTLHelperText_one": "工作区将默认在{{count}}小时后停止。",
+      "defaultTTLHelperText_other": "工作区将默认在{{count}}小时后停止。",
+      "maxTTLHelperText_zero": "工作区可以无限期运行。",
+      "maxTTLHelperText_one": "工作区必须在开始后的1小时内停止。",
+      "maxTTLHelperText_other": "工作区必须在开始后的{{count}}小时内停止。",
+      "allowUsersToCancel": "如果选中，用户可能会破坏其工作区。"
+    },
     "upload": {
-      "removeTitle": "删除文件",
+      "removeTitle": "移除文件",
       "title": "上传模板"
     },
     "tooltip": {
-      "allowUsersToCancel": "根据您的模板，取消构建可能会使工作区处于不健康状态。对于大多数用例，不建议使用此选项。"
+      "allowUsersToCancel": "根据您的模板，取消构建可能会导致工作区处于不正常状态。这个选项在大多数情况下不建议使用。"
+    },
+    "error": {
+      "descriptionMax": "请输入少于或等于128个字符的描述。",
+      "defaultTTLMax": "请输入小于或等于168小时（7天）的限制。",
+      "defaultTTLMin": "默认自动停止时间不能小于0。",
+      "maxTTLMax": "请输入小于或等于168小时（7天）的限制。",
+      "maxTTLMin": "最大自动停止时间不能小于0。"
     }
   }
 }

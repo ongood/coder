@@ -8,36 +8,41 @@
     "stopped": "已停止",
     "deleting": "删除中",
     "deleted": "已删除",
-    "canceling": "正在取消动作",
-    "canceled": "已取消动作",
+    "canceling": "取消操作中",
+    "canceled": "已取消操作",
     "failed": "失败",
-    "pending": "等待中"
+    "pending": "待处理"
   },
   "deleteDialog": {
     "title": "删除{{entity}}",
-    "intro": "删除这个{{entity}}是不可逆的!",
-    "confirm": "您确定要继续吗？在下方输入{{entity}}的名称以确认。",
-    "confirmLabel": "输入{{entity}}的名称以删除",
+    "intro": "删除此{{entity}}是不可逆的！",
+    "confirm": "您确定要继续吗？请在下方输入此{{entity}}的名称以确认。",
+    "confirmLabel": "要删除的{{entity}}名称",
     "incorrectName": "不正确的{{entity}}名称。"
   },
   "schedule": {
-    "autoStartLabel": "启动于",
-    "autoStopLabel": "停止于"
+    "autostartLabel": "开始于",
+    "autostopLabel": "结束于"
   },
   "ctas": {
-    "dismissCta": "驳回",
-    "expand": "点击这里了解更多",
-    "collapse": "点击这里以隐藏",
+    "dismissCta": "关闭",
+    "expand": "点击此处了解更多",
+    "collapse": "点击此处隐藏",
     "retry": "重试"
   },
   "warningsAndErrors": {
-    "somethingWentWrong": "遇到了点问题."
+    "somethingWentWrong": "出现了一些问题。"
   },
   "emojiPicker": {
-    "select": "选择表情"
+    "select": "选择表情符号"
   },
   "updateCheck": {
-    "message": "Coder {{version}}现在可用。查看<4>发行说明</4>和<7>升级说明</7>获取更多信息。",
+    "message": "Coder {{version}}现已可用。查看<4>发布说明</4>和<7>升级指南</7>以获取更多信息。",
     "error": "Coder更新检查失败。"
+  },
+  "licenseFieldTextHelper": "您需要企业许可证才能使用它。",
+  "learnMore": "了解更多",
+  "forms": {
+    "typeToSearch": "开始输入以搜索..."
   }
 }

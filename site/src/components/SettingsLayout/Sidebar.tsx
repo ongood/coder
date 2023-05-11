@@ -59,25 +59,25 @@ export const Sidebar: React.FC<{ user: User }> = ({ user }) => {
         href="account"
         icon={<SidebarNavItemIcon icon={AccountIcon} />}
       >
-        Account
+        账号
       </SidebarNavItem>
       <SidebarNavItem
         href="security"
         icon={<SidebarNavItemIcon icon={SecurityIcon} />}
       >
-        Security
+        安全性
       </SidebarNavItem>
       <SidebarNavItem
         href="ssh-keys"
         icon={<SidebarNavItemIcon icon={FingerprintOutlinedIcon} />}
       >
-        SSH Keys
+        SSH 密钥
       </SidebarNavItem>
       <SidebarNavItem
         href="tokens"
         icon={<SidebarNavItemIcon icon={VpnKeyOutlined} />}
       >
-        Tokens
+        令牌
       </SidebarNavItem>
       {dashboard.experiments.includes("moons") && (
         <SidebarNavItem
