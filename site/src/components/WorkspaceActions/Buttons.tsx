@@ -75,7 +75,7 @@ export const RestartButton: FC<PropsWithChildren<WorkspaceAction>> = ({
       startIcon={<ReplayIcon />}
       onClick={handleAction}
     >
-      {t("actionButton.restart")}
+      {t("重启")}
     </Button>
   )
 }

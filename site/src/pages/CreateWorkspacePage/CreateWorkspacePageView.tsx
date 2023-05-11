@@ -227,8 +227,8 @@ export const CreateWorkspacePageView: FC<
 
         {/* General info */}
         <FormSection
-          title="General info"
-          description="The template and name of your new workspace."
+          title="常规信息"
+          description="模板和您新工作区的名称。"
         >
           <FormFields>
             {props.selectedTemplate && (
@@ -250,8 +250,8 @@ export const CreateWorkspacePageView: FC<
         {/* Workspace owner */}
         {props.canCreateForUser && (
           <FormSection
-            title="Workspace owner"
-            description="The user that is going to own this workspace. If you are admin, you can create workspace for others."
+            title="工作区所有者"
+            description="将拥有此工作区的用户。如果您是管理员，您可以为其他用户创建工作区。"
           >
             <FormFields>
               <UserAutocomplete
@@ -266,8 +266,8 @@ export const CreateWorkspacePageView: FC<
         {/* Template git auth */}
         {props.templateGitAuth && props.templateGitAuth.length > 0 && (
           <FormSection
-            title="Git Authentication"
-            description="This template requires authentication to automatically perform Git operations on create."
+            title="Git身份验证"
+            description="该模板要求进行身份验证，以便在创建时自动执行Git操作。"
           >
             <FormFields>
               {props.templateGitAuth.map((auth, index) => (
@@ -286,8 +286,8 @@ export const CreateWorkspacePageView: FC<
         {/* Template params */}
         {schemaToBeDisplayed && schemaToBeDisplayed.length > 0 && (
           <FormSection
-            title="Template params"
-            description="These values are provided by your template's Terraform configuration."
+            title="模板参数"
+            description="这些值由您的模板的Terraform配置提供。"
           >
             <FormFields>
               {schemaToBeDisplayed.map((schema) => (
@@ -312,8 +312,8 @@ export const CreateWorkspacePageView: FC<
         {props.templateParameters &&
           props.templateParameters.filter((p) => p.mutable).length > 0 && (
             <FormSection
-              title="Parameters"
-              description="These parameters are provided by your template's Terraform configuration and can be changed after creating the workspace."
+              title="参数"
+              description="这些参数由您的模板的Terraform配置提供，并且可以在创建工作区后进行更改。"
             >
               <FormFields>
                 {props.templateParameters.map(
@@ -348,14 +348,13 @@ export const CreateWorkspacePageView: FC<
         {props.templateParameters &&
           props.templateParameters.filter((p) => !p.mutable).length > 0 && (
             <FormSection
-              title="Immutable parameters"
+              title="不可变参数"
               classes={{ root: styles.warningSection }}
               description={
                 <>
-                  These parameters are also provided by your Terraform
-                  configuration but they{" "}
+                  这些参数也是由您的Terraform配置提供的，但是{" "}
                   <strong className={styles.warningText}>
-                    cannot be changed after creating the workspace.
+                  在创建工作区后无法更改。
                   </strong>
                 </>
               }

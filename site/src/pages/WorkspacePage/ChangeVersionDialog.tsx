@@ -45,10 +45,10 @@ export const ChangeVersionDialog: FC<ChangeVersionDialogProps> = ({
       type="success"
       cancelText="Cancel"
       confirmText="Change"
-      title="Change version"
+      title="更改版本"
       description={
         <Stack>
-          <p>You are about to change the version of this workspace.</p>
+          <p>您即将更改此工作区的版本。</p>
           {templateVersions ? (
             <FormFields>
               <Autocomplete

@@ -18,8 +18,7 @@ export const TokensPage: FC<PropsWithChildren<unknown>> = () => {
   const cliCreateCommand = "coder tokens create"
   const description = (
     <Trans t={t} i18nKey="description" values={{ cliCreateCommand }}>
-      Tokens are used to authenticate with the Coder API. You can create a token
-      with the Coder CLI using the <code>{{ cliCreateCommand }}</code> command.
+      令牌用于与Coder API进行身份验证。您可以使用Coder CLI使用 <code>{{ cliCreateCommand }}</code>命令创建令牌。
     </Trans>
   )
 

@@ -99,7 +99,7 @@ export const WorkspaceActions: FC<WorkspaceActionsProps> = ({
     [ButtonTypesEnum.restart]: <RestartButton handleAction={handleRestart} />,
     [ButtonTypesEnum.restarting]: (
       <ActionLoadingButton
-        label="Restarting"
+        label="重启中"
         key={ButtonTypesEnum.restarting}
       />
     ),
@@ -168,17 +168,17 @@ export const WorkspaceActions: FC<WorkspaceActionsProps> = ({
         >
           <MenuItem onClick={onMenuItemClick(handleSettings)}>
             <SettingsOutlined />
-            Settings
+            设置
           </MenuItem>
           {canChangeVersions && (
             <MenuItem onClick={onMenuItemClick(handleChangeVersion)}>
               <HistoryOutlined />
-              Change version
+              更改版本
             </MenuItem>
           )}
           <MenuItem onClick={onMenuItemClick(handleDelete)}>
             <DeleteOutlined />
-            Delete
+            删除
           </MenuItem>
         </Menu>
       </div>

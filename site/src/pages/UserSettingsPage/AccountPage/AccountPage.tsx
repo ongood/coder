@@ -17,7 +17,7 @@ export const AccountPage: FC = () => {
   const canEditUsers = permissions && permissions.updateUsers
 
   return (
-    <Section title={Language.title} description="Update your account info">
+    <Section title={Language.title} description="更新您的账户信息">
       <AccountForm
         editable={Boolean(canEditUsers)}
         email={me.email}

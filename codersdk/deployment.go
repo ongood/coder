@@ -1151,7 +1151,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		// ☢️ Dangerous settings
 		{
 			Name:        "DANGEROUS: Allow Path App Sharing",
-			Description: "Allow workspace apps that are not served from subdomains to be shared. Path-based app sharing is DISABLED by default for security purposes. Path-based apps can make requests to the Coder API and pose a security risk when the workspace serves malicious JavaScript. Path-based apps can be disabled entirely with --disable-path-apps for further security.",
+			Description: "允许共享未从子域名提供的工作区应用程序。出于安全目的，默认情况下禁用基于路径的应用程序共享。基于路径的应用程序可以向Coder API发出请求，并在工作区提供恶意JavaScript时构成安全风险。可以使用--disable-path-apps完全禁用基于路径的应用程序以进一步增强安全性。",
 			Flag:        "dangerous-allow-path-app-sharing",
 			Env:         "CODER_DANGEROUS_ALLOW_PATH_APP_SHARING",
 
@@ -1160,7 +1160,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "DANGEROUS: Allow Site Owners to Access Path Apps",
-			Description: "Allow site-owners to access workspace apps from workspaces they do not own. Owners cannot access path-based apps they do not own by default. Path-based apps can make requests to the Coder API and pose a security risk when the workspace serves malicious JavaScript. Path-based apps can be disabled entirely with --disable-path-apps for further security.",
+			Description: "允许站点所有者访问他们不拥有的工作区应用程序。默认情况下，所有者无法访问他们不拥有的基于路径的应用程序。基于路径的应用程序可以向Coder API发出请求，并在工作区提供恶意JavaScript时构成安全风险。可以使用--disable-path-apps完全禁用基于路径的应用程序以进一步增强安全性。",
 			Flag:        "dangerous-allow-path-app-site-owner-access",
 			Env:         "CODER_DANGEROUS_ALLOW_PATH_APP_SITE_OWNER_ACCESS",
 
@@ -1170,7 +1170,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		// Misc. settings
 		{
 			Name:        "Experiments",
-			Description: "Enable one or more experiments. These are not ready for production. Separate multiple experiments with commas, or enter '*' to opt-in to all available experiments.",
+			Description: "启用一个或多个实验。这些实验尚未准备好用于生产。使用逗号分隔多个实验，或输入“*”以选择所有可用实验。",
 			Flag:        "experiments",
 			Env:         "CODER_EXPERIMENTS",
 			Value:       &c.Experiments,
@@ -1179,7 +1179,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "Update Check",
-			Description: "Periodically check for new releases of Coder and inform the owner. The check is performed once per day.",
+			Description: "定期检查是否有Coder的新版本，并通知所有者。检查每天执行一次。",
 			Flag:        "update-check",
 			Env:         "CODER_UPDATE_CHECK",
 			Default: strconv.FormatBool(
@@ -1190,7 +1190,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "Max Token Lifetime",
-			Description: "The maximum lifetime duration users can specify when creating an API token.",
+			Description: "用户在创建API令牌时可以指定的最大生命周期持续时间。",
 			Flag:        "max-token-lifetime",
 			Env:         "CODER_MAX_TOKEN_LIFETIME",
 			// The default value is essentially "forever", so just use 100 years.
@@ -1203,7 +1203,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "Enable swagger endpoint",
-			Description: "Expose the swagger endpoint via /swagger.",
+			Description: "通过/swagger公开Swagger端点。",
 			Flag:        "swagger-enable",
 			Env:         "CODER_SWAGGER_ENABLE",
 
@@ -1214,7 +1214,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 			Name:        "Proxy Trusted Headers",
 			Flag:        "proxy-trusted-headers",
 			Env:         "CODER_PROXY_TRUSTED_HEADERS",
-			Description: "Headers to trust for forwarding IP addresses. e.g. Cf-Connecting-Ip, True-Client-Ip, X-Forwarded-For.",
+			Description: "用于转发IP地址的可信任标头。例如：Cf-Connecting-Ip、True-Client-Ip、X-Forwarded-For。",
 			Value:       &c.ProxyTrustedHeaders,
 			Group:       &deploymentGroupNetworking,
 			YAML:        "proxyTrustedHeaders",
@@ -1224,7 +1224,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 			Name:        "Proxy Trusted Origins",
 			Flag:        "proxy-trusted-origins",
 			Env:         "CODER_PROXY_TRUSTED_ORIGINS",
-			Description: "Origin addresses to respect \"proxy-trusted-headers\". e.g. 192.168.1.0/24.",
+			Description: "与\"proxy-trusted-headers\"一起使用的源地址。例如：192.168.1.0/24。",
 			Value:       &c.ProxyTrustedOrigins,
 			Group:       &deploymentGroupNetworking,
 			YAML:        "proxyTrustedOrigins",
@@ -1232,7 +1232,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "Cache Directory",
-			Description: "The directory to cache temporary files. If unspecified and $CACHE_DIRECTORY is set, it will be used for compatibility with systemd.",
+			Description: "用于缓存临时文件的目录。如果未指定并且$CACHE_DIRECTORY已设置，将与systemd兼容。",
 			Flag:        "cache-dir",
 			Env:         "CODER_CACHE_DIRECTORY",
 			Default:     DefaultCacheDir(),
@@ -1241,7 +1241,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "In Memory Database",
-			Description: "Controls whether data will be stored in an in-memory database.",
+			Description: "控制是否将数据存储在内存数据库中。",
 			Flag:        "in-memory",
 			Env:         "CODER_IN_MEMORY",
 			Hidden:      true,
@@ -1250,7 +1250,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "Postgres Connection URL",
-			Description: "URL of a PostgreSQL database. If empty, PostgreSQL binaries will be downloaded from Maven (https://repo1.maven.org/maven2) and store all data in the config root. Access the built-in database with \"coder server postgres-builtin-url\".",
+			Description: "PostgreSQL数据库的URL。如果为空，将从Maven（https://repo1.maven.org/maven2）下载PostgreSQL二进制文件，并将所有数据存储在配置根目录中。通过\"coder server postgres-builtin-url\"访问内置数据库。",
 			Flag:        "postgres-url",
 			Env:         "CODER_PG_CONNECTION_URL",
 			Annotations: clibase.Annotations{}.Mark(annotationSecretKey, "true"),
@@ -1258,7 +1258,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "Secure Auth Cookie",
-			Description: "Controls if the 'Secure' property is set on browser session cookies.",
+			Description: "控制浏览器会话Cookie的\"Secure\"属性是否已设置。",
 			Flag:        "secure-auth-cookie",
 			Env:         "CODER_SECURE_AUTH_COOKIE",
 			Value:       &c.SecureAuthCookie,
@@ -1268,9 +1268,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name: "Strict-Transport-Security",
-			Description: "Controls if the 'Strict-Transport-Security' header is set on all static file responses. " +
-				"This header should only be set if the server is accessed via HTTPS. This value is the MaxAge in seconds of " +
-				"the header.",
+			Description: "控制是否在所有静态文件响应中设置\"Strict-Transport-Security\"头。此头应仅在通过HTTPS访问服务器时设置。该值表示头的最大有效时间（以秒为单位）。",
 			Default:     "0",
 			Flag:        "strict-transport-security",
 			Env:         "CODER_STRICT_TRANSPORT_SECURITY",
@@ -1281,8 +1279,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name: "Strict-Transport-Security Options",
-			Description: "Two optional fields can be set in the Strict-Transport-Security header; 'includeSubDomains' and 'preload'. " +
-				"The 'strict-transport-security' flag must be set to a non-zero value for these options to be used.",
+			Description: "在Strict-Transport-Security头中可以设置两个可选字段：\"includeSubDomains\"和\"preload\"。必须将\"strict-transport-security\"标志设置为非零值才能使用这些选项。",
 			Flag:        "strict-transport-security-options",
 			Env:         "CODER_STRICT_TRANSPORT_SECURITY_OPTIONS",
 			Value:       &c.StrictTransportSecurityOptions,
@@ -1292,7 +1289,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "SSH Keygen Algorithm",
-			Description: "The algorithm to use for generating ssh keys. Accepted values are \"ed25519\", \"ecdsa\", or \"rsa4096\".",
+			Description: "用于生成SSH密钥的算法。可接受的值为\"ed25519\"、\"ecdsa\"或\"rsa4096\"。",
 			Flag:        "ssh-keygen-algorithm",
 			Env:         "CODER_SSH_KEYGEN_ALGORITHM",
 			Default:     "ed25519",
@@ -1301,7 +1298,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "Metrics Cache Refresh Interval",
-			Description: "How frequently metrics are refreshed.",
+			Description: "指标刷新的频率。",
 			Flag:        "metrics-cache-refresh-interval",
 			Env:         "CODER_METRICS_CACHE_REFRESH_INTERVAL",
 			Hidden:      true,
@@ -1310,7 +1307,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "Agent Stat Refresh Interval",
-			Description: "How frequently agent stats are recorded.",
+			Description: "代理统计信息记录的频率。",
 			Flag:        "agent-stats-refresh-interval",
 			Env:         "CODER_AGENT_STATS_REFRESH_INTERVAL",
 			Hidden:      true,
@@ -1319,7 +1316,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "Agent Fallback Troubleshooting URL",
-			Description: "URL to use for agent troubleshooting when not set in the template.",
+			Description: "用于在模板中未设置时进行代理故障排除的URL。",
 			Flag:        "agent-fallback-troubleshooting-url",
 			Env:         "CODER_AGENT_FALLBACK_TROUBLESHOOTING_URL",
 			Hidden:      true,
@@ -1329,7 +1326,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "Browser Only",
-			Description: "Whether Coder only allows connections to workspaces via the browser.",
+			Description: "是否只允许通过浏览器连接工作区。",
 			Flag:        "browser-only",
 			Env:         "CODER_BROWSER_ONLY",
 			Annotations: clibase.Annotations{}.Mark(annotationEnterpriseKey, "true"),
@@ -1339,7 +1336,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "SCIM API Key",
-			Description: "Enables SCIM and sets the authentication header for the built-in SCIM server. New users are automatically created with OIDC authentication.",
+			Description: "启用SCIM并设置内置SCIM服务器的身份验证头。新用户将自动使用OIDC身份验证进行创建。",
 			Flag:        "scim-auth-header",
 			Env:         "CODER_SCIM_AUTH_HEADER",
 			Annotations: clibase.Annotations{}.Mark(annotationEnterpriseKey, "true").Mark(annotationSecretKey, "true"),
@@ -1348,7 +1345,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 
 		{
 			Name:        "Disable Path Apps",
-			Description: "Disable workspace apps that are not served from subdomains. Path-based apps can make requests to the Coder API and pose a security risk when the workspace serves malicious JavaScript. This is recommended for security purposes if a --wildcard-access-url is configured.",
+			Description: "禁用非子域名服务的工作区应用程序。基于路径的应用程序可以向Coder API发送请求，并在工作区提供恶意JavaScript时构成安全风险。如果配置了--wildcard-access-url，出于安全目的建议使用此选项。",
 			Flag:        "disable-path-apps",
 			Env:         "CODER_DISABLE_PATH_APPS",
 
@@ -1358,7 +1355,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "Disable Owner Workspace Access",
-			Description: "Remove the permission for the 'owner' role to have workspace execution on all workspaces. This prevents the 'owner' from ssh, apps, and terminal access based on the 'owner' role. They still have their user permissions to access their own workspaces.",
+			Description: "移除\"owner\"角色对所有工作区的工作区执行权限。这将阻止\"owner\"角色基于其\"owner\"角色进行ssh、应用程序和终端访问。他们仍然可以使用用户权限访问自己的工作区。",
 			Flag:        "disable-owner-workspace-access",
 			Env:         "CODER_DISABLE_OWNER_WORKSPACE_ACCESS",
 
@@ -1368,7 +1365,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "Session Duration",
-			Description: "The token expiry duration for browser sessions. Sessions may last longer if they are actively making requests, but this functionality can be disabled via --disable-session-expiry-refresh.",
+			Description: "浏览器会话的令牌过期时间。如果会话正在主动发出请求，会话的持续时间可能会更长，但可以通过--disable-session-expiry-refresh选项禁用此功能。",
 			Flag:        "session-duration",
 			Env:         "CODER_SESSION_DURATION",
 			Default:     (24 * time.Hour).String(),
@@ -1378,7 +1375,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "Disable Session Expiry Refresh",
-			Description: "Disable automatic session expiry bumping due to activity. This forces all sessions to become invalid after the session expiry duration has been reached.",
+			Description: "禁用由于活动而自动刷新会话过期。这将使所有会话在达到会话过期时间后失效。",
 			Flag:        "disable-session-expiry-refresh",
 			Env:         "CODER_DISABLE_SESSION_EXPIRY_REFRESH",
 
@@ -1388,7 +1385,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "Disable Password Authentication",
-			Description: "Disable password authentication. This is recommended for security purposes in production deployments that rely on an identity provider. Any user with the owner role will be able to sign in with their password regardless of this setting to avoid potential lock out. If you are locked out of your account, you can use the `coder server create-admin` command to create a new admin user directly in the database.",
+			Description: "禁用密码身份验证。这在依赖身份提供者的生产部署中出于安全考虑是推荐的。无论此设置如何，具有owner角色的任何用户都可以使用密码登录，以避免潜在的锁定。如果您无法访问帐户，可以使用coder server create-admin命令直接在数据库中创建新的管理员用户。",
 			Flag:        "disable-password-auth",
 			Env:         "CODER_DISABLE_PASSWORD_AUTH",
 
@@ -1398,7 +1395,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:          "Config Path",
-			Description:   `Specify a YAML file to load configuration from.`,
+			Description:   `指定要加载配置的YAML文件。`,
 			Flag:          "config",
 			Env:           "CODER_CONFIG_PATH",
 			FlagShorthand: "c",
@@ -1408,7 +1405,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "SSH Host Prefix",
-			Description: "The SSH deployment prefix is used in the Host of the ssh config.",
+			Description: "SSH部署前缀用于ssh配置的主机。",
 			Flag:        "ssh-hostname-prefix",
 			Env:         "CODER_SSH_HOSTNAME_PREFIX",
 			YAML:        "sshHostnamePrefix",
@@ -1419,9 +1416,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name: "SSH Config Options",
-			Description: "These SSH config options will override the default SSH config options. " +
-				"Provide options in \"key=value\" or \"key value\" format separated by commas." +
-				"Using this incorrectly can break SSH to your deployment, use cautiously.",
+			Description: "这些SSH配置选项将覆盖默认的SSH配置选项。以\"key=value\"或\"key value\"的格式提供选项，用逗号分隔。不正确使用可能会导致SSH连接到部署的故障，请谨慎使用。",
 			Flag:   "ssh-config-options",
 			Env:    "CODER_SSH_CONFIG_OPTIONS",
 			YAML:   "sshConfigOptions",
@@ -1431,7 +1426,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name: "Write Config",
-			Description: `Write out the current server config as YAML to stdout.`,
+			Description: `将当前服务器配置以YAML格式输出到stdout。`,
 			Flag:        "write-config",
 			Group:       &deploymentGroupConfig,
 			Hidden:      false,
@@ -1440,7 +1435,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "Support Links",
-			Description: "Support links to display in the top right drop down menu.",
+			Description: "在右上角下拉菜单中显示的支持链接。",
 			YAML:        "supportLinks",
 			Value:       &c.Support.Links,
 			// The support links are hidden until they are defined in the
@@ -1450,7 +1445,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		{
 			// Env handling is done in cli.ReadGitAuthFromEnvironment
 			Name:        "Git Auth Providers",
-			Description: "Git Authentication providers.",
+			Description: "Git身份验证提供者。",
 			// We need extra scrutiny to ensure this works, is documented, and
 			// tested before enabling.
 			// YAML:        "gitAuthProviders",
@@ -1459,7 +1454,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "Custom wgtunnel Host",
-			Description: `Hostname of HTTPS server that runs https://github.com/coder/wgtunnel. By default, this will pick the best available wgtunnel server hosted by Coder. e.g. "tunnel.example.com".`,
+			Description: `运行https://github.com/coder/wgtunnel的HTTPS服务器的主机名。默认情况下，它将选择Coder托管的最佳可用wgtunnel服务器。例如:\"tunnel.example.com\"。`,
 			Flag:        "wg-tunnel-host",
 			Env:         "WGTUNNEL_HOST",
 			YAML:        "wgtunnelHost",

@@ -27,7 +27,7 @@ var DefaultSupportLinks = []codersdk.LinkConfig{
 		Icon:   "bug",
 	},
 	{
-		Name:   "加入讨论社区",
+		Name:   "加入 Discord",
 		Target: "https://coder.com/chat?utm_source=coder&utm_medium=coder&utm_campaign=server-footer",
 		Icon:   "chat",
 	},

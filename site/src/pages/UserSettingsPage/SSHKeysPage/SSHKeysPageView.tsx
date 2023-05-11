@@ -60,10 +60,8 @@ export const SSHKeysPageView: FC<
       {hasLoaded && sshKey && (
         <>
           <p className={styles.description}>
-            The following public key is used to authenticate Git in workspaces.
-            You may add it to Git services (such as GitHub) that you need to
-            access from your workspace. Coder configures authentication via{" "}
-            <code className={styles.code}>$GIT_SSH_COMMAND</code>.
+          下面的公钥用于在工作区中进行Git身份验证。您可以将其添加到需要从工作区访问的Git服务（如GitHub）中。Coder通过{" "}
+            <code className={styles.code}>$GIT_SSH_COMMAND</code>配置身份验证。
           </p>
           <CodeExample code={sshKey.public_key.trim()} />
           <div>
