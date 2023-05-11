@@ -210,37 +210,37 @@ export const WorkspaceScheduleForm: FC<
   const checkboxes: Array<{ value: boolean; name: string; label: string }> = [
     {
       value: form.values.sunday,
-      name: "sunday",
+      name: "周日",
       label: Language.daySundayLabel,
     },
     {
       value: form.values.monday,
-      name: "monday",
+      name: "周一",
       label: Language.dayMondayLabel,
     },
     {
       value: form.values.tuesday,
-      name: "tuesday",
+      name: "周二",
       label: Language.dayTuesdayLabel,
     },
     {
       value: form.values.wednesday,
-      name: "wednesday",
+      name: "周三",
       label: Language.dayWednesdayLabel,
     },
     {
       value: form.values.thursday,
-      name: "thursday",
+      name: "周四",
       label: Language.dayThursdayLabel,
     },
     {
       value: form.values.friday,
-      name: "friday",
+      name: "周五",
       label: Language.dayFridayLabel,
     },
     {
       value: form.values.saturday,
-      name: "saturday",
+      name: "周六",
       label: Language.daySaturdayLabel,
     },
   ]
@@ -282,8 +282,8 @@ export const WorkspaceScheduleForm: FC<
   return (
     <HorizontalForm onSubmit={form.handleSubmit}>
       <FormSection
-        title="Autostart"
-        description="Select the time and days of week on which you want the workspace starting automatically."
+        title="自动启动"
+        description="选择您希望工作区在每周的哪些时间和哪些天里自动启动。"
       >
         <FormFields>
           <FormControlLabel
@@ -350,8 +350,8 @@ export const WorkspaceScheduleForm: FC<
       </FormSection>
 
       <FormSection
-        title="Autostop"
-        description="Set how many hours should elapse after a workspace is started before it automatically shuts down. If workspace connection activity is detected, the autostop timer will be bumped up one hour."
+        title="自动停止"
+        description="设置工作区启动后多少小时自动关闭。如果检测到工作区连接活动，自动停止计时器将延长一小时。"
       >
         <FormFields>
           <FormControlLabel
