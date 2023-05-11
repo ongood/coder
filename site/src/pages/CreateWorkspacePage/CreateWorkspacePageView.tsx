@@ -161,7 +161,7 @@ export const CreateWorkspacePageView: FC<
   }
 
   return (
-    <FullPageHorizontalForm title="New workspace" onCancel={props.onCancel}>
+    <FullPageHorizontalForm title="新工作区" onCancel={props.onCancel}>
       <HorizontalForm onSubmit={form.handleSubmit}>
         {Boolean(props.hasTemplateErrors) && (
           <Stack>

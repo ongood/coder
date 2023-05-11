@@ -10,7 +10,7 @@ const UserAuthSettingsPage: FC = () => {
   return (
     <>
       <Helmet>
-        <title>{pageTitle("User Authentication Settings")}</title>
+        <title>{pageTitle("用户认证设置")}</title>
       </Helmet>
 
       <UserAuthSettingsPageView options={deploymentValues.options} />

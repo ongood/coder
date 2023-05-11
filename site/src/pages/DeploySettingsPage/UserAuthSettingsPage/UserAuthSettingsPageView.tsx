@@ -22,12 +22,12 @@ export const UserAuthSettingsPageView = ({
   <>
     <Stack direction="column" spacing={6}>
       <div>
-        <Header title="User Authentication" />
+        <Header title="用户认证" />
 
         <Header
-          title="Login with OpenID Connect"
+          title="使用OpenID Connect登录"
           secondary
-          description="Set up authentication to login with OpenID Connect."
+          description="设置使用OpenID Connect进行登录的认证方式。"
           docsHref="https://coder.com/docs/coder-oss/latest/admin/auth#openid-connect-with-google"
         />
 
@@ -48,9 +48,9 @@ export const UserAuthSettingsPageView = ({
 
       <div>
         <Header
-          title="Login with GitHub"
+          title="使用GitHub登录"
           secondary
-          description="Set up authentication to login with GitHub."
+          description="设置使用GitHub进行登录的认证方式。"
           docsHref="https://coder.com/docs/coder-oss/latest/admin/auth#github"
         />
 

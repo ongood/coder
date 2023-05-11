@@ -32,7 +32,7 @@ export const Header: FC<{
           target="_blank"
           variant="outlined"
         >
-          Read the docs
+          阅读文档
         </Button>
       )}
     </Stack>

@@ -22,8 +22,8 @@ export const NetworkSettingsPageView = ({
   <Stack direction="column" spacing={6}>
     <div>
       <Header
-        title="Network"
-        description="Configure your deployment connectivity."
+        title="网络"
+        description="配置您的部署连接性。"
         docsHref="https://coder.com/docs/coder-oss/latest/networking"
       />
       <OptionsTable
@@ -35,9 +35,9 @@ export const NetworkSettingsPageView = ({
 
     <div>
       <Header
-        title="Port Forwarding"
+        title="端口转发"
         secondary
-        description="Port forwarding lets developers securely access processes on their Coder workspace from a local machine."
+        description="端口转发允许开发人员从本地计算机安全地访问其 Coder 工作区中的进程。"
         docsHref="https://coder.com/docs/coder-oss/latest/networking/port-forwarding"
       />
 
