@@ -43,10 +43,10 @@ export const LicenseCard = ({
           setLicenseIDMarkedForRemoval(undefined)
         }}
         onClose={() => setLicenseIDMarkedForRemoval(undefined)}
-        title="Confirm license removal"
+        title="确认删除许可证"
         confirmLoading={isRemoving}
-        confirmText="Remove"
-        description="Are you sure you want to remove this license?"
+        confirmText="删除"
+        description="确定要删除此许可证吗？"
       />
       <Stack
         direction="column"
@@ -57,7 +57,7 @@ export const LicenseCard = ({
           <span>#{license.id}</span>
         </Box>
         <Stack className={styles.accountType}>
-          <span>{license.claims.trial ? "Trial" : "Enterprise"}</span>
+          <span>{license.claims.trial ? "试用" : "企业版"}</span>
         </Stack>
         <Stack
           direction="row"
@@ -65,11 +65,11 @@ export const LicenseCard = ({
           alignItems="self-end"
         >
           <Stack direction="column" spacing={0} className={styles.userLimit}>
-            <span className={styles.secondaryMaincolor}>Users</span>
+            <span className={styles.secondaryMaincolor}>用户数</span>
             <div className={styles.primaryMainColor}>
               <span className={styles.userLimitActual}>{userLimitActual}</span>
               <span className={styles.userLimitLimit}>
-                {` / ${userLimitLimit || "Unlimited"}`}
+                {` / ${userLimitLimit || "无限制"}`}
               </span>
             </div>
           </Stack>
@@ -89,7 +89,7 @@ export const LicenseCard = ({
               size="small"
               onClick={() => setLicenseIDMarkedForRemoval(license.id)}
             >
-              Remove
+              删除
             </Button>
           </div>
         </Stack>

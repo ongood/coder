@@ -51,9 +51,9 @@ export const GitAuthSettingsPageView = ({
         <Table className={styles.table}>
           <TableHead>
             <TableRow>
-              <TableCell width="25%">Type</TableCell>
-              <TableCell width="25%">Client ID</TableCell>
-              <TableCell width="25%">Match</TableCell>
+              <TableCell width="25%">类型</TableCell>
+              <TableCell width="25%">客户端 ID</TableCell>
+              <TableCell width="25%">匹配</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
