@@ -43,9 +43,9 @@ export const ChangeVersionDialog: FC<ChangeVersionDialogProps> = ({
         }
       }}
       hideCancel={false}
-      type="success"
-      cancelText="Cancel"
-      confirmText="Change"
+      type="成功"
+      cancelText="取消"
+      confirmText="更改"
       title="更改版本"
       description={
         <Stack>

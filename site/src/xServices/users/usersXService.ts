@@ -18,17 +18,17 @@ import { generateRandomString } from "../../utils/random"
 const usersPaginationId = "usersPagination"
 
 export const Language = {
-  getUsersError: "Error getting users.",
-  suspendUserSuccess: "Successfully suspended the user.",
-  suspendUserError: "Error suspending user.",
-  deleteUserSuccess: "Successfully deleted the user.",
-  deleteUserError: "Error deleting user.",
-  activateUserSuccess: "Successfully activated the user.",
-  activateUserError: "Error activating user.",
-  resetUserPasswordSuccess: "Successfully updated the user password.",
-  resetUserPasswordError: "Error on resetting the user password.",
-  updateUserRolesSuccess: "Successfully updated the user roles.",
-  updateUserRolesError: "Error on updating the user roles.",
+  getUsersError: "获取用户时出错。",
+  suspendUserSuccess: "成功暂停用户。",
+  suspendUserError: "暂停用户时出错。",
+  deleteUserSuccess: "成功删除用户。",
+  deleteUserError: "删除用户时出错。",
+  activateUserSuccess: "成功激活用户。",
+  activateUserError: "激活用户时出错。",
+  resetUserPasswordSuccess: "成功更新用户密码。",
+  resetUserPasswordError: "重置用户密码时出错。",
+  updateUserRolesSuccess: "成功更新用户角色。",
+  updateUserRolesError: "更新用户角色时出错。",
 }
 
 export interface UsersContext {

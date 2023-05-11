@@ -40,38 +40,32 @@ dayjs.extend(relativeTime)
 dayjs.extend(timezone)
 
 export const Language = {
-  errorNoDayOfWeek:
-    "Must set at least one day of week if autostart is enabled.",
-  errorNoTime: "Start time is required when autostart is enabled.",
-  errorTime: "Time must be in HH:mm format (24 hours).",
-  errorTimezone: "Invalid timezone.",
-  errorNoStop:
-    "Time until shutdown must be greater than zero when autostop is enabled.",
-  errorTtlMax:
-    "Please enter a limit that is less than or equal to 168 hours (7 days).",
-  daysOfWeekLabel: "Days of Week",
-  daySundayLabel: "Sun",
-  dayMondayLabel: "Mon",
-  dayTuesdayLabel: "Tue",
-  dayWednesdayLabel: "Wed",
-  dayThursdayLabel: "Thu",
-  dayFridayLabel: "Fri",
-  daySaturdayLabel: "Sat",
-  startTimeLabel: "Start time",
-  timezoneLabel: "Timezone",
-  ttlLabel: "Time until shutdown (hours)",
-  ttlCausesShutdownHelperText: "Your workspace will shut down",
-  ttlCausesShutdownAfterStart:
-    "after its next start. We delay shutdown by this time whenever we detect activity",
-  ttlCausesNoShutdownHelperText:
-    "Your workspace will not automatically shut down.",
-  formTitle: "Workspace schedule",
-  startSection: "Start",
-  startSwitch: "Enable Autostart",
-  stopSection: "Stop",
-  stopSwitch: "Enable Autostop",
-}
-
+  errorNoDayOfWeek: "如果启用自动启动，请至少设置一个日期。",
+  errorNoTime: "启动时间在启用自动启动时是必需的。",
+  errorTime: "时间必须为HH:mm格式（24小时制）。",
+  errorTimezone: "无效的时区。",
+  errorNoStop: "在启用自动停止时，关闭时间必须大于零。",
+  errorTtlMax: "请输入小于或等于168小时（7天）的限制。",
+  daysOfWeekLabel: "星期",
+  daySundayLabel: "周日",
+  dayMondayLabel: "周一",
+  dayTuesdayLabel: "周二",
+  dayWednesdayLabel: "周三",
+  dayThursdayLabel: "周四",
+  dayFridayLabel: "周五",
+  daySaturdayLabel: "周六",
+  startTimeLabel: "启动时间",
+  timezoneLabel: "时区",
+  ttlLabel: "关闭时间倒计时（小时）",
+  ttlCausesShutdownHelperText: "您的工作空间将在",
+  ttlCausesShutdownAfterStart: "下次启动后自动关闭。每当我们检测到活动时，我们会延迟关闭时间。",
+  ttlCausesNoShutdownHelperText: "您的工作空间将不会自动关闭。",
+  formTitle: "工作空间计划",
+  startSection: "启动",
+  startSwitch: "启用自动启动",
+  stopSection: "关闭",
+  stopSwitch: "启用自动停止",
+};
 export interface WorkspaceScheduleFormProps {
   submitScheduleError?: unknown
   initialValues: WorkspaceScheduleFormValues

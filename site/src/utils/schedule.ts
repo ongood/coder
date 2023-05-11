@@ -59,11 +59,11 @@ export const extractTimezone = (
 
 /** Language used in the schedule components */
 export const Language = {
-  manual: "Manual",
-  workspaceShuttingDownLabel: "Workspace is shutting down",
-  afterStart: "after start",
-  autostartLabel: "Starts at",
-  autostopLabel: "Stops at",
+  manual: "手动",
+  workspaceShuttingDownLabel: "工作区正在关闭",
+  afterStart: "启动后",
+  autostartLabel: "开始时间",
+  autostopLabel: "停止时间",
 }
 
 export const autostartDisplay = (schedule: string | undefined): string => {
@@ -109,7 +109,7 @@ export const autostopDisplay = (workspace: Workspace): string => {
     if (isShuttingDown(workspace, deadline)) {
       return Language.workspaceShuttingDownLabel
     } else {
-      return deadline.tz(dayjs.tz.guess()).format("MMM D, YYYY h:mm A")
+      return deadline.tz(dayjs.tz.guess()).format("YYYY年M月D日HH时mm分")
     }
   } else if (!ttl || ttl < 1) {
     // If the workspace is not on, and the ttl is 0 or undefined, then the
@@ -135,7 +135,7 @@ export function getMaxDeadline(ws: Workspace | undefined): dayjs.Dayjs {
   // note: we count runtime from updated_at as started_at counts from the start of
   // the workspace build process, which can take a while.
   if (ws === undefined) {
-    throw Error("Cannot calculate max deadline because workspace is undefined")
+    throw Error("无法计算最大截止日期，因为工作空间未定义")
   }
   const startedAt = dayjs(ws.latest_build.updated_at)
   return startedAt.add(deadlineExtensionMax)

@@ -85,7 +85,7 @@ export const CreateTokenForm: FC<CreateTokenFormProps> = ({
                 date: dayjs()
                   .add(form.values.lifetime, "days")
                   .utc()
-                  .format("MMMM DD, YYYY"),
+                  .format("YYYY年M月D日"),
               })
             : t("createToken.lifetimeSection.emptyDescription")
         }

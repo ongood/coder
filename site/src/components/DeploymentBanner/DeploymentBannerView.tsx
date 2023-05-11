@@ -81,7 +81,7 @@ export const DeploymentBannerView: FC<DeploymentBannerViewProps> = ({
 
   return (
     <div className={styles.container}>
-      <Tooltip title="Status of your Coder deployment. Only visible for admins!">
+      <Tooltip title="您的 Coder 部署状态。仅对管理员可见！">
         <div className={styles.rocket}>
           <RocketIcon />
         </div>
@@ -223,11 +223,11 @@ const WorkspaceBuildValue: FC<{
   let icon = displayStatus.icon
   if (status === "starting") {
     icon = <BuildingIcon />
-    statusText = "Building"
+    statusText = "构建中"
   }
 
   return (
-    <Tooltip title={`${statusText} Workspaces`}>
+    <Tooltip title={`${statusText} 工作区`}>
       <Link
         component={RouterLink}
         to={`/workspaces?filter=${encodeURIComponent("status:" + status)}`}

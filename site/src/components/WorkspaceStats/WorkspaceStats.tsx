@@ -71,7 +71,7 @@ export const WorkspaceStats: FC<WorkspaceStatsProps> = ({
       <Stats aria-label={Language.workspaceDetails} className={styles.stats}>
         <StatsItem
           className={styles.statsItem}
-          label="Status"
+          label="状态"
           value={<WorkspaceStatusText build={workspace.latest_build} />}
         />
         <StatsItem
@@ -101,7 +101,7 @@ export const WorkspaceStats: FC<WorkspaceStatsProps> = ({
               {workspace.outdated && (
                 <OutdatedHelpTooltip
                   onUpdateVersion={handleUpdate}
-                  ariaLabel="update version"
+                  ariaLabel="更新版本"
                 />
               )}
             </>
@@ -126,7 +126,7 @@ export const WorkspaceStats: FC<WorkspaceStatsProps> = ({
                 <Link
                   component={RouterLink}
                   to="settings/schedule"
-                  title="Schedule settings"
+                  title="计划设置"
                 >
                   {isWorkspaceOn(workspace)
                     ? autostopDisplay(workspace)
@@ -137,7 +137,7 @@ export const WorkspaceStats: FC<WorkspaceStatsProps> = ({
                     <IconButton
                       disabled={!deadlineMinusEnabled}
                       size="small"
-                      title="Subtract hours from deadline"
+                      title="从截止时间减去小时数"
                       className={styles.scheduleButton}
                       ref={subButtonRef}
                       onClick={() => setIsSubTime(true)}
@@ -147,7 +147,7 @@ export const WorkspaceStats: FC<WorkspaceStatsProps> = ({
                     <IconButton
                       disabled={!deadlinePlusEnabled}
                       size="small"
-                      title="Add hours to deadline"
+                      title="增加小时到截止时间"
                       className={styles.scheduleButton}
                       ref={addButtonRef}
                       onClick={() => setIsAddingTime(true)}
@@ -188,8 +188,7 @@ export const WorkspaceStats: FC<WorkspaceStatsProps> = ({
       >
         <span className={styles.timePopoverTitle}>Add hours to deadline</span>
         <span className={styles.timePopoverDescription}>
-          Delay the shutdown of this workspace for a few more hours. This is
-          only applied once.
+          将此工作区的关闭延迟几个小时。这仅适用一次。
         </span>
         <form
           className={styles.timePopoverForm}
@@ -221,7 +220,7 @@ export const WorkspaceStats: FC<WorkspaceStatsProps> = ({
             className={styles.timePopoverButton}
             type="submit"
           >
-            Apply
+            应用
           </Button>
         </form>
       </Popover>
@@ -242,11 +241,10 @@ export const WorkspaceStats: FC<WorkspaceStatsProps> = ({
         }}
       >
         <span className={styles.timePopoverTitle}>
-          Subtract hours to deadline
+          从截止时间减去几个小时
         </span>
         <span className={styles.timePopoverDescription}>
-          Anticipate the shutdown of this workspace for a few more hours. This
-          is only applied once.
+          提前几个小时关闭此工作区。仅应用一次。
         </span>
         <form
           className={styles.timePopoverForm}
@@ -278,7 +276,7 @@ export const WorkspaceStats: FC<WorkspaceStatsProps> = ({
             className={styles.timePopoverButton}
             type="submit"
           >
-            Apply
+            应用
           </Button>
         </form>
       </Popover>
@@ -301,7 +299,7 @@ export const shouldDisplayScheduleLabel = (workspace: Workspace): boolean => {
 }
 
 const getScheduleLabel = (workspace: Workspace) => {
-  return isWorkspaceOn(workspace) ? "Stops at" : "Starts at"
+  return isWorkspaceOn(workspace) ? "停止时间" : "启动时间"
 }
 
 const useStyles = makeStyles((theme) => ({

@@ -4,7 +4,7 @@ import * as TypesGen from "../../api/typesGenerated"
 import { displaySuccess } from "../../components/GlobalSnackbar/utils"
 
 export const Language = {
-  successProfileUpdate: "Updated settings.",
+  successProfileUpdate: "设置已更新。",
 }
 
 export const checks = {

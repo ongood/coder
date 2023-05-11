@@ -4,7 +4,7 @@ import * as TypesGen from "../../api/typesGenerated"
 import { displaySuccess } from "../../components/GlobalSnackbar/utils"
 
 export const Language = {
-  createUserSuccess: "Successfully created user.",
+  createUserSuccess: "用户创建成功。",
 }
 
 export interface CreateUserContext {
