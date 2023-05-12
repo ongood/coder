@@ -354,7 +354,7 @@ export const CreateTemplateForm: FC<CreateTemplateFormProps> = ({
               />
               <Stack spacing={0.5}>
                 <strong>
-                  允许用户按计划自动启动工作区。
+                  允许用户按日程自动启动工作区。
                 </strong>
               </Stack>
             </Stack>

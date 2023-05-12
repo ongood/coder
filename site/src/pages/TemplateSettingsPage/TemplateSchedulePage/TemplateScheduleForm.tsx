@@ -264,8 +264,8 @@ export const TemplateScheduleForm: FC<TemplateScheduleForm> = ({
       </FormSection>
 
       <FormSection
-        title="Allow users scheduling"
-        description="Allow users to set custom autostart and autostop scheduling options for workspaces created from this template."
+        title="允许用户调度"
+        description="允许用户为从此模板创建的工作区设置自定义的自动启动和自动停止等调度选项。"
       >
         <Stack direction="column">
           <Stack direction="row" alignItems="center">
@@ -284,7 +284,7 @@ export const TemplateScheduleForm: FC<TemplateScheduleForm> = ({
             />
             <Stack spacing={0.5}>
               <strong>
-                Allow users to autostart workspaces on a schedule.
+                允许用户按计划自动启动工作区。
               </strong>
             </Stack>
           </Stack>
@@ -304,12 +304,11 @@ export const TemplateScheduleForm: FC<TemplateScheduleForm> = ({
             />
             <Stack spacing={0.5}>
               <strong>
-                Allow users to customize autostop duration for workspaces.
+                允许用户为工作区自定义自动停止前的持续时间。
               </strong>
               <span className={styles.optionDescription}>
-                Workspaces will always use the default TTL if this is set.
-                Regardless of this setting, workspaces can only stay on for the
-                max lifetime.
+                如果设置了默认的生存时间，则工作区将始终使用默认的生存时间。
+                无论此设置如何，工作区只能保留最大寿命。
               </span>
             </Stack>
           </Stack>
@@ -318,8 +317,8 @@ export const TemplateScheduleForm: FC<TemplateScheduleForm> = ({
       {allowAdvancedScheduling && allowWorkspaceActions && (
         <>
           <FormSection
-            title="Failure Cleanup"
-            description="When enabled, Coder will attempt to stop workspaces that are in a failed state after a specified number of days."
+            title="失败清理"
+            description="启用后，Coder 将尝试在指定天数后停止处于失败状态的工作区。"
           >
             <FormFields>
               <FormControlLabel
@@ -330,7 +329,7 @@ export const TemplateScheduleForm: FC<TemplateScheduleForm> = ({
                     onChange={handleToggleFailureCleanup}
                   />
                 }
-                label="Enable Failure Cleanup"
+                label="启用失败清理"
               />
               <TextField
                 {...getFieldHelpers(
@@ -343,15 +342,15 @@ export const TemplateScheduleForm: FC<TemplateScheduleForm> = ({
                 disabled={isSubmitting || !form.values.failure_cleanup_enabled}
                 fullWidth
                 inputProps={{ min: 0, step: "any" }}
-                label="Time until cleanup (days)"
+                label="清理时间（天）"
                 type="number"
-                aria-label="Failure Cleanup"
+                aria-label="失败清理"
               />
             </FormFields>
           </FormSection>
           <FormSection
-            title="Inactivity Cleanup"
-            description="When enabled, Coder will automatically delete workspaces that are in an inactive state after a specified number of days."
+            title="不活动清理"
+            description="启用后，Coder 将在指定天数后自动删除处于非活动状态的工作区。"
           >
             <FormFields>
               <FormControlLabel
@@ -362,7 +361,7 @@ export const TemplateScheduleForm: FC<TemplateScheduleForm> = ({
                     onChange={handleToggleInactivityCleanup}
                   />
                 }
-                label="Enable Inactivity Cleanup"
+                label="启用不活动清理"
               />
               <TextField
                 {...getFieldHelpers(
@@ -377,9 +376,9 @@ export const TemplateScheduleForm: FC<TemplateScheduleForm> = ({
                 }
                 fullWidth
                 inputProps={{ min: 0, step: "any" }}
-                label="Time until cleanup (days)"
+                label="清理时间（天）"
                 type="number"
-                aria-label="Inactivity Cleanup"
+                aria-label="不活动清理"
               />
             </FormFields>
           </FormSection>

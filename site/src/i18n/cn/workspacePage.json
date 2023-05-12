@@ -3,7 +3,7 @@
     "info": "此工作区创建于{{timeAgo}}。"
   },
   "workspaceScheduleButton": {
-    "schedule": "计划",
+    "schedule": "日程",
     "editDeadlineMinus": "减少小时数",
     "editDeadlinePlus": "增加小时数",
     "submitDeadline": "设置",

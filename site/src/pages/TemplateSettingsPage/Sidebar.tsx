@@ -62,25 +62,25 @@ export const Sidebar: React.FC<{ template: Template }> = ({ template }) => {
       </Stack>
 
       <SidebarNavItem href="" icon={<SidebarNavItemIcon icon={GeneralIcon} />}>
-        General
+        常规
       </SidebarNavItem>
       <SidebarNavItem
         href="permissions"
         icon={<SidebarNavItemIcon icon={SecurityIcon} />}
       >
-        Permissions
+        权限
       </SidebarNavItem>
       <SidebarNavItem
         href="variables"
         icon={<SidebarNavItemIcon icon={VariablesIcon} />}
       >
-        Variables
+        变量
       </SidebarNavItem>
       <SidebarNavItem
         href="schedule"
         icon={<SidebarNavItemIcon icon={ScheduleIcon} />}
       >
-        Schedule
+        日程
       </SidebarNavItem>
     </nav>
   )

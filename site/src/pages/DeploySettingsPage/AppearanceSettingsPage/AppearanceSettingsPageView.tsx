@@ -81,7 +81,7 @@ export const AppearanceSettingsPageView = ({
       </Badges>
 
       <Fieldset
-        title="Logo URL"
+        title="徽标网址"
         subtitle="指定一个自定义的URL，用于在仪表板左上角显示您的徽标。"
         validation={
           isEntitled
@@ -142,9 +142,7 @@ export const AppearanceSettingsPageView = ({
         validation={
           !isEntitled && (
             <p>
-              Your license does not include Service Banners.{" "}
-              <Link href="mailto:sales@coder.com">Contact sales</Link> to learn
-              more.
+              您的许可证不包含服务横幅。请通过<Link href="mailto:sales@coder.com">sales@coder.com</Link>联系销售部门了解更多信息。
             </p>
           )
         }

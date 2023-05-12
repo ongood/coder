@@ -67,7 +67,7 @@ const TemplateMenu: FC<{
           )}
         >
           <SettingsOutlined />
-          Settings
+          设置
         </MenuItem>
         <MenuItem
           onClick={onMenuItemClick(() =>
@@ -75,7 +75,7 @@ const TemplateMenu: FC<{
           )}
         >
           <FileCopyOutlined />
-          Duplicate
+          复制
         </MenuItem>
         <MenuItem
           onClick={onMenuItemClick(() =>
@@ -85,11 +85,11 @@ const TemplateMenu: FC<{
           )}
         >
           <EditOutlined />
-          Edit files
+          编辑
         </MenuItem>
         <MenuItem onClick={onMenuItemClick(onDelete)}>
           <DeleteOutlined />
-          Delete
+          删除
         </MenuItem>
       </Menu>
     </div>
@@ -106,7 +106,7 @@ const CreateWorkspaceButton: FC<{
     component={RouterLink}
     to={`/templates/${templateName}/workspace`}
   >
-    Create workspace
+    创建工作区
   </Button>
 )
 

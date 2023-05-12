@@ -126,7 +126,7 @@ export const WorkspaceStats: FC<WorkspaceStatsProps> = ({
                 <Link
                   component={RouterLink}
                   to="settings/schedule"
-                  title="计划设置"
+                  title="日程设置"
                 >
                   {isWorkspaceOn(workspace)
                     ? autostopDisplay(workspace)
