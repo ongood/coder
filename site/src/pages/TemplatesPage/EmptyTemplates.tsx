@@ -83,7 +83,7 @@ export const EmptyTemplates: FC<{
               to="/starter-templates"
               className={styles.viewAllButton}
             >
-              View all starter templates
+              查看所有的入门模板
             </Button>
           </Stack>
         }

@@ -19,8 +19,8 @@ const Template: Story<SectionProps> = (args: SectionProps) => (
 
 export const Example = Template.bind({})
 Example.args = {
-  title: "User Settings",
-  description: "Add your personal info",
+  title: "用户设置",
+  description: "添加个人信息",
   children: (
     <>
       <form style={{ display: "grid", gridAutoFlow: "row", gap: 12 }}>
@@ -30,7 +30,7 @@ Example.args = {
 
       <Section.Action>
         <Button variant="contained" color="primary">
-          Submit
+          提交
         </Button>
       </Section.Action>
     </>

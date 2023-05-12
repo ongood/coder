@@ -288,12 +288,12 @@ const TerminalPage: FC<
       {/* It's nice for situations where Coder restarts, and they are temporarily disconnected. */}
       <div className={`${styles.overlay} ${isDisconnected ? "" : "connected"}`}>
         {reloading.status === "reloading" ? (
-          <span className={styles.overlayText}>Reloading...</span>
+          <span className={styles.overlayText}>重新加载中...</span>
         ) : (
           <Stack spacing={0.5} alignItems="center">
-            <span className={styles.overlayText}>Disconnected</span>
+            <span className={styles.overlayText}>已断开连接</span>
             <span className={styles.overlaySubtext}>
-              Press any key to retry
+              按任意键重试
             </span>
           </Stack>
         )}
@@ -305,10 +305,9 @@ const TerminalPage: FC<
         >
           <WarningIcon className={styles.alertIcon} />
           <div>
-            <div className={styles.alertTitle}>Startup script failed</div>
+            <div className={styles.alertTitle}>启动脚本失败</div>
             <div className={styles.alertMessage}>
-              You can continue using this terminal, but something may be missing
-              or not fully set up.
+              您可以继续使用此终端，但可能缺少某些内容或未完全设置。
             </div>
           </div>
         </div>
@@ -318,11 +317,10 @@ const TerminalPage: FC<
           <WarningIcon className={styles.alertIcon} />
           <div>
             <div className={styles.alertTitle}>
-              Startup script is still running
+              启动脚本仍在运行中
             </div>
             <div className={styles.alertMessage}>
-              You can continue using this terminal, but something may be missing
-              or not fully set up.
+              您可以继续使用此终端，但可能缺少某些内容或未完全设置。
             </div>
           </div>
           <div className={styles.alertActions}>
@@ -335,7 +333,7 @@ const TerminalPage: FC<
                 window.location.href = window.location.pathname
               }}
             >
-              Refresh session
+              刷新会话
             </Button>
           </div>
         </div>

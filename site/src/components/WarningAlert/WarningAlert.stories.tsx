@@ -17,7 +17,7 @@ ExampleWithDismiss.args = {
 
 const ExampleAction = (
   <Button onClick={() => null} size="small">
-    Button
+    按钮
   </Button>
 )
 

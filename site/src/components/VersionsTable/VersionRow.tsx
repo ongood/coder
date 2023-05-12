@@ -69,7 +69,7 @@ export const VersionRow: React.FC<VersionRowProps> = ({
             </Stack>
           </Stack>
           {isActive ? (
-            <Pill text="Active version" type="success" />
+            <Pill text="活动版本" type="success" />
           ) : (
             onPromoteClick && (
               <Button
@@ -81,7 +81,7 @@ export const VersionRow: React.FC<VersionRowProps> = ({
                   onPromoteClick(version.id)
                 }}
               >
-                Promote version
+                提升版本
               </Button>
             )
           )}

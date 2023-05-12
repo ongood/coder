@@ -22,12 +22,12 @@ const GitAuthPage: FC = () => {
     <SignInLayout>
       <Welcome message="Authenticated with Git!" />
       <p className={styles.text}>
-        Your Git authentication token will be refreshed to keep you signed in.
+        您的Git身份验证令牌将会刷新，以保持您的登录状态。
       </p>
 
       <div className={styles.links}>
         <Button component={RouterLink} size="large" to="/workspaces" fullWidth>
-          Go to workspaces
+          前往工作区
         </Button>
       </div>
     </SignInLayout>

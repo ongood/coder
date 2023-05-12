@@ -51,11 +51,11 @@ export const Resources: FC<React.PropsWithChildren<ResourcesProps>> = ({
           >
             {shouldDisplayHideResources ? (
               <>
-                Hide resources <CloseDropdown />
+                隐藏资源 <CloseDropdown />
               </>
             ) : (
               <>
-                Show hidden resources <OpenDropdown />
+                显示隐藏资源 <OpenDropdown />
               </>
             )}
           </Button>

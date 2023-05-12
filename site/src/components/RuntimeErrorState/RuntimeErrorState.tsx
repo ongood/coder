@@ -49,20 +49,19 @@ export const RuntimeErrorState: FC<RuntimeErrorStateProps> = ({ error }) => {
   return (
     <>
       <Helmet>
-        <title>Something went wrong...</title>
+        <title>出错了...</title>
       </Helmet>
       {!checkingError ? (
         <Margins className={styles.root}>
           <div className={styles.innerRoot}>
             <CoderIcon className={styles.logo} />
-            <h1 className={styles.title}>Something went wrong...</h1>
+            <h1 className={styles.title}>出错了...</h1>
             <p className={styles.text}>
-              Please try reloading the page, if that doesn&lsquo;t work, you can
-              ask for help in the{" "}
+              请尝试重新加载页面，如果不起作用，您可以在{" "}
               <Link href="https://discord.gg/coder">
-                Coder Discord community
+                Coder Discord 社区
               </Link>{" "}
-              or{" "}
+                寻求帮助或{" "}
               <Link
                 href={`https://github.com/coder/coder/issues/new?body=${encodeURIComponent(
                   [
@@ -75,9 +74,9 @@ export const RuntimeErrorState: FC<RuntimeErrorStateProps> = ({ error }) => {
                 )}`}
                 target="_blank"
               >
-                open an issue
+                提交问题
               </Link>
-              .
+              。
             </p>
             <Stack direction="row" justifyContent="center">
               <Button
@@ -86,16 +85,16 @@ export const RuntimeErrorState: FC<RuntimeErrorStateProps> = ({ error }) => {
                   window.location.reload()
                 }}
               >
-                Reload page
+                重新加载页面
               </Button>
               <Button component="a" href="/">
-                Go to dashboard
+                前往仪表板
               </Button>
             </Stack>
             {error.stack && (
               <div className={styles.stack}>
                 <div className={styles.stackHeader}>
-                  Stacktrace
+                  堆栈跟踪
                   <CopyButton
                     buttonClassName={styles.copyButton}
                     text={error.stack}
@@ -106,7 +105,7 @@ export const RuntimeErrorState: FC<RuntimeErrorStateProps> = ({ error }) => {
               </div>
             )}
             {coderVersion && (
-              <div className={styles.version}>Version: {coderVersion}</div>
+              <div className={styles.version}>版本: {coderVersion}</div>
             )}
           </div>
         </Margins>

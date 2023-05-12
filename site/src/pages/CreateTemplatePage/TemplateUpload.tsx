@@ -30,7 +30,7 @@ export const TemplateUpload: FC<TemplateUploadProps> = ({
           e.stopPropagation()
         }}
       >
-        内置模板
+        入门模板
       </Link>{" "}
       来开始使用 Coder。
     </>

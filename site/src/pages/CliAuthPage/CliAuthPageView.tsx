@@ -23,15 +23,15 @@ export const CliAuthPageView: FC<CliAuthPageViewProps> = ({ sessionToken }) => {
       <Welcome message="Session token" />
 
       <p className={styles.text}>
-        Copy the session token below and{" "}
-        <strong className={styles.lineBreak}>paste it in your terminal</strong>.
+          将下面的会话令牌复制并{" "}
+        <strong className={styles.lineBreak}>粘贴到您的终端</strong>.
       </p>
 
       <CodeExample code={sessionToken} />
 
       <div className={styles.links}>
         <Button component={RouterLink} size="large" to="/workspaces" fullWidth>
-          Go to workspaces
+          前往工作区
         </Button>
       </div>
     </SignInLayout>

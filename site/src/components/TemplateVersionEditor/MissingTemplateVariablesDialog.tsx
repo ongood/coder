@@ -49,11 +49,11 @@ export const MissingTemplateVariablesDialog: FC<
         id="update-build-parameters-title"
         classes={{ root: styles.title }}
       >
-        Template variables
+          模板变量
       </DialogTitle>
       <DialogContent className={styles.content}>
         <DialogContentText className={styles.info}>
-          There are a few missing template variable values. Please fill them in.
+          某些模板变量的值缺失，请填写完整。
         </DialogContentText>
         <VerticalForm
           className={styles.form}
@@ -91,10 +91,10 @@ export const MissingTemplateVariablesDialog: FC<
       </DialogContent>
       <DialogActions disableSpacing className={styles.dialogActions}>
         <Button color="primary" fullWidth type="submit" form="updateVariables">
-          Submit
+          提交
         </Button>
         <Button fullWidth type="button" onClick={dialogProps.onClose}>
-          Cancel
+          取消
         </Button>
       </DialogActions>
     </Dialog>

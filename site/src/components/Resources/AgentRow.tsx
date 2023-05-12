@@ -320,7 +320,7 @@ export const AgentRow: FC<AgentRowProps> = ({
                 }}
               >
                 <CloseDropdown />
-                Hide startup logs
+                隐藏启动日志
               </button>
             ) : (
               <button
@@ -333,7 +333,7 @@ export const AgentRow: FC<AgentRowProps> = ({
                 }}
               >
                 <OpenDropdown />
-                Show startup logs
+                显示启动日志
               </button>
             )}
 
@@ -348,7 +348,7 @@ export const AgentRow: FC<AgentRowProps> = ({
               }}
             >
               <CodeOutlined />
-              Startup script
+              启动脚本
             </button>
 
             <Popover

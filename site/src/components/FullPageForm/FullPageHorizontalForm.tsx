@@ -22,7 +22,7 @@ export const FullPageHorizontalForm: FC<
         actions={
           onCancel && (
             <Button size="small" onClick={onCancel}>
-              Cancel
+              取消
             </Button>
           )
         }
