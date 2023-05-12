@@ -59,14 +59,14 @@ export const SSHButton: React.FC<React.PropsWithChildren<SSHButtonProps>> = ({
         }}
       >
         <HelpTooltipText>
-          Run the following commands to connect with SSH:
+          运行以下命令以通过SSH连接
         </HelpTooltipText>
 
         <Stack spacing={0.5} className={styles.codeExamples}>
           <div>
             <HelpTooltipText>
               <strong className={styles.codeExampleLabel}>
-                Configure SSH hosts on machine:
+                在机器上配置SSH主机：
               </strong>
             </HelpTooltipText>
             <CodeExample code="coder config-ssh" />
@@ -75,7 +75,7 @@ export const SSHButton: React.FC<React.PropsWithChildren<SSHButtonProps>> = ({
           <div>
             <HelpTooltipText>
               <strong className={styles.codeExampleLabel}>
-                Connect to the agent:
+                连接到代理服务器：
               </strong>
             </HelpTooltipText>
             <CodeExample
@@ -86,16 +86,16 @@ export const SSHButton: React.FC<React.PropsWithChildren<SSHButtonProps>> = ({
 
         <HelpTooltipLinksGroup>
           <HelpTooltipLink href="https://coder.com/docs/coder-oss/latest/install">
-            Install Coder CLI
+            安装Coder CLI
           </HelpTooltipLink>
           <HelpTooltipLink href="https://coder.com/docs/coder-oss/latest/ides#vs-code-remote">
-            Connect via VS Code Remote SSH
+            通过VS Code远程SSH连接
           </HelpTooltipLink>
           <HelpTooltipLink href="https://coder.com/docs/coder-oss/latest/ides#jetbrains-gateway">
-            Connect via JetBrains Gateway
+            通过JetBrains Gateway连接
           </HelpTooltipLink>
           <HelpTooltipLink href="https://coder.com/docs/coder-oss/latest/ides#ssh-configuration">
-            SSH configuration
+            SSH配置
           </HelpTooltipLink>
         </HelpTooltipLinksGroup>
       </Popover>

@@ -187,7 +187,7 @@ func Read(ctx context.Context, rw http.ResponseWriter, r *http.Request, value in
 			})
 		}
 		Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
-			Message:     "Validation failed.",
+			Message:     "验证失败。",
 			Validations: apiErrors,
 		})
 		return false

@@ -1,6 +1,6 @@
  {
     "title": "令牌",
-    "description": "令牌用于与Coder API进行身份验证。您可以在此页面上创建令牌，也可以使用Coder CLI使用<1>{{cliCreateCommand}}</1>命令创建令牌。",
+    "description": "令牌用于与Coder API进行身份验证。您可以在此页面上创建令牌，也可以通过Coder CLI使用<1>{{cliCreateCommand}}</1>命令创建令牌。",
     "emptyState": "未找到任何令牌",
     "tokenActions": {
       "addToken": "添加令牌",

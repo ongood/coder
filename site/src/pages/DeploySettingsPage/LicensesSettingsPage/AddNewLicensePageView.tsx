@@ -77,7 +77,7 @@ export const AddNewLicensePageView: FC<AddNewLicenseProps> = ({
         <DividerWithText>or</DividerWithText>
 
         <Fieldset
-          title="将您的许可证密钥粘贴在这里"
+          title="将您的许可证密钥粘贴此处"
           onSubmit={(e) => {
             e.preventDefault()
 
@@ -96,7 +96,7 @@ export const AddNewLicensePageView: FC<AddNewLicenseProps> = ({
         >
           <TextField
             name="licenseKey"
-            placeholder="将您的许可证密钥粘贴在这里"
+            placeholder="将您的许可证密钥文本粘贴在这里"
             multiline
             rows={4}
             fullWidth

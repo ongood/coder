@@ -154,7 +154,7 @@ export const PortForwardButton: React.FC<PortForwardButtonProps> = (props) => {
           setIsOpen(true)
         }}
       >
-        Port forward
+        端口转发
       </SecondaryAgentButton>
       <Popover
         classes={{ paper: styles.popoverPaper }}
@@ -171,7 +171,7 @@ export const PortForwardButton: React.FC<PortForwardButtonProps> = (props) => {
           horizontal: "left",
         }}
       >
-        <HelpTooltipTitle>Port forward</HelpTooltipTitle>
+        <HelpTooltipTitle>端口转发</HelpTooltipTitle>
         <TooltipView {...props} />
       </Popover>
     </>
