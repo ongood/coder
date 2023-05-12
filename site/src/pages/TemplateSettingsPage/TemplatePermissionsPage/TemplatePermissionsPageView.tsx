@@ -99,10 +99,10 @@ const AddTemplateUserOrGroup: React.FC<AddTemplateUserOrGroupProps> = ({
           }}
         >
           <MenuItem key="use" value="use">
-            Use
+            用户
           </MenuItem>
           <MenuItem key="admin" value="admin">
-            Admin
+            管理员
           </MenuItem>
         </Select>
 
@@ -112,7 +112,7 @@ const AddTemplateUserOrGroup: React.FC<AddTemplateUserOrGroupProps> = ({
           startIcon={<PersonAdd />}
           loading={isLoading}
         >
-          Add member
+          添加成员
         </LoadingButton>
       </Stack>
     </form>
@@ -130,18 +130,17 @@ const RoleSelect: FC<SelectProps> = (props) => {
     >
       <MenuItem key="use" value="use" className={styles.menuItem}>
         <div>
-          <div>Use</div>
+          <div>用户</div>
           <div className={styles.menuItemSecondary}>
-            Can read and use this template to create workspaces.
+            可读取并使用此模板创建工作区。
           </div>
         </div>
       </MenuItem>
       <MenuItem key="admin" value="admin" className={styles.menuItem}>
         <div>
-          <div>Admin</div>
+          <div>管理员</div>
           <div className={styles.menuItemSecondary}>
-            Can modify all aspects of this template including permissions,
-            metadata, and template versions.
+            可修改此模板的所有方面，包括权限、元数据和模板版本。
           </div>
         </div>
       </MenuItem>
@@ -200,7 +199,7 @@ export const TemplatePermissionsPageView: FC<
   return (
     <>
       <PageHeader className={styles.pageHeader}>
-        <PageHeaderTitle>Permissions</PageHeaderTitle>
+        <PageHeaderTitle>权限</PageHeaderTitle>
       </PageHeader>
 
       <Stack spacing={2.5}>
@@ -220,8 +219,8 @@ export const TemplatePermissionsPageView: FC<
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell width="60%">Member</TableCell>
-                <TableCell width="40%">Role</TableCell>
+                <TableCell width="60%">成员</TableCell>
+                <TableCell width="40%">角色</TableCell>
                 <TableCell width="1%" />
               </TableRow>
             </TableHead>

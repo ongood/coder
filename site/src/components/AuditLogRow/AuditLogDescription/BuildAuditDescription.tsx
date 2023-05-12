@@ -14,10 +14,10 @@ export const BuildAuditDescription: FC<{ auditLog: AuditLog }> = ({
   const user =
     auditLog.additional_fields?.build_reason &&
     auditLog.additional_fields?.build_reason !== "initiator"
-      ? "Coder automatically"
+      ? "Coder 自动"
       : auditLog.user?.username.trim()
 
-  const action = auditLog.action === "start" ? "started" : "stopped"
+  const action = auditLog.action === "start" ? "启动了" : "停止了"
 
   if (auditLog.resource_link) {
     return (
@@ -45,7 +45,7 @@ export const BuildAuditDescription: FC<{ auditLog: AuditLog }> = ({
         values={{ user, action, workspaceName }}
       >
         {"{{user}}"}
-        {"{{action}}"}workspace{"{{workspaceName}}"}
+        {"{{action}}"}工作区{"{{workspaceName}}"}
       </Trans>
     </span>
   )

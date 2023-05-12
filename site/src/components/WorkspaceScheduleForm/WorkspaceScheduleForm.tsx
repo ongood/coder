@@ -60,7 +60,7 @@ export const Language = {
   ttlCausesShutdownHelperText: "您的工作空间将在",
   ttlCausesShutdownAfterStart: "后自动关闭。每当我们检测到活动时，我们会延迟关闭时间",
   ttlCausesNoShutdownHelperText: "您的工作空间将不会自动关闭。",
-  formTitle: "工作空间计划",
+  formTitle: "工作区日程",
   startSection: "启动",
   startSwitch: "启用自动启动",
   stopSection: "关闭",

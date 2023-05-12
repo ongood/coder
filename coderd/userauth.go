@@ -211,7 +211,7 @@ func (api *API) postLogout(rw http.ResponseWriter, r *http.Request) {
 	aReq.New = database.APIKey{}
 
 	httpapi.Write(ctx, rw, http.StatusOK, codersdk.Response{
-		Message: "Logged out!",
+		Message: "已退出!",
 	})
 }
 

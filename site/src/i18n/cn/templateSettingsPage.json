@@ -25,7 +25,7 @@
     "description": "为您的模板提供友好的名称、描述和图标。"
   },
   "schedule": {
-    "title": "计划",
+    "title": "日程",
     "description": "定义从此模板创建的工作区何时自动停止。"
   },
   "operations": {

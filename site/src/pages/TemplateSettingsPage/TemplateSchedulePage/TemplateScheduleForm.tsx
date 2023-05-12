@@ -308,7 +308,7 @@ export const TemplateScheduleForm: FC<TemplateScheduleForm> = ({
               </strong>
               <span className={styles.optionDescription}>
                 如果设置了默认的生存时间，则工作区将始终使用默认的生存时间。
-                无论此设置如何，工作区只能保留最大寿命。
+                但无论如何设置，工作区只能保留最大寿命。
               </span>
             </Stack>
           </Stack>
