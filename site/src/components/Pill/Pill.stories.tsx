@@ -10,48 +10,48 @@ const Template: Story<PillProps> = (args) => <Pill {...args} />
 
 export const Primary = Template.bind({})
 Primary.args = {
-  text: "Primary",
+  text: "主要",
   type: "primary",
 }
 
 export const Secondary = Template.bind({})
 Secondary.args = {
-  text: "Secondary",
+  text: "次要",
   type: "secondary",
 }
 
 export const Success = Template.bind({})
 Success.args = {
-  text: "Success",
+  text: "成功",
   type: "success",
 }
 
 export const Info = Template.bind({})
 Info.args = {
-  text: "Information",
+  text: "信息",
   type: "info",
 }
 
 export const Warning = Template.bind({})
 Warning.args = {
-  text: "Warning",
+  text: "警告",
   type: "warning",
 }
 
 export const Error = Template.bind({})
 Error.args = {
-  text: "Error",
+  text: "错误",
   type: "error",
 }
 
 export const Default = Template.bind({})
 Default.args = {
-  text: "Default",
+  text: "默认",
 }
 
 export const WarningLight = Template.bind({})
 WarningLight.args = {
-  text: "Warning",
+  text: "警告",
   type: "warning",
   lightBorder: true,
 }

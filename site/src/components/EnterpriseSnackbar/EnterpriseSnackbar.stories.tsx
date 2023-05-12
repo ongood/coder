@@ -17,19 +17,19 @@ export const Error = Template.bind({})
 Error.args = {
   variant: "error",
   open: true,
-  message: "Oops, something wrong happened.",
+  message: "哎呀，出错了。",
 }
 
 export const Info = Template.bind({})
 Info.args = {
   variant: "info",
   open: true,
-  message: "Hey, something happened.",
+  message: "嘿，发生了一些事情。",
 }
 
 export const Success = Template.bind({})
 Success.args = {
   variant: "success",
   open: true,
-  message: "Hey, something good happened.",
+  message: "嘿，发生了一些好事情。",
 }

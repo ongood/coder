@@ -979,7 +979,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		// Telemetry settings
 		{
 			Name:        "Telemetry Enable",
-			Description: "Whether telemetry is enabled or not. Coder collects anonymized usage data to help improve our product.",
+			Description: "是否启用遥测。Coder收集匿名的使用数据以帮助改进我们的产品。",
 			Flag:        "telemetry",
 			Env:         "CODER_TELEMETRY_ENABLE",
 			Default:     strconv.FormatBool(flag.Lookup("test.v") == nil),
@@ -989,7 +989,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "Telemetry Trace",
-			Description: "是否启用遥测。Coder收集匿名的使用数据以帮助改进我们的产品。",
+			Description: "确定是否将 OpenTelemetry 追踪发送到 Coder。Coder 收集匿名化的应用程序追踪数据，以帮助改进我们的产品。禁用遥测也将禁用此选项。",
 			Flag:        "telemetry-trace",
 			Env:         "CODER_TELEMETRY_TRACE",
 			Default:     strconv.FormatBool(flag.Lookup("test.v") == nil),

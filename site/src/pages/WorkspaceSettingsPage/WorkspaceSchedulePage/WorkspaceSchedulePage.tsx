@@ -71,7 +71,7 @@ export const WorkspaceSchedulePage: FC = () => {
         <title>{pageTitle([workspaceName, "Schedule"])}</title>
       </Helmet>
       <PageHeader className={styles.pageHeader}>
-        <PageHeaderTitle>Workspace Schedule</PageHeaderTitle>
+        <PageHeaderTitle>工作区日程</PageHeaderTitle>
       </PageHeader>
       {(scheduleState.hasTag("loading") || !template) && <Loader />}
       {scheduleState.matches("error") && (

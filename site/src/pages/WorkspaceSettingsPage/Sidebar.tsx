@@ -64,19 +64,19 @@ export const Sidebar: React.FC<{ username: string; workspace: Workspace }> = ({
       </Stack>
 
       <SidebarNavItem href="" icon={<SidebarNavItemIcon icon={GeneralIcon} />}>
-        General
+        常规
       </SidebarNavItem>
       <SidebarNavItem
         href="parameters"
         icon={<SidebarNavItemIcon icon={ParameterIcon} />}
       >
-        Parameters
+        参数
       </SidebarNavItem>
       <SidebarNavItem
         href="schedule"
         icon={<SidebarNavItemIcon icon={ScheduleIcon} />}
       >
-        Schedule
+        日程
       </SidebarNavItem>
     </nav>
   )

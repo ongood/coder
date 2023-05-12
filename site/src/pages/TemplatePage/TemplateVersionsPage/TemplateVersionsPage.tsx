@@ -28,10 +28,10 @@ const TemplateVersionsPage = () => {
     onSuccess: async () => {
       setLatestActiveVersion(selectedVersionIdToPromote as string)
       setSelectedVersionIdToPromote(undefined)
-      displaySuccess("Version promoted successfully")
+      displaySuccess("版本成功提升")
     },
     onError: (error) => {
-      displayError(getErrorMessage(error, "Failed to promote version"))
+      displayError(getErrorMessage(error, "提升版本失败"))
     },
   })
   const [selectedVersionIdToPromote, setSelectedVersionIdToPromote] = useState<
@@ -60,10 +60,10 @@ const TemplateVersionsPage = () => {
           promoteVersion(selectedVersionIdToPromote as string)
         }}
         onClose={() => setSelectedVersionIdToPromote(undefined)}
-        title="Promote version"
+        title="提升版本"
         confirmLoading={isPromoting}
-        confirmText="Promote"
-        description="Are you sure you want to promote this version? Workspaces will be prompted to “Update” to this version once promoted."
+        confirmText="提升"
+        description="您确定要提升此版本吗？一旦提升，工作区将提示“更新”到该版本。"
       />
     </>
   )

@@ -87,7 +87,7 @@ export const appearanceMachine = createMachine(
         preview: (_) => true,
       }),
       notifyUpdateAppearanceSuccess: () => {
-        displaySuccess("Successfully updated appearance settings!")
+        displaySuccess("外观设置已成功更新！")
       },
       assignAppearance: assign({
         appearance: (_, event) => event.data as AppearanceConfig,

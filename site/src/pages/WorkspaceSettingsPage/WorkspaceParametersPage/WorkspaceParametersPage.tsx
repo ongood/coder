@@ -46,8 +46,8 @@ const WorkspaceParametersPage = () => {
       }),
     onSuccess: () => {
       displaySuccess(
-        "Parameters updated successfully",
-        "A new build was started to apply the new parameters",
+        "参数已成功更新",
+        "已启动新构建以应用新参数",
       )
     },
   })
@@ -87,7 +87,7 @@ export const WorkspaceParametersPageView: FC<
   return (
     <>
       <PageHeader className={styles.pageHeader}>
-        <PageHeaderTitle>Workspace parameters</PageHeaderTitle>
+        <PageHeaderTitle>工作区参数</PageHeaderTitle>
       </PageHeader>
 
       {data ? (

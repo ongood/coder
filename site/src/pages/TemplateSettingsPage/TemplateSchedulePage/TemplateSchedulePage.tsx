@@ -29,7 +29,7 @@ const TemplateSchedulePage: FC = () => {
     (data: UpdateTemplateMeta) => updateTemplateMeta(template.id, data),
     {
       onSuccess: () => {
-        displaySuccess("Template updated successfully")
+        displaySuccess("模板更新成功")
       },
     },
   )

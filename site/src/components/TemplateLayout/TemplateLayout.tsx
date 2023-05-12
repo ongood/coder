@@ -120,7 +120,7 @@ export const TemplateLayout: FC<{ children?: JSX.Element }> = ({
                 ])
               }
             >
-              Docs
+              文档
             </NavLink>
             {data.permissions.canUpdateTemplate && (
               <NavLink
@@ -144,7 +144,7 @@ export const TemplateLayout: FC<{ children?: JSX.Element }> = ({
                 ])
               }
             >
-              Versions
+              版本
             </NavLink>
           </Stack>
         </Margins>

@@ -23,7 +23,7 @@ export const TemplateSettingsPage: FC = () => {
     (data: UpdateTemplateMeta) => updateTemplateMeta(template.id, data),
     {
       onSuccess: async () => {
-        displaySuccess("Template updated successfully")
+        displaySuccess("模板更新成功")
       },
     },
   )

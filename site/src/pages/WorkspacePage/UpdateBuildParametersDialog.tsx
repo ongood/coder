@@ -62,7 +62,7 @@ export const UpdateBuildParametersDialog: FC<
         id="update-build-parameters-title"
         classes={{ root: styles.title }}
       >
-        Workspace parameters
+        工作区参数
       </DialogTitle>
       <DialogContent className={styles.content}>
         <DialogContentText className={styles.info}>
@@ -103,10 +103,10 @@ export const UpdateBuildParametersDialog: FC<
       </DialogContent>
       <DialogActions disableSpacing className={styles.dialogActions}>
         <Button fullWidth type="button" onClick={dialogProps.onClose}>
-          Cancel
+          取消
         </Button>
         <Button color="primary" fullWidth type="submit" form="updateParameters">
-          Update
+          更新
         </Button>
       </DialogActions>
     </Dialog>

@@ -58,7 +58,7 @@ export const Language = {
   timezoneLabel: "时区",
   ttlLabel: "关闭时间倒计时（小时）",
   ttlCausesShutdownHelperText: "您的工作空间将在",
-  ttlCausesShutdownAfterStart: "下次启动后自动关闭。每当我们检测到活动时，我们会延迟关闭时间。",
+  ttlCausesShutdownAfterStart: "后自动关闭。每当我们检测到活动时，我们会延迟关闭时间",
   ttlCausesNoShutdownHelperText: "您的工作空间将不会自动关闭。",
   formTitle: "工作空间计划",
   startSection: "启动",
@@ -204,37 +204,37 @@ export const WorkspaceScheduleForm: FC<
   const checkboxes: Array<{ value: boolean; name: string; label: string }> = [
     {
       value: form.values.sunday,
-      name: "周日",
+      name: "sunday",
       label: Language.daySundayLabel,
     },
     {
       value: form.values.monday,
-      name: "周一",
+      name: "monday",
       label: Language.dayMondayLabel,
     },
     {
       value: form.values.tuesday,
-      name: "周二",
+      name: "tuesday",
       label: Language.dayTuesdayLabel,
     },
     {
       value: form.values.wednesday,
-      name: "周三",
+      name: "wednesday",
       label: Language.dayWednesdayLabel,
     },
     {
       value: form.values.thursday,
-      name: "周四",
+      name: "thursday",
       label: Language.dayThursdayLabel,
     },
     {
       value: form.values.friday,
-      name: "周五",
+      name: "friday",
       label: Language.dayFridayLabel,
     },
     {
       value: form.values.saturday,
-      name: "周六",
+      name: "saturday",
       label: Language.daySaturdayLabel,
     },
   ]
@@ -277,7 +277,7 @@ export const WorkspaceScheduleForm: FC<
     <HorizontalForm onSubmit={form.handleSubmit}>
       <FormSection
         title="自动启动"
-        description="选择您希望工作区在每周的哪些时间和哪些天里自动启动。"
+        description="选择您希望工作区在每周的哪些时段里自动启动。"
       >
         <FormFields>
           <FormControlLabel

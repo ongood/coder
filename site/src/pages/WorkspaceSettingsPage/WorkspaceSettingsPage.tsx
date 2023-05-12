@@ -19,7 +19,7 @@ const WorkspaceSettingsPage = () => {
     mutationFn: (formValues: WorkspaceSettingsFormValues) =>
       patchWorkspace(workspace.id, { name: formValues.name }),
     onSuccess: (_, formValues) => {
-      displaySuccess("Workspace updated successfully")
+      displaySuccess("工作区更新成功")
       navigate(`/@${username}/${formValues.name}/settings`)
     },
   })

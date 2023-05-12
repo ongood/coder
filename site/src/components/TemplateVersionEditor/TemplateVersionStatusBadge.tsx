@@ -15,7 +15,7 @@ export const TemplateVersionStatusBadge: FC<{
       icon={icon}
       text={text}
       type={type}
-      title={`Build status is ${text}`}
+      title={`构建状态为 ${text}`}
     />
   )
 }
@@ -35,37 +35,37 @@ export const getStatus = (
     case "running":
       return {
         type: "info",
-        text: "Running",
+        text: "运行中",
         icon: <LoadingIcon />,
       }
     case "pending":
       return {
-        text: "Pending",
+        text: "待处理",
         icon: <LoadingIcon />,
         type: "info",
       }
     case "canceling":
       return {
         type: "warning",
-        text: "Canceling",
+        text: "取消中",
         icon: <LoadingIcon />,
       }
     case "canceled":
       return {
         type: "warning",
-        text: "Canceled",
+        text: "已取消",
         icon: <ErrorIcon />,
       }
     case "failed":
       return {
         type: "error",
-        text: "Failed",
+        text: "失败",
         icon: <ErrorIcon />,
       }
     case "succeeded":
       return {
         type: "success",
-        text: "Success",
+        text: "成功",
         icon: <CheckIcon />,
       }
   }

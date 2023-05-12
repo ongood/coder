@@ -276,7 +276,7 @@ export const templateACLMachine = createMachine(
         userToBeUpdated: (_) => undefined,
       }),
       displayUpdateUserSuccessMessage: () => {
-        displaySuccess("User role update successfully!")
+        displaySuccess("用户角色更新成功！")
       },
       removeUserFromTemplateACL: assign({
         templateACL: ({ templateACL }, { user }) => {
@@ -292,7 +292,7 @@ export const templateACLMachine = createMachine(
         },
       }),
       displayRemoveUserSuccessMessage: () => {
-        displaySuccess("User removed successfully!")
+        displaySuccess("用户删除成功！")
       },
       // Group
       assignGroupToBeAdded: assign({
@@ -343,7 +343,7 @@ export const templateACLMachine = createMachine(
         groupToBeUpdated: (_) => undefined,
       }),
       displayUpdateGroupSuccessMessage: () => {
-        displaySuccess("Group role update successfully!")
+        displaySuccess("用户组角色更新成功！")
       },
       removeGroupFromTemplateACL: assign({
         templateACL: ({ templateACL }, { group }) => {
@@ -359,7 +359,7 @@ export const templateACLMachine = createMachine(
         },
       }),
       displayRemoveGroupSuccessMessage: () => {
-        displaySuccess("Group removed successfully!")
+        displaySuccess("用户组删除成功！")
       },
     },
   },

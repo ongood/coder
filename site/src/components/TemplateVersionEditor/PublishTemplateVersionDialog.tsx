@@ -56,22 +56,22 @@ export const PublishTemplateVersionDialog: FC<
       }}
       hideCancel={false}
       type="success"
-      cancelText="Cancel"
-      confirmText="Publish"
-      title="Publish new version"
+      cancelText="取消"
+      confirmText="发布"
+      title="发布新版本"
       description={
         <Stack>
-          <p>You are about to publish a new version of this template.</p>
+          <p>您即将发布此模板的新版本。</p>
           <FormFields>
             <TextField
               {...getFieldHelpers("name")}
-              label="Version name"
+              label="版本名称"
               autoFocus
               disabled={isPublishing}
             />
 
             <FormControlLabel
-              label="Promote to default version"
+              label="提升为默认版本"
               control={
                 <Checkbox
                   size="small"

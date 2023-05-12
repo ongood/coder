@@ -30,7 +30,7 @@ export const TemplateVariablesPage: FC = () => {
     },
     actions: {
       onUpdateTemplate: () => {
-        displaySuccess("Template updated successfully")
+        displaySuccess("模板更新成功")
       },
     },
   })

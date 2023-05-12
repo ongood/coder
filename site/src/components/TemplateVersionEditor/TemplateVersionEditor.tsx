@@ -212,7 +212,7 @@ export const TemplateVersionEditor: FC<TemplateVersionEditorProps> = ({
                 triggerPreview()
               }}
             >
-              Build template
+              构建模板
             </Button>
 
             <Button
@@ -228,7 +228,7 @@ export const TemplateVersionEditor: FC<TemplateVersionEditorProps> = ({
               disabled={dirty || disableUpdate}
               onClick={onPublish}
             >
-              Publish version
+              发布版本
             </Button>
           </div>
         </div>
@@ -236,7 +236,7 @@ export const TemplateVersionEditor: FC<TemplateVersionEditorProps> = ({
         <div className={styles.sidebarAndEditor}>
           <div className={styles.sidebar}>
             <div className={styles.sidebarTitle}>
-              Template files
+              模板文件
               <div className={styles.sidebarActions}>
                 <Tooltip title="Create File" placement="top">
                   <IconButton
@@ -334,7 +334,7 @@ export const TemplateVersionEditor: FC<TemplateVersionEditorProps> = ({
                   }}
                 />
               ) : (
-                <div>No file opened</div>
+                <div>没有打开的文件</div>
               )}
             </div>
 
@@ -353,7 +353,7 @@ export const TemplateVersionEditor: FC<TemplateVersionEditorProps> = ({
                   ) : (
                     <BuildIcon />
                   )}
-                  Build Log
+                  构建日志
                 </button>
 
                 {!disableUpdate && (
@@ -366,7 +366,7 @@ export const TemplateVersionEditor: FC<TemplateVersionEditorProps> = ({
                     }}
                   >
                     <PreviewIcon />
-                    Workspace Preview
+                    工作区预览
                   </button>
                 )}
               </div>

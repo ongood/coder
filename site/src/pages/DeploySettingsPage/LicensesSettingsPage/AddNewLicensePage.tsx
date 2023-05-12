@@ -16,10 +16,10 @@ const AddNewLicensePage: FC = () => {
     error: savingLicenseError,
   } = useMutation(createLicense, {
     onSuccess: () => {
-      displaySuccess("You have successfully added a license")
+      displaySuccess("成功添加了许可证")
       navigate("/settings/deployment/licenses?success=true")
     },
-    onError: () => displayError("Failed to save license key"),
+    onError: () => displayError("保存许可证密钥失败"),
   })
 
   function saveLicenseKey(licenseKey: string) {
@@ -27,10 +27,10 @@ const AddNewLicensePage: FC = () => {
       { license: licenseKey },
       {
         onSuccess: () => {
-          displaySuccess("You have successfully added a license")
+          displaySuccess("成功添加了许可证")
           navigate("/settings/deployment/licenses?success=true")
         },
-        onError: () => displayError("Failed to save license key"),
+        onError: () => displayError("保存许可证密钥失败"),
       },
     )
   }

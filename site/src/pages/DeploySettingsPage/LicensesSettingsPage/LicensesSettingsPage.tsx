@@ -21,11 +21,11 @@ const LicensesSettingsPage: FC = () => {
   const { mutate: removeLicenseApi, isLoading: isRemovingLicense } =
     useMutation(removeLicense, {
       onSuccess: () => {
-        displaySuccess("Successfully removed license")
+        displaySuccess("成功移除了许可证")
         void queryClient.invalidateQueries(["licenses"])
       },
       onError: () => {
-        displayError("Failed to remove license")
+        displayError("移除许可证失败")
       },
     })
 
@@ -48,7 +48,7 @@ const LicensesSettingsPage: FC = () => {
   return (
     <>
       <Helmet>
-        <title>{pageTitle("License Settings")}</title>
+        <title>{pageTitle("许可证设置")}</title>
       </Helmet>
       <LicensesSettingsPageView
         showConfetti={confettiOn}

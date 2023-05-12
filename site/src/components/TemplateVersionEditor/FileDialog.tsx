@@ -20,17 +20,17 @@ export const CreateFileDialog: FC<{
   }
   const handleConfirm = () => {
     if (pathValue === "") {
-      setError("You must enter a path!")
+      setError("您必须输入路径！")
       return
     }
     if (checkExists(pathValue)) {
-      setError("File already exists")
+      setError("文件已存在")
       return
     }
     if (!isAllowedFile(pathValue)) {
       const extensions = allowedExtensions.join(", ")
       setError(
-        `This extension is not allowed. You only can create files with the following extensions: ${extensions}.`,
+        `不允许使用此扩展名。您只能创建具有以下扩展名的文件：${extensions}。`,
       )
       return
     }
@@ -55,14 +55,13 @@ export const CreateFileDialog: FC<{
       onConfirm={handleConfirm}
       hideCancel={false}
       type="success"
-      cancelText="Cancel"
-      confirmText="Create"
-      title="Create File"
+      cancelText="取消"
+      confirmText="创建"
+      title="创建文件"
       description={
         <Stack>
           <Typography>
-            Specify the path to a file to be created. This path can contain
-            slashes too.
+            指定要创建的文件的路径，该路径可以包含斜杠。
           </Typography>
           <TextField
             autoFocus
@@ -79,7 +78,7 @@ export const CreateFileDialog: FC<{
             placeholder="example.tf"
             value={pathValue}
             onChange={handleChange}
-            label="File Path"
+            label="文件路径"
           />
         </Stack>
       }
@@ -99,11 +98,10 @@ export const DeleteFileDialog: FC<{
       onClose={onClose}
       open={open}
       onConfirm={onConfirm}
-      title="Delete File"
+      title="删除文件"
       description={
         <>
-          Are you sure you want to delete <strong>{filename}</strong>? It will
-          be deleted permanently.
+          您确定要删除<strong>{filename}</strong>吗？它将被永久删除。
         </>
       }
     />
@@ -125,24 +123,24 @@ export const RenameFileDialog: FC<{
   }
   const handleConfirm = () => {
     if (pathValue === "") {
-      setError("You must enter a path!")
+      setError("您必须输入路径！")
       return
     }
     if (checkExists(pathValue)) {
-      setError("File already exists")
+      setError("文件已存在")
       return
     }
     if (!isAllowedFile(pathValue)) {
       const extensions = allowedExtensions.join(", ")
       setError(
-        `This extension is not allowed. You only can rename files with the following extensions: ${extensions}.`,
+        `不允许使用此扩展名。您只能使用以下扩展名重命名文件：${extensions}。`,
       )
       return
     }
     //Check if a folder is renamed to a file
     const [_, extension] = pathValue.split(".")
     if (isFolder(filename, fileTree) && extension) {
-      setError(`A folder can't be renamed to a file.`)
+      setError(`文件夹不能重命名为文件。`)
       return
     }
     const pathError = validatePath(pathValue, fileTree)
@@ -166,14 +164,13 @@ export const RenameFileDialog: FC<{
       onConfirm={handleConfirm}
       hideCancel={false}
       type="success"
-      cancelText="Cancel"
-      confirmText="Rename"
-      title="Rename File"
+      cancelText="取消"
+      confirmText="重命名"
+      title="文件重命名"
       description={
         <Stack>
           <p>
-            Rename <strong>{filename}</strong> to something else. This path can
-            contain slashes too!
+            将<strong>{filename}</strong>重命名为其他名称。此路径也可以包含斜杠！
           </p>
           <TextField
             autoFocus
@@ -190,7 +187,7 @@ export const RenameFileDialog: FC<{
             placeholder={filename}
             value={pathValue}
             onChange={handleChange}
-            label="File Path"
+            label="文件路径"
           />
         </Stack>
       }
