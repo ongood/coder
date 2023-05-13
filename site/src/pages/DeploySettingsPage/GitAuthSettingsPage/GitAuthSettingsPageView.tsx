@@ -7,7 +7,7 @@ import TableHead from "@mui/material/TableHead"
 import TableRow from "@mui/material/TableRow"
 import { DeploymentValues, GitAuthConfig } from "api/typesGenerated"
 import { AlertBanner } from "components/AlertBanner/AlertBanner"
-import { EnterpriseBadge } from "components/DeploySettingsLayout/Badges"
+import { EnterpriseBadge, Badges } from "components/DeploySettingsLayout/Badges"
 import { Header } from "components/DeploySettingsLayout/Header"
 
 export type GitAuthSettingsPageViewProps = {
