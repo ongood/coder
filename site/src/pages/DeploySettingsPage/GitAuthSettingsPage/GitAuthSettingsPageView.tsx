@@ -10,6 +10,7 @@ import { AlertBanner } from "components/AlertBanner/AlertBanner"
 import { EnterpriseBadge, Badges } from "components/DeploySettingsLayout/Badges"
 import { Header } from "components/DeploySettingsLayout/Header"
 
+
 export type GitAuthSettingsPageViewProps = {
   config: DeploymentValues
 }
@@ -40,13 +41,15 @@ export const GitAuthSettingsPageView = ({
       />
 
       <div className={styles.description}>
-        <AlertBanner
-          severity="info"
-          text="与多个 Git 提供商集成是一项企业版功能。"
-        />
-        <Badges>
-          <EnterpriseBadge />
-        </Badges>
+        <div className={styles.alertBannerWrapper}>
+          <AlertBanner
+            severity="info"
+            text="与多个 Git 提供商集成是一项企业版功能。"
+          />
+          <Badges>
+            <EnterpriseBadge />
+          </Badges>
+        </div>
       </div>
 
       <TableContainer>
