@@ -25,9 +25,9 @@ export const UserAuthSettingsPageView = ({
         <Header title="用户认证" />
 
         <Header
-          title="使用OpenID Connect登录"
+          title="使用OIDC登录"
           secondary
-          description="设置使用OpenID Connect进行登录的认证方式。"
+          description="设置使用OpenID Connect(OIDC)进行登录的认证方式。"
           docsHref="https://coder.com/docs/coder-oss/latest/admin/auth#openid-connect-with-google"
         />
 

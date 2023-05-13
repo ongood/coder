@@ -19,7 +19,7 @@
     },
     "parameters": {
       "title": "模板参数",
-      "description": "这些参数由您的模板的Terraform配置提供。"
+      "description": "这些参数由您模板的Terraform配置提供。"
     },
     "fields": {
       "name": "名称",

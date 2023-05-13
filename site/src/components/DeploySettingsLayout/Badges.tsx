@@ -8,7 +8,7 @@ export const EnabledBadge: FC = () => {
   const styles = useStyles()
   return (
     <span className={combineClasses([styles.badge, styles.enabledBadge])}>
-      Enabled
+      已启用
     </span>
   )
 }
@@ -17,7 +17,7 @@ export const EntitledBadge: FC = () => {
   const styles = useStyles()
   return (
     <span className={combineClasses([styles.badge, styles.enabledBadge])}>
-      Entitled
+      可使用
     </span>
   )
 }
@@ -26,7 +26,7 @@ export const HealthyBadge: FC = () => {
   const styles = useStyles()
   return (
     <span className={combineClasses([styles.badge, styles.enabledBadge])}>
-      Healthy
+      健康
     </span>
   )
 }
@@ -35,7 +35,7 @@ export const NotHealthyBadge: FC = () => {
   const styles = useStyles()
   return (
     <span className={combineClasses([styles.badge, styles.errorBadge])}>
-      Unhealthy
+      不健康
     </span>
   )
 }
@@ -44,7 +44,7 @@ export const DisabledBadge: FC = () => {
   const styles = useStyles()
   return (
     <span className={combineClasses([styles.badge, styles.disabledBadge])}>
-      Disabled
+      已禁用
     </span>
   )
 }
@@ -53,7 +53,7 @@ export const EnterpriseBadge: FC = () => {
   const styles = useStyles()
   return (
     <span className={combineClasses([styles.badge, styles.enterpriseBadge])}>
-      Enterprise
+      企业版
     </span>
   )
 }

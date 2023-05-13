@@ -82,8 +82,8 @@ WithError.args = {
   initialValues: { ...defaultInitialValues, ttl: 100 },
   initialTouched: { ttl: true },
   submitScheduleError: mockApiError({
-    message: "Something went wrong.",
-    validations: [{ field: "ttl_ms", detail: "Invalid time until shutdown." }],
+    message: "出现错误。",
+    validations: [{ field: "ttl_ms", detail: "无效的自动关闭时间。" }],
   }),
 }
 

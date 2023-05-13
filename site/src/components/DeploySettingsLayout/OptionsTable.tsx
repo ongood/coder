@@ -29,8 +29,8 @@ const OptionsTable: FC<{
       <Table className={styles.table}>
         <TableHead>
           <TableRow>
-            <TableCell width="50%">Option</TableCell>
-            <TableCell width="50%">Value</TableCell>
+            <TableCell width="50%">选项</TableCell>
+            <TableCell width="50%">值</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
@@ -74,7 +74,7 @@ export function optionValue(
       )
     case "Strict-Transport-Security":
       if (option.value === 0) {
-        return "Disabled"
+        return "禁用"
       }
       return (option.value as number).toString() + "s"
     case "OIDC Group Mapping":

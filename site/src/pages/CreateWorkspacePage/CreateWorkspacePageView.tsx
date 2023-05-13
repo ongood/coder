@@ -161,7 +161,7 @@ export const CreateWorkspacePageView: FC<
   }
 
   return (
-    <FullPageHorizontalForm title="新工作区" onCancel={props.onCancel}>
+    <FullPageHorizontalForm title="新建工作区" onCancel={props.onCancel}>
       <HorizontalForm onSubmit={form.handleSubmit}>
         {Boolean(props.hasTemplateErrors) && (
           <Stack>
@@ -228,7 +228,7 @@ export const CreateWorkspacePageView: FC<
         {/* General info */}
         <FormSection
           title="常规信息"
-          description="模板和您新工作区的名称。"
+          description="模板名称以及您新工作区的名称。"
         >
           <FormFields>
             {props.selectedTemplate && (

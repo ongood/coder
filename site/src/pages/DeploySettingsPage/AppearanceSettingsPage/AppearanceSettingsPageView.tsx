@@ -178,7 +178,7 @@ export const AppearanceSettingsPageView = ({
                   t("messageHelperText"),
                 )}
                 fullWidth
-                label="Message"
+                label="消息"
                 multiline
               />
             </Stack>
