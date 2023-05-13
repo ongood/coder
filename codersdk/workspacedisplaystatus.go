@@ -2,16 +2,16 @@ package codersdk
 
 // Maps workspace transition to display status for Running job status
 var runningStatusFromTransition = map[WorkspaceTransition]string{
-	WorkspaceTransitionStart:  "Starting",
-	WorkspaceTransitionStop:   "Stopping",
-	WorkspaceTransitionDelete: "Deleting",
+	WorkspaceTransitionStart:  "启动中",
+	WorkspaceTransitionStop:   "停止中",
+	WorkspaceTransitionDelete: "删除中",
 }
 
 // Maps workspace transition to display status for Succeeded job status
 var succeededStatusFromTransition = map[WorkspaceTransition]string{
-	WorkspaceTransitionStart:  "Started",
-	WorkspaceTransitionStop:   "Stopped",
-	WorkspaceTransitionDelete: "Deleted",
+	WorkspaceTransitionStart:  "已启动",
+	WorkspaceTransitionStop:   "已停止",
+	WorkspaceTransitionDelete: "已删除",
 }
 
 const unknownStatus = "Unknown"

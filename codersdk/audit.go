@@ -28,27 +28,27 @@ const (
 func (r ResourceType) FriendlyString() string {
 	switch r {
 	case ResourceTypeTemplate:
-		return "template"
+		return "模板"
 	case ResourceTypeTemplateVersion:
-		return "template version"
+		return "模板版本"
 	case ResourceTypeUser:
-		return "user"
+		return "用户"
 	case ResourceTypeWorkspace:
-		return "workspace"
+		return "工作区"
 	case ResourceTypeWorkspaceBuild:
 		// workspace builds have a unique friendly string
 		// see coderd/audit.go:298 for explanation
-		return "workspace"
+		return "工作区"
 	case ResourceTypeGitSSHKey:
-		return "git ssh key"
+		return "git ssh 密钥"
 	case ResourceTypeAPIKey:
-		return "token"
+		return "令牌"
 	case ResourceTypeGroup:
-		return "group"
+		return "用户组"
 	case ResourceTypeLicense:
-		return "license"
+		return "许可证"
 	default:
-		return "unknown"
+		return "未知"
 	}
 }
 
@@ -68,23 +68,23 @@ const (
 func (a AuditAction) Friendly() string {
 	switch a {
 	case AuditActionCreate:
-		return "created"
+		return "创建了"
 	case AuditActionWrite:
-		return "updated"
+		return "更新了"
 	case AuditActionDelete:
-		return "deleted"
+		return "删除了"
 	case AuditActionStart:
-		return "started"
+		return "启动了"
 	case AuditActionStop:
-		return "stopped"
+		return "停止了"
 	case AuditActionLogin:
-		return "logged in"
+		return "登录了"
 	case AuditActionLogout:
-		return "logged out"
+		return "退出了"
 	case AuditActionRegister:
-		return "registered"
+		return "注册了"
 	default:
-		return "unknown"
+		return "未知"
 	}
 }
 

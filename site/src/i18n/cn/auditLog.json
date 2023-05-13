@@ -1,8 +1,8 @@
 {
   "actions": {
-    "create": "新建",
-    "write": "已升级",
-    "delete": "已删除"
+    "create": "新建了一个",
+    "write": "更新了",
+    "delete": "删除了"
   },
   "table": {
     "emptyPage": "此页面上没有可用的审计日志",
