@@ -43,8 +43,10 @@ export const GitAuthSettingsPageView = ({
         <AlertBanner
           severity="info"
           text="与多个 Git 提供商集成是一项企业版功能。"
-          actions={[<EnterpriseBadge key="enterprise" />]}
         />
+        <Badges>
+          <EnterpriseBadge />
+        </Badges>
       </div>
 
       <TableContainer>

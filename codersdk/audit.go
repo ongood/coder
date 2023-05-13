@@ -30,7 +30,7 @@ func (r ResourceType) FriendlyString() string {
 	case ResourceTypeTemplate:
 		return "模板"
 	case ResourceTypeTemplateVersion:
-		return "模板版本"
+		return "模板 版本"
 	case ResourceTypeUser:
 		return "用户"
 	case ResourceTypeWorkspace:
