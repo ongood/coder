@@ -56,7 +56,7 @@ const estimateFinish = (
     return anyMomentNow
   }
 
-  return [p50percent, `Up to ${highGuess} seconds remaining...`]
+  return [p50percent, `剩余时间不超过 ${highGuess} 秒...`]
 }
 
 export interface WorkspaceBuildProgressProps {
@@ -72,7 +72,7 @@ export const WorkspaceBuildProgress: FC<WorkspaceBuildProgressProps> = ({
   const job = workspace.latest_build.job
   const [progressValue, setProgressValue] = useState<number | undefined>(0)
   const [progressText, setProgressText] = useState<string | undefined>(
-    "Finding ETA...",
+    "正在计算预计完成时间...",
   )
 
   // By default workspace is updated every second, which can cause visual stutter
@@ -127,7 +127,7 @@ export const WorkspaceBuildProgress: FC<WorkspaceBuildProgressProps> = ({
       />
       <div className={styles.barHelpers}>
         <div className={styles.label}>
-          {capitalize(workspace.latest_build.status)} workspace...
+          {capitalize(workspace.latest_build.status)} 工作区...
         </div>
         <div className={styles.label} data-chromatic="ignore">
           {progressText}

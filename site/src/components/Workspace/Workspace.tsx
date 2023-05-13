@@ -201,7 +201,7 @@ export const Workspace: FC<React.PropsWithChildren<WorkspaceProps>> = ({
                   justifyContent="space-between"
                 >
                   <Stack spacing={0}>
-                    <span>Workspace build failed</span>
+                    <span>工作区构建失败</span>
                     <span className={styles.errorDetails}>
                       {workspace.latest_build.job.error}
                     </span>

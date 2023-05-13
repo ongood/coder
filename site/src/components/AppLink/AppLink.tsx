@@ -71,13 +71,13 @@ export const AppLink: FC<AppLinkProps> = ({ app, workspace, agent }) => {
   if (app.health === "unhealthy") {
     canClick = false
     icon = <ErrorOutlineIcon className={styles.unhealthyIcon} />
-    primaryTooltip = "Unhealthy"
+    primaryTooltip = "不健康"
   }
   if (!appsHost && app.subdomain) {
     canClick = false
     icon = <ErrorOutlineIcon className={styles.notConfiguredIcon} />
     primaryTooltip =
-      "Your admin has not configured subdomain application access"
+      "您的管理员尚未配置子域应用程序访问权限"
   }
 
   const isPrivateApp = app.sharing_level === "owner"

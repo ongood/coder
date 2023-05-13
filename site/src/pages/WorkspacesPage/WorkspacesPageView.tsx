@@ -19,7 +19,7 @@ import { workspaceFilterQuery } from "../../utils/filters"
 
 export const Language = {
   pageTitle: "工作区",
-  yourWorkspacesButton: "你的工作区",
+  yourWorkspacesButton: "您的工作区",
   allWorkspacesButton: "所有工作区",
   runningWorkspacesButton: "运行中的工作区",
   createANewWorkspace: `创建新工作区`,

@@ -1,7 +1,7 @@
 {
   "forbiddenError": "您无权更新此工作区的日程安排。",
   "dialogTitle": "重启工作区？",
-  "dialogDescription": "你想现在重启你的工作区以应用新的自动停止设置，还是让它在你的下一个工作区启动后生效？",
+  "dialogDescription": "您想现在重启您的工作区以应用新的自动停止设置，还是让它在您的下一个工作区启动后生效？",
   "restart": "立即重启工作区",
   "applyLater": "稍后应用更新"
 }

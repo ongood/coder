@@ -490,7 +490,7 @@ export const CreateTemplateForm: FC<CreateTemplateFormProps> = ({
       {jobError && (
         <Stack>
           <div className={styles.error}>
-            <h5 className={styles.errorTitle}>Error during provisioning</h5>
+            <h5 className={styles.errorTitle}>在配置过程中发生错误</h5>
             <p className={styles.errorDescription}>
               看起来在模板供应期间出现了错误。您可以在下面查看日志。
             </p>

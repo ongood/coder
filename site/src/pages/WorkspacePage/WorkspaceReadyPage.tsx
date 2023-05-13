@@ -211,9 +211,9 @@ export const WorkspaceReadyPage = ({
           setIsConfirmingUpdate(false)
         }}
         onClose={() => setIsConfirmingUpdate(false)}
-        title="Confirm update"
-        confirmText="Update"
-        description="Are you sure you want to update your workspace? Updating your workspace will stop all running processes and delete non-persistent data."
+        title="确认更新"
+        confirmText="更新"
+        description="您确定要更新工作区吗？更新工作区将停止所有运行中的进程并删除非持久化数据。"
       />
     </>
   )

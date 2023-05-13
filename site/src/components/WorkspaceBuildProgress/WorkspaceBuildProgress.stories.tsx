@@ -29,11 +29,11 @@ Starting.args = {
     ...MockStartingWorkspace,
     latest_build: {
       ...MockWorkspaceBuild,
-      status: "starting",
+      status: "正在启动",
       job: {
         ...MockProvisionerJob,
         started_at: dayjs().add(-5, "second").format(),
-        status: "running",
+        status: "正在运行",
       },
     },
   },

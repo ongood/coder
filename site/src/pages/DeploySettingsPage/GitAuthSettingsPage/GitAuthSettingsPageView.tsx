@@ -24,7 +24,7 @@ export const GitAuthSettingsPageView = ({
     <>
       <Header
         title="Git身份验证"
-        description="Coder 与 GitHub、GitLab、BitBucket 和 Azure Repos 集成，以向你的 Git 提供商验证开发人员的身份。"
+        description="Coder 与 GitHub、GitLab、BitBucket 和 Azure Repos 集成，以向您的 Git 提供商验证开发人员的身份。"
         docsHref="https://coder.com/docs/coder-oss/latest/admin/git-providers"
       />
 
@@ -39,6 +39,14 @@ export const GitAuthSettingsPageView = ({
           borderRadius: 4,
         }}
       />
+
+      {/* <div className={styles.description}>
+        <AlertBanner
+          severity="info"
+          text="Integrating with multiple Git providers is an Enterprise feature."
+          actions={[<EnterpriseBadge key="enterprise" />]}
+        />
+      </div> */}
 
       <div className={styles.description}>
         <div className={styles.alertBannerWrapper}>
