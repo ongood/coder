@@ -53,15 +53,15 @@ export const UserAuthSettingsPageView = ({
           description="设置使用GitHub进行登录的认证方式。"
           docsHref="https://coder.com/docs/coder-oss/latest/admin/auth#github"
         />
-/*
-        <Badges>
+
+        {/* <Badges>
           {useDeploymentOptions(options, "OAuth2 GitHub Client ID")[0].value ? (
             <EnabledBadge />
           ) : (
             <DisabledBadge />
           )}
-        </Badges>
-*/
+        </Badges> */}
+
         <OptionsTable
           options={options.filter((o) =>
             deploymentGroupHasParent(o.group, "GitHub"),
