@@ -312,7 +312,7 @@ export const CreateWorkspacePageView: FC<
         {props.templateParameters &&
           props.templateParameters.filter((p) => p.mutable).length > 0 && (
             <FormSection
-              title="参数"
+              title="可变参数"
               description="这些参数由您的模板的Terraform配置提供，并且可以在创建工作区后进行更改。"
             >
               <FormFields>

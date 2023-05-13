@@ -48,7 +48,7 @@ const CreateWorkspacePage: FC = () => {
   return (
     <>
       <Helmet>
-        <title>{pageTitle("Create Workspace")}</title>
+        <title>{pageTitle("创建工作区")}</title>
       </Helmet>
       <CreateWorkspacePageView
         defaultParameterValues={defaultParameterValues}

@@ -2,14 +2,14 @@ import { Page } from "@playwright/test"
 import path from "path"
 
 export const buttons = {
-  starterTemplates: "Starter templates",
-  dockerTemplate: "Develop in Docker",
-  useTemplate: "Use template",
-  createTemplate: "Create template",
-  createWorkspace: "Create workspace",
-  submitCreateWorkspace: "Create workspace",
-  stopWorkspace: "Stop",
-  startWorkspace: "Start",
+  starterTemplates: "入门模板",
+  dockerTemplate: "在 Docker 中开发",
+  useTemplate: "使用模板",
+  createTemplate: "创建模板",
+  createWorkspace: "创建工作区",
+  submitCreateWorkspace: "创建工作区",
+  stopWorkspace: "停止",
+  startWorkspace: "启动",
 }
 
 export const clickButton = async (page: Page, name: string): Promise<void> => {

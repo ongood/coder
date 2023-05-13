@@ -25,7 +25,7 @@ func ValidateWorkspaceBuildParameters(richParameters []TemplateVersionParameter,
 
 		err := ValidateWorkspaceBuildParameter(richParameter, buildParameter, lastBuildParameter)
 		if err != nil {
-			return xerrors.Errorf("can't validate build parameter %q: %w", richParameter.Name, err)
+			return xerrors.Errorf("无法验证构建参数 %q: %w", richParameter.Name, err)
 		}
 	}
 	return nil
@@ -69,7 +69,7 @@ func ValidateWorkspaceBuildParameter(richParameter TemplateVersionParameter, bui
 		}
 
 		if !matched {
-			return xerrors.Errorf("parameter value must match one of options: %s", parameterValuesAsArray(richParameter.Options))
+			return xerrors.Errorf("参数值必须匹配以下选项之一: %s", parameterValuesAsArray(richParameter.Options))
 		}
 		return nil
 	}

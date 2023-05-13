@@ -19,7 +19,7 @@ Ready.args = {
 export const Custom = Template.bind({})
 Custom.args = {
   isLoading: false,
-  submitLabel: "Create",
+  submitLabel: "创建",
 }
 
 export const Loading = Template.bind({})

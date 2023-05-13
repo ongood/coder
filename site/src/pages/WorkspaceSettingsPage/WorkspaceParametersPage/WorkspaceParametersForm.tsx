@@ -108,12 +108,10 @@ export const WorkspaceParametersForm: FC<{
       {/* They are displayed here only for visibility purposes */}
       {immutableParameters.length > 0 && (
         <FormSection
-          title="Immutable parameters"
+          title="不可变参数"
           description={
             <>
-              These parameters are also provided by your Terraform configuration
-              but they{" "}
-              <strong>cannot be changed after creating the workspace.</strong>
+              这些参数也由您的 Terraform 配置提供，但是在创建工作区之后<strong>无法更改</strong>。
             </>
           }
         >

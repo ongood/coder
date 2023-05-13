@@ -465,8 +465,8 @@ export const CreateTemplateForm: FC<CreateTemplateFormProps> = ({
       {/* Variables */}
       {variables && variables.length > 0 && (
         <FormSection
-          title="Variables"
-          description="Input variables allow you to customize templates without altering their source code."
+          title="变量"
+          description="输入变量允许您在不更改模板源代码的情况下自定义模板。"
         >
           <FormFields>
             {variables.map((variable, index) => (
@@ -505,7 +505,7 @@ export const CreateTemplateForm: FC<CreateTemplateFormProps> = ({
       <FormFooter
         onCancel={onCancel}
         isLoading={isSubmitting}
-        submitLabel={jobError ? "Retry" : "Create template"}
+        submitLabel={jobError ? "Retry" : "创建模板"}
       />
     </HorizontalForm>
   )

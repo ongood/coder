@@ -8,7 +8,7 @@ export default {
 
 const WithTitleTemplate: Story = () => (
   <PageHeader>
-    <PageHeaderTitle>Templates</PageHeaderTitle>
+    <PageHeaderTitle>模板</PageHeaderTitle>
   </PageHeader>
 )
 
@@ -16,9 +16,9 @@ export const WithTitle = WithTitleTemplate.bind({})
 
 const WithSubtitleTemplate: Story = () => (
   <PageHeader>
-    <PageHeaderTitle>Templates</PageHeaderTitle>
+    <PageHeaderTitle>模板</PageHeaderTitle>
     <PageHeaderSubtitle>
-      Create a new workspace from a Template
+      从模板创建新的工作区
     </PageHeaderSubtitle>
   </PageHeader>
 )

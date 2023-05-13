@@ -9,7 +9,7 @@ export default {
     children: { control: "text" },
   },
   args: {
-    children: "Create workspace",
+    children: "创建工作区",
   },
 }
 

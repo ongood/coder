@@ -428,7 +428,7 @@ func (api *API) postWorkspacesByOrganization(rw http.ResponseWriter, r *http.Req
 	err = codersdk.ValidateNewWorkspaceParameters(templateVersionParameters, createWorkspace.RichParameterValues)
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
-			Message: "Error validating workspace build parameters.",
+			Message: "验证工作区构建参数时出错。",
 			Detail:  err.Error(),
 		})
 		return
