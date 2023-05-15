@@ -5,6 +5,7 @@ import { AlertBanner } from "components/AlertBanner/AlertBanner"
 import { Fieldset } from "components/DeploySettingsLayout/Fieldset"
 import { Header } from "components/DeploySettingsLayout/Header"
 import { FileUpload } from "components/FileUpload/FileUpload"
+import KeyboardArrowLeft from "@mui/icons-material/KeyboardArrowLeft"
 import { displayError } from "components/GlobalSnackbar/utils"
 import { Stack } from "components/Stack/Stack"
 import { DividerWithText } from "pages/DeploySettingsPage/LicensesSettingsPage/DividerWithText"
@@ -53,11 +54,15 @@ export const AddNewLicensePageView: FC<AddNewLicenseProps> = ({
         justifyContent="space-between"
       >
         <Header
-          title="添加您的许可证"
-          description="企业许可证可以在您的部署中解锁更多功能。"
+          title="添加许可证"
+          description="获取高可用性、RBAC、配额等功能。"
         />
-        <Button component={RouterLink} to="/settings/deployment/licenses">
-          返回
+        <Button
+          component={RouterLink}
+          startIcon={<KeyboardArrowLeft />}
+          to="/settings/deployment/licenses"
+        >
+          所有许可证
         </Button>
       </Stack>
 
@@ -69,8 +74,8 @@ export const AddNewLicensePageView: FC<AddNewLicenseProps> = ({
         isUploading={isUploading}
         onUpload={onUpload}
         removeLabel="删除文件"
-        title="上传您的许可证"
-        description="上传一个包含许可证密钥的文本文件"
+        title="上传您的许可"
+        description="选择包含许可证密钥的文本文件。"
       />
 
       <Stack className={styles.main}>
@@ -90,15 +95,15 @@ export const AddNewLicensePageView: FC<AddNewLicenseProps> = ({
           }}
           button={
             <Button type="submit" disabled={isSavingLicense}>
-              添加许可证
+              上传许可证
             </Button>
           }
         >
           <TextField
             name="licenseKey"
-            placeholder="将您的许可证密钥文本粘贴在这里"
+            placeholder="输入您的许可证..."
             multiline
-            rows={4}
+            rows={1}
             fullWidth
           />
         </Fieldset>

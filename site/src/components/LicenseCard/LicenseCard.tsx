@@ -1,4 +1,3 @@
-import Box from "@mui/material/Box"
 import Button from "@mui/material/Button"
 import Paper from "@mui/material/Paper"
 import { makeStyles } from "@mui/styles"
@@ -46,52 +45,51 @@ export const LicenseCard = ({
         title="确认删除许可证"
         confirmLoading={isRemoving}
         confirmText="删除"
-        description="确定要删除此许可证吗？"
+        description="移除此许可证将禁用所有企业功能。您随时可以添加新的许可证。"
       />
       <Stack
-        direction="column"
+        direction="row"
+        spacing={2}
         className={styles.cardContent}
-        justifyContent="space-between"
+        justifyContent="left"
+        alignItems="center"
       >
-        <Box className={styles.licenseId}>
-          <span>#{license.id}</span>
-        </Box>
-        <Stack className={styles.accountType}>
-          <span>{license.claims.trial ? "试用" : "企业版"}</span>
-        </Stack>
+        <span className={styles.licenseId}>#{license.id}</span>
+        <span className={styles.accountType}>
+          {license.claims.trial ? "试用" : "企业版"}
+        </span>
         <Stack
           direction="row"
-          justifyContent="space-between"
+          justifyContent="right"
+          spacing={8}
           alignItems="self-end"
+          style={{
+            flex: 1,
+          }}
         >
-          <Stack direction="column" spacing={0} className={styles.userLimit}>
+          <Stack direction="column" spacing={0}>
             <span className={styles.secondaryMaincolor}>用户数</span>
-            <div className={styles.primaryMainColor}>
-              <span className={styles.userLimitActual}>{userLimitActual}</span>
-              <span className={styles.userLimitLimit}>
-                {` / ${userLimitLimit || "无限制"}`}
-              </span>
-            </div>
+            <span className={styles.userLimit}>
+              {userLimitActual} {` / ${userLimitLimit || "无限制"}`}
+            </span>
           </Stack>
 
-          <Stack direction="column" spacing={0} alignItems="center">
+          <Stack direction="column" spacing={0}>
             <span className={styles.secondaryMaincolor}>有效期至</span>
-            <span className={styles.primaryMainColor}>
+            <span className={styles.licenseExpires}>
               {dayjs
                 .unix(license.claims.license_expires)
                 .format("YYYY年M月D日")}
             </span>
           </Stack>
-          <div className={styles.actions}>
-            <Button
-              className={styles.removeButton}
-              variant="text"
-              size="small"
-              onClick={() => setLicenseIDMarkedForRemoval(license.id)}
-            >
-              删除
-            </Button>
-          </div>
+          <Button
+            className={styles.removeButton}
+            variant="text"
+            size="small"
+            onClick={() => setLicenseIDMarkedForRemoval(license.id)}
+          >
+            删除
+          </Button>
         </Stack>
       </Stack>
     </Paper>
@@ -100,42 +98,29 @@ export const LicenseCard = ({
 
 const useStyles = makeStyles((theme) => ({
   userLimit: {
-    width: "33%",
-  },
-  actions: {
-    width: "33%",
-    textAlign: "right",
-  },
-  userLimitActual: {
-    color: theme.palette.primary.main,
-  },
-  userLimitLimit: {
-    color: theme.palette.secondary.main,
-    fontWeight: 600,
+    color: theme.palette.text.primary,
   },
   licenseCard: {
     ...theme.typography.body2,
     padding: theme.spacing(2),
   },
-  cardContent: {
-    minHeight: 100,
-  },
+  cardContent: {},
   licenseId: {
     color: theme.palette.secondary.main,
+    fontSize: 18,
     fontWeight: 600,
   },
   accountType: {
     fontWeight: 600,
-    fontSize: 24,
-    justifyContent: "center",
+    fontSize: 18,
     alignItems: "center",
     textTransform: "capitalize",
   },
-  primaryMainColor: {
-    color: theme.palette.primary.main,
+  licenseExpires: {
+    color: theme.palette.text.secondary,
   },
   secondaryMaincolor: {
-    color: theme.palette.secondary.main,
+    color: theme.palette.text.secondary,
   },
   removeButton: {
     height: "17px",
