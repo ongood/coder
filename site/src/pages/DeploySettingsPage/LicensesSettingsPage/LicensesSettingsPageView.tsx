@@ -85,13 +85,11 @@ const LicensesSettingsPageView: FC<Props> = ({
           <Stack alignItems="center" spacing={1}>
             <Stack alignItems="center" spacing={0.5}>
               <span className={styles.title}>
-                You don{"'"}t have any licenses!
+                您没有任何许可证！
               </span>
               <span className={styles.description}>
-                You{"'"}re missing out on high availability, RBAC, quotas, and
-                much more. Contact <a href="mailto:sales@coder.com">sales</a> or{" "}
-                <a href="https://coder.com/trial">request a trial license</a> to
-                get started.
+                您错过了高可用性、RBAC、配额等许多功能。请联系 <a href="mailto:sales@coder.com">销售团队</a> 或{" "}
+                <a href="https://coder.com/trial">申请试用许可证</a>开始使用。
               </span>
             </Stack>
           </Stack>
