@@ -10,7 +10,7 @@ export const NotFoundPage: FC = () => {
       <div className={styles.headingContainer}>
         <Typography variant="h4">404</Typography>
       </div>
-      <Typography variant="body2">This page could not be found.</Typography>
+      <Typography variant="body2">找不到该页面。</Typography>
     </div>
   )
 }

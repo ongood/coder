@@ -54,13 +54,13 @@ export const UserAuthSettingsPageView = ({
           docsHref="https://coder.com/docs/coder-oss/latest/admin/auth#github"
         />
 
-        {/* <Badges>
+        <Badges>
           {useDeploymentOptions(options, "OAuth2 GitHub Client ID")[0].value ? (
             <EnabledBadge />
           ) : (
             <DisabledBadge />
           )}
-        </Badges> */}
+        </Badges>
 
         <OptionsTable
           options={options.filter((o) =>

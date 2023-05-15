@@ -20,7 +20,7 @@ export const CliAuthPageView: FC<CliAuthPageViewProps> = ({ sessionToken }) => {
 
   return (
     <SignInLayout>
-      <Welcome message="Session token" />
+      <Welcome message="会话令牌" />
 
       <p className={styles.text}>
           将下面的会话令牌复制并{" "}
