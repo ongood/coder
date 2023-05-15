@@ -143,8 +143,8 @@ func (s *Server) handleAPIKeySmuggling(rw http.ResponseWriter, r *http.Request, 
 	if accessMethod == AccessMethodPath && s.AccessURL.Host == s.DashboardURL.Host {
 		site.RenderStaticErrorPage(rw, r, site.ErrorPageData{
 			Status:      http.StatusBadRequest,
-			Title:       "Bad Request",
-			Description: "Could not decrypt API key. Workspace app API key smuggling is not permitted on the primary access URL. Please remove the query parameter and try again.",
+			Title:       "错误的请求",
+			Description: "无法解密 API 密钥。在主要访问 URL 上不允许使用 Workspace app API 密钥。请删除查询参数后重试。",
 			// Retry is disabled because the user needs to remove the query
 			// parameter before they try again.
 			RetryEnabled: false,
@@ -156,11 +156,11 @@ func (s *Server) handleAPIKeySmuggling(rw http.ResponseWriter, r *http.Request, 
 	// Exchange the encoded API key for a real one.
 	token, err := s.AppSecurityKey.DecryptAPIKey(encryptedAPIKey)
 	if err != nil {
-		s.Logger.Debug(ctx, "could not decrypt smuggled workspace app API key", slog.Error(err))
+		s.Logger.Debug(ctx, "无法解密偷运的 Workspace app API 密钥", slog.Error(err))
 		site.RenderStaticErrorPage(rw, r, site.ErrorPageData{
 			Status:      http.StatusBadRequest,
-			Title:       "Bad Request",
-			Description: "Could not decrypt API key. Please remove the query parameter and try again.",
+			Title:       "错误的请求",
+			Description: "无法解密 API 密钥。请删除查询参数后重试。",
 			// Retry is disabled because the user needs to remove the query
 			// parameter before they try again.
 			RetryEnabled: false,
@@ -182,8 +182,8 @@ func (s *Server) handleAPIKeySmuggling(rw http.ResponseWriter, r *http.Request, 
 			s.Logger.Error(r.Context(), "could not split invalid app hostname", slog.F("hostname", s.Hostname))
 			site.RenderStaticErrorPage(rw, r, site.ErrorPageData{
 				Status:       http.StatusInternalServerError,
-				Title:        "Internal Server Error",
-				Description:  "The app is configured with an invalid app wildcard hostname. Please contact an administrator.",
+				Title:        "内部服务器错误",
+				Description:  "应用程序配置了无效的应用程序通配符主机名。请联系管理员。",
 				RetryEnabled: false,
 				DashboardURL: s.DashboardURL.String(),
 			})
@@ -230,8 +230,8 @@ func (s *Server) workspaceAppsProxyPath(rw http.ResponseWriter, r *http.Request)
 	if s.DisablePathApps {
 		site.RenderStaticErrorPage(rw, r, site.ErrorPageData{
 			Status:       http.StatusUnauthorized,
-			Title:        "Unauthorized",
-			Description:  "Path-based applications are disabled on this Coder deployment by the administrator.",
+			Title:        "未经授权",
+			Description:  "此 Coder 部署已被管理员禁用路径应用程序。",
 			RetryEnabled: false,
 			DashboardURL: s.DashboardURL.String(),
 		})
@@ -243,8 +243,8 @@ func (s *Server) workspaceAppsProxyPath(rw http.ResponseWriter, r *http.Request)
 	if chi.URLParam(r, "user") == codersdk.Me {
 		site.RenderStaticErrorPage(rw, r, site.ErrorPageData{
 			Status:       http.StatusNotFound,
-			Title:        "Application Not Found",
-			Description:  "Applications must be accessed with the full username, not @me.",
+			Title:        "找不到应用程序",
+			Description:  "必须使用完整的用户名而不是 @me 访问应用程序。",
 			RetryEnabled: false,
 			DashboardURL: s.DashboardURL.String(),
 		})
@@ -350,7 +350,7 @@ func (s *Server) HandleSubdomain(middlewares ...func(http.Handler) http.Handler)
 				}
 
 				httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
-					Message: "Could not determine request Host.",
+					Message: "无法确定请求的主机。",
 				})
 				return
 			}
@@ -438,8 +438,8 @@ func (s *Server) parseHostname(rw http.ResponseWriter, r *http.Request, next htt
 	if err != nil {
 		site.RenderStaticErrorPage(rw, r, site.ErrorPageData{
 			Status:       http.StatusBadRequest,
-			Title:        "Invalid Application URL",
-			Description:  fmt.Sprintf("Could not parse subdomain application URL %q: %s", subdomain, err.Error()),
+			Title:        "无效的应用程序 URL",
+			Description:  fmt.Sprintf("无法解析子域应用程序 URL %q: %s", subdomain, err.Error()),
 			RetryEnabled: false,
 			DashboardURL: s.DashboardURL.String(),
 		})
@@ -466,8 +466,8 @@ func (s *Server) proxyWorkspaceApp(rw http.ResponseWriter, r *http.Request, appT
 	if err != nil {
 		site.RenderStaticErrorPage(rw, r, site.ErrorPageData{
 			Status:       http.StatusBadRequest,
-			Title:        "Bad Request",
-			Description:  fmt.Sprintf("Application has an invalid URL %q: %s", appToken.AppURL, err.Error()),
+			Title:        "错误的请求",
+			Description:  fmt.Sprintf("应用程序具有无效的 URL %q: %s", appToken.AppURL, err.Error()),
 			RetryEnabled: true,
 			DashboardURL: s.DashboardURL.String(),
 		})
@@ -481,7 +481,7 @@ func (s *Server) proxyWorkspaceApp(rw http.ResponseWriter, r *http.Request, appT
 		portInt, err := strconv.Atoi(port)
 		if err != nil {
 			httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
-				Message: fmt.Sprintf("App URL %q has an invalid port %q.", appToken.AppURL, port),
+				Message: fmt.Sprintf("应用程序 URL %q 具有无效的端口 %q.", appToken.AppURL, port),
 				Detail:  err.Error(),
 			})
 			return
@@ -489,7 +489,7 @@ func (s *Server) proxyWorkspaceApp(rw http.ResponseWriter, r *http.Request, appT
 
 		if portInt < codersdk.WorkspaceAgentMinimumListeningPort {
 			httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
-				Message: fmt.Sprintf("Application port %d is not permitted. Coder reserves ports less than %d for internal use.", portInt, codersdk.WorkspaceAgentMinimumListeningPort),
+				Message: fmt.Sprintf("应用程序端口 %d 不允许使用。Coder 保留小于 %d 的端口供内部使用。", portInt, codersdk.WorkspaceAgentMinimumListeningPort),
 			})
 			return
 		}
@@ -521,8 +521,8 @@ func (s *Server) proxyWorkspaceApp(rw http.ResponseWriter, r *http.Request, appT
 	proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
 		site.RenderStaticErrorPage(rw, r, site.ErrorPageData{
 			Status:       http.StatusBadGateway,
-			Title:        "Bad Gateway",
-			Description:  "Failed to proxy request to application: " + err.Error(),
+			Title:        "网关错误",
+			Description:  "无法代理请求到应用程序: " + err.Error(),
 			RetryEnabled: true,
 			DashboardURL: s.DashboardURL.String(),
 		})
@@ -532,8 +532,8 @@ func (s *Server) proxyWorkspaceApp(rw http.ResponseWriter, r *http.Request, appT
 	if err != nil {
 		site.RenderStaticErrorPage(rw, r, site.ErrorPageData{
 			Status:       http.StatusBadGateway,
-			Title:        "Bad Gateway",
-			Description:  "Could not connect to workspace agent: " + err.Error(),
+			Title:        "网关错误",
+			Description:  "无法连接到工作区代理: " + err.Error(),
 			RetryEnabled: true,
 			DashboardURL: s.DashboardURL.String(),
 		})

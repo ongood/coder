@@ -25,8 +25,8 @@ func WriteWorkspaceApp404(log slog.Logger, accessURL *url.URL, rw http.ResponseW
 
 	site.RenderStaticErrorPage(rw, r, site.ErrorPageData{
 		Status:       http.StatusNotFound,
-		Title:        "Application Not Found",
-		Description:  "The application or workspace you are trying to access does not exist or you do not have permission to access it.",
+		Title:        "应用程序未找到",
+		Description:  "您尝试访问的应用程序或工作区不存在，或者您没有权限访问它。",
 		RetryEnabled: false,
 		DashboardURL: accessURL.String(),
 	})
@@ -47,14 +47,14 @@ func WriteWorkspaceApp500(log slog.Logger, accessURL *url.URL, rw http.ResponseW
 		)
 	}
 	log.Warn(ctx,
-		"workspace app auth server error: "+msg,
+		"工作区应用程序认证服务器错误: "+msg,
 		slog.Error(err),
 	)
 
 	site.RenderStaticErrorPage(rw, r, site.ErrorPageData{
 		Status:       http.StatusInternalServerError,
-		Title:        "Internal Server Error",
-		Description:  "An internal server error occurred.",
+		Title:        "内部服务器错误",
+		Description:  "发生了内部服务器错误。",
 		RetryEnabled: false,
 		DashboardURL: accessURL.String(),
 	})
@@ -66,7 +66,7 @@ func WriteWorkspaceAppOffline(log slog.Logger, accessURL *url.URL, rw http.Respo
 	if appReq != nil {
 		slog.Helper()
 		log.Debug(r.Context(),
-			"workspace app unavailable: "+msg,
+			"工作区应用程序不可用: "+msg,
 			slog.F("username_or_id", appReq.UsernameOrID),
 			slog.F("workspace_and_agent", appReq.WorkspaceAndAgent),
 			slog.F("workspace_name_or_id", appReq.WorkspaceNameOrID),
@@ -77,7 +77,7 @@ func WriteWorkspaceAppOffline(log slog.Logger, accessURL *url.URL, rw http.Respo
 
 	site.RenderStaticErrorPage(rw, r, site.ErrorPageData{
 		Status:       http.StatusBadGateway,
-		Title:        "Application Unavailable",
+		Title:        "应用程序不可用",
 		Description:  msg,
 		RetryEnabled: true,
 		DashboardURL: accessURL.String(),

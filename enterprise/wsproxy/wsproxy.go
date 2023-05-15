@@ -121,7 +121,7 @@ func New(ctx context.Context, opts *Options) (*Server, error) {
 	client := wsproxysdk.New(opts.DashboardURL)
 	err := client.SetSessionToken(opts.ProxySessionToken)
 	if err != nil {
-		return nil, xerrors.Errorf("set client token: %w", err)
+		return nil, xerrors.Errorf("设置客户端令牌时出错: %w", err)
 	}
 
 	// Use the configured client if provided.
@@ -132,10 +132,10 @@ func New(ctx context.Context, opts *Options) (*Server, error) {
 	// TODO: Probably do some version checking here
 	info, err := client.SDKClient.BuildInfo(ctx)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to fetch build info from %q: %w", opts.DashboardURL, err)
+		return nil, xerrors.Errorf("从 %q 获取构建信息失败: %w", opts.DashboardURL, err)
 	}
 	if info.WorkspaceProxy {
-		return nil, xerrors.Errorf("%q is a workspace proxy, not a primary coderd instance", opts.DashboardURL)
+		return nil, xerrors.Errorf("%q 是一个工作区代理，而不是主要的 coderd 实例", opts.DashboardURL)
 	}
 
 	regResp, err := client.RegisterWorkspaceProxy(ctx, wsproxysdk.RegisterWorkspaceProxyRequest{
@@ -143,12 +143,12 @@ func New(ctx context.Context, opts *Options) (*Server, error) {
 		WildcardHostname: opts.AppHostname,
 	})
 	if err != nil {
-		return nil, xerrors.Errorf("register proxy: %w", err)
+		return nil, xerrors.Errorf("注册代理: %w", err)
 	}
 
 	secKey, err := workspaceapps.KeyFromString(regResp.AppSecurityKey)
 	if err != nil {
-		return nil, xerrors.Errorf("parse app security key: %w", err)
+		return nil, xerrors.Errorf("解析应用程序安全密钥: %w", err)
 	}
 
 	r := chi.NewRouter()
@@ -253,11 +253,11 @@ func New(ctx context.Context, opts *Options) (*Server, error) {
 	r.Get("/healthz-report", s.healthReport)
 	r.NotFound(func(rw http.ResponseWriter, r *http.Request) {
 		site.RenderStaticErrorPage(rw, r, site.ErrorPageData{
-			Title:      "Head to the Dashboard",
+			Title:      "前往仪表盘",
 			Status:     http.StatusBadRequest,
 			HideStatus: true,
-			Description: "Workspace Proxies route traffic in terminals and apps directly to your workspace. " +
-				"This page must be loaded from the dashboard. Click to be redirected!",
+			Description: "Workspace Proxies将终端和应用程序的流量直接路由到您的工作区。 " +
+				"此页面必须从仪表盘加载。点击以进行重定向！",
 			RetryEnabled: false,
 			DashboardURL: opts.DashboardURL.String(),
 		})
@@ -331,14 +331,14 @@ func (s *Server) healthReport(rw http.ResponseWriter, r *http.Request) {
 	if primaryBuild.WorkspaceProxy {
 		// This could be a simple mistake of using a proxy url as the dashboard url.
 		report.Errors = append(report.Errors,
-			fmt.Sprintf("dashboard url (%s) is a workspace proxy, must be a primary coderd", s.DashboardURL.String()))
+			fmt.Sprintf("仪表板 URL（%s）是工作区代理，必须是主要的 coderd", s.DashboardURL.String()))
 	}
 
 	// If we are in dev mode, never check versions.
 	if !buildinfo.IsDev() && !buildinfo.VersionsMatch(primaryBuild.Version, buildinfo.Version()) {
 		// Version mismatches are not fatal, but should be reported.
 		report.Warnings = append(report.Warnings,
-			fmt.Sprintf("version mismatch: primary coderd (%s) != workspace proxy (%s)", primaryBuild.Version, buildinfo.Version()))
+			fmt.Sprintf("版本不匹配：主要的 coderd（%s）不同于工作区代理（%s）", primaryBuild.Version, buildinfo.Version()))
 	}
 
 	// TODO: We should hit the deployment config endpoint and do some config
@@ -360,12 +360,12 @@ func (e optErrors) Error() string {
 
 func (e *optErrors) Required(name string, v any) {
 	if v == nil {
-		*e = append(*e, xerrors.Errorf("%s is required, got <nil>", name))
+		*e = append(*e, xerrors.Errorf("%s 是必需的，但传入了 <nil>", name))
 	}
 }
 
 func (e *optErrors) NotEmpty(name string, v any) {
 	if reflect.ValueOf(v).IsZero() {
-		*e = append(*e, xerrors.Errorf("%s is required, got the zero value", name))
+		*e = append(*e, xerrors.Errorf("%s 是必需的，但传入了零值", name))
 	}
 }
