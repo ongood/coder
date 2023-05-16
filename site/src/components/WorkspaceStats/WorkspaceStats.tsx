@@ -72,7 +72,7 @@ export const WorkspaceStats: FC<WorkspaceStatsProps> = ({
         <StatsItem
           className={styles.statsItem}
           label="状态"
-          value={<WorkspaceStatusText build={workspace.latest_build} />}
+          value={<WorkspaceStatusText workspace={workspace} />}
         />
         <StatsItem
           className={styles.statsItem}
