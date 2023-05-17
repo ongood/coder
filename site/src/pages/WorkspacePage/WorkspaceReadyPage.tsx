@@ -248,9 +248,9 @@ export const WorkspaceReadyPage = ({
           setIsConfirmingRestart(false)
         }}
         onClose={() => setIsConfirmingRestart(false)}
-        title="Confirm restart"
-        confirmText="Restart"
-        description="Are you sure you want to restart your workspace? Updating your workspace will stop all running processes and delete non-persistent data."
+        title="确认重新启动"
+        confirmText="重新启动"
+        description="您确定要重新启动工作区吗？更新工作区将停止所有正在运行的进程并删除非持久化数据。"
       />
     </>
   )
@@ -320,7 +320,7 @@ const WarningDialog: FC<
                 }}
               />
             }
-            label="Don't show me this message again"
+            label="不再显示此消息"
           />
         </>
       }

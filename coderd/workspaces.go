@@ -64,9 +64,9 @@ func (api *API) workspace(rw http.ResponseWriter, r *http.Request) {
 		showDeleted, err = strconv.ParseBool(deletedStr)
 		if err != nil {
 			httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
-				Message: fmt.Sprintf("Invalid boolean value %q for \"include_deleted\" query param.", deletedStr),
+				Message: fmt.Sprintf("无效的布尔值 %q 用于 \"include_deleted\" 查询参数。", deletedStr),
 				Validations: []codersdk.ValidationError{
-					{Field: "deleted", Detail: "Must be a valid boolean"},
+					{Field: "deleted", Detail: "必须是有效的布尔值"},
 				},
 			})
 			return
@@ -74,7 +74,7 @@ func (api *API) workspace(rw http.ResponseWriter, r *http.Request) {
 	}
 	if workspace.Deleted && !showDeleted {
 		httpapi.Write(ctx, rw, http.StatusGone, codersdk.Response{
-			Message: fmt.Sprintf("Workspace %q was deleted, you can view this workspace by specifying '?deleted=true' and trying again.", workspace.ID.String()),
+			Message: fmt.Sprintf("工作区 %q 已被删除，您可以通过指定 '?deleted=true' 来查看此工作区并重试。", workspace.ID.String()),
 		})
 		return
 	}
@@ -82,7 +82,7 @@ func (api *API) workspace(rw http.ResponseWriter, r *http.Request) {
 	data, err := api.workspaceData(ctx, []database.Workspace{workspace})
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: "Internal error fetching workspace resources.",
+			Message: "内部错误，获取工作区资源失败。",
 			Detail:  err.Error(),
 		})
 		return
@@ -124,7 +124,7 @@ func (api *API) workspaces(rw http.ResponseWriter, r *http.Request) {
 	filter, errs := searchquery.Workspaces(queryStr, page, api.AgentInactiveDisconnectTimeout)
 	if len(errs) > 0 {
 		httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
-			Message:     "Invalid workspace search query.",
+			Message:     "无效的工作区搜索查询。",
 			Validations: errs,
 		})
 		return
@@ -139,7 +139,7 @@ func (api *API) workspaces(rw http.ResponseWriter, r *http.Request) {
 	prepared, err := api.HTTPAuth.AuthorizeSQLFilter(r, rbac.ActionRead, rbac.ResourceWorkspace.Type)
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: "Internal error preparing sql filter.",
+			Message: "内部错误，准备 SQL 过滤器失败。",
 			Detail:  err.Error(),
 		})
 		return
@@ -148,7 +148,7 @@ func (api *API) workspaces(rw http.ResponseWriter, r *http.Request) {
 	workspaceRows, err := api.Database.GetAuthorizedWorkspaces(ctx, filter, prepared)
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: "Internal error fetching workspaces.",
+			Message: "内部错误，获取工作区失败。",
 			Detail:  err.Error(),
 		})
 		return
@@ -166,7 +166,7 @@ func (api *API) workspaces(rw http.ResponseWriter, r *http.Request) {
 	data, err := api.workspaceData(ctx, workspaces)
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: "Internal error fetching workspace resources.",
+			Message: "内部错误，获取工作区资源失败。",
 			Detail:  err.Error(),
 		})
 		return
@@ -175,7 +175,7 @@ func (api *API) workspaces(rw http.ResponseWriter, r *http.Request) {
 	wss, err := convertWorkspaces(workspaces, data)
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: "Internal error converting workspaces.",
+			Message: "内部错误，转换工作区失败。",
 			Detail:  err.Error(),
 		})
 		return
@@ -208,9 +208,9 @@ func (api *API) workspaceByOwnerAndName(rw http.ResponseWriter, r *http.Request)
 		includeDeleted, err = strconv.ParseBool(s)
 		if err != nil {
 			httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
-				Message: fmt.Sprintf("Invalid boolean value %q for \"include_deleted\" query param.", s),
+				Message: fmt.Sprintf("无效的布尔值 %q 用于 \"include_deleted\" 查询参数。", s),
 				Validations: []codersdk.ValidationError{
-					{Field: "include_deleted", Detail: "Must be a valid boolean"},
+					{Field: "include_deleted", Detail: "必须是有效的布尔值"},
 				},
 			})
 			return
@@ -234,7 +234,7 @@ func (api *API) workspaceByOwnerAndName(rw http.ResponseWriter, r *http.Request)
 	}
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: "Internal error fetching workspace by name.",
+			Message: "内部错误，通过名称获取工作区失败。",
 			Detail:  err.Error(),
 		})
 		return
@@ -243,7 +243,7 @@ func (api *API) workspaceByOwnerAndName(rw http.ResponseWriter, r *http.Request)
 	data, err := api.workspaceData(ctx, []database.Workspace{workspace})
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: "Internal error fetching workspace resources.",
+			Message: "内部错误，获取工作区资源失败。",
 			Detail:  err.Error(),
 		})
 		return
@@ -289,7 +289,7 @@ func (api *API) postWorkspacesByOrganization(rw http.ResponseWriter, r *http.Req
 
 	wriBytes, err := json.Marshal(workspaceResourceInfo)
 	if err != nil {
-		api.Logger.Warn(ctx, "marshal workspace owner name")
+		api.Logger.Warn(ctx, "序列化工作区所有者名称")
 	}
 
 	aReq, commitAudit := audit.InitRequest[database.Workspace](rw, &audit.RequestParams{
@@ -317,31 +317,31 @@ func (api *API) postWorkspacesByOrganization(rw http.ResponseWriter, r *http.Req
 	template, err := api.Database.GetTemplateByID(ctx, createWorkspace.TemplateID)
 	if errors.Is(err, sql.ErrNoRows) {
 		httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
-			Message: fmt.Sprintf("Template %q doesn't exist.", createWorkspace.TemplateID.String()),
+			Message: fmt.Sprintf("模板 %q 不存在。", createWorkspace.TemplateID.String()),
 			Validations: []codersdk.ValidationError{{
 				Field:  "template_id",
-				Detail: "template not found",
+				Detail: "模板未找到",
 			}},
 		})
 		return
 	}
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: "Internal error fetching template.",
+			Message: "内部错误，获取模板失败。",
 			Detail:  err.Error(),
 		})
 		return
 	}
 	if template.Deleted {
 		httpapi.Write(ctx, rw, http.StatusNotFound, codersdk.Response{
-			Message: fmt.Sprintf("Template %q has been deleted!", template.Name),
+			Message: fmt.Sprintf("模板 %q 已被删除！", template.Name),
 		})
 		return
 	}
 
 	if organization.ID != template.OrganizationID {
 		httpapi.Write(ctx, rw, http.StatusUnauthorized, codersdk.Response{
-			Message: fmt.Sprintf("Template is not in organization %q.", organization.Name),
+			Message: fmt.Sprintf("模板不属于组织 %q.", organization.Name),
 		})
 		return
 	}
@@ -349,7 +349,7 @@ func (api *API) postWorkspacesByOrganization(rw http.ResponseWriter, r *http.Req
 	dbAutostartSchedule, err := validWorkspaceSchedule(createWorkspace.AutostartSchedule)
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
-			Message:     "Invalid Autostart Schedule.",
+			Message:     "无效的自动启动计划。",
 			Validations: []codersdk.ValidationError{{Field: "schedule", Detail: err.Error()}},
 		})
 		return
@@ -358,7 +358,7 @@ func (api *API) postWorkspacesByOrganization(rw http.ResponseWriter, r *http.Req
 	templateSchedule, err := (*api.TemplateScheduleStore.Load()).GetTemplateScheduleOptions(ctx, api.Database, template.ID)
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: "Internal error fetching template schedule.",
+			Message: "内部错误，获取模板计划失败。",
 			Detail:  err.Error(),
 		})
 		return
@@ -367,7 +367,7 @@ func (api *API) postWorkspacesByOrganization(rw http.ResponseWriter, r *http.Req
 	dbTTL, err := validWorkspaceTTLMillis(createWorkspace.TTLMillis, templateSchedule.DefaultTTL, templateSchedule.MaxTTL)
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
-			Message:     "Invalid Workspace Time to Shutdown.",
+			Message:     "无效的工作区自动关闭时间。",
 			Validations: []codersdk.ValidationError{{Field: "ttl_ms", Detail: err.Error()}},
 		})
 		return
@@ -383,17 +383,17 @@ func (api *API) postWorkspacesByOrganization(rw http.ResponseWriter, r *http.Req
 	if err == nil {
 		// If the workspace already exists, don't allow creation.
 		httpapi.Write(ctx, rw, http.StatusConflict, codersdk.Response{
-			Message: fmt.Sprintf("Workspace %q already exists.", createWorkspace.Name),
+			Message: fmt.Sprintf("工作区 %q 已存在。", createWorkspace.Name),
 			Validations: []codersdk.ValidationError{{
 				Field:  "name",
-				Detail: "This value is already in use and should be unique.",
+				Detail: "此值已被使用，请使用唯一的值。",
 			}},
 		})
 		return
 	}
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: fmt.Sprintf("Internal error fetching workspace by name %q.", createWorkspace.Name),
+			Message: fmt.Sprintf("内部错误，获取名称为 %q 的工作区失败。", createWorkspace.Name),
 			Detail:  err.Error(),
 		})
 		return
@@ -402,7 +402,7 @@ func (api *API) postWorkspacesByOrganization(rw http.ResponseWriter, r *http.Req
 	templateVersion, err := api.Database.GetTemplateVersionByID(ctx, template.ActiveVersionID)
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: "Internal error fetching template version.",
+			Message: "内部错误，获取模板版本失败。",
 			Detail:  err.Error(),
 		})
 		return
@@ -411,7 +411,7 @@ func (api *API) postWorkspacesByOrganization(rw http.ResponseWriter, r *http.Req
 	dbTemplateVersionParameters, err := api.Database.GetTemplateVersionParameters(ctx, templateVersion.ID)
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: "Internal error fetching template version parameters.",
+			Message: "内部错误，获取模板版本参数失败。",
 			Detail:  err.Error(),
 		})
 		return
@@ -420,7 +420,7 @@ func (api *API) postWorkspacesByOrganization(rw http.ResponseWriter, r *http.Req
 	templateVersionParameters, err := convertTemplateVersionParameters(dbTemplateVersionParameters)
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: "Internal error converting template version parameters.",
+			Message: "内部错误，转换模板版本参数失败。",
 			Detail:  err.Error(),
 		})
 		return
@@ -438,7 +438,7 @@ func (api *API) postWorkspacesByOrganization(rw http.ResponseWriter, r *http.Req
 	templateVersionJob, err := api.Database.GetProvisionerJobByID(ctx, templateVersion.JobID)
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: "Internal error fetching template version job.",
+			Message: "内部错误，获取模板版本作业失败。",
 			Detail:  err.Error(),
 		})
 		return
@@ -447,17 +447,17 @@ func (api *API) postWorkspacesByOrganization(rw http.ResponseWriter, r *http.Req
 	switch templateVersionJobStatus {
 	case codersdk.ProvisionerJobPending, codersdk.ProvisionerJobRunning:
 		httpapi.Write(ctx, rw, http.StatusNotAcceptable, codersdk.Response{
-			Message: fmt.Sprintf("The provided template version is %s. Wait for it to complete importing!", templateVersionJobStatus),
+			Message: fmt.Sprintf("提供的模板版本为 %s。等待它完成导入！", templateVersionJobStatus),
 		})
 		return
 	case codersdk.ProvisionerJobFailed:
 		httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
-			Message: fmt.Sprintf("The provided template version %q has failed to import. You cannot create workspaces using it!", templateVersion.Name),
+			Message: fmt.Sprintf("提供的模板版本 %q 导入失败。无法使用该版本创建工作区！", templateVersion.Name),
 		})
 		return
 	case codersdk.ProvisionerJobCanceled:
 		httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
-			Message: "The provided template version was canceled during import. You cannot create workspaces using it!",
+			Message: "提供的模板版本在导入过程中被取消。无法使用该版本创建工作区！",
 		})
 		return
 	}
@@ -681,23 +681,23 @@ func (api *API) patchWorkspace(rw http.ResponseWriter, r *http.Request) {
 		// transaction.
 		if errors.Is(err, sql.ErrNoRows) {
 			httpapi.Write(ctx, rw, http.StatusMethodNotAllowed, codersdk.Response{
-				Message: fmt.Sprintf("Workspace %q is deleted and cannot be updated.", workspace.Name),
+				Message: fmt.Sprintf("工作区 %q 已被删除，无法进行更新。", workspace.Name),
 			})
 			return
 		}
 		// Check if the name was already in use.
 		if database.IsUniqueViolation(err) {
 			httpapi.Write(ctx, rw, http.StatusConflict, codersdk.Response{
-				Message: fmt.Sprintf("Workspace %q already exists.", req.Name),
+				Message: fmt.Sprintf("工作区 %q 已存在。", req.Name),
 				Validations: []codersdk.ValidationError{{
 					Field:  "name",
-					Detail: "This value is already in use and should be unique.",
+					Detail: "此值已被使用，请使用唯一的值。",
 				}},
 			})
 			return
 		}
 		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: "Internal error updating workspace.",
+			Message: "更新工作空间时发生内部错误。",
 			Detail:  err.Error(),
 		})
 		return
@@ -741,7 +741,7 @@ func (api *API) putWorkspaceAutostart(rw http.ResponseWriter, r *http.Request) {
 	dbSched, err := validWorkspaceSchedule(req.Schedule)
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
-			Message:     "Invalid autostart schedule.",
+			Message:     "无效的自动启动计划。",
 			Validations: []codersdk.ValidationError{{Field: "schedule", Detail: err.Error()}},
 		})
 		return
@@ -751,15 +751,15 @@ func (api *API) putWorkspaceAutostart(rw http.ResponseWriter, r *http.Request) {
 	templateSchedule, err := (*api.TemplateScheduleStore.Load()).GetTemplateScheduleOptions(ctx, api.Database, workspace.TemplateID)
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: "Internal error getting template schedule options.",
+			Message: "获取模板计划选项时发生内部错误。",
 			Detail:  err.Error(),
 		})
 		return
 	}
 	if !templateSchedule.UserAutostartEnabled {
 		httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
-			Message:     "Autostart is not allowed for workspaces using this template.",
-			Validations: []codersdk.ValidationError{{Field: "schedule", Detail: "Autostart is not allowed for workspaces using this template."}},
+			Message:     "此模板不允许工作区使用自动启动。",
+			Validations: []codersdk.ValidationError{{Field: "schedule", Detail: "此模板不允许工作区使用自动启动。"}},
 		})
 		return
 	}
@@ -770,7 +770,7 @@ func (api *API) putWorkspaceAutostart(rw http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: "Internal error updating workspace autostart schedule.",
+			Message: "更新工作区自动启动计划时发生内部错误。",
 			Detail:  err.Error(),
 		})
 		return
@@ -834,14 +834,14 @@ func (api *API) putWorkspaceTTL(rw http.ResponseWriter, r *http.Request) {
 			ID:  workspace.ID,
 			Ttl: dbTTL,
 		}); err != nil {
-			return xerrors.Errorf("update workspace time until shutdown: %w", err)
+			return xerrors.Errorf("更新工作区关闭时间失败： %w", err)
 		}
 
 		return nil
 	}, nil)
 	if err != nil {
 		resp := codersdk.Response{
-			Message: "Error updating workspace time until shutdown.",
+			Message: "在关闭之前更新工作区时间时出错。",
 		}
 		var validErr codersdk.ValidationError
 		if errors.As(err, &validErr) {
@@ -888,33 +888,33 @@ func (api *API) putExtendWorkspace(rw http.ResponseWriter, r *http.Request) {
 		build, err := s.GetLatestWorkspaceBuildByWorkspaceID(ctx, workspace.ID)
 		if err != nil {
 			code = http.StatusInternalServerError
-			resp.Message = "Error fetching workspace build."
-			return xerrors.Errorf("get latest workspace build: %w", err)
+			resp.Message = "获取工作区构建时发生错误。"
+			return xerrors.Errorf("获取最新的工作区构建: %w", err)
 		}
 
 		job, err := s.GetProvisionerJobByID(ctx, build.JobID)
 		if err != nil {
 			code = http.StatusInternalServerError
-			resp.Message = "Error fetching workspace provisioner job."
-			return xerrors.Errorf("get provisioner job: %w", err)
+			resp.Message = "获取工作区配置程序作业时出错。"
+			return xerrors.Errorf("获取配置程序作业：%w", err)
 		}
 
 		if build.Transition != database.WorkspaceTransitionStart {
 			code = http.StatusConflict
-			resp.Message = "Workspace must be started, current status: " + string(build.Transition)
-			return xerrors.Errorf("workspace must be started, current status: %s", build.Transition)
+			resp.Message = "工作区必须处于启动状态，当前状态为： " + string(build.Transition)
+			return xerrors.Errorf("工作区必须处于启动状态，当前状态为： %s", build.Transition)
 		}
 
 		if !job.CompletedAt.Valid {
 			code = http.StatusConflict
-			resp.Message = "Workspace is still building!"
-			return xerrors.Errorf("workspace is still building")
+			resp.Message = "工作区仍在构建中！"
+			return xerrors.Errorf("工作区仍在构建中")
 		}
 
 		if build.Deadline.IsZero() {
 			code = http.StatusConflict
-			resp.Message = "Workspace shutdown is manual."
-			return xerrors.Errorf("workspace shutdown is manual")
+			resp.Message = "工作区关闭为手动模式。"
+			return xerrors.Errorf("工作区关闭为手动模式")
 		}
 
 		newDeadline := req.Deadline.UTC()
@@ -923,13 +923,13 @@ func (api *API) putExtendWorkspace(rw http.ResponseWriter, r *http.Request) {
 			// Normally, we would put the validation error in Validations, but this endpoint is
 			// not tied to a form or specific named user input on the FE.
 			code = http.StatusBadRequest
-			resp.Message = "Cannot extend workspace: " + err.Error()
+			resp.Message = "无法延长工作区时间：" + err.Error()
 			return err
 		}
 		if !build.MaxDeadline.IsZero() && newDeadline.After(build.MaxDeadline) {
 			code = http.StatusBadRequest
-			resp.Message = "Cannot extend workspace beyond max deadline."
-			return xerrors.New("Cannot extend workspace: deadline is beyond max deadline imposed by template")
+			resp.Message = "不能将工作区扩展到最大截止日期之后。"
+			return xerrors.New("无法延长工作区时间：截止日期超出模板规定的最大截止日期")
 		}
 
 		if _, err := s.UpdateWorkspaceBuildByID(ctx, database.UpdateWorkspaceBuildByIDParams{
@@ -940,15 +940,15 @@ func (api *API) putExtendWorkspace(rw http.ResponseWriter, r *http.Request) {
 			MaxDeadline:      build.MaxDeadline,
 		}); err != nil {
 			code = http.StatusInternalServerError
-			resp.Message = "Failed to extend workspace deadline."
-			return xerrors.Errorf("update workspace build: %w", err)
+			resp.Message = "无法延长工作区截止日期。"
+			return xerrors.Errorf("更新工作区构建: %w", err)
 		}
-		resp.Message = "Deadline updated to " + newDeadline.Format(time.RFC3339) + "."
+		resp.Message = "截止日期已更新为 " + newDeadline.Format(time.RFC3339) + "."
 
 		return nil
 	}, nil)
 	if err != nil {
-		api.Logger.Info(ctx, "extending workspace", slog.Error(err))
+		api.Logger.Info(ctx, "延长工作区时间", slog.Error(err))
 	}
 	api.publishWorkspaceUpdate(ctx, workspace.ID)
 	httpapi.Write(ctx, rw, code, resp)
@@ -969,7 +969,7 @@ func (api *API) watchWorkspace(rw http.ResponseWriter, r *http.Request) {
 	sendEvent, senderClosed, err := httpapi.ServerSentEventSender(rw, r)
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: "Internal error setting up server-sent events.",
+			Message: "设置服务器发送事件时出错。",
 			Detail:  err.Error(),
 		})
 		return
@@ -985,7 +985,7 @@ func (api *API) watchWorkspace(rw http.ResponseWriter, r *http.Request) {
 			_ = sendEvent(ctx, codersdk.ServerSentEvent{
 				Type: codersdk.ServerSentEventTypeError,
 				Data: codersdk.Response{
-					Message: "Internal error fetching workspace.",
+					Message: "获取工作区时出错。",
 					Detail:  err.Error(),
 				},
 			})
@@ -997,7 +997,7 @@ func (api *API) watchWorkspace(rw http.ResponseWriter, r *http.Request) {
 			_ = sendEvent(ctx, codersdk.ServerSentEvent{
 				Type: codersdk.ServerSentEventTypeError,
 				Data: codersdk.Response{
-					Message: "Internal error fetching workspace data.",
+					Message: "获取工作区数据时出错。",
 					Detail:  err.Error(),
 				},
 			})
@@ -1020,7 +1020,7 @@ func (api *API) watchWorkspace(rw http.ResponseWriter, r *http.Request) {
 		_ = sendEvent(ctx, codersdk.ServerSentEvent{
 			Type: codersdk.ServerSentEventTypeError,
 			Data: codersdk.Response{
-				Message: "Internal error subscribing to workspace events.",
+				Message: "订阅工作区事件时出现内部错误。",
 				Detail:  err.Error(),
 			},
 		})
@@ -1034,7 +1034,7 @@ func (api *API) watchWorkspace(rw http.ResponseWriter, r *http.Request) {
 		_ = sendEvent(ctx, codersdk.ServerSentEvent{
 			Type: codersdk.ServerSentEventTypeError,
 			Data: codersdk.Response{
-				Message: "Internal error subscribing to template events.",
+				Message: "订阅模板事件时出现内部错误。",
 				Detail:  err.Error(),
 			},
 		})
