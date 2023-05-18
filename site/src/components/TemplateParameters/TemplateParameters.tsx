@@ -25,8 +25,8 @@ export const MutableTemplateParametersSection: FC<
       {hasMutableParameters && (
         <FormSection
           {...formSectionProps}
-          title="Parameters"
-          description="These parameters are provided by your template's Terraform configuration and can be changed after creating the workspace."
+          title="参数"
+          description="这些参数由您的模板的 Terraform 配置提供，并可以在创建工作区后进行更改。"
         >
           <FormFields>
             {templateParameters.map(
