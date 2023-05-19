@@ -6,8 +6,8 @@ import TableContainer from "@mui/material/TableContainer"
 import TableHead from "@mui/material/TableHead"
 import TableRow from "@mui/material/TableRow"
 import { DeploymentValues, GitAuthConfig } from "api/typesGenerated"
-import { AlertBanner } from "components/AlertBanner/AlertBanner"
-import { EnterpriseBadge, Badges } from "components/DeploySettingsLayout/Badges"
+import { Alert } from "components/Alert/Alert"
+import { EnterpriseBadge } from "components/DeploySettingsLayout/Badges"
 import { Header } from "components/DeploySettingsLayout/Header"
 
 
@@ -41,11 +41,9 @@ export const GitAuthSettingsPageView = ({
       />
 
       <div className={styles.description}>
-        <AlertBanner
-          severity="info"
-          text="与多个 Git 提供商集成是企业版的功能。"
-          actions={[<EnterpriseBadge key="enterprise" />]}
-        />
+        <Alert severity="info" actions={[<EnterpriseBadge key="enterprise" />]}>
+          与多个 Git 提供商集成是企业版的功能。
+        </Alert>
       </div>
 
       <TableContainer>

@@ -22,7 +22,6 @@ export const UpdateButton: FC<WorkspaceAction> = ({
       loading={loading}
       loadingIndicator="Updating..."
       loadingPosition="start"
-      size="small"
       data-testid="workspace-update-button"
       startIcon={<CloudQueueIcon />}
       onClick={handleAction}
@@ -35,7 +34,6 @@ export const UpdateButton: FC<WorkspaceAction> = ({
 export const StartButton: FC<WorkspaceAction> = ({ handleAction, loading }) => {
   return (
     <LoadingButton
-      size="small"
       loading={loading}
       loadingIndicator="启动中..."
       loadingPosition="start"
@@ -50,7 +48,6 @@ export const StartButton: FC<WorkspaceAction> = ({ handleAction, loading }) => {
 export const StopButton: FC<WorkspaceAction> = ({ handleAction, loading }) => {
   return (
     <LoadingButton
-      size="small"
       loading={loading}
       loadingIndicator="停止中..."
       loadingPosition="start"
@@ -71,7 +68,6 @@ export const RestartButton: FC<WorkspaceAction> = ({
       loading={loading}
       loadingIndicator="重启中..."
       loadingPosition="start"
-      size="small"
       startIcon={<ReplayIcon />}
       onClick={handleAction}
       data-testid="workspace-restart-button"
@@ -83,7 +79,7 @@ export const RestartButton: FC<WorkspaceAction> = ({
 
 export const CancelButton: FC<WorkspaceAction> = ({ handleAction }) => {
   return (
-    <Button size="small" startIcon={<BlockIcon />} onClick={handleAction}>
+    <Button startIcon={<BlockIcon />} onClick={handleAction}>
       取消
     </Button>
   )
@@ -95,7 +91,7 @@ interface DisabledProps {
 
 export const DisabledButton: FC<DisabledProps> = ({ label }) => {
   return (
-    <Button size="small" startIcon={<BlockOutlined />} disabled>
+    <Button startIcon={<BlockOutlined />} disabled>
       {label}
     </Button>
   )
@@ -109,7 +105,6 @@ export const ActionLoadingButton: FC<LoadingProps> = ({ label }) => {
   return (
     <LoadingButton
       loading
-      size="small"
       loadingPosition="start"
       loadingIndicator={label}
       // This icon can be anything

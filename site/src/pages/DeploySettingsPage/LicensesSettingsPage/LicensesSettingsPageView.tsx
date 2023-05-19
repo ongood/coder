@@ -10,6 +10,7 @@ import { FC } from "react"
 import Confetti from "react-confetti"
 import { Link } from "react-router-dom"
 import useWindowSize from "react-use/lib/useWindowSize"
+import MuiLink from "@mui/material/Link"
 
 type Props = {
   showConfetti: boolean
@@ -59,7 +60,7 @@ const LicensesSettingsPageView: FC<Props> = ({
           to="/settings/deployment/licenses/add"
           startIcon={<AddIcon />}
         >
-          添加许可证
+        添加许可证
         </Button>
       </Stack>
 
@@ -88,8 +89,12 @@ const LicensesSettingsPageView: FC<Props> = ({
                 您没有任何许可证！
               </span>
               <span className={styles.description}>
-                您错过了高可用性、RBAC、配额等许多功能。请联系 <a href="mailto:sales@coder.com">销售团队</a> 或{" "}
-                <a href="https://coder.com/trial">申请试用许可证</a>开始使用。
+                 您错过了高可用性、RBAC、配额等许多功能。请联系{" "}
+                <MuiLink href="mailto:sales@coder.com">销售团队</MuiLink> 或{" "}
+                <MuiLink href="https://coder.com/trial">
+                 申请试用许可证
+                </MuiLink>{" "}
+                 开始使用。
               </span>
             </Stack>
           </Stack>

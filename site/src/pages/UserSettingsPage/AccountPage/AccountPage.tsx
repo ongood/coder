@@ -5,10 +5,6 @@ import { useAuth } from "components/AuthProvider/AuthProvider"
 import { useMe } from "hooks/useMe"
 import { usePermissions } from "hooks/usePermissions"
 
-export const Language = {
-  title: "账号",
-}
-
 export const AccountPage: FC = () => {
   const [authState, authSend] = useAuth()
   const me = useMe()
@@ -17,7 +13,7 @@ export const AccountPage: FC = () => {
   const canEditUsers = permissions && permissions.updateUsers
 
   return (
-    <Section title={Language.title} description="更新您的账户信息">
+    <Section title="账号" description="更新您的账户信息">
       <AccountForm
         editable={Boolean(canEditUsers)}
         email={me.email}
