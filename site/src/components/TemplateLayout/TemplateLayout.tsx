@@ -155,7 +155,7 @@ export const TemplateLayout: FC<{ children?: JSX.Element }> = ({
                 ])
               }
             >
-              Embed
+              嵌入
             </NavLink>
           </Stack>
         </Margins>

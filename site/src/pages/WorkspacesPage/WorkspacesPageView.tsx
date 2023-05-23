@@ -38,7 +38,7 @@ const presetFilters = [
   },
   {
     query: workspaceFilterQuery.failed,
-    name: "Failed workspaces",
+    name: "失败的工作区",
   },
 ]
 
