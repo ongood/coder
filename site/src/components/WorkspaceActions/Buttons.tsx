@@ -26,7 +26,7 @@ export const UpdateButton: FC<WorkspaceAction> = ({
       startIcon={<CloudQueueIcon />}
       onClick={handleAction}
     >
-      Update
+      更新
     </LoadingButton>
   )
 }
