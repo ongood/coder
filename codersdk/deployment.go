@@ -330,6 +330,7 @@ type LoggingConfig struct {
 type DangerousConfig struct {
 	AllowPathAppSharing         clibase.Bool `json:"allow_path_app_sharing" typescript:",notnull"`
 	AllowPathAppSiteOwnerAccess clibase.Bool `json:"allow_path_app_site_owner_access" typescript:",notnull"`
+	AllowAllCors                clibase.Bool `json:"allow_all_cors" typescript:",notnull"`
 }
 
 const (
@@ -1149,6 +1150,16 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 			Annotations: clibase.Annotations{}.Mark(annotationExternalProxies, "true"),
 		},
 		// ☢️ Dangerous settings
+		{
+			Name:        "DANGEROUS: Allow all CORs requests",
+			Description: "For security reasons, CORs requests are blocked. If external requests are required, setting this to true will set all cors headers as '*'. This should never be used in production.",
+			Flag:        "dangerous-allow-cors-requests",
+			Env:         "CODER_DANGEROUS_ALLOW_CORS_REQUESTS",
+			Hidden:      true, // Hidden, should only be used by yarn dev server
+			Value:       &c.Dangerous.AllowAllCors,
+			Group:       &deploymentGroupDangerous,
+			Annotations: clibase.Annotations{}.Mark(annotationExternalProxies, "true"),
+		},
 		{
 			Name:        "DANGEROUS: Allow Path App Sharing",
 			Description: "允许共享未从子域名提供的工作区应用程序。出于安全目的，默认情况下禁用基于路径的应用程序共享。基于路径的应用程序可以向Coder API发出请求，并在工作区提供恶意JavaScript时构成安全风险。可以使用--disable-path-apps完全禁用基于路径的应用程序以进一步增强安全性。",
