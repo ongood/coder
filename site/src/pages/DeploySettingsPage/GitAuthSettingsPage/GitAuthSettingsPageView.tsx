@@ -41,8 +41,8 @@ export const GitAuthSettingsPageView = ({
       />
 
       <div className={styles.description}>
-        <Alert severity="info" actions={[<EnterpriseBadge key="enterprise" />]}>
-          与多个 Git 提供商集成是企业版的功能。
+        <Alert severity="info" actions={<EnterpriseBadge key="enterprise" />}>
+          与多个Git提供商集成是企业版的功能。
         </Alert>
       </div>
 

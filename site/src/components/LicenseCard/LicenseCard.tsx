@@ -6,6 +6,8 @@ import { ConfirmDialog } from "components/Dialogs/ConfirmDialog/ConfirmDialog"
 import { Stack } from "components/Stack/Stack"
 import dayjs from "dayjs"
 import { useState } from "react"
+import { Pill } from "components/Pill/Pill"
+import { compareAsc } from "date-fns"
 
 type LicenseCardProps = {
   license: License
@@ -67,29 +69,46 @@ export const LicenseCard = ({
             flex: 1,
           }}
         >
-          <Stack direction="column" spacing={0}>
-            <span className={styles.secondaryMaincolor}>用户数</span>
+          <Stack direction="column" spacing={0} alignItems="center">
+            <span className={styles.secondaryMaincolor}>Users</span>
             <span className={styles.userLimit}>
               {userLimitActual} {` / ${userLimitLimit || "无限制"}`}
             </span>
           </Stack>
-
-          <Stack direction="column" spacing={0}>
-            <span className={styles.secondaryMaincolor}>有效期至</span>
+          <Stack
+            direction="column"
+            spacing={0}
+            alignItems="center"
+            width="134px" // standardize width of date column
+          >
+            {compareAsc(
+              new Date(license.claims.license_expires * 1000),
+              new Date(),
+            ) < 1 ? (
+              <Pill
+                className={styles.expiredBadge}
+                text="Expired"
+                type="error"
+              />
+            ) : (
+              <span className={styles.secondaryMaincolor}>有效期至</span>
+            )}
             <span className={styles.licenseExpires}>
               {dayjs
                 .unix(license.claims.license_expires)
                 .format("YYYY年M月D日")}
             </span>
           </Stack>
-          <Button
-            className={styles.removeButton}
-            variant="text"
-            size="small"
-            onClick={() => setLicenseIDMarkedForRemoval(license.id)}
-          >
-            删除
-          </Button>
+          <Stack spacing={2}>
+            <Button
+              className={styles.removeButton}
+              variant="text"
+              size="small"
+              onClick={() => setLicenseIDMarkedForRemoval(license.id)}
+            >
+              删除
+            </Button>
+          </Stack>
         </Stack>
       </Stack>
     </Paper>
@@ -118,6 +137,9 @@ const useStyles = makeStyles((theme) => ({
   },
   licenseExpires: {
     color: theme.palette.text.secondary,
+  },
+  expiredBadge: {
+    marginBottom: theme.spacing(0.5),
   },
   secondaryMaincolor: {
     color: theme.palette.text.secondary,
