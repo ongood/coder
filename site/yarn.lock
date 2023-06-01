@@ -3729,10 +3729,10 @@
     commander "^8.0.0"
     xstate "^4.29.0"
 
-"@xstate/inspect@0.6.5":
-  version "0.6.5"
-  resolved "https://registry.yarnpkg.com/@xstate/inspect/-/inspect-0.6.5.tgz#f604c2716d46b5b323169b9cdb092cb8d61b5cea"
-  integrity sha512-lUVb/XHaeOl9UP99yQK/rjS+WVx1ymaz0KX8nUsQ4VG/dxvjF0kRcAPCDMuQ7IhWbp0nER+KLE46UFXrqp20Sg==
+"@xstate/inspect@0.8.0":
+  version "0.8.0"
+  resolved "https://registry.yarnpkg.com/@xstate/inspect/-/inspect-0.8.0.tgz#f99d3706cd823d4922c47ce4f4376eecac502cc7"
+  integrity sha512-wSkFeOnp+7dhn+zTThO0M4D2FEqZN9lGIWowJu5JLa2ojjtlzRwK8SkjcHZ4rLX8VnMev7kGjgQLrGs8kxy+hw==
   dependencies:
     fast-safe-stringify "^2.1.1"
 
