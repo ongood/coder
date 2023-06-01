@@ -2,7 +2,7 @@ import { FC, PropsWithChildren, useState } from "react"
 import { Section } from "components/SettingsLayout/Section"
 import { TokensPageView } from "./TokensPageView"
 import makeStyles from "@mui/styles/makeStyles"
-import { useTranslation, Trans } from "react-i18next"
+import { useTranslation } from "react-i18next"
 import { useTokensData } from "./hooks"
 import { ConfirmDeleteDialog } from "./components"
 import { Stack } from "components/Stack/Stack"
@@ -16,11 +16,6 @@ export const TokensPage: FC<PropsWithChildren<unknown>> = () => {
   const { t } = useTranslation("tokensPage")
 
   const cliCreateCommand = "coder tokens create"
-  const description = (
-    <Trans t={t} i18nKey="description" values={{ cliCreateCommand }}>
-      令牌用于与Coder API进行身份验证。您可以通过Coder CLI使用 <code>{{ cliCreateCommand }}</code>命令创建令牌。
-    </Trans>
-  )
 
   const TokenActions = () => (
     <Stack direction="row" justifyContent="end" className={styles.tokenActions}>
@@ -51,7 +46,13 @@ export const TokensPage: FC<PropsWithChildren<unknown>> = () => {
       <Section
         title={t("title")}
         className={styles.section}
-        description={description}
+        description={
+          <>
+            Tokens are used to authenticate with the Coder API. You can create a
+            token with the Coder CLI using the <code>{cliCreateCommand}</code>{" "}
+            command.
+          </>
+        }
         layout="fluid"
       >
         <TokenActions />
