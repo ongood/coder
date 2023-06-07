@@ -36,7 +36,7 @@ export const portForwardURL = (
   const { location } = window
 
   const subdomain = `${
-    isNaN(port) ? 3000 : port
+    isNaN(port) ? 8069 : port
   }--${agentName}--${workspaceName}--${username}`
   return `${location.protocol}//${host}`.replace("*", subdomain)
 }
@@ -45,7 +45,7 @@ const TooltipView: React.FC<PortForwardButtonProps> = (props) => {
   const { host, workspaceName, agentName, agentId, username } = props
 
   const styles = useStyles()
-  const [port, setPort] = useState("3000")
+  const [port, setPort] = useState("8069")
   const urlExample = portForwardURL(
     host,
     parseInt(port),
