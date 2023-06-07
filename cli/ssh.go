@@ -105,6 +105,23 @@ func (r *RootCmd) ssh() *clibase.Cmd {
 				return err
 			}
 
+			templateVersion, err := client.TemplateVersion(ctx, workspace.LatestBuild.TemplateVersionID)
+			if err != nil {
+				return err
+			}
+
+			var unsupportedWorkspace bool
+			for _, warning := range templateVersion.Warnings {
+				if warning == codersdk.TemplateVersionWarningUnsupportedWorkspaces {
+					unsupportedWorkspace = true
+					break
+				}
+			}
+
+			if unsupportedWorkspace && isTTYErr(inv) {
+				_, _ = fmt.Fprintln(inv.Stderr, "👋 Your workspace uses legacy parameters which are not supported anymore. Contact your administrator for assistance.")
+			}
+
 			updateWorkspaceBanner, outdated := verifyWorkspaceOutdated(client, workspace)
 			if outdated && isTTYErr(inv) {
 				_, _ = fmt.Fprintln(inv.Stderr, updateWorkspaceBanner)
@@ -333,7 +350,7 @@ func (r *RootCmd) ssh() *clibase.Cmd {
 		{
 			Flag:        "no-wait",
 			Env:         "CODER_SSH_NO_WAIT",
-			Description: "Specifies whether to wait for a workspace to become ready before logging in (only applicable when the login before ready option has not been enabled). Note that the workspace agent may still be in the process of executing the startup script and the workspace may be in an incomplete state.",
+			Description: "Specifies whether to wait for a workspace to become ready before logging in (only applicable when the startup script behavior is blocking). Note that the workspace agent may still be in the process of executing the startup script and the workspace may be in an incomplete state.",
 			Value:       clibase.BoolOf(&noWait),
 		},
 		{
