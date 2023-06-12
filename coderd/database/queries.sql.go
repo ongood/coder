@@ -412,34 +412,40 @@ WHERE
 			action = $6 :: audit_action
 		ELSE true
 	END
+	-- Filter by user_id
+	AND CASE
+		WHEN $7 :: uuid != '00000000-0000-0000-0000-000000000000'::uuid THEN
+			user_id = $7
+		ELSE true
+	END
 	-- Filter by username
 	AND CASE
-		WHEN $7 :: text != '' THEN
-			users.username = $7
+		WHEN $8 :: text != '' THEN
+			user_id = (SELECT id FROM users WHERE lower(username) = lower($8) AND deleted = false)
 		ELSE true
 	END
 	-- Filter by user_email
 	AND CASE
-		WHEN $8 :: text != '' THEN
-			users.email = $8
+		WHEN $9 :: text != '' THEN
+			users.email = $9
 		ELSE true
 	END
 	-- Filter by date_from
 	AND CASE
-		WHEN $9 :: timestamp with time zone != '0001-01-01 00:00:00Z' THEN
-			"time" >= $9
+		WHEN $10 :: timestamp with time zone != '0001-01-01 00:00:00Z' THEN
+			"time" >= $10
 		ELSE true
 	END
 	-- Filter by date_to
 	AND CASE
-		WHEN $10 :: timestamp with time zone != '0001-01-01 00:00:00Z' THEN
-			"time" <= $10
+		WHEN $11 :: timestamp with time zone != '0001-01-01 00:00:00Z' THEN
+			"time" <= $11
 		ELSE true
 	END
     -- Filter by build_reason
     AND CASE
-	    WHEN $11::text != '' THEN
-            workspace_builds.reason::text = $11
+	    WHEN $12::text != '' THEN
+            workspace_builds.reason::text = $12
         ELSE true
     END
 ORDER BY
@@ -457,6 +463,7 @@ type GetAuditLogsOffsetParams struct {
 	ResourceID     uuid.UUID `db:"resource_id" json:"resource_id"`
 	ResourceTarget string    `db:"resource_target" json:"resource_target"`
 	Action         string    `db:"action" json:"action"`
+	UserID         uuid.UUID `db:"user_id" json:"user_id"`
 	Username       string    `db:"username" json:"username"`
 	Email          string    `db:"email" json:"email"`
 	DateFrom       time.Time `db:"date_from" json:"date_from"`
@@ -499,6 +506,7 @@ func (q *sqlQuerier) GetAuditLogsOffset(ctx context.Context, arg GetAuditLogsOff
 		arg.ResourceID,
 		arg.ResourceTarget,
 		arg.Action,
+		arg.UserID,
 		arg.Username,
 		arg.Email,
 		arg.DateFrom,
@@ -3028,6 +3036,24 @@ func (q *sqlQuerier) GetDERPMeshKey(ctx context.Context) (string, error) {
 	return value, err
 }
 
+const getDefaultProxyConfig = `-- name: GetDefaultProxyConfig :one
+SELECT
+	COALESCE((SELECT value FROM site_configs WHERE key = 'default_proxy_display_name'), 'Default') :: text AS display_name,
+	COALESCE((SELECT value FROM site_configs WHERE key = 'default_proxy_icon_url'), '/emojis/1f3e1.png') :: text AS icon_url
+`
+
+type GetDefaultProxyConfigRow struct {
+	DisplayName string `db:"display_name" json:"display_name"`
+	IconUrl     string `db:"icon_url" json:"icon_url"`
+}
+
+func (q *sqlQuerier) GetDefaultProxyConfig(ctx context.Context) (GetDefaultProxyConfigRow, error) {
+	row := q.db.QueryRowContext(ctx, getDefaultProxyConfig)
+	var i GetDefaultProxyConfigRow
+	err := row.Scan(&i.DisplayName, &i.IconUrl)
+	return i, err
+}
+
 const getDeploymentID = `-- name: GetDeploymentID :one
 SELECT value FROM site_configs WHERE key = 'deployment_id'
 `
@@ -3097,6 +3123,29 @@ ON CONFLICT (key) DO UPDATE set value = $1 WHERE site_configs.key = 'app_signing
 
 func (q *sqlQuerier) UpsertAppSecurityKey(ctx context.Context, value string) error {
 	_, err := q.db.ExecContext(ctx, upsertAppSecurityKey, value)
+	return err
+}
+
+const upsertDefaultProxy = `-- name: UpsertDefaultProxy :exec
+INSERT INTO site_configs (key, value)
+VALUES
+    ('default_proxy_display_name', $1 :: text),
+    ('default_proxy_icon_url', $2 :: text)
+ON CONFLICT
+    (key)
+DO UPDATE SET value = EXCLUDED.value WHERE site_configs.key = EXCLUDED.key
+`
+
+type UpsertDefaultProxyParams struct {
+	DisplayName string `db:"display_name" json:"display_name"`
+	IconUrl     string `db:"icon_url" json:"icon_url"`
+}
+
+// The default proxy is implied and not actually stored in the database.
+// So we need to store it's configuration here for display purposes.
+// The functional values are immutable and controlled implicitly.
+func (q *sqlQuerier) UpsertDefaultProxy(ctx context.Context, arg UpsertDefaultProxyParams) error {
+	_, err := q.db.ExecContext(ctx, upsertDefaultProxy, arg.DisplayName, arg.IconUrl)
 	return err
 }
 

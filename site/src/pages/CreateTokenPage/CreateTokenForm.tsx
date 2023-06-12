@@ -62,8 +62,8 @@ export const CreateTokenForm: FC<CreateTokenFormProps> = ({
   return (
     <HorizontalForm onSubmit={form.handleSubmit}>
       <FormSection
-        title={t("createToken.nameSection.title")}
-        description={t("createToken.nameSection.description")}
+        title="Name"
+        description="What is this token for?"
         classes={{ sectionInfo: styles.formSectionInfo }}
       >
         <FormFields>
@@ -78,16 +78,14 @@ export const CreateTokenForm: FC<CreateTokenFormProps> = ({
         </FormFields>
       </FormSection>
       <FormSection
-        title={t("createToken.lifetimeSection.title")}
+        title="Expiration"
         description={
           form.values.lifetime
-            ? t("createToken.lifetimeSection.description", {
-                date: dayjs()
-                  .add(form.values.lifetime, "days")
-                  .utc()
-                  .format("YYYY年M月D日"),
-              })
-            : t("createToken.lifetimeSection.emptyDescription")
+            ? `此令牌将在${dayjs()
+                .add(form.values.lifetime, "days")
+                .utc()
+                .format("YYYY年M月D日")}`
+            : "过期；否则，请设置令牌过期时间。"
         }
         classes={{ sectionInfo: styles.formSectionInfo }}
       >
@@ -148,11 +146,7 @@ export const CreateTokenForm: FC<CreateTokenFormProps> = ({
       <FormFooter
         onCancel={() => navigate("/settings/tokens")}
         isLoading={isCreating}
-        submitLabel={
-          creationFailed
-            ? t("createToken.footer.retry")
-            : t("createToken.footer.submit")
-        }
+        submitLabel={creationFailed ? "Retry" : "Create token"}
       />
     </HorizontalForm>
   )

@@ -163,6 +163,7 @@ type DeploymentValues struct {
 	SSHConfig                       SSHConfig                       `json:"config_ssh,omitempty" typescript:",notnull"`
 	WgtunnelHost                    clibase.String                  `json:"wgtunnel_host,omitempty" typescript:",notnull"`
 	DisableOwnerWorkspaceExec       clibase.Bool                    `json:"disable_owner_workspace_exec,omitempty" typescript:",notnull"`
+	ProxyHealthStatusInterval       clibase.Duration                `json:"proxy_health_status_interval,omitempty" typescript:",notnull"`
 
 	Config      clibase.YAMLConfigPath `json:"config,omitempty" typescript:",notnull"`
 	WriteConfig clibase.Bool           `json:"write_config,omitempty" typescript:",notnull"`
@@ -935,7 +936,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "OIDC Group Field",
-			Description: "更改OIDC默认的\"groups\"声明字段。如果在oidc scopes参数中存在，默认为\"groups\"。",
+			Description: "如果使用组同步功能且范围名称不是'groups'，则必须设置此字段。设置为用于组的声明。",
 			Flag:        "oidc-group-field",
 			Env:         "CODER_OIDC_GROUP_FIELD",
 			// This value is intentionally blank. If this is empty, then OIDC group
@@ -1152,7 +1153,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		// ☢️ Dangerous settings
 		{
 			Name:        "DANGEROUS: Allow all CORs requests",
-			Description: "For security reasons, CORs requests are blocked. If external requests are required, setting this to true will set all cors headers as '*'. This should never be used in production.",
+			Description: "For security reasons, CORs requests are blocked except between workspace apps owned by the same user. If external requests are required, setting this to true will set all cors headers as '*'. This should never be used in production.",
 			Flag:        "dangerous-allow-cors-requests",
 			Env:         "CODER_DANGEROUS_ALLOW_CORS_REQUESTS",
 			Hidden:      true, // Hidden, should only be used by yarn dev server
@@ -1472,6 +1473,16 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 			Value:       &c.WgtunnelHost,
 			Default:     "", // empty string means pick best server
 			Hidden:      true,
+		},
+		{
+			Name:        "Proxy Health Check Interval",
+			Description: "The interval in which coderd should be checking the status of workspace proxies.",
+			Flag:        "proxy-health-interval",
+			Env:         "CODER_PROXY_HEALTH_INTERVAL",
+			Default:     (time.Minute).String(),
+			Value:       &c.ProxyHealthStatusInterval,
+			Group:       &deploymentGroupNetworkingHTTP,
+			YAML:        "proxyHealthInterval",
 		},
 	}
 	return opts
