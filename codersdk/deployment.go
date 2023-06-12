@@ -1476,7 +1476,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "Proxy Health Check Interval",
-			Description: "The interval in which coderd should be checking the status of workspace proxies.",
+			Description: "检查工作区代理状态的间隔时间。",
 			Flag:        "proxy-health-interval",
 			Env:         "CODER_PROXY_HEALTH_INTERVAL",
 			Default:     (time.Minute).String(),

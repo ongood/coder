@@ -70,7 +70,7 @@ export const LicenseCard = ({
           }}
         >
           <Stack direction="column" spacing={0} alignItems="center">
-            <span className={styles.secondaryMaincolor}>Users</span>
+            <span className={styles.secondaryMaincolor}>用户数</span>
             <span className={styles.userLimit}>
               {userLimitActual} {` / ${userLimitLimit || "无限制"}`}
             </span>

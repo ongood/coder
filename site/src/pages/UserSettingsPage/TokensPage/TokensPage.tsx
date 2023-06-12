@@ -48,9 +48,7 @@ export const TokensPage: FC<PropsWithChildren<unknown>> = () => {
         className={styles.section}
         description={
           <>
-            Tokens are used to authenticate with the Coder API. You can create a
-            token with the Coder CLI using the <code>{cliCreateCommand}</code>{" "}
-            command.
+            使用令牌与 Coder API 进行身份验证。您可以使用 Coder CLI 的<code>{cliCreateCommand}</code>{" "}命令创建一个令牌。
           </>
         }
         layout="fluid"

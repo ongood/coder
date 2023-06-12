@@ -62,8 +62,8 @@ export const CreateTokenForm: FC<CreateTokenFormProps> = ({
   return (
     <HorizontalForm onSubmit={form.handleSubmit}>
       <FormSection
-        title="Name"
-        description="What is this token for?"
+        title="名称"
+        description="这个令牌是用于什么目的？"
         classes={{ sectionInfo: styles.formSectionInfo }}
       >
         <FormFields>
@@ -78,14 +78,14 @@ export const CreateTokenForm: FC<CreateTokenFormProps> = ({
         </FormFields>
       </FormSection>
       <FormSection
-        title="Expiration"
+        title="过期"
         description={
           form.values.lifetime
             ? `此令牌将在${dayjs()
                 .add(form.values.lifetime, "days")
                 .utc()
-                .format("YYYY年M月D日")}`
-            : "过期；否则，请设置令牌过期时间。"
+                .format("YYYY年M月D日")}过期。`
+            : "请设置令牌过期时间。"
         }
         classes={{ sectionInfo: styles.formSectionInfo }}
       >
@@ -146,7 +146,7 @@ export const CreateTokenForm: FC<CreateTokenFormProps> = ({
       <FormFooter
         onCancel={() => navigate("/settings/tokens")}
         isLoading={isCreating}
-        submitLabel={creationFailed ? "Retry" : "Create token"}
+        submitLabel={creationFailed ? "Retry" : "创建令牌"}
       />
     </HorizontalForm>
   )

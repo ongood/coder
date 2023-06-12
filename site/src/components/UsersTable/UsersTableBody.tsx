@@ -196,7 +196,7 @@ export const UsersTableBody: FC<
                               disabled: false,
                             },
                             {
-                              label: "View activity",
+                              label: "查看活动",
                               onClick: onViewActivity,
                               disabled: false,
                             },
