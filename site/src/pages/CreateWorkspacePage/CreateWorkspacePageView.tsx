@@ -207,7 +207,7 @@ export const CreateWorkspacePageView: FC<
         {props.canCreateForUser && (
           <FormSection
             title="工作区所有者"
-            description="将拥有此工作区的用户。如果您是管理员，您可以为其他用户创建工作区。"
+            description="只有管理员可以为其他用户创建工作区。"
           >
             <FormFields>
               <UserAutocomplete

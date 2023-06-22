@@ -1,5 +1,4 @@
 import Button from "@mui/material/Button"
-import Link from "@mui/material/Link"
 import { makeStyles } from "@mui/styles"
 import Table from "@mui/material/Table"
 import TableBody from "@mui/material/TableBody"
@@ -125,7 +124,7 @@ const TemplateRow: FC<{ template: Template }> = ({ template }) => {
             navigate(`/templates/${template.name}/workspace`)
           }}
         >
-          使用模板
+          创建工作区
         </Button>
       </TableCell>
     </TableRow>
@@ -149,7 +148,7 @@ export const TemplatesPageView: FC<
         actions={
           <Maybe condition={permissions.createTemplates}>
             <Button component={RouterLink} to="/starter-templates">
-              入门模板
+               入门模板
             </Button>
             <Button
               startIcon={<AddIcon />}
@@ -157,7 +156,7 @@ export const TemplatesPageView: FC<
               to="new"
               variant="contained"
             >
-              添加模板
+               创建模板
             </Button>
           </Maybe>
         }
@@ -170,21 +169,7 @@ export const TemplatesPageView: FC<
         </PageHeaderTitle>
         <Maybe condition={Boolean(templates && templates.length > 0)}>
           <PageHeaderSubtitle>
-            选择一个模板以创建新的工作区
-            {permissions.createTemplates ? (
-              <>
-                , 或基于CLI
-                <Link
-                  href="https://coder.com/docs/coder-oss/latest/templates#add-a-template"
-                  target="_blank"
-                >
-                  管理模板
-                </Link>
-                .
-              </>
-            ) : (
-              "."
-            )}
+            选择一个模板来创建工作区。
           </PageHeaderSubtitle>
         </Maybe>
       </PageHeader>

@@ -45,7 +45,7 @@ export const GroupsPageView: FC<GroupsPageViewProps> = ({
         <Cond condition={!isTemplateRBACEnabled}>
           <Paywall
             message="用户组"
-            description="将用户组织成组并管理其权限。要使用此功能，您必须升级您的帐户。"
+            description="将用户组织成组，限制对模板的访问。 您需要企业许可证才能使用此功能。"
             cta={
               <Stack direction="row" alignItems="center">
                 <Button
@@ -55,7 +55,7 @@ export const GroupsPageView: FC<GroupsPageViewProps> = ({
                   startIcon={<ArrowRightAltOutlined />}
                   variant="contained"
                 >
-                  查看如何升级
+                  了解企业版
                 </Button>
 
                 <Link

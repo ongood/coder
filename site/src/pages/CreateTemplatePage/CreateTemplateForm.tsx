@@ -223,8 +223,8 @@ export const CreateTemplateForm: FC<CreateTemplateFormProps> = ({
     <HorizontalForm onSubmit={form.handleSubmit}>
       {/* General info */}
       <FormSection
-        title="General info"
-        description="The name is used to identify the template in URLs and the API. It must be unique within your organization."
+        title="General"
+        description="The name is used to identify the template in URLs and the API."
       >
         <FormFields>
           {starterTemplate ? (
@@ -255,8 +255,8 @@ export const CreateTemplateForm: FC<CreateTemplateFormProps> = ({
 
       {/* Display info  */}
       <FormSection
-        title="Display info"
-        description="Give your template a friendly name, description, and icon."
+        title="Display"
+        description="A friendly name, description, and icon to help developers identify your template."
       >
         <FormFields>
           <TextField

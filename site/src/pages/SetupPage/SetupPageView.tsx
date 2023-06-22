@@ -20,7 +20,7 @@ export const Language = {
   emailRequired: "请输入电子邮件地址.",
   passwordRequired: "请输入密码.",
   create: "设置帐户",
-  welcomeMessage: <>Welcome to Coder</>,
+  welcomeMessage: <>欢迎使用 Coder</>,
 }
 
 const validationSchema = Yup.object({
@@ -96,6 +96,7 @@ export const SetupPageView: React.FC<SetupPageViewProps> = ({
                   defaultChecked
                   value={form.values.trial}
                   onChange={form.handleChange}
+                  data-testid="trial"
                 />
               </div>
 
@@ -110,7 +111,12 @@ export const SetupPageView: React.FC<SetupPageViewProps> = ({
               </Box>
             </Box>
           </div>
-          <LoadingButton fullWidth loading={isLoading} type="submit">
+          <LoadingButton
+            fullWidth
+            loading={isLoading}
+            type="submit"
+            data-testid="create"
+          >
             {Language.create}
           </LoadingButton>
         </Stack>
