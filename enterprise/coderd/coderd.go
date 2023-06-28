@@ -313,8 +313,9 @@ type API struct {
 	// ProxyHealth checks the reachability of all workspace proxies.
 	ProxyHealth *proxyhealth.ProxyHealth
 
-	entitlementsMu sync.RWMutex
-	entitlements   codersdk.Entitlements
+	entitlementsUpdateMu sync.Mutex
+	entitlementsMu       sync.RWMutex
+	entitlements         codersdk.Entitlements
 }
 
 func (api *API) Close() error {
@@ -329,8 +330,8 @@ func (api *API) Close() error {
 }
 
 func (api *API) updateEntitlements(ctx context.Context) error {
-	api.entitlementsMu.Lock()
-	defer api.entitlementsMu.Unlock()
+	api.entitlementsUpdateMu.Lock()
+	defer api.entitlementsUpdateMu.Unlock()
 
 	entitlements, err := license.Entitlements(
 		ctx, api.Database,
@@ -402,7 +403,7 @@ func (api *API) updateEntitlements(ctx context.Context) error {
 
 	if changed, enabled := featureChanged(codersdk.FeatureAdvancedTemplateScheduling); changed {
 		if enabled {
-			store := &enterpriseTemplateScheduleStore{}
+			store := &EnterpriseTemplateScheduleStore{}
 			ptr := schedule.TemplateScheduleStore(store)
 			api.AGPL.TemplateScheduleStore.Store(&ptr)
 		} else {
@@ -414,7 +415,12 @@ func (api *API) updateEntitlements(ctx context.Context) error {
 	if changed, enabled := featureChanged(codersdk.FeatureHighAvailability); changed {
 		coordinator := agpltailnet.NewCoordinator(api.Logger)
 		if enabled {
-			haCoordinator, err := tailnet.NewCoordinator(api.Logger, api.Pubsub)
+			var haCoordinator agpltailnet.Coordinator
+			if api.AGPL.Experiments.Enabled(codersdk.ExperimentTailnetPGCoordinator) {
+				haCoordinator, err = tailnet.NewPGCoord(api.ctx, api.Logger, api.Pubsub, api.Database)
+			} else {
+				haCoordinator, err = tailnet.NewCoordinator(api.Logger, api.Pubsub)
+			}
 			if err != nil {
 				api.Logger.Error(ctx, "unable to set up high availability coordinator", slog.Error(err))
 				// If we try to setup the HA coordinator and it fails, nothing
@@ -452,6 +458,8 @@ func (api *API) updateEntitlements(ctx context.Context) error {
 		}
 	}
 
+	api.entitlementsMu.Lock()
+	defer api.entitlementsMu.Unlock()
 	api.entitlements = entitlements
 	api.AGPL.SiteHandler.Entitlements.Store(&entitlements)
 

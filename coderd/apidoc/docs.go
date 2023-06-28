@@ -7239,6 +7239,9 @@ const docTemplate = `{
                 "in_memory_database": {
                     "type": "boolean"
                 },
+                "job_hang_detector_interval": {
+                    "type": "integer"
+                },
                 "logging": {
                     "$ref": "#/definitions/codersdk.LoggingConfig"
                 },
@@ -7389,11 +7392,13 @@ const docTemplate = `{
             "type": "string",
             "enum": [
                 "moons",
-                "workspace_actions"
+                "workspace_actions",
+                "tailnet_pg_coordinator"
             ],
             "x-enum-varnames": [
                 "ExperimentMoons",
-                "ExperimentWorkspaceActions"
+                "ExperimentWorkspaceActions",
+                "ExperimentTailnetPGCoordinator"
             ]
         },
         "codersdk.Feature": {
@@ -9948,7 +9953,12 @@ const docTemplate = `{
         "healthcheck.AccessURLReport": {
             "type": "object",
             "properties": {
-                "error": {},
+                "access_url": {
+                    "type": "string"
+                },
+                "error": {
+                    "type": "string"
+                },
                 "healthy": {
                     "type": "boolean"
                 },
@@ -9973,7 +9983,9 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "type": "array",
-                        "items": {}
+                        "items": {
+                            "type": "string"
+                        }
                     }
                 },
                 "client_logs": {
@@ -9985,7 +9997,9 @@ const docTemplate = `{
                         }
                     }
                 },
-                "error": {},
+                "error": {
+                    "type": "string"
+                },
                 "healthy": {
                     "type": "boolean"
                 },
@@ -10009,7 +10023,9 @@ const docTemplate = `{
         "healthcheck.DERPRegionReport": {
             "type": "object",
             "properties": {
-                "error": {},
+                "error": {
+                    "type": "string"
+                },
                 "healthy": {
                     "type": "boolean"
                 },
@@ -10027,14 +10043,18 @@ const docTemplate = `{
         "healthcheck.DERPReport": {
             "type": "object",
             "properties": {
-                "error": {},
+                "error": {
+                    "type": "string"
+                },
                 "healthy": {
                     "type": "boolean"
                 },
                 "netcheck": {
                     "$ref": "#/definitions/netcheck.Report"
                 },
-                "netcheck_err": {},
+                "netcheck_err": {
+                    "type": "string"
+                },
                 "netcheck_logs": {
                     "type": "array",
                     "items": {
@@ -10064,7 +10084,9 @@ const docTemplate = `{
         "healthcheck.DatabaseReport": {
             "type": "object",
             "properties": {
-                "error": {},
+                "error": {
+                    "type": "string"
+                },
                 "healthy": {
                     "type": "boolean"
                 },
@@ -10082,6 +10104,10 @@ const docTemplate = `{
                 "access_url": {
                     "$ref": "#/definitions/healthcheck.AccessURLReport"
                 },
+                "coder_version": {
+                    "description": "The Coder version of the server that the report was generated on.",
+                    "type": "string"
+                },
                 "database": {
                     "$ref": "#/definitions/healthcheck.DatabaseReport"
                 },
@@ -10089,6 +10115,7 @@ const docTemplate = `{
                     "$ref": "#/definitions/healthcheck.DERPReport"
                 },
                 "failing_sections": {
+                    "description": "FailingSections is a list of sections that have failed their healthcheck.",
                     "type": "array",
                     "items": {
                         "type": "string"
@@ -10110,7 +10137,9 @@ const docTemplate = `{
         "healthcheck.WebsocketReport": {
             "type": "object",
             "properties": {
-                "error": {},
+                "error": {
+                    "type": "string"
+                },
                 "healthy": {
                     "type": "boolean"
                 },

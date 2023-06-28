@@ -327,6 +327,7 @@ export interface DeploymentValues {
   readonly redirect_to_access_url?: boolean
   readonly http_address?: string
   readonly autobuild_poll_interval?: number
+  readonly job_hang_detector_interval?: number
   readonly derp?: DERP
   readonly prometheus?: PrometheusConfig
   readonly pprof?: PprofConfig
@@ -1346,8 +1347,15 @@ export const Entitlements: Entitlement[] = [
 ]
 
 // From codersdk/deployment.go
-export type Experiment = "moons" | "workspace_actions"
-export const Experiments: Experiment[] = ["moons", "workspace_actions"]
+export type Experiment =
+  | "moons"
+  | "tailnet_pg_coordinator"
+  | "workspace_actions"
+export const Experiments: Experiment[] = [
+  "moons",
+  "tailnet_pg_coordinator",
+  "workspace_actions",
+]
 
 // From codersdk/deployment.go
 export type FeatureName =
