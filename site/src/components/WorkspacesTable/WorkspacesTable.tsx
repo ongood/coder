@@ -13,7 +13,6 @@ const Language = {
   template: "模板",
   lastUsed: "最近使用",
   status: "状态",
-  lastBuiltBy: "创建者",
 }
 
 export interface WorkspacesTableProps {

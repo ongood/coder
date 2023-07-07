@@ -23,6 +23,7 @@ const (
 	ResourceTypeAPIKey          ResourceType = "api_key"
 	ResourceTypeGroup           ResourceType = "group"
 	ResourceTypeLicense         ResourceType = "license"
+	ResourceTypeConvertLogin    ResourceType = "convert_login"
 )
 
 func (r ResourceType) FriendlyString() string {
@@ -46,7 +47,9 @@ func (r ResourceType) FriendlyString() string {
 	case ResourceTypeGroup:
 		return "用户组"
 	case ResourceTypeLicense:
-		return "许可证"
+		return "license"
+	case ResourceTypeConvertLogin:
+		return "login type conversion"
 	default:
 		return "未知"
 	}
