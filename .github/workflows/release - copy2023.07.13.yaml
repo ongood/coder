@@ -165,68 +165,68 @@ jobs:
       - name: Delete Apple Developer certificate and API key
         run: rm -f /tmp/{apple_cert.p12,apple_cert_password.txt,apple_apikey.p8}
 
-      # - name: Determine base image tag
-      #   id: image-base-tag
-      #   run: |
-      #     set -euo pipefail
-      #     if [[ "${CODER_RELEASE:-}" != *t* ]] || [[ "${CODER_DRY_RUN:-}" == *t* ]]; then
-      #       # Empty value means use the default and avoid building a fresh one.
-      #       echo "tag=" >> $GITHUB_OUTPUT
-      #     else
-      #       echo "tag=$(CODER_IMAGE_BASE=ghcr.io/ongood/coder-base ./scripts/image_tag.sh)" >> $GITHUB_OUTPUT
-      #     fi
+      - name: Determine base image tag
+        id: image-base-tag
+        run: |
+          set -euo pipefail
+          if [[ "${CODER_RELEASE:-}" != *t* ]] || [[ "${CODER_DRY_RUN:-}" == *t* ]]; then
+            # Empty value means use the default and avoid building a fresh one.
+            echo "tag=" >> $GITHUB_OUTPUT
+          else
+            echo "tag=$(CODER_IMAGE_BASE=ghcr.io/ongood/coder-base ./scripts/image_tag.sh)" >> $GITHUB_OUTPUT
+          fi
 
-      # - name: Create empty base-build-context directory
-      #   if: steps.image-base-tag.outputs.tag != ''
-      #   run: mkdir base-build-context
+      - name: Create empty base-build-context directory
+        if: steps.image-base-tag.outputs.tag != ''
+        run: mkdir base-build-context
 
-      # - name: Install depot.dev CLI
-      #   if: steps.image-base-tag.outputs.tag != ''
-      #   uses: depot/setup-action@v1
+      - name: Install depot.dev CLI
+        if: steps.image-base-tag.outputs.tag != ''
+        uses: depot/setup-action@v1
 
-      # # This uses OIDC authentication, so no auth variables are required.
-      # - name: Build base Docker image via depot.dev
-      #   if: steps.image-base-tag.outputs.tag != ''
-      #   uses: depot/build-push-action@v1
-      #   with:
-      #     project: zthl9kr4mv
-      #     context: base-build-context
-      #     file: scripts/Dockerfile.base
-      #     platforms: linux/amd64,linux/arm64,linux/arm/v7
-      #     pull: true
-      #     no-cache: true
-      #     push: true
-      #     tags: |
-      #       ${{ steps.image-base-tag.outputs.tag }}
+      # This uses OIDC authentication, so no auth variables are required.
+      - name: Build base Docker image via depot.dev
+        if: steps.image-base-tag.outputs.tag != ''
+        uses: depot/build-push-action@v1
+        with:
+          project: zthl9kr4mv
+          context: base-build-context
+          file: scripts/Dockerfile.base
+          platforms: linux/amd64,linux/arm64,linux/arm/v7
+          pull: true
+          no-cache: true
+          push: true
+          tags: |
+            ${{ steps.image-base-tag.outputs.tag }}
 
-      # - name: Verify that images are pushed properly
-      #   run: |
-      #     # retry 10 times with a 5 second delay as the images may not be
-      #     # available immediately
-      #     for i in {1..10}; do
-      #       rc=0
-      #       raw_manifests=$(docker buildx imagetools inspect --raw "${{ steps.image-base-tag.outputs.tag }}") || rc=$?
-      #       if [[ "$rc" -eq 0 ]]; then
-      #         break
-      #       fi
-      #       if [[ "$i" -eq 10 ]]; then
-      #         echo "Failed to pull manifests after 10 retries"
-      #         exit 1
-      #       fi
-      #       echo "Failed to pull manifests, retrying in 5 seconds"
-      #       sleep 5
-      #     done
+      - name: Verify that images are pushed properly
+        run: |
+          # retry 10 times with a 5 second delay as the images may not be
+          # available immediately
+          for i in {1..10}; do
+            rc=0
+            raw_manifests=$(docker buildx imagetools inspect --raw "${{ steps.image-base-tag.outputs.tag }}") || rc=$?
+            if [[ "$rc" -eq 0 ]]; then
+              break
+            fi
+            if [[ "$i" -eq 10 ]]; then
+              echo "Failed to pull manifests after 10 retries"
+              exit 1
+            fi
+            echo "Failed to pull manifests, retrying in 5 seconds"
+            sleep 5
+          done
 
-      #     manifests=$(
-      #       echo "$raw_manifests" | \
-      #         jq -r '.manifests[].platform | .os + "/" + .architecture + (if .variant then "/" + .variant else "" end)'
-      #     )
+          manifests=$(
+            echo "$raw_manifests" | \
+              jq -r '.manifests[].platform | .os + "/" + .architecture + (if .variant then "/" + .variant else "" end)'
+          )
 
-      #     # Verify all 3 platforms are present.
-      #     set -euxo pipefail
-      #     echo "$manifests" | grep -q linux/amd64
-      #     echo "$manifests" | grep -q linux/arm64
-      #     echo "$manifests" | grep -q linux/arm/v7
+          # Verify all 3 platforms are present.
+          set -euxo pipefail
+          echo "$manifests" | grep -q linux/amd64
+          echo "$manifests" | grep -q linux/arm64
+          echo "$manifests" | grep -q linux/arm/v7
 
       - name: Build Linux Docker images
         run: |
@@ -256,8 +256,8 @@ jobs:
               --target "$(./scripts/image_tag.sh --version latest)" \
               $(cat build/coder_"$version"_linux_{amd64,arm64,armv7}.tag)
           fi
-        # env:
-        #   CODER_BASE_IMAGE_TAG: ${{ steps.image-base-tag.outputs.tag }}
+        env:
+          CODER_BASE_IMAGE_TAG: ${{ steps.image-base-tag.outputs.tag }}
 
       - name: ls build
         run: ls -lh build
