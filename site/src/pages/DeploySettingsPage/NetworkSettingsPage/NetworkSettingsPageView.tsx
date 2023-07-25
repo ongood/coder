@@ -11,6 +11,7 @@ import {
   deploymentGroupHasParent,
   useDeploymentOptions,
 } from "utils/deployOptions"
+import { docs } from "utils/docs"
 
 export type NetworkSettingsPageViewProps = {
   options: DeploymentOption[]
@@ -24,7 +25,7 @@ export const NetworkSettingsPageView = ({
       <Header
         title="网络"
         description="配置您的部署连接性。"
-        docsHref="https://coder.com/docs/coder-oss/latest/networking"
+        docsHref={docs("/networking")}
       />
       <OptionsTable
         options={options.filter((o) =>
@@ -38,7 +39,7 @@ export const NetworkSettingsPageView = ({
         title="端口转发"
         secondary
         description="端口转发允许开发人员从本地计算机安全地访问其 Coder 工作区中的进程。"
-        docsHref="https://coder.com/docs/coder-oss/latest/networking/port-forwarding"
+        docsHref={docs("/networking/port-forwarding")}
       />
 
       <Badges>

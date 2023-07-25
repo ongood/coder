@@ -12,6 +12,7 @@ import {
   deploymentGroupHasParent,
   useDeploymentOptions,
 } from "utils/deployOptions"
+import { docs } from "utils/docs"
 
 export type SecuritySettingsPageViewProps = {
   options: DeploymentOption[]
@@ -46,7 +47,7 @@ export const SecuritySettingsPageView = ({
           title="审计日志"
           secondary
           description="允许审计人员监控您的部署中的用户操作。"
-          docsHref="https://coder.com/docs/coder-oss/latest/admin/audit-logs"
+          docsHref={docs("/admin/audit-logs")}
         />
 
         <Badges>
@@ -60,7 +61,7 @@ export const SecuritySettingsPageView = ({
           title="仅限浏览器连接"
           secondary
           description="阻止通过SSH、端口转发和其他非浏览器连接访问所有工作区。"
-          docsHref="https://coder.com/docs/coder-oss/latest/networking#browser-only-connections-enterprise"
+          docsHref={docs("/networking#browser-only-connections-enterprise")}
         />
 
         <Badges>

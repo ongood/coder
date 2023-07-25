@@ -40,11 +40,13 @@ const (
 	FeatureBrowserOnly                FeatureName = "browser_only"
 	FeatureSCIM                       FeatureName = "scim"
 	FeatureTemplateRBAC               FeatureName = "template_rbac"
+	FeatureUserRoleManagement         FeatureName = "user_role_management"
 	FeatureHighAvailability           FeatureName = "high_availability"
 	FeatureMultipleGitAuth            FeatureName = "multiple_git_auth"
 	FeatureExternalProvisionerDaemons FeatureName = "external_provisioner_daemons"
 	FeatureAppearance                 FeatureName = "appearance"
 	FeatureAdvancedTemplateScheduling FeatureName = "advanced_template_scheduling"
+	FeatureTemplateRestartRequirement FeatureName = "template_restart_requirement"
 	FeatureWorkspaceProxy             FeatureName = "workspace_proxy"
 )
 
@@ -61,6 +63,7 @@ var FeatureNames = []FeatureName{
 	FeatureAppearance,
 	FeatureAdvancedTemplateScheduling,
 	FeatureWorkspaceProxy,
+	FeatureUserRoleManagement,
 }
 
 // Humanize returns the feature name in a human-readable format.
@@ -120,6 +123,7 @@ type DeploymentValues struct {
 	Verbose             clibase.Bool `json:"verbose,omitempty"`
 	AccessURL           clibase.URL  `json:"access_url,omitempty"`
 	WildcardAccessURL   clibase.URL  `json:"wildcard_access_url,omitempty"`
+	DocsURL             clibase.URL  `json:"docs_url,omitempty"`
 	RedirectToAccessURL clibase.Bool `json:"redirect_to_access_url,omitempty"`
 	// HTTPAddress is a string because it may be set to zero to disable.
 	HTTPAddress                     clibase.String                  `json:"http_address,omitempty" typescript:",notnull"`
@@ -166,6 +170,7 @@ type DeploymentValues struct {
 	DisableOwnerWorkspaceExec       clibase.Bool                    `json:"disable_owner_workspace_exec,omitempty" typescript:",notnull"`
 	ProxyHealthStatusInterval       clibase.Duration                `json:"proxy_health_status_interval,omitempty" typescript:",notnull"`
 	EnableTerraformDebugMode        clibase.Bool                    `json:"enable_terraform_debug_mode,omitempty" typescript:",notnull"`
+	UserQuietHoursSchedule          UserQuietHoursScheduleConfig    `json:"user_quiet_hours_schedule,omitempty" typescript:",notnull"`
 
 	Config      clibase.YAMLConfigPath `json:"config,omitempty" typescript:",notnull"`
 	WriteConfig clibase.Bool           `json:"write_config,omitempty" typescript:",notnull"`
@@ -255,21 +260,24 @@ type OAuth2GithubConfig struct {
 }
 
 type OIDCConfig struct {
-	AllowSignups        clibase.Bool                      `json:"allow_signups" typescript:",notnull"`
-	ClientID            clibase.String                    `json:"client_id" typescript:",notnull"`
-	ClientSecret        clibase.String                    `json:"client_secret" typescript:",notnull"`
-	EmailDomain         clibase.StringArray               `json:"email_domain" typescript:",notnull"`
-	IssuerURL           clibase.String                    `json:"issuer_url" typescript:",notnull"`
-	Scopes              clibase.StringArray               `json:"scopes" typescript:",notnull"`
-	IgnoreEmailVerified clibase.Bool                      `json:"ignore_email_verified" typescript:",notnull"`
-	UsernameField       clibase.String                    `json:"username_field" typescript:",notnull"`
-	EmailField          clibase.String                    `json:"email_field" typescript:",notnull"`
-	AuthURLParams       clibase.Struct[map[string]string] `json:"auth_url_params" typescript:",notnull"`
-	IgnoreUserInfo      clibase.Bool                      `json:"ignore_user_info" typescript:",notnull"`
-	GroupField          clibase.String                    `json:"groups_field" typescript:",notnull"`
-	GroupMapping        clibase.Struct[map[string]string] `json:"group_mapping" typescript:",notnull"`
-	SignInText          clibase.String                    `json:"sign_in_text" typescript:",notnull"`
-	IconURL             clibase.URL                       `json:"icon_url" typescript:",notnull"`
+	AllowSignups        clibase.Bool                        `json:"allow_signups" typescript:",notnull"`
+	ClientID            clibase.String                      `json:"client_id" typescript:",notnull"`
+	ClientSecret        clibase.String                      `json:"client_secret" typescript:",notnull"`
+	EmailDomain         clibase.StringArray                 `json:"email_domain" typescript:",notnull"`
+	IssuerURL           clibase.String                      `json:"issuer_url" typescript:",notnull"`
+	Scopes              clibase.StringArray                 `json:"scopes" typescript:",notnull"`
+	IgnoreEmailVerified clibase.Bool                        `json:"ignore_email_verified" typescript:",notnull"`
+	UsernameField       clibase.String                      `json:"username_field" typescript:",notnull"`
+	EmailField          clibase.String                      `json:"email_field" typescript:",notnull"`
+	AuthURLParams       clibase.Struct[map[string]string]   `json:"auth_url_params" typescript:",notnull"`
+	IgnoreUserInfo      clibase.Bool                        `json:"ignore_user_info" typescript:",notnull"`
+	GroupField          clibase.String                      `json:"groups_field" typescript:",notnull"`
+	GroupMapping        clibase.Struct[map[string]string]   `json:"group_mapping" typescript:",notnull"`
+	UserRoleField       clibase.String                      `json:"user_role_field" typescript:",notnull"`
+	UserRoleMapping     clibase.Struct[map[string][]string] `json:"user_role_mapping" typescript:",notnull"`
+	UserRolesDefault    clibase.StringArray                 `json:"user_roles_default" typescript:",notnull"`
+	SignInText          clibase.String                      `json:"sign_in_text" typescript:",notnull"`
+	IconURL             clibase.URL                         `json:"icon_url" typescript:",notnull"`
 }
 
 type TelemetryConfig struct {
@@ -341,6 +349,13 @@ type DangerousConfig struct {
 	AllowPathAppSharing         clibase.Bool `json:"allow_path_app_sharing" typescript:",notnull"`
 	AllowPathAppSiteOwnerAccess clibase.Bool `json:"allow_path_app_site_owner_access" typescript:",notnull"`
 	AllowAllCors                clibase.Bool `json:"allow_all_cors" typescript:",notnull"`
+}
+
+type UserQuietHoursScheduleConfig struct {
+	DefaultSchedule clibase.String `json:"default_schedule" typescript:",notnull"`
+	// TODO: add WindowDuration and the ability to postpone max_deadline by this
+	// amount
+	// WindowDuration  clibase.Duration `json:"window_duration" typescript:",notnull"`
 }
 
 const (
@@ -459,6 +474,11 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 			Description: "调整配置生成器的行为，生成器负责创建、更新和删除工作区资源。",
 			YAML:        "provisioning",
 		}
+		deploymentGroupUserQuietHoursSchedule = clibase.Group{
+			Name:        "User Quiet Hours Schedule",
+			Description: "Allow users to set quiet hours schedules each day for workspaces to avoid workspaces stopping during the day due to template max TTL.",
+			YAML:        "userQuietHoursSchedule",
+		}
 		deploymentGroupDangerous = clibase.Group{
 			Name: "⚠️ Dangerous",
 			YAML: "dangerous",
@@ -524,6 +544,16 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 			Value:       &c.WildcardAccessURL,
 			Group:       &deploymentGroupNetworking,
 			YAML:        "wildcardAccessURL",
+			Annotations: clibase.Annotations{}.Mark(annotationExternalProxies, "true"),
+		},
+		{
+			Name:        "Docs URL",
+			Description: "Specifies the custom docs URL.",
+			Value:       &c.DocsURL,
+			Flag:        "docs-url",
+			Env:         "CODER_DOCS_URL",
+			Group:       &deploymentGroupNetworking,
+			YAML:        "docsURL",
 			Annotations: clibase.Annotations{}.Mark(annotationExternalProxies, "true"),
 		},
 		redirectToAccessURL,
@@ -999,6 +1029,38 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 			Value:       &c.OIDC.GroupMapping,
 			Group:       &deploymentGroupOIDC,
 			YAML:        "groupMapping",
+		},
+		{
+			Name:        "OIDC User Role Field",
+			Description: "This field must be set if using the user roles sync feature. Set this to the name of the claim used to store the user's role. The roles should be sent as an array of strings.",
+			Flag:        "oidc-user-role-field",
+			Env:         "CODER_OIDC_USER_ROLE_FIELD",
+			// This value is intentionally blank. If this is empty, then OIDC user role
+			// sync behavior is disabled.
+			Default: "",
+			Value:   &c.OIDC.UserRoleField,
+			Group:   &deploymentGroupOIDC,
+			YAML:    "userRoleField",
+		},
+		{
+			Name:        "OIDC User Role Mapping",
+			Description: "A map of the OIDC passed in user roles and the groups in Coder it should map to. This is useful if the group names do not match. If mapped to the empty string, the role will ignored.",
+			Flag:        "oidc-user-role-mapping",
+			Env:         "CODER_OIDC_USER_ROLE_MAPPING",
+			Default:     "{}",
+			Value:       &c.OIDC.UserRoleMapping,
+			Group:       &deploymentGroupOIDC,
+			YAML:        "userRoleMapping",
+		},
+		{
+			Name:        "OIDC User Role Default",
+			Description: "If user role sync is enabled, these roles are always included for all authenticated users. The 'member' role is always assigned.",
+			Flag:        "oidc-user-role-default",
+			Env:         "CODER_OIDC_USER_ROLE_DEFAULT",
+			Default:     "",
+			Value:       &c.OIDC.UserRolesDefault,
+			Group:       &deploymentGroupOIDC,
+			YAML:        "userRoleDefault",
 		},
 		{
 			Name:        "OpenID Connect sign in text",
@@ -1546,6 +1608,16 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 			Group:       &deploymentGroupNetworkingHTTP,
 			YAML:        "proxyHealthInterval",
 		},
+		{
+			Name:        "Default Quiet Hours Schedule",
+			Description: "The default daily cron schedule applied to users that haven't set a custom quiet hours schedule themselves. The quiet hours schedule determines when workspaces will be force stopped due to the template's max TTL, and will round the max TTL up to be within the user's quiet hours window (or default). The format is the same as the standard cron format, but the day-of-month, month and day-of-week must be *. Only one hour and minute can be specified (ranges or comma separated values are not supported).",
+			Flag:        "default-quiet-hours-schedule",
+			Env:         "CODER_QUIET_HOURS_DEFAULT_SCHEDULE",
+			Default:     "",
+			Value:       &c.UserQuietHoursSchedule.DefaultSchedule,
+			Group:       &deploymentGroupUserQuietHoursSchedule,
+			YAML:        "defaultQuietHoursSchedule",
+		},
 	}
 	return opts
 }
@@ -1746,7 +1818,18 @@ const (
 	// WARNING: This cannot be enabled when using HA.
 	ExperimentSingleTailnet Experiment = "single_tailnet"
 
-	ExperimentWorkspaceBuildLogsUI Experiment = "workspace_build_logs_ui"
+	// ExperimentTemplateRestartRequirement allows template admins to have more
+	// control over when workspaces created on a template are required to
+	// restart, and allows users to ensure these restarts never happen during
+	// their business hours.
+	//
+	// Enables:
+	// - User quiet hours schedule settings
+	// - Template restart requirement settings
+	// - Changes the max_deadline algorithm to use restart requirement and user
+	//   quiet hours instead of max_ttl.
+	ExperimentTemplateRestartRequirement Experiment = "template_restart_requirement"
+
 	// Add new experiments here!
 	// ExperimentExample Experiment = "example"
 )
@@ -1755,9 +1838,7 @@ const (
 // users to opt-in to via --experimental='*'.
 // Experiments that are not ready for consumption by all users should
 // not be included here and will be essentially hidden.
-var ExperimentsAll = Experiments{
-	ExperimentWorkspaceBuildLogsUI,
-}
+var ExperimentsAll = Experiments{}
 
 // Experiments is a list of experiments that are enabled for the deployment.
 // Multiple experiments may be enabled at the same time.

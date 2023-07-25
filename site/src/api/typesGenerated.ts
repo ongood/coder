@@ -140,6 +140,12 @@ export interface BuildInfoResponse {
   readonly workspace_proxy: boolean
 }
 
+// From codersdk/insights.go
+export interface ConnectionLatency {
+  readonly p50: number
+  readonly p95: number
+}
+
 // From codersdk/users.go
 export interface ConvertLoginRequest {
   readonly to_type: LoginType
@@ -181,6 +187,7 @@ export interface CreateTemplateRequest {
   readonly template_version_id: string
   readonly default_ttl_ms?: number
   readonly max_ttl_ms?: number
+  readonly restart_requirement?: TemplateRestartRequirement
   readonly allow_user_cancel_workspace_jobs?: boolean
   readonly allow_user_autostart?: boolean
   readonly allow_user_autostop?: boolean
@@ -332,6 +339,7 @@ export interface DeploymentValues {
   readonly verbose?: boolean
   readonly access_url?: string
   readonly wildcard_access_url?: string
+  readonly docs_url?: string
   readonly redirect_to_access_url?: boolean
   readonly http_address?: string
   readonly autobuild_poll_interval?: number
@@ -383,6 +391,7 @@ export interface DeploymentValues {
   readonly disable_owner_workspace_exec?: boolean
   readonly proxy_health_status_interval?: number
   readonly enable_terraform_debug_mode?: boolean
+  readonly user_quiet_hours_schedule?: UserQuietHoursScheduleConfig
   // This is likely an enum in an external package ("github.com/coder/coder/cli/clibase.YAMLConfigPath")
   readonly config?: string
   readonly write_config?: boolean
@@ -604,6 +613,12 @@ export interface OIDCConfig {
   // Named type "github.com/coder/coder/cli/clibase.Struct[map[string]string]" unknown, using "any"
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- External type
   readonly group_mapping: any
+  readonly user_role_field: string
+  // Named type "github.com/coder/coder/cli/clibase.Struct[map[string][]string]" unknown, using "any"
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- External type
+  readonly user_role_mapping: any
+  // This is likely an enum in an external package ("github.com/coder/coder/cli/clibase.StringArray")
+  readonly user_roles_default: string[]
   readonly sign_in_text: string
   readonly icon_url: string
 }
@@ -644,6 +659,7 @@ export interface PatchGroupRequest {
 // From codersdk/templateversions.go
 export interface PatchTemplateVersionRequest {
   readonly name: string
+  readonly message?: string
 }
 
 // From codersdk/workspaceproxy.go
@@ -865,6 +881,7 @@ export interface Template {
   readonly icon: string
   readonly default_ttl_ms: number
   readonly max_ttl_ms: number
+  readonly restart_requirement: TemplateRestartRequirement
   readonly created_by_id: string
   readonly created_by_name: string
   readonly allow_user_autostart: boolean
@@ -879,6 +896,16 @@ export interface Template {
 export interface TemplateACL {
   readonly users: TemplateUser[]
   readonly group: TemplateGroup[]
+}
+
+// From codersdk/insights.go
+export interface TemplateAppUsage {
+  readonly template_ids: string[]
+  readonly type: TemplateAppsType
+  readonly display_name: string
+  readonly slug: string
+  readonly icon: string
+  readonly seconds: number
 }
 
 // From codersdk/templates.go
@@ -901,6 +928,44 @@ export interface TemplateExample {
 // From codersdk/templates.go
 export interface TemplateGroup extends Group {
   readonly role: TemplateRole
+}
+
+// From codersdk/insights.go
+export interface TemplateInsightsIntervalReport {
+  readonly start_time: string
+  readonly end_time: string
+  readonly template_ids: string[]
+  readonly interval: InsightsReportInterval
+  readonly active_users: number
+}
+
+// From codersdk/insights.go
+export interface TemplateInsightsReport {
+  readonly start_time: string
+  readonly end_time: string
+  readonly template_ids: string[]
+  readonly active_users: number
+  readonly apps_usage: TemplateAppUsage[]
+}
+
+// From codersdk/insights.go
+export interface TemplateInsightsRequest {
+  readonly start_time: string
+  readonly end_time: string
+  readonly template_ids: string[]
+  readonly interval: InsightsReportInterval
+}
+
+// From codersdk/insights.go
+export interface TemplateInsightsResponse {
+  readonly report: TemplateInsightsReport
+  readonly interval_reports: TemplateInsightsIntervalReport[]
+}
+
+// From codersdk/templates.go
+export interface TemplateRestartRequirement {
+  readonly days_of_week: string[]
+  readonly weeks: number
 }
 
 // From codersdk/templates.go
@@ -1036,6 +1101,7 @@ export interface UpdateTemplateMeta {
   readonly icon?: string
   readonly default_ttl_ms?: number
   readonly max_ttl_ms?: number
+  readonly restart_requirement?: TemplateRestartRequirement
   readonly allow_user_autostart?: boolean
   readonly allow_user_autostop?: boolean
   readonly allow_user_cancel_workspace_jobs?: boolean
@@ -1053,6 +1119,11 @@ export interface UpdateUserPasswordRequest {
 // From codersdk/users.go
 export interface UpdateUserProfileRequest {
   readonly username: string
+}
+
+// From codersdk/users.go
+export interface UpdateUserQuietHoursScheduleRequest {
+  readonly schedule: string
 }
 
 // From codersdk/workspaces.go
@@ -1097,11 +1168,55 @@ export interface User {
   readonly organization_ids: string[]
   readonly roles: Role[]
   readonly avatar_url: string
+  readonly login_type: LoginType
+}
+
+// From codersdk/insights.go
+export interface UserLatency {
+  readonly template_ids: string[]
+  readonly user_id: string
+  readonly username: string
+  readonly avatar_url: string
+  readonly latency_ms: ConnectionLatency
+}
+
+// From codersdk/insights.go
+export interface UserLatencyInsightsReport {
+  readonly start_time: string
+  readonly end_time: string
+  readonly template_ids: string[]
+  readonly users: UserLatency[]
+}
+
+// From codersdk/insights.go
+export interface UserLatencyInsightsRequest {
+  readonly start_time: string
+  readonly end_time: string
+  readonly template_ids: string[]
+}
+
+// From codersdk/insights.go
+export interface UserLatencyInsightsResponse {
+  readonly report: UserLatencyInsightsReport
 }
 
 // From codersdk/users.go
 export interface UserLoginType {
   readonly login_type: LoginType
+}
+
+// From codersdk/deployment.go
+export interface UserQuietHoursScheduleConfig {
+  readonly default_schedule: string
+}
+
+// From codersdk/users.go
+export interface UserQuietHoursScheduleResponse {
+  readonly raw_schedule: string
+  readonly user_set: boolean
+  readonly time: string
+  readonly timezone: string
+  readonly next: string
 }
 
 // From codersdk/users.go
@@ -1433,15 +1548,15 @@ export type Experiment =
   | "moons"
   | "single_tailnet"
   | "tailnet_ha_coordinator"
+  | "template_restart_requirement"
   | "workspace_actions"
-  | "workspace_build_logs_ui"
 export const Experiments: Experiment[] = [
   "convert-to-oidc",
   "moons",
   "single_tailnet",
   "tailnet_ha_coordinator",
+  "template_restart_requirement",
   "workspace_actions",
-  "workspace_build_logs_ui",
 ]
 
 // From codersdk/deployment.go
@@ -1455,7 +1570,9 @@ export type FeatureName =
   | "multiple_git_auth"
   | "scim"
   | "template_rbac"
+  | "template_restart_requirement"
   | "user_limit"
+  | "user_role_management"
   | "workspace_proxy"
 export const FeatureNames: FeatureName[] = [
   "advanced_template_scheduling",
@@ -1467,7 +1584,9 @@ export const FeatureNames: FeatureName[] = [
   "multiple_git_auth",
   "scim",
   "template_rbac",
+  "template_restart_requirement",
   "user_limit",
+  "user_role_management",
   "workspace_proxy",
 ]
 
@@ -1479,6 +1598,10 @@ export const GitProviders: GitProvider[] = [
   "github",
   "gitlab",
 ]
+
+// From codersdk/insights.go
+export type InsightsReportInterval = "day"
+export const InsightsReportIntervals: InsightsReportInterval[] = ["day"]
 
 // From codersdk/provisionerdaemons.go
 export type JobErrorCode =
@@ -1630,6 +1753,10 @@ export const ServerSentEventTypes: ServerSentEventType[] = [
   "error",
   "ping",
 ]
+
+// From codersdk/insights.go
+export type TemplateAppsType = "builtin"
+export const TemplateAppsTypes: TemplateAppsType[] = ["builtin"]
 
 // From codersdk/templates.go
 export type TemplateRole = "" | "admin" | "use"

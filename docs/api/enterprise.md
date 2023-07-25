@@ -182,6 +182,7 @@ curl -X GET http://coder-server:8080/api/v2/groups/{group} \
       "email": "user@example.com",
       "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
       "last_seen_at": "2019-08-24T14:15:22Z",
+      "login_type": "password",
       "organization_ids": ["497f6eca-6276-4993-bfeb-53cbbbba6f08"],
       "roles": [
         {
@@ -241,6 +242,7 @@ curl -X DELETE http://coder-server:8080/api/v2/groups/{group} \
       "email": "user@example.com",
       "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
       "last_seen_at": "2019-08-24T14:15:22Z",
+      "login_type": "password",
       "organization_ids": ["497f6eca-6276-4993-bfeb-53cbbbba6f08"],
       "roles": [
         {
@@ -300,6 +302,7 @@ curl -X PATCH http://coder-server:8080/api/v2/groups/{group} \
       "email": "user@example.com",
       "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
       "last_seen_at": "2019-08-24T14:15:22Z",
+      "login_type": "password",
       "organization_ids": ["497f6eca-6276-4993-bfeb-53cbbbba6f08"],
       "roles": [
         {
@@ -434,6 +437,7 @@ curl -X GET http://coder-server:8080/api/v2/organizations/{organization}/groups 
         "email": "user@example.com",
         "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
         "last_seen_at": "2019-08-24T14:15:22Z",
+        "login_type": "password",
         "organization_ids": ["497f6eca-6276-4993-bfeb-53cbbbba6f08"],
         "roles": [
           {
@@ -473,6 +477,7 @@ Status Code **200**
 | `»» email`            | string(email)                                        | true     |              |             |
 | `»» id`               | string(uuid)                                         | true     |              |             |
 | `»» last_seen_at`     | string(date-time)                                    | false    |              |             |
+| `»» login_type`       | [codersdk.LoginType](schemas.md#codersdklogintype)   | false    |              |             |
 | `»» organization_ids` | array                                                | false    |              |             |
 | `»» roles`            | array                                                | false    |              |             |
 | `»»» display_name`    | string                                               | false    |              |             |
@@ -485,10 +490,15 @@ Status Code **200**
 
 #### Enumerated Values
 
-| Property | Value       |
-| -------- | ----------- |
-| `status` | `active`    |
-| `status` | `suspended` |
+| Property     | Value       |
+| ------------ | ----------- |
+| `login_type` | `password`  |
+| `login_type` | `github`    |
+| `login_type` | `oidc`      |
+| `login_type` | `token`     |
+| `login_type` | `none`      |
+| `status`     | `active`    |
+| `status`     | `suspended` |
 
 To perform this operation, you must be authenticated. [Learn more](authentication.md).
 
@@ -538,6 +548,7 @@ curl -X POST http://coder-server:8080/api/v2/organizations/{organization}/groups
       "email": "user@example.com",
       "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
       "last_seen_at": "2019-08-24T14:15:22Z",
+      "login_type": "password",
       "organization_ids": ["497f6eca-6276-4993-bfeb-53cbbbba6f08"],
       "roles": [
         {
@@ -598,6 +609,7 @@ curl -X GET http://coder-server:8080/api/v2/organizations/{organization}/groups/
       "email": "user@example.com",
       "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
       "last_seen_at": "2019-08-24T14:15:22Z",
+      "login_type": "password",
       "organization_ids": ["497f6eca-6276-4993-bfeb-53cbbbba6f08"],
       "roles": [
         {
@@ -959,6 +971,7 @@ curl -X PATCH http://coder-server:8080/api/v2/scim/v2/Users/{id} \
   "email": "user@example.com",
   "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
   "last_seen_at": "2019-08-24T14:15:22Z",
+  "login_type": "password",
   "organization_ids": ["497f6eca-6276-4993-bfeb-53cbbbba6f08"],
   "roles": [
     {
@@ -1010,6 +1023,7 @@ curl -X GET http://coder-server:8080/api/v2/templates/{template}/acl \
     "email": "user@example.com",
     "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
     "last_seen_at": "2019-08-24T14:15:22Z",
+    "login_type": "password",
     "organization_ids": ["497f6eca-6276-4993-bfeb-53cbbbba6f08"],
     "role": "admin",
     "roles": [
@@ -1042,6 +1056,7 @@ Status Code **200**
 | `» email`            | string(email)                                            | true     |              |             |
 | `» id`               | string(uuid)                                             | true     |              |             |
 | `» last_seen_at`     | string(date-time)                                        | false    |              |             |
+| `» login_type`       | [codersdk.LoginType](schemas.md#codersdklogintype)       | false    |              |             |
 | `» organization_ids` | array                                                    | false    |              |             |
 | `» role`             | [codersdk.TemplateRole](schemas.md#codersdktemplaterole) | false    |              |             |
 | `» roles`            | array                                                    | false    |              |             |
@@ -1052,12 +1067,17 @@ Status Code **200**
 
 #### Enumerated Values
 
-| Property | Value       |
-| -------- | ----------- |
-| `role`   | `admin`     |
-| `role`   | `use`       |
-| `status` | `active`    |
-| `status` | `suspended` |
+| Property     | Value       |
+| ------------ | ----------- |
+| `login_type` | `password`  |
+| `login_type` | `github`    |
+| `login_type` | `oidc`      |
+| `login_type` | `token`     |
+| `login_type` | `none`      |
+| `role`       | `admin`     |
+| `role`       | `use`       |
+| `status`     | `active`    |
+| `status`     | `suspended` |
 
 To perform this operation, you must be authenticated. [Learn more](authentication.md).
 
@@ -1119,6 +1139,128 @@ curl -X PATCH http://coder-server:8080/api/v2/templates/{template}/acl \
 | Status | Meaning                                                 | Description | Schema                                           |
 | ------ | ------------------------------------------------------- | ----------- | ------------------------------------------------ |
 | 200    | [OK](https://tools.ietf.org/html/rfc7231#section-6.3.1) | OK          | [codersdk.Response](schemas.md#codersdkresponse) |
+
+To perform this operation, you must be authenticated. [Learn more](authentication.md).
+
+## Get user quiet hours schedule
+
+### Code samples
+
+```shell
+# Example request using curl
+curl -X GET http://coder-server:8080/api/v2/users/{user}/quiet-hours \
+  -H 'Accept: application/json' \
+  -H 'Coder-Session-Token: API_KEY'
+```
+
+`GET /users/{user}/quiet-hours`
+
+### Parameters
+
+| Name   | In   | Type         | Required | Description |
+| ------ | ---- | ------------ | -------- | ----------- |
+| `user` | path | string(uuid) | true     | User ID     |
+
+### Example responses
+
+> 200 Response
+
+```json
+[
+  {
+    "next": "2019-08-24T14:15:22Z",
+    "raw_schedule": "string",
+    "time": "string",
+    "timezone": "string",
+    "user_set": true
+  }
+]
+```
+
+### Responses
+
+| Status | Meaning                                                 | Description | Schema                                                                                                |
+| ------ | ------------------------------------------------------- | ----------- | ----------------------------------------------------------------------------------------------------- |
+| 200    | [OK](https://tools.ietf.org/html/rfc7231#section-6.3.1) | OK          | array of [codersdk.UserQuietHoursScheduleResponse](schemas.md#codersdkuserquiethoursscheduleresponse) |
+
+<h3 id="get-user-quiet-hours-schedule-responseschema">Response Schema</h3>
+
+Status Code **200**
+
+| Name             | Type              | Required | Restrictions | Description                                                                                                            |
+| ---------------- | ----------------- | -------- | ------------ | ---------------------------------------------------------------------------------------------------------------------- |
+| `[array item]`   | array             | false    |              |                                                                                                                        |
+| `» next`         | string(date-time) | false    |              | Next is the next time that the quiet hours window will start.                                                          |
+| `» raw_schedule` | string            | false    |              |                                                                                                                        |
+| `» time`         | string            | false    |              | Time is the time of day that the quiet hours window starts in the given Timezone each day.                             |
+| `» timezone`     | string            | false    |              | raw format from the cron expression, UTC if unspecified                                                                |
+| `» user_set`     | boolean           | false    |              | User set is true if the user has set their own quiet hours schedule. If false, the user is using the default schedule. |
+
+To perform this operation, you must be authenticated. [Learn more](authentication.md).
+
+## Update user quiet hours schedule
+
+### Code samples
+
+```shell
+# Example request using curl
+curl -X PUT http://coder-server:8080/api/v2/users/{user}/quiet-hours \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json' \
+  -H 'Coder-Session-Token: API_KEY'
+```
+
+`PUT /users/{user}/quiet-hours`
+
+> Body parameter
+
+```json
+{
+  "schedule": "string"
+}
+```
+
+### Parameters
+
+| Name   | In   | Type                                                                                                   | Required | Description             |
+| ------ | ---- | ------------------------------------------------------------------------------------------------------ | -------- | ----------------------- |
+| `user` | path | string(uuid)                                                                                           | true     | User ID                 |
+| `body` | body | [codersdk.UpdateUserQuietHoursScheduleRequest](schemas.md#codersdkupdateuserquiethoursschedulerequest) | true     | Update schedule request |
+
+### Example responses
+
+> 200 Response
+
+```json
+[
+  {
+    "next": "2019-08-24T14:15:22Z",
+    "raw_schedule": "string",
+    "time": "string",
+    "timezone": "string",
+    "user_set": true
+  }
+]
+```
+
+### Responses
+
+| Status | Meaning                                                 | Description | Schema                                                                                                |
+| ------ | ------------------------------------------------------- | ----------- | ----------------------------------------------------------------------------------------------------- |
+| 200    | [OK](https://tools.ietf.org/html/rfc7231#section-6.3.1) | OK          | array of [codersdk.UserQuietHoursScheduleResponse](schemas.md#codersdkuserquiethoursscheduleresponse) |
+
+<h3 id="update-user-quiet-hours-schedule-responseschema">Response Schema</h3>
+
+Status Code **200**
+
+| Name             | Type              | Required | Restrictions | Description                                                                                                            |
+| ---------------- | ----------------- | -------- | ------------ | ---------------------------------------------------------------------------------------------------------------------- |
+| `[array item]`   | array             | false    |              |                                                                                                                        |
+| `» next`         | string(date-time) | false    |              | Next is the next time that the quiet hours window will start.                                                          |
+| `» raw_schedule` | string            | false    |              |                                                                                                                        |
+| `» time`         | string            | false    |              | Time is the time of day that the quiet hours window starts in the given Timezone each day.                             |
+| `» timezone`     | string            | false    |              | raw format from the cron expression, UTC if unspecified                                                                |
+| `» user_set`     | boolean           | false    |              | User set is true if the user has set their own quiet hours schedule. If false, the user is using the default schedule. |
 
 To perform this operation, you must be authenticated. [Learn more](authentication.md).
 

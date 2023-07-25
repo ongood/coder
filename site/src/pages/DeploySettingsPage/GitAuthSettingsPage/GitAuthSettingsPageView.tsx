@@ -9,6 +9,7 @@ import { DeploymentValues, GitAuthConfig } from "api/typesGenerated"
 import { Alert } from "components/Alert/Alert"
 import { EnterpriseBadge } from "components/DeploySettingsLayout/Badges"
 import { Header } from "components/DeploySettingsLayout/Header"
+import { docs } from "utils/docs"
 
 
 export type GitAuthSettingsPageViewProps = {

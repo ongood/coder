@@ -7,6 +7,9 @@ import ReplayIcon from "@mui/icons-material/Replay"
 import { LoadingButton } from "components/LoadingButton/LoadingButton"
 import { FC } from "react"
 import BlockOutlined from "@mui/icons-material/BlockOutlined"
+import ButtonGroup from "@mui/material/ButtonGroup"
+import { Workspace, WorkspaceBuildParameter } from "api/typesGenerated"
+import { BuildParametersPopover } from "./BuildParametersPopover"
 
 interface WorkspaceAction {
   loading?: boolean
@@ -31,17 +34,37 @@ export const UpdateButton: FC<WorkspaceAction> = ({
   )
 }
 
-export const StartButton: FC<WorkspaceAction> = ({ handleAction, loading }) => {
+export const StartButton: FC<
+  Omit<WorkspaceAction, "handleAction"> & {
+    workspace: Workspace
+    handleAction: (buildParameters?: WorkspaceBuildParameter[]) => void
+  }
+> = ({ handleAction, workspace, loading }) => {
   return (
-    <LoadingButton
-      loading={loading}
-      loadingIndicator="启动中..."
-      loadingPosition="start"
-      startIcon={<PlayCircleOutlineIcon />}
-      onClick={handleAction}
+    <ButtonGroup
+      variant="outlined"
+      sx={{
+        // Workaround to make the border transitions smmothly on button groups
+        "& > button:hover + button": {
+          borderLeft: "1px solid #FFF",
+        },
+      }}
     >
-      启动
-    </LoadingButton>
+      <LoadingButton
+        loading={loading}
+        loadingIndicator="Starting..."
+        loadingPosition="start"
+        startIcon={<PlayCircleOutlineIcon />}
+        onClick={() => handleAction()}
+      >
+        启动
+      </LoadingButton>
+      <BuildParametersPopover
+        workspace={workspace}
+        disabled={loading}
+        onSubmit={handleAction}
+      />
+    </ButtonGroup>
   )
 }
 
@@ -59,21 +82,38 @@ export const StopButton: FC<WorkspaceAction> = ({ handleAction, loading }) => {
   )
 }
 
-export const RestartButton: FC<WorkspaceAction> = ({
-  handleAction,
-  loading,
-}) => {
+export const RestartButton: FC<
+  Omit<WorkspaceAction, "handleAction"> & {
+    workspace: Workspace
+    handleAction: (buildParameters?: WorkspaceBuildParameter[]) => void
+  }
+> = ({ handleAction, loading, workspace }) => {
   return (
-    <LoadingButton
-      loading={loading}
-      loadingIndicator="重启中..."
-      loadingPosition="start"
-      startIcon={<ReplayIcon />}
-      onClick={handleAction}
-      data-testid="workspace-restart-button"
+    <ButtonGroup
+      variant="outlined"
+      sx={{
+        // Workaround to make the border transitions smmothly on button groups
+        "& > button:hover + button": {
+          borderLeft: "1px solid #FFF",
+        },
+      }}
     >
-      重启
-    </LoadingButton>
+      <LoadingButton
+        loading={loading}
+        loadingIndicator="Restarting..."
+        loadingPosition="start"
+        startIcon={<ReplayIcon />}
+        onClick={() => handleAction()}
+        data-testid="workspace-restart-button"
+      >
+        重启
+      </LoadingButton>
+      <BuildParametersPopover
+        workspace={workspace}
+        disabled={loading}
+        onSubmit={handleAction}
+      />
+    </ButtonGroup>
   )
 }
 

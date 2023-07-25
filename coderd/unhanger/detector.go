@@ -17,7 +17,6 @@ import (
 	"github.com/coder/coder/coderd/database/db2sdk"
 	"github.com/coder/coder/coderd/database/dbauthz"
 	"github.com/coder/coder/coderd/database/pubsub"
-	"github.com/coder/coder/codersdk"
 	"github.com/coder/coder/provisionersdk"
 )
 
@@ -141,9 +140,6 @@ func (d *Detector) Start() {
 				if stats.Error != nil && !xerrors.As(stats.Error, &acquireLockError{}) {
 					d.log.Warn(d.ctx, "error running workspace build hang detector once", slog.Error(stats.Error))
 				}
-				if len(stats.TerminatedJobIDs) != 0 {
-					d.log.Warn(d.ctx, "detected (and terminated) hung provisioner jobs", slog.F("job_ids", stats.TerminatedJobIDs))
-				}
 				if d.stats != nil {
 					select {
 					case <-d.ctx.Done():
@@ -201,8 +197,10 @@ func (d *Detector) run(t time.Time) Stats {
 		log := d.log.With(slog.F("job_id", job.ID))
 
 		err := unhangJob(ctx, log, d.db, d.pubsub, job.ID)
-		if err != nil && !(xerrors.As(err, &acquireLockError{}) || xerrors.As(err, &jobInelligibleError{})) {
-			log.Error(ctx, "error forcefully terminating hung provisioner job", slog.Error(err))
+		if err != nil {
+			if !(xerrors.As(err, &acquireLockError{}) || xerrors.As(err, &jobInelligibleError{})) {
+				log.Error(ctx, "error forcefully terminating hung provisioner job", slog.Error(err))
+			}
 			continue
 		}
 
@@ -232,10 +230,16 @@ func unhangJob(ctx context.Context, log slog.Logger, db database.Store, pub pubs
 		}
 
 		// Check if we should still unhang it.
-		jobStatus := db2sdk.ProvisionerJobStatus(job)
-		if jobStatus != codersdk.ProvisionerJobRunning {
+		if !job.StartedAt.Valid {
+			// This shouldn't be possible to hit because the query only selects
+			// started and not completed jobs, and a job can't be "un-started".
 			return jobInelligibleError{
-				Err: xerrors.Errorf("job is not running (status %s)", jobStatus),
+				Err: xerrors.New("job is not started"),
+			}
+		}
+		if job.CompletedAt.Valid {
+			return jobInelligibleError{
+				Err: xerrors.Errorf("job is completed (status %s)", db2sdk.ProvisionerJobStatus(job)),
 			}
 		}
 		if job.UpdatedAt.After(time.Now().Add(-HungJobDuration)) {
@@ -244,7 +248,10 @@ func unhangJob(ctx context.Context, log slog.Logger, db database.Store, pub pubs
 			}
 		}
 
-		log.Info(ctx, "detected hung (>5m) provisioner job, forcefully terminating")
+		log.Warn(
+			ctx, "detected hung provisioner job, forcefully terminating",
+			"threshold", HungJobDuration,
+		)
 
 		// First, get the latest logs from the build so we can make sure
 		// our messages are in the latest stage.

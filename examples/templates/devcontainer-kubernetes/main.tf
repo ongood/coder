@@ -56,7 +56,7 @@ resource "coder_agent" "main" {
     curl -fsSL https://code-server.dev/install.sh | sh -s -- --method=standalone --prefix=/tmp/code-server --version 4.11.0
     /tmp/code-server/bin/code-server --auth none --port 13337 >/tmp/code-server.log 2>&1 &
   EOT
-  dir                    = "/worskpaces"
+  dir                    = "/workspaces"
 
   # These environment variables allow you to make Git commits right away after creating a
   # workspace. Note that they take precedence over configuration defined in ~/.gitconfig!
@@ -98,6 +98,7 @@ resource "kubernetes_persistent_volume_claim" "workspaces" {
       "coder.workspace_name_at_creation" = data.coder_workspace.me.name
     }
   }
+  wait_until_bound = false
   spec {
     access_modes = ["ReadWriteOnce"]
     resources {

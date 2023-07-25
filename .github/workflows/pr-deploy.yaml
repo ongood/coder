@@ -2,6 +2,7 @@
 name: Deploy PR
 on:
   issue_comment:
+    types: [created, edited]
   workflow_dispatch:
     inputs:
       pr_number:
@@ -17,12 +18,12 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event.issue.number || github.run_id }}
+  cancel-in-progress: false
 
 jobs:
   pr_commented:
-    if: github.event_name == 'issue_comment' && contains(github.event.comment.body, '/deploy-pr') && github.event.comment.author_association == 'MEMBER' || github.event_name == 'workflow_dispatch'
+    if: (github.event_name == 'issue_comment' && contains(github.event.comment.body, '/deploy-pr') && (github.event.comment.author_association == 'MEMBER' || github.event.comment.author_association == 'COLLABORATOR' || github.event.comment.author_association == 'OWNER')) || github.event_name == 'workflow_dispatch'
     outputs:
       PR_NUMBER: ${{ steps.pr_number.outputs.PR_NUMBER }}
       PR_TITLE: ${{ steps.pr_number.outputs.PR_TITLE }}
@@ -58,23 +59,6 @@ jobs:
           CODER_BASE_IMAGE_TAG: ghcr.io/coder/coder-preview-base:pr${{ steps.pr_number.outputs.PR_NUMBER }}
           CODER_IMAGE_TAG: ghcr.io/coder/coder-preview:pr${{ steps.pr_number.outputs.PR_NUMBER }}
 
-      - name: Find Deploy Comment
-        if: github.event_name == 'issue_comment'
-        uses: peter-evans/find-comment@v2
-        id: fco
-        with:
-          issue-number: ${{ steps.pr_number.outputs.PR_NUMBER }}
-          comment-author: "github-actions[bot]"
-          body-includes: /deploy-pr
-
-      - name: React with Rocket
-        if: github.event_name == 'issue_comment'
-        id: comment_ido
-        uses: peter-evans/create-or-update-comment@v3
-        with:
-          comment-id: ${{ steps.fco.outputs.comment-id }}
-          reactions: rocket
-
       - name: Find Comment
         uses: peter-evans/find-comment@v2
         id: fc
@@ -102,17 +86,19 @@ jobs:
       CODER_IMAGE_TAG: ${{ needs.pr_commented.outputs.coder_image_tag }}
       PR_NUMBER: ${{ needs.pr_commented.outputs.pr_number }}
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
-      - uses: ./.github/actions/setup-go
+      - name: Setup Node
+        uses: ./.github/actions/setup-node
 
-      - uses: ./.github/actions/setup-node
+      - name: Setup Go
+        uses: ./.github/actions/setup-go
 
-      - name: Install sqlc
-        run: |
-          curl -sSL https://github.com/kyleconroy/sqlc/releases/download/v1.18.0/sqlc_1.18.0_linux_amd64.tar.gz | sudo tar -C /usr/bin -xz sqlc
+      - name: Setup sqlc
+        uses: ./.github/actions/setup-sqlc
 
       - name: GHCR Login
         uses: docker/login-action@v2
@@ -147,34 +133,36 @@ jobs:
       PR_TITLE: ${{ needs.pr_commented.outputs.PR_TITLE }}
       PR_URL: ${{ needs.pr_commented.outputs.PR_URL }}
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v3
 
-      - name: "Set up kubeconfig"
+      - name: Set up kubeconfig
         run: |
           set -euxo pipefail
           mkdir -p ~/.kube
           echo "${{ secrets.DELIVERYBOT_KUBECONFIG }}" > ~/.kube/config
           export KUBECONFIG=~/.kube/config
 
-      - name: "Create PR namespace"
+      - name: Create PR namespace
         run: |
           set -euxo pipefail
           # try to delete the namespace, but don't fail if it doesn't exist
           kubectl delete namespace "pr${{ env.PR_NUMBER }}" || true
           kubectl create namespace "pr${{ env.PR_NUMBER }}"
 
-      - name: "Install Helm chart"
+      - name: Install Helm chart
         run: |
           helm upgrade --install pr${{ env.PR_NUMBER }}  ./helm \
           --namespace "pr${{ env.PR_NUMBER }}" \
           --set coder.image.repo=${{ env.REPO }} \
           --set coder.image.tag=pr${{ env.PR_NUMBER }} \
           --set coder.service.type=ClusterIP \
+          --set coder.serviceAccount.enableDeployments=true \
           --set coder.env[0].name=CODER_ACCESS_URL \
           --set coder.env[0].value="" \
           --force
 
-      - name: "Get deployment URL"
+      - name: Get deployment URL
         id: deployment_url
         run: |
           set -euo pipefail
@@ -183,6 +171,13 @@ jobs:
           CODER_ACCESS_URL=$(kubectl logs $POD_NAME -n "pr${{ env.PR_NUMBER }}" | grep "Web UI:" | awk -F ':' '{print $2":"$3}' | awk '{$1=$1};1')
           echo "::add-mask::$CODER_ACCESS_URL"
           echo "CODER_ACCESS_URL=$CODER_ACCESS_URL" >> $GITHUB_OUTPUT
+
+      - name: Install coder-logstream-kube
+        run: |
+          helm repo add coder-logstream-kube https://helm.coder.com/logstream-kube
+          helm install coder-logstream-kube coder-logstream-kube/coder-logstream-kube \
+            --namespace "pr${{ env.PR_NUMBER }}" \
+            --set url="${{ steps.deployment_url.outputs.CODER_ACCESS_URL }}"
 
       - name: Send Slack notification
         run: |

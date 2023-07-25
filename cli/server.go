@@ -496,6 +496,7 @@ func (r *RootCmd) Server(newAPI func(context.Context, *coderd.Options) (*coderd.
 				FilesRateLimit:              filesRateLimit,
 				HTTPClient:                  httpClient,
 				TemplateScheduleStore:       &atomic.Pointer[schedule.TemplateScheduleStore]{},
+				UserQuietHoursScheduleStore: &atomic.Pointer[schedule.UserQuietHoursScheduleStore]{},
 				SSHConfig: codersdk.SSHConfigResponse{
 					HostnamePrefix:   cfg.SSHConfig.DeploymentName.String(),
 					SSHConfigOptions: configSSHOptions,
@@ -595,6 +596,9 @@ func (r *RootCmd) Server(newAPI func(context.Context, *coderd.Options) (*coderd.
 					IgnoreUserInfo:      cfg.OIDC.IgnoreUserInfo.Value(),
 					GroupField:          cfg.OIDC.GroupField.String(),
 					GroupMapping:        cfg.OIDC.GroupMapping.Value,
+					UserRoleField:       cfg.OIDC.UserRoleField.String(),
+					UserRoleMapping:     cfg.OIDC.UserRoleMapping.Value,
+					UserRolesDefault:    cfg.OIDC.UserRolesDefault.GetSlice(),
 					SignInText:          cfg.OIDC.SignInText.String(),
 					IconURL:             cfg.OIDC.IconURL.String(),
 					IgnoreEmailVerified: cfg.OIDC.IgnoreEmailVerified.Value(),

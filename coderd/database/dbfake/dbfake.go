@@ -23,6 +23,7 @@ import (
 	"github.com/coder/coder/coderd/database/db2sdk"
 	"github.com/coder/coder/coderd/httpapi"
 	"github.com/coder/coder/coderd/rbac"
+	"github.com/coder/coder/coderd/rbac/regosql"
 	"github.com/coder/coder/coderd/util/slice"
 	"github.com/coder/coder/codersdk"
 )
@@ -57,7 +58,7 @@ func New() database.Store {
 			workspaceResourceMetadata: make([]database.WorkspaceResourceMetadatum, 0),
 			provisionerJobs:           make([]database.ProvisionerJob, 0),
 			templateVersions:          make([]database.TemplateVersion, 0),
-			templates:                 make([]database.Template, 0),
+			templates:                 make([]database.TemplateTable, 0),
 			workspaceAgentStats:       make([]database.WorkspaceAgentStat, 0),
 			workspaceAgentLogs:        make([]database.WorkspaceAgentStartupLog, 0),
 			workspaceBuilds:           make([]database.WorkspaceBuild, 0),
@@ -129,7 +130,7 @@ type data struct {
 	templateVersions          []database.TemplateVersion
 	templateVersionParameters []database.TemplateVersionParameter
 	templateVersionVariables  []database.TemplateVersionVariable
-	templates                 []database.Template
+	templates                 []database.TemplateTable
 	workspaceAgents           []database.WorkspaceAgent
 	workspaceAgentMetadata    []database.WorkspaceAgentMetadatum
 	workspaceAgentLogs        []database.WorkspaceAgentStartupLog
@@ -266,80 +267,6 @@ func (q *FakeQuerier) getUserByIDNoLock(id uuid.UUID) (database.User, error) {
 	return database.User{}, sql.ErrNoRows
 }
 
-func (q *FakeQuerier) GetAuthorizedUserCount(ctx context.Context, params database.GetFilteredUserCountParams, prepared rbac.PreparedAuthorized) (int64, error) {
-	if err := validateDatabaseType(params); err != nil {
-		return 0, err
-	}
-
-	q.mutex.RLock()
-	defer q.mutex.RUnlock()
-
-	// Call this to match the same function calls as the SQL implementation.
-	if prepared != nil {
-		_, err := prepared.CompileToSQL(ctx, rbac.ConfigWithoutACL())
-		if err != nil {
-			return -1, err
-		}
-	}
-
-	users := make([]database.User, 0, len(q.users))
-
-	for _, user := range q.users {
-		// If the filter exists, ensure the object is authorized.
-		if prepared != nil && prepared.Authorize(ctx, user.RBACObject()) != nil {
-			continue
-		}
-
-		users = append(users, user)
-	}
-
-	// Filter out deleted since they should never be returned..
-	tmp := make([]database.User, 0, len(users))
-	for _, user := range users {
-		if !user.Deleted {
-			tmp = append(tmp, user)
-		}
-	}
-	users = tmp
-
-	if params.Search != "" {
-		tmp := make([]database.User, 0, len(users))
-		for i, user := range users {
-			if strings.Contains(strings.ToLower(user.Email), strings.ToLower(params.Search)) {
-				tmp = append(tmp, users[i])
-			} else if strings.Contains(strings.ToLower(user.Username), strings.ToLower(params.Search)) {
-				tmp = append(tmp, users[i])
-			}
-		}
-		users = tmp
-	}
-
-	if len(params.Status) > 0 {
-		usersFilteredByStatus := make([]database.User, 0, len(users))
-		for i, user := range users {
-			if slice.ContainsCompare(params.Status, user.Status, func(a, b database.UserStatus) bool {
-				return strings.EqualFold(string(a), string(b))
-			}) {
-				usersFilteredByStatus = append(usersFilteredByStatus, users[i])
-			}
-		}
-		users = usersFilteredByStatus
-	}
-
-	if len(params.RbacRole) > 0 && !slice.Contains(params.RbacRole, rbac.RoleMember()) {
-		usersFilteredByRole := make([]database.User, 0, len(users))
-		for i, user := range users {
-			if slice.OverlapCompare(params.RbacRole, user.RBACRoles, strings.EqualFold) {
-				usersFilteredByRole = append(usersFilteredByRole, users[i])
-			}
-		}
-
-		users = usersFilteredByRole
-	}
-
-	return int64(len(users)), nil
-}
-
 func convertUsers(users []database.User, count int64) []database.GetUsersRow {
 	rows := make([]database.GetUsersRow, len(users))
 	for i, u := range users {
@@ -361,259 +288,6 @@ func convertUsers(users []database.User, count int64) []database.GetUsersRow {
 	}
 
 	return rows
-}
-
-//nolint:gocyclo
-func (q *FakeQuerier) GetAuthorizedWorkspaces(ctx context.Context, arg database.GetWorkspacesParams, prepared rbac.PreparedAuthorized) ([]database.GetWorkspacesRow, error) {
-	if err := validateDatabaseType(arg); err != nil {
-		return nil, err
-	}
-
-	q.mutex.RLock()
-	defer q.mutex.RUnlock()
-
-	if prepared != nil {
-		// Call this to match the same function calls as the SQL implementation.
-		_, err := prepared.CompileToSQL(ctx, rbac.ConfigWithoutACL())
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	workspaces := make([]database.Workspace, 0)
-	for _, workspace := range q.workspaces {
-		if arg.OwnerID != uuid.Nil && workspace.OwnerID != arg.OwnerID {
-			continue
-		}
-
-		if arg.OwnerUsername != "" {
-			owner, err := q.getUserByIDNoLock(workspace.OwnerID)
-			if err == nil && !strings.EqualFold(arg.OwnerUsername, owner.Username) {
-				continue
-			}
-		}
-
-		if arg.TemplateName != "" {
-			template, err := q.getTemplateByIDNoLock(ctx, workspace.TemplateID)
-			if err == nil && !strings.EqualFold(arg.TemplateName, template.Name) {
-				continue
-			}
-		}
-
-		if !arg.Deleted && workspace.Deleted {
-			continue
-		}
-
-		if arg.Name != "" && !strings.Contains(strings.ToLower(workspace.Name), strings.ToLower(arg.Name)) {
-			continue
-		}
-
-		if arg.Status != "" {
-			build, err := q.getLatestWorkspaceBuildByWorkspaceIDNoLock(ctx, workspace.ID)
-			if err != nil {
-				return nil, xerrors.Errorf("get latest build: %w", err)
-			}
-
-			job, err := q.getProvisionerJobByIDNoLock(ctx, build.JobID)
-			if err != nil {
-				return nil, xerrors.Errorf("get provisioner job: %w", err)
-			}
-
-			// This logic should match the logic in the workspace.sql file.
-			var statusMatch bool
-			switch database.WorkspaceStatus(arg.Status) {
-			case database.WorkspaceStatusPending:
-				statusMatch = isNull(job.StartedAt)
-			case database.WorkspaceStatusStarting:
-				statusMatch = isNotNull(job.StartedAt) &&
-					isNull(job.CanceledAt) &&
-					isNull(job.CompletedAt) &&
-					time.Since(job.UpdatedAt) < 30*time.Second &&
-					build.Transition == database.WorkspaceTransitionStart
-
-			case database.WorkspaceStatusRunning:
-				statusMatch = isNotNull(job.CompletedAt) &&
-					isNull(job.CanceledAt) &&
-					isNull(job.Error) &&
-					build.Transition == database.WorkspaceTransitionStart
-
-			case database.WorkspaceStatusStopping:
-				statusMatch = isNotNull(job.StartedAt) &&
-					isNull(job.CanceledAt) &&
-					isNull(job.CompletedAt) &&
-					time.Since(job.UpdatedAt) < 30*time.Second &&
-					build.Transition == database.WorkspaceTransitionStop
-
-			case database.WorkspaceStatusStopped:
-				statusMatch = isNotNull(job.CompletedAt) &&
-					isNull(job.CanceledAt) &&
-					isNull(job.Error) &&
-					build.Transition == database.WorkspaceTransitionStop
-			case database.WorkspaceStatusFailed:
-				statusMatch = (isNotNull(job.CanceledAt) && isNotNull(job.Error)) ||
-					(isNotNull(job.CompletedAt) && isNotNull(job.Error))
-
-			case database.WorkspaceStatusCanceling:
-				statusMatch = isNotNull(job.CanceledAt) &&
-					isNull(job.CompletedAt)
-
-			case database.WorkspaceStatusCanceled:
-				statusMatch = isNotNull(job.CanceledAt) &&
-					isNotNull(job.CompletedAt)
-
-			case database.WorkspaceStatusDeleted:
-				statusMatch = isNotNull(job.StartedAt) &&
-					isNull(job.CanceledAt) &&
-					isNotNull(job.CompletedAt) &&
-					time.Since(job.UpdatedAt) < 30*time.Second &&
-					build.Transition == database.WorkspaceTransitionDelete &&
-					isNull(job.Error)
-
-			case database.WorkspaceStatusDeleting:
-				statusMatch = isNull(job.CompletedAt) &&
-					isNull(job.CanceledAt) &&
-					isNull(job.Error) &&
-					build.Transition == database.WorkspaceTransitionDelete
-
-			default:
-				return nil, xerrors.Errorf("unknown workspace status in filter: %q", arg.Status)
-			}
-			if !statusMatch {
-				continue
-			}
-		}
-
-		if arg.HasAgent != "" {
-			build, err := q.getLatestWorkspaceBuildByWorkspaceIDNoLock(ctx, workspace.ID)
-			if err != nil {
-				return nil, xerrors.Errorf("get latest build: %w", err)
-			}
-
-			job, err := q.getProvisionerJobByIDNoLock(ctx, build.JobID)
-			if err != nil {
-				return nil, xerrors.Errorf("get provisioner job: %w", err)
-			}
-
-			workspaceResources, err := q.getWorkspaceResourcesByJobIDNoLock(ctx, job.ID)
-			if err != nil {
-				return nil, xerrors.Errorf("get workspace resources: %w", err)
-			}
-
-			var workspaceResourceIDs []uuid.UUID
-			for _, wr := range workspaceResources {
-				workspaceResourceIDs = append(workspaceResourceIDs, wr.ID)
-			}
-
-			workspaceAgents, err := q.getWorkspaceAgentsByResourceIDsNoLock(ctx, workspaceResourceIDs)
-			if err != nil {
-				return nil, xerrors.Errorf("get workspace agents: %w", err)
-			}
-
-			var hasAgentMatched bool
-			for _, wa := range workspaceAgents {
-				if mapAgentStatus(wa, arg.AgentInactiveDisconnectTimeoutSeconds) == arg.HasAgent {
-					hasAgentMatched = true
-				}
-			}
-
-			if !hasAgentMatched {
-				continue
-			}
-		}
-
-		if len(arg.TemplateIds) > 0 {
-			match := false
-			for _, id := range arg.TemplateIds {
-				if workspace.TemplateID == id {
-					match = true
-					break
-				}
-			}
-			if !match {
-				continue
-			}
-		}
-
-		// If the filter exists, ensure the object is authorized.
-		if prepared != nil && prepared.Authorize(ctx, workspace.RBACObject()) != nil {
-			continue
-		}
-		workspaces = append(workspaces, workspace)
-	}
-
-	// Sort workspaces (ORDER BY)
-	isRunning := func(build database.WorkspaceBuild, job database.ProvisionerJob) bool {
-		return job.CompletedAt.Valid && !job.CanceledAt.Valid && !job.Error.Valid && build.Transition == database.WorkspaceTransitionStart
-	}
-
-	preloadedWorkspaceBuilds := map[uuid.UUID]database.WorkspaceBuild{}
-	preloadedProvisionerJobs := map[uuid.UUID]database.ProvisionerJob{}
-	preloadedUsers := map[uuid.UUID]database.User{}
-
-	for _, w := range workspaces {
-		build, err := q.getLatestWorkspaceBuildByWorkspaceIDNoLock(ctx, w.ID)
-		if err == nil {
-			preloadedWorkspaceBuilds[w.ID] = build
-		} else if !errors.Is(err, sql.ErrNoRows) {
-			return nil, xerrors.Errorf("get latest build: %w", err)
-		}
-
-		job, err := q.getProvisionerJobByIDNoLock(ctx, build.JobID)
-		if err == nil {
-			preloadedProvisionerJobs[w.ID] = job
-		} else if !errors.Is(err, sql.ErrNoRows) {
-			return nil, xerrors.Errorf("get provisioner job: %w", err)
-		}
-
-		user, err := q.getUserByIDNoLock(w.OwnerID)
-		if err == nil {
-			preloadedUsers[w.ID] = user
-		} else if !errors.Is(err, sql.ErrNoRows) {
-			return nil, xerrors.Errorf("get user: %w", err)
-		}
-	}
-
-	sort.Slice(workspaces, func(i, j int) bool {
-		w1 := workspaces[i]
-		w2 := workspaces[j]
-
-		// Order by: running first
-		w1IsRunning := isRunning(preloadedWorkspaceBuilds[w1.ID], preloadedProvisionerJobs[w1.ID])
-		w2IsRunning := isRunning(preloadedWorkspaceBuilds[w2.ID], preloadedProvisionerJobs[w2.ID])
-
-		if w1IsRunning && !w2IsRunning {
-			return true
-		}
-
-		if !w1IsRunning && w2IsRunning {
-			return false
-		}
-
-		// Order by: usernames
-		if w1.ID != w2.ID {
-			return sort.StringsAreSorted([]string{preloadedUsers[w1.ID].Username, preloadedUsers[w2.ID].Username})
-		}
-
-		// Order by: workspace names
-		return sort.StringsAreSorted([]string{w1.Name, w2.Name})
-	})
-
-	beforePageCount := len(workspaces)
-
-	if arg.Offset > 0 {
-		if int(arg.Offset) > len(workspaces) {
-			return []database.GetWorkspacesRow{}, nil
-		}
-		workspaces = workspaces[arg.Offset:]
-	}
-	if arg.Limit > 0 {
-		if int(arg.Limit) > len(workspaces) {
-			return q.convertToWorkspaceRowsNoLock(ctx, workspaces, int64(beforePageCount)), nil
-		}
-		workspaces = workspaces[:arg.Limit]
-	}
-
-	return q.convertToWorkspaceRowsNoLock(ctx, workspaces, int64(beforePageCount)), nil
 }
 
 // mapAgentStatus determines the agent status based on different timestamps like created_at, last_connected_at, disconnected_at, etc.
@@ -665,6 +339,8 @@ func (q *FakeQuerier) convertToWorkspaceRowsNoLock(ctx context.Context, workspac
 			AutostartSchedule: w.AutostartSchedule,
 			Ttl:               w.Ttl,
 			LastUsedAt:        w.LastUsedAt,
+			LockedAt:          w.LockedAt,
+			DeletingAt:        w.DeletingAt,
 			Count:             count,
 		}
 
@@ -772,70 +448,35 @@ func (q *FakeQuerier) getLatestWorkspaceBuildByWorkspaceIDNoLock(_ context.Conte
 func (q *FakeQuerier) getTemplateByIDNoLock(_ context.Context, id uuid.UUID) (database.Template, error) {
 	for _, template := range q.templates {
 		if template.ID == id {
-			return template.DeepCopy(), nil
+			return q.templateWithUserNoLock(template), nil
 		}
 	}
 	return database.Template{}, sql.ErrNoRows
 }
 
-func (q *FakeQuerier) GetAuthorizedTemplates(ctx context.Context, arg database.GetTemplatesWithFilterParams, prepared rbac.PreparedAuthorized) ([]database.Template, error) {
-	if err := validateDatabaseType(arg); err != nil {
-		return nil, err
+func (q *FakeQuerier) templatesWithUserNoLock(tpl []database.TemplateTable) []database.Template {
+	cpy := make([]database.Template, 0, len(tpl))
+	for _, t := range tpl {
+		cpy = append(cpy, q.templateWithUserNoLock(t))
 	}
+	return cpy
+}
 
-	q.mutex.RLock()
-	defer q.mutex.RUnlock()
-
-	// Call this to match the same function calls as the SQL implementation.
-	if prepared != nil {
-		_, err := prepared.CompileToSQL(ctx, rbac.ConfigWithACL())
-		if err != nil {
-			return nil, err
+func (q *FakeQuerier) templateWithUserNoLock(tpl database.TemplateTable) database.Template {
+	var user database.User
+	for _, _user := range q.users {
+		if _user.ID == tpl.CreatedBy {
+			user = _user
+			break
 		}
 	}
-
-	var templates []database.Template
-	for _, template := range q.templates {
-		if prepared != nil && prepared.Authorize(ctx, template.RBACObject()) != nil {
-			continue
-		}
-
-		if template.Deleted != arg.Deleted {
-			continue
-		}
-		if arg.OrganizationID != uuid.Nil && template.OrganizationID != arg.OrganizationID {
-			continue
-		}
-
-		if arg.ExactName != "" && !strings.EqualFold(template.Name, arg.ExactName) {
-			continue
-		}
-
-		if len(arg.IDs) > 0 {
-			match := false
-			for _, id := range arg.IDs {
-				if template.ID == id {
-					match = true
-					break
-				}
-			}
-			if !match {
-				continue
-			}
-		}
-		templates = append(templates, template.DeepCopy())
-	}
-	if len(templates) > 0 {
-		slices.SortFunc(templates, func(i, j database.Template) bool {
-			if i.Name != j.Name {
-				return i.Name < j.Name
-			}
-			return i.ID.String() < j.ID.String()
-		})
-		return templates, nil
-	}
-
-	return nil, sql.ErrNoRows
+	var withUser database.Template
+	// This is a cheeky way to copy the fields over without explicitly listing them all.
+	d, _ := json.Marshal(tpl)
+	_ = json.Unmarshal(d, &withUser)
+	withUser.CreatedByUsername = user.Username
+	withUser.CreatedByAvatarURL = user.AvatarURL.String
+	return withUser
 }
 
 func (q *FakeQuerier) getTemplateVersionByIDNoLock(_ context.Context, templateVersionID uuid.UUID) (database.TemplateVersion, error) {
@@ -846,84 +487,6 @@ func (q *FakeQuerier) getTemplateVersionByIDNoLock(_ context.Context, templateVe
 		return templateVersion, nil
 	}
 	return database.TemplateVersion{}, sql.ErrNoRows
-}
-
-func (q *FakeQuerier) GetTemplateUserRoles(_ context.Context, id uuid.UUID) ([]database.TemplateUser, error) {
-	q.mutex.RLock()
-	defer q.mutex.RUnlock()
-
-	var template database.Template
-	for _, t := range q.templates {
-		if t.ID == id {
-			template = t
-			break
-		}
-	}
-
-	if template.ID == uuid.Nil {
-		return nil, sql.ErrNoRows
-	}
-
-	users := make([]database.TemplateUser, 0, len(template.UserACL))
-	for k, v := range template.UserACL {
-		user, err := q.getUserByIDNoLock(uuid.MustParse(k))
-		if err != nil && xerrors.Is(err, sql.ErrNoRows) {
-			return nil, xerrors.Errorf("get user by ID: %w", err)
-		}
-		// We don't delete users from the map if they
-		// get deleted so just skip.
-		if xerrors.Is(err, sql.ErrNoRows) {
-			continue
-		}
-
-		if user.Deleted || user.Status == database.UserStatusSuspended {
-			continue
-		}
-
-		users = append(users, database.TemplateUser{
-			User:    user,
-			Actions: v,
-		})
-	}
-
-	return users, nil
-}
-
-func (q *FakeQuerier) GetTemplateGroupRoles(_ context.Context, id uuid.UUID) ([]database.TemplateGroup, error) {
-	q.mutex.RLock()
-	defer q.mutex.RUnlock()
-
-	var template database.Template
-	for _, t := range q.templates {
-		if t.ID == id {
-			template = t
-			break
-		}
-	}
-
-	if template.ID == uuid.Nil {
-		return nil, sql.ErrNoRows
-	}
-
-	groups := make([]database.TemplateGroup, 0, len(template.GroupACL))
-	for k, v := range template.GroupACL {
-		group, err := q.getGroupByIDNoLock(context.Background(), uuid.MustParse(k))
-		if err != nil && !xerrors.Is(err, sql.ErrNoRows) {
-			return nil, xerrors.Errorf("get group by ID: %w", err)
-		}
-		// We don't delete groups from the map if they
-		// get deleted so just skip.
-		if xerrors.Is(err, sql.ErrNoRows) {
-			continue
-		}
-
-		groups = append(groups, database.TemplateGroup{
-			Group:   group,
-			Actions: v,
-		})
-	}
-
-	return groups, nil
 }
 
 func (q *FakeQuerier) getWorkspaceAgentByIDNoLock(_ context.Context, id uuid.UUID) (database.WorkspaceAgent, error) {
@@ -1672,14 +1235,6 @@ func (q *FakeQuerier) GetFileTemplates(_ context.Context, id uuid.UUID) ([]datab
 	return rows, nil
 }
 
-func (q *FakeQuerier) GetFilteredUserCount(ctx context.Context, arg database.GetFilteredUserCountParams) (int64, error) {
-	if err := validateDatabaseType(arg); err != nil {
-		return 0, err
-	}
-	count, err := q.GetAuthorizedUserCount(ctx, arg, nil)
-	return count, err
-}
-
 func (q *FakeQuerier) GetGitAuthLink(_ context.Context, arg database.GetGitAuthLinkParams) (database.GitAuthLink, error) {
 	if err := validateDatabaseType(arg); err != nil {
 		return database.GitAuthLink{}, err
@@ -2341,7 +1896,7 @@ func (q *FakeQuerier) GetTemplateByOrganizationAndName(_ context.Context, arg da
 		if template.Deleted != arg.Deleted {
 			continue
 		}
-		return template.DeepCopy(), nil
+		return q.templateWithUserNoLock(template), nil
 	}
 	return database.Template{}, sql.ErrNoRows
 }
@@ -2387,6 +1942,129 @@ func (q *FakeQuerier) GetTemplateDAUs(_ context.Context, arg database.GetTemplat
 	}
 
 	return rs, nil
+}
+
+func (q *FakeQuerier) GetTemplateDailyInsights(_ context.Context, arg database.GetTemplateDailyInsightsParams) ([]database.GetTemplateDailyInsightsRow, error) {
+	err := validateDatabaseType(arg)
+	if err != nil {
+		return nil, err
+	}
+
+	type dailyStat struct {
+		startTime, endTime time.Time
+		userSet            map[uuid.UUID]struct{}
+		templateIDSet      map[uuid.UUID]struct{}
+	}
+	dailyStats := []dailyStat{{arg.StartTime, arg.StartTime.AddDate(0, 0, 1), make(map[uuid.UUID]struct{}), make(map[uuid.UUID]struct{})}}
+	for dailyStats[len(dailyStats)-1].endTime.Before(arg.EndTime) {
+		dailyStats = append(dailyStats, dailyStat{dailyStats[len(dailyStats)-1].endTime, dailyStats[len(dailyStats)-1].endTime.AddDate(0, 0, 1), make(map[uuid.UUID]struct{}), make(map[uuid.UUID]struct{})})
+	}
+	if dailyStats[len(dailyStats)-1].endTime.After(arg.EndTime) {
+		dailyStats[len(dailyStats)-1].endTime = arg.EndTime
+	}
+
+	for _, s := range q.workspaceAgentStats {
+		if s.CreatedAt.Before(arg.StartTime) || s.CreatedAt.Equal(arg.EndTime) || s.CreatedAt.After(arg.EndTime) {
+			continue
+		}
+		if len(arg.TemplateIDs) > 0 && !slices.Contains(arg.TemplateIDs, s.TemplateID) {
+			continue
+		}
+		if s.ConnectionCount == 0 {
+			continue
+		}
+
+		for _, ds := range dailyStats {
+			if s.CreatedAt.Before(ds.startTime) || s.CreatedAt.Equal(ds.endTime) || s.CreatedAt.After(ds.endTime) {
+				continue
+			}
+			ds.userSet[s.UserID] = struct{}{}
+			ds.templateIDSet[s.TemplateID] = struct{}{}
+			break
+		}
+	}
+
+	var result []database.GetTemplateDailyInsightsRow
+	for _, ds := range dailyStats {
+		templateIDs := make([]uuid.UUID, 0, len(ds.templateIDSet))
+		for templateID := range ds.templateIDSet {
+			templateIDs = append(templateIDs, templateID)
+		}
+		slices.SortFunc(templateIDs, func(a, b uuid.UUID) bool {
+			return a.String() < b.String()
+		})
+		result = append(result, database.GetTemplateDailyInsightsRow{
+			StartTime:   ds.startTime,
+			EndTime:     ds.endTime,
+			TemplateIDs: templateIDs,
+			ActiveUsers: int64(len(ds.userSet)),
+		})
+	}
+	return result, nil
+}
+
+func (q *FakeQuerier) GetTemplateInsights(_ context.Context, arg database.GetTemplateInsightsParams) (database.GetTemplateInsightsRow, error) {
+	err := validateDatabaseType(arg)
+	if err != nil {
+		return database.GetTemplateInsightsRow{}, err
+	}
+
+	templateIDSet := make(map[uuid.UUID]struct{})
+	appUsageIntervalsByUser := make(map[uuid.UUID]map[time.Time]*database.GetTemplateInsightsRow)
+	for _, s := range q.workspaceAgentStats {
+		if s.CreatedAt.Before(arg.StartTime) || s.CreatedAt.Equal(arg.EndTime) || s.CreatedAt.After(arg.EndTime) {
+			continue
+		}
+		if len(arg.TemplateIDs) > 0 && !slices.Contains(arg.TemplateIDs, s.TemplateID) {
+			continue
+		}
+		if s.ConnectionCount == 0 {
+			continue
+		}
+
+		templateIDSet[s.TemplateID] = struct{}{}
+		if appUsageIntervalsByUser[s.UserID] == nil {
+			appUsageIntervalsByUser[s.UserID] = make(map[time.Time]*database.GetTemplateInsightsRow)
+		}
+		t := s.CreatedAt.Truncate(5 * time.Minute)
+		if _, ok := appUsageIntervalsByUser[s.UserID][t]; !ok {
+			appUsageIntervalsByUser[s.UserID][t] = &database.GetTemplateInsightsRow{}
+		}
+
+		if s.SessionCountJetBrains > 0 {
+			appUsageIntervalsByUser[s.UserID][t].UsageJetbrainsSeconds = 300
+		}
+		if s.SessionCountVSCode > 0 {
+			appUsageIntervalsByUser[s.UserID][t].UsageVscodeSeconds = 300
+		}
+		if s.SessionCountReconnectingPTY > 0 {
+			appUsageIntervalsByUser[s.UserID][t].UsageReconnectingPtySeconds = 300
+		}
+		if s.SessionCountSSH > 0 {
+			appUsageIntervalsByUser[s.UserID][t].UsageSshSeconds = 300
+		}
+	}
+
+	templateIDs := make([]uuid.UUID, 0, len(templateIDSet))
+	for templateID := range templateIDSet {
+		templateIDs = append(templateIDs, templateID)
+	}
+	slices.SortFunc(templateIDs, func(a, b uuid.UUID) bool {
+		return a.String() < b.String()
+	})
+	result := database.GetTemplateInsightsRow{
+		TemplateIDs: templateIDs,
+		ActiveUsers: int64(len(appUsageIntervalsByUser)),
+	}
+	for _, intervals := range appUsageIntervalsByUser {
+		for _, interval := range intervals {
+			result.UsageJetbrainsSeconds += interval.UsageJetbrainsSeconds
+			result.UsageVscodeSeconds += interval.UsageVscodeSeconds
+			result.UsageReconnectingPtySeconds += interval.UsageReconnectingPtySeconds
+			result.UsageSshSeconds += interval.UsageSshSeconds
+		}
+	}
+	return result, nil
 }
 
 func (q *FakeQuerier) GetTemplateVersionByID(ctx context.Context, templateVersionID uuid.UUID) (database.TemplateVersion, error) {
@@ -2564,17 +2242,14 @@ func (q *FakeQuerier) GetTemplates(_ context.Context) ([]database.Template, erro
 	defer q.mutex.RUnlock()
 
 	templates := slices.Clone(q.templates)
-	for i := range templates {
-		templates[i] = templates[i].DeepCopy()
-	}
-	slices.SortFunc(templates, func(i, j database.Template) bool {
+	slices.SortFunc(templates, func(i, j database.TemplateTable) bool {
 		if i.Name != j.Name {
 			return i.Name < j.Name
 		}
 		return i.ID.String() < j.ID.String()
 	})
 
-	return templates, nil
+	return q.templatesWithUserNoLock(templates), nil
 }
 
 func (q *FakeQuerier) GetTemplatesWithFilter(ctx context.Context, arg database.GetTemplatesWithFilterParams) ([]database.Template, error) {
@@ -2634,6 +2309,78 @@ func (q *FakeQuerier) GetUserCount(_ context.Context) (int64, error) {
 		}
 	}
 	return existing, nil
+}
+
+func (q *FakeQuerier) GetUserLatencyInsights(_ context.Context, arg database.GetUserLatencyInsightsParams) ([]database.GetUserLatencyInsightsRow, error) {
+	err := validateDatabaseType(arg)
+	if err != nil {
+		return nil, err
+	}
+
+	q.mutex.RLock()
+	defer q.mutex.RUnlock()
+
+	latenciesByUserID := make(map[uuid.UUID][]float64)
+	seenTemplatesByUserID := make(map[uuid.UUID]map[uuid.UUID]struct{})
+	for _, s := range q.workspaceAgentStats {
+		if len(arg.TemplateIDs) > 0 && !slices.Contains(arg.TemplateIDs, s.TemplateID) {
+			continue
+		}
+		if !arg.StartTime.Equal(s.CreatedAt) && (s.CreatedAt.Before(arg.StartTime) || s.CreatedAt.After(arg.EndTime)) {
+			continue
+		}
+		if s.ConnectionCount == 0 {
+			continue
+		}
+		if s.ConnectionMedianLatencyMS <= 0 {
+			continue
+		}
+
+		latenciesByUserID[s.UserID] = append(latenciesByUserID[s.UserID], s.ConnectionMedianLatencyMS)
+		if seenTemplatesByUserID[s.UserID] == nil {
+			seenTemplatesByUserID[s.UserID] = make(map[uuid.UUID]struct{})
+		}
+		seenTemplatesByUserID[s.UserID][s.TemplateID] = struct{}{}
+	}
+
+	tryPercentile := func(fs []float64, p float64) float64 {
+		if len(fs) == 0 {
+			return -1
+		}
+		sort.Float64s(fs)
+		return fs[int(float64(len(fs))*p/100)]
+	}
+
+	var rows []database.GetUserLatencyInsightsRow
+	for userID, latencies := range latenciesByUserID {
+		sort.Float64s(latencies)
+		templateIDSet := seenTemplatesByUserID[userID]
+		templateIDs := make([]uuid.UUID, 0, len(templateIDSet))
+		for templateID := range templateIDSet {
+			templateIDs = append(templateIDs, templateID)
+		}
+		slices.SortFunc(templateIDs, func(a, b uuid.UUID) bool {
+			return a.String() < b.String()
+		})
+		user, err := q.getUserByIDNoLock(userID)
+		if err != nil {
+			return nil, err
+		}
+		row := database.GetUserLatencyInsightsRow{
+			UserID:                       userID,
+			Username:                     user.Username,
+			AvatarURL:                    user.AvatarURL,
+			TemplateIDs:                  templateIDs,
+			WorkspaceConnectionLatency50: tryPercentile(latencies, 50),
+			WorkspaceConnectionLatency95: tryPercentile(latencies, 95),
+		}
+		rows = append(rows, row)
+	}
+	slices.SortFunc(rows, func(a, b database.GetUserLatencyInsightsRow) bool {
+		return a.UserID.String() < b.UserID.String()
+	})
+
+	return rows, nil
 }
 
 func (q *FakeQuerier) GetUserLinkByLinkedID(_ context.Context, id string) (database.UserLink, error) {
@@ -3908,16 +3655,16 @@ func (q *FakeQuerier) InsertReplica(_ context.Context, arg database.InsertReplic
 	return replica, nil
 }
 
-func (q *FakeQuerier) InsertTemplate(_ context.Context, arg database.InsertTemplateParams) (database.Template, error) {
+func (q *FakeQuerier) InsertTemplate(_ context.Context, arg database.InsertTemplateParams) error {
 	if err := validateDatabaseType(arg); err != nil {
-		return database.Template{}, err
+		return err
 	}
 
 	q.mutex.Lock()
 	defer q.mutex.Unlock()
 
 	//nolint:gosimple
-	template := database.Template{
+	template := database.TemplateTable{
 		ID:                           arg.ID,
 		CreatedAt:                    arg.CreatedAt,
 		UpdatedAt:                    arg.UpdatedAt,
@@ -3936,7 +3683,7 @@ func (q *FakeQuerier) InsertTemplate(_ context.Context, arg database.InsertTempl
 		AllowUserAutostop:            true,
 	}
 	q.templates = append(q.templates, template)
-	return template.DeepCopy(), nil
+	return nil
 }
 
 func (q *FakeQuerier) InsertTemplateVersion(_ context.Context, arg database.InsertTemplateVersionParams) (database.TemplateVersion, error) {
@@ -4644,9 +4391,9 @@ func (q *FakeQuerier) UpdateReplica(_ context.Context, arg database.UpdateReplic
 	return database.Replica{}, sql.ErrNoRows
 }
 
-func (q *FakeQuerier) UpdateTemplateACLByID(_ context.Context, arg database.UpdateTemplateACLByIDParams) (database.Template, error) {
+func (q *FakeQuerier) UpdateTemplateACLByID(_ context.Context, arg database.UpdateTemplateACLByIDParams) error {
 	if err := validateDatabaseType(arg); err != nil {
-		return database.Template{}, err
+		return err
 	}
 
 	q.mutex.Lock()
@@ -4658,11 +4405,11 @@ func (q *FakeQuerier) UpdateTemplateACLByID(_ context.Context, arg database.Upda
 			template.UserACL = arg.UserACL
 
 			q.templates[i] = template
-			return template.DeepCopy(), nil
+			return nil
 		}
 	}
 
-	return database.Template{}, sql.ErrNoRows
+	return sql.ErrNoRows
 }
 
 func (q *FakeQuerier) UpdateTemplateActiveVersionByID(_ context.Context, arg database.UpdateTemplateActiveVersionByIDParams) error {
@@ -4705,9 +4452,9 @@ func (q *FakeQuerier) UpdateTemplateDeletedByID(_ context.Context, arg database.
 	return sql.ErrNoRows
 }
 
-func (q *FakeQuerier) UpdateTemplateMetaByID(_ context.Context, arg database.UpdateTemplateMetaByIDParams) (database.Template, error) {
+func (q *FakeQuerier) UpdateTemplateMetaByID(_ context.Context, arg database.UpdateTemplateMetaByIDParams) error {
 	if err := validateDatabaseType(arg); err != nil {
-		return database.Template{}, err
+		return err
 	}
 
 	q.mutex.Lock()
@@ -4723,15 +4470,15 @@ func (q *FakeQuerier) UpdateTemplateMetaByID(_ context.Context, arg database.Upd
 		tpl.Description = arg.Description
 		tpl.Icon = arg.Icon
 		q.templates[idx] = tpl
-		return tpl.DeepCopy(), nil
+		return nil
 	}
 
-	return database.Template{}, sql.ErrNoRows
+	return sql.ErrNoRows
 }
 
-func (q *FakeQuerier) UpdateTemplateScheduleByID(_ context.Context, arg database.UpdateTemplateScheduleByIDParams) (database.Template, error) {
+func (q *FakeQuerier) UpdateTemplateScheduleByID(_ context.Context, arg database.UpdateTemplateScheduleByIDParams) error {
 	if err := validateDatabaseType(arg); err != nil {
-		return database.Template{}, err
+		return err
 	}
 
 	q.mutex.Lock()
@@ -4746,14 +4493,16 @@ func (q *FakeQuerier) UpdateTemplateScheduleByID(_ context.Context, arg database
 		tpl.UpdatedAt = database.Now()
 		tpl.DefaultTTL = arg.DefaultTTL
 		tpl.MaxTTL = arg.MaxTTL
+		tpl.RestartRequirementDaysOfWeek = arg.RestartRequirementDaysOfWeek
+		tpl.RestartRequirementWeeks = arg.RestartRequirementWeeks
 		tpl.FailureTTL = arg.FailureTTL
 		tpl.InactivityTTL = arg.InactivityTTL
 		tpl.LockedTTL = arg.LockedTTL
 		q.templates[idx] = tpl
-		return tpl.DeepCopy(), nil
+		return nil
 	}
 
-	return database.Template{}, sql.ErrNoRows
+	return sql.ErrNoRows
 }
 
 func (q *FakeQuerier) UpdateTemplateVersionByID(_ context.Context, arg database.UpdateTemplateVersionByIDParams) (database.TemplateVersion, error) {
@@ -4771,6 +4520,7 @@ func (q *FakeQuerier) UpdateTemplateVersionByID(_ context.Context, arg database.
 		templateVersion.TemplateID = arg.TemplateID
 		templateVersion.UpdatedAt = arg.UpdatedAt
 		templateVersion.Name = arg.Name
+		templateVersion.Message = arg.Message
 		q.templateVersions[index] = templateVersion
 		return templateVersion, nil
 	}
@@ -4967,6 +4717,25 @@ func (q *FakeQuerier) UpdateUserProfile(_ context.Context, arg database.UpdateUs
 		user.Email = arg.Email
 		user.Username = arg.Username
 		user.AvatarURL = arg.AvatarURL
+		q.users[index] = user
+		return user, nil
+	}
+	return database.User{}, sql.ErrNoRows
+}
+
+func (q *FakeQuerier) UpdateUserQuietHoursSchedule(_ context.Context, arg database.UpdateUserQuietHoursScheduleParams) (database.User, error) {
+	if err := validateDatabaseType(arg); err != nil {
+		return database.User{}, err
+	}
+
+	q.mutex.Lock()
+	defer q.mutex.Unlock()
+
+	for index, user := range q.users {
+		if user.ID != arg.ID {
+			continue
+		}
+		user.QuietHoursSchedule = arg.QuietHoursSchedule
 		q.users[index] = user
 		return user, nil
 	}
@@ -5279,24 +5048,42 @@ func (q *FakeQuerier) UpdateWorkspaceLastUsedAt(_ context.Context, arg database.
 	return sql.ErrNoRows
 }
 
-func (q *FakeQuerier) UpdateWorkspaceLockedAt(_ context.Context, arg database.UpdateWorkspaceLockedAtParams) error {
+func (q *FakeQuerier) UpdateWorkspaceLockedDeletingAt(_ context.Context, arg database.UpdateWorkspaceLockedDeletingAtParams) error {
 	if err := validateDatabaseType(arg); err != nil {
 		return err
 	}
-
 	q.mutex.Lock()
 	defer q.mutex.Unlock()
-
 	for index, workspace := range q.workspaces {
 		if workspace.ID != arg.ID {
 			continue
 		}
 		workspace.LockedAt = arg.LockedAt
-		workspace.LastUsedAt = database.Now()
+		if workspace.LockedAt.Time.IsZero() {
+			workspace.LastUsedAt = database.Now()
+			workspace.DeletingAt = sql.NullTime{}
+		}
+		if !workspace.LockedAt.Time.IsZero() {
+			var template database.TemplateTable
+			for _, t := range q.templates {
+				if t.ID == workspace.TemplateID {
+					template = t
+					break
+				}
+			}
+			if template.ID == uuid.Nil {
+				return xerrors.Errorf("unable to find workspace template")
+			}
+			if template.LockedTTL > 0 {
+				workspace.DeletingAt = sql.NullTime{
+					Valid: true,
+					Time:  workspace.LockedAt.Time.Add(time.Duration(template.LockedTTL)),
+				}
+			}
+		}
 		q.workspaces[index] = workspace
 		return nil
 	}
-
 	return sql.ErrNoRows
 }
 
@@ -5360,21 +5147,27 @@ func (q *FakeQuerier) UpdateWorkspaceTTL(_ context.Context, arg database.UpdateW
 	return sql.ErrNoRows
 }
 
-func (q *FakeQuerier) UpdateWorkspaceTTLToBeWithinTemplateMax(_ context.Context, arg database.UpdateWorkspaceTTLToBeWithinTemplateMaxParams) error {
-	if err := validateDatabaseType(arg); err != nil {
-		return err
-	}
-
+func (q *FakeQuerier) UpdateWorkspacesDeletingAtByTemplateID(_ context.Context, arg database.UpdateWorkspacesDeletingAtByTemplateIDParams) error {
 	q.mutex.Lock()
 	defer q.mutex.Unlock()
 
-	for index, workspace := range q.workspaces {
-		if workspace.TemplateID != arg.TemplateID || !workspace.Ttl.Valid || workspace.Ttl.Int64 < arg.TemplateMaxTTL {
+	err := validateDatabaseType(arg)
+	if err != nil {
+		return err
+	}
+
+	for i, ws := range q.workspaces {
+		if ws.LockedAt.Time.IsZero() {
 			continue
 		}
-
-		workspace.Ttl = sql.NullInt64{Int64: arg.TemplateMaxTTL, Valid: true}
-		q.workspaces[index] = workspace
+		deletingAt := sql.NullTime{
+			Valid: arg.LockedTtlMs > 0,
+		}
+		if arg.LockedTtlMs > 0 {
+			deletingAt.Time = ws.LockedAt.Time.Add(time.Duration(arg.LockedTtlMs) * time.Millisecond)
+		}
+		ws.DeletingAt = deletingAt
+		q.workspaces[i] = ws
 	}
 
 	return nil
@@ -5436,4 +5229,431 @@ func (*FakeQuerier) UpsertTailnetClient(context.Context, database.UpsertTailnetC
 
 func (*FakeQuerier) UpsertTailnetCoordinator(context.Context, uuid.UUID) (database.TailnetCoordinator, error) {
 	return database.TailnetCoordinator{}, ErrUnimplemented
+}
+
+func (q *FakeQuerier) GetAuthorizedTemplates(ctx context.Context, arg database.GetTemplatesWithFilterParams, prepared rbac.PreparedAuthorized) ([]database.Template, error) {
+	if err := validateDatabaseType(arg); err != nil {
+		return nil, err
+	}
+
+	q.mutex.RLock()
+	defer q.mutex.RUnlock()
+
+	// Call this to match the same function calls as the SQL implementation.
+	if prepared != nil {
+		_, err := prepared.CompileToSQL(ctx, rbac.ConfigWithACL())
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	var templates []database.Template
+	for _, templateTable := range q.templates {
+		template := q.templateWithUserNoLock(templateTable)
+		if prepared != nil && prepared.Authorize(ctx, template.RBACObject()) != nil {
+			continue
+		}
+
+		if template.Deleted != arg.Deleted {
+			continue
+		}
+		if arg.OrganizationID != uuid.Nil && template.OrganizationID != arg.OrganizationID {
+			continue
+		}
+
+		if arg.ExactName != "" && !strings.EqualFold(template.Name, arg.ExactName) {
+			continue
+		}
+
+		if len(arg.IDs) > 0 {
+			match := false
+			for _, id := range arg.IDs {
+				if template.ID == id {
+					match = true
+					break
+				}
+			}
+			if !match {
+				continue
+			}
+		}
+		templates = append(templates, template)
+	}
+	if len(templates) > 0 {
+		slices.SortFunc(templates, func(i, j database.Template) bool {
+			if i.Name != j.Name {
+				return i.Name < j.Name
+			}
+			return i.ID.String() < j.ID.String()
+		})
+		return templates, nil
+	}
+
+	return nil, sql.ErrNoRows
+}
+
+func (q *FakeQuerier) GetTemplateGroupRoles(_ context.Context, id uuid.UUID) ([]database.TemplateGroup, error) {
+	q.mutex.RLock()
+	defer q.mutex.RUnlock()
+
+	var template database.TemplateTable
+	for _, t := range q.templates {
+		if t.ID == id {
+			template = t
+			break
+		}
+	}
+
+	if template.ID == uuid.Nil {
+		return nil, sql.ErrNoRows
+	}
+
+	groups := make([]database.TemplateGroup, 0, len(template.GroupACL))
+	for k, v := range template.GroupACL {
+		group, err := q.getGroupByIDNoLock(context.Background(), uuid.MustParse(k))
+		if err != nil && !xerrors.Is(err, sql.ErrNoRows) {
+			return nil, xerrors.Errorf("get group by ID: %w", err)
+		}
+		// We don't delete groups from the map if they
+		// get deleted so just skip.
+		if xerrors.Is(err, sql.ErrNoRows) {
+			continue
+		}
+
+		groups = append(groups, database.TemplateGroup{
+			Group:   group,
+			Actions: v,
+		})
+	}
+
+	return groups, nil
+}
+
+func (q *FakeQuerier) GetTemplateUserRoles(_ context.Context, id uuid.UUID) ([]database.TemplateUser, error) {
+	q.mutex.RLock()
+	defer q.mutex.RUnlock()
+
+	var template database.TemplateTable
+	for _, t := range q.templates {
+		if t.ID == id {
+			template = t
+			break
+		}
+	}
+
+	if template.ID == uuid.Nil {
+		return nil, sql.ErrNoRows
+	}
+
+	users := make([]database.TemplateUser, 0, len(template.UserACL))
+	for k, v := range template.UserACL {
+		user, err := q.getUserByIDNoLock(uuid.MustParse(k))
+		if err != nil && xerrors.Is(err, sql.ErrNoRows) {
+			return nil, xerrors.Errorf("get user by ID: %w", err)
+		}
+		// We don't delete users from the map if they
+		// get deleted so just skip.
+		if xerrors.Is(err, sql.ErrNoRows) {
+			continue
+		}
+
+		if user.Deleted || user.Status == database.UserStatusSuspended {
+			continue
+		}
+
+		users = append(users, database.TemplateUser{
+			User:    user,
+			Actions: v,
+		})
+	}
+
+	return users, nil
+}
+
+//nolint:gocyclo
+func (q *FakeQuerier) GetAuthorizedWorkspaces(ctx context.Context, arg database.GetWorkspacesParams, prepared rbac.PreparedAuthorized) ([]database.GetWorkspacesRow, error) {
+	if err := validateDatabaseType(arg); err != nil {
+		return nil, err
+	}
+
+	q.mutex.RLock()
+	defer q.mutex.RUnlock()
+
+	if prepared != nil {
+		// Call this to match the same function calls as the SQL implementation.
+		_, err := prepared.CompileToSQL(ctx, rbac.ConfigWithoutACL())
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	workspaces := make([]database.Workspace, 0)
+	for _, workspace := range q.workspaces {
+		if arg.OwnerID != uuid.Nil && workspace.OwnerID != arg.OwnerID {
+			continue
+		}
+
+		if arg.OwnerUsername != "" {
+			owner, err := q.getUserByIDNoLock(workspace.OwnerID)
+			if err == nil && !strings.EqualFold(arg.OwnerUsername, owner.Username) {
+				continue
+			}
+		}
+
+		if arg.TemplateName != "" {
+			template, err := q.getTemplateByIDNoLock(ctx, workspace.TemplateID)
+			if err == nil && !strings.EqualFold(arg.TemplateName, template.Name) {
+				continue
+			}
+		}
+
+		if !arg.Deleted && workspace.Deleted {
+			continue
+		}
+
+		if arg.Name != "" && !strings.Contains(strings.ToLower(workspace.Name), strings.ToLower(arg.Name)) {
+			continue
+		}
+
+		if arg.Status != "" {
+			build, err := q.getLatestWorkspaceBuildByWorkspaceIDNoLock(ctx, workspace.ID)
+			if err != nil {
+				return nil, xerrors.Errorf("get latest build: %w", err)
+			}
+
+			job, err := q.getProvisionerJobByIDNoLock(ctx, build.JobID)
+			if err != nil {
+				return nil, xerrors.Errorf("get provisioner job: %w", err)
+			}
+
+			// This logic should match the logic in the workspace.sql file.
+			var statusMatch bool
+			switch database.WorkspaceStatus(arg.Status) {
+			case database.WorkspaceStatusPending:
+				statusMatch = isNull(job.StartedAt)
+			case database.WorkspaceStatusStarting:
+				statusMatch = isNotNull(job.StartedAt) &&
+					isNull(job.CanceledAt) &&
+					isNull(job.CompletedAt) &&
+					time.Since(job.UpdatedAt) < 30*time.Second &&
+					build.Transition == database.WorkspaceTransitionStart
+
+			case database.WorkspaceStatusRunning:
+				statusMatch = isNotNull(job.CompletedAt) &&
+					isNull(job.CanceledAt) &&
+					isNull(job.Error) &&
+					build.Transition == database.WorkspaceTransitionStart
+
+			case database.WorkspaceStatusStopping:
+				statusMatch = isNotNull(job.StartedAt) &&
+					isNull(job.CanceledAt) &&
+					isNull(job.CompletedAt) &&
+					time.Since(job.UpdatedAt) < 30*time.Second &&
+					build.Transition == database.WorkspaceTransitionStop
+
+			case database.WorkspaceStatusStopped:
+				statusMatch = isNotNull(job.CompletedAt) &&
+					isNull(job.CanceledAt) &&
+					isNull(job.Error) &&
+					build.Transition == database.WorkspaceTransitionStop
+			case database.WorkspaceStatusFailed:
+				statusMatch = (isNotNull(job.CanceledAt) && isNotNull(job.Error)) ||
+					(isNotNull(job.CompletedAt) && isNotNull(job.Error))
+
+			case database.WorkspaceStatusCanceling:
+				statusMatch = isNotNull(job.CanceledAt) &&
+					isNull(job.CompletedAt)
+
+			case database.WorkspaceStatusCanceled:
+				statusMatch = isNotNull(job.CanceledAt) &&
+					isNotNull(job.CompletedAt)
+
+			case database.WorkspaceStatusDeleted:
+				statusMatch = isNotNull(job.StartedAt) &&
+					isNull(job.CanceledAt) &&
+					isNotNull(job.CompletedAt) &&
+					time.Since(job.UpdatedAt) < 30*time.Second &&
+					build.Transition == database.WorkspaceTransitionDelete &&
+					isNull(job.Error)
+
+			case database.WorkspaceStatusDeleting:
+				statusMatch = isNull(job.CompletedAt) &&
+					isNull(job.CanceledAt) &&
+					isNull(job.Error) &&
+					build.Transition == database.WorkspaceTransitionDelete
+
+			default:
+				return nil, xerrors.Errorf("unknown workspace status in filter: %q", arg.Status)
+			}
+			if !statusMatch {
+				continue
+			}
+		}
+
+		if arg.HasAgent != "" {
+			build, err := q.getLatestWorkspaceBuildByWorkspaceIDNoLock(ctx, workspace.ID)
+			if err != nil {
+				return nil, xerrors.Errorf("get latest build: %w", err)
+			}
+
+			job, err := q.getProvisionerJobByIDNoLock(ctx, build.JobID)
+			if err != nil {
+				return nil, xerrors.Errorf("get provisioner job: %w", err)
+			}
+
+			workspaceResources, err := q.getWorkspaceResourcesByJobIDNoLock(ctx, job.ID)
+			if err != nil {
+				return nil, xerrors.Errorf("get workspace resources: %w", err)
+			}
+
+			var workspaceResourceIDs []uuid.UUID
+			for _, wr := range workspaceResources {
+				workspaceResourceIDs = append(workspaceResourceIDs, wr.ID)
+			}
+
+			workspaceAgents, err := q.getWorkspaceAgentsByResourceIDsNoLock(ctx, workspaceResourceIDs)
+			if err != nil {
+				return nil, xerrors.Errorf("get workspace agents: %w", err)
+			}
+
+			var hasAgentMatched bool
+			for _, wa := range workspaceAgents {
+				if mapAgentStatus(wa, arg.AgentInactiveDisconnectTimeoutSeconds) == arg.HasAgent {
+					hasAgentMatched = true
+				}
+			}
+
+			if !hasAgentMatched {
+				continue
+			}
+		}
+
+		if len(arg.TemplateIDs) > 0 {
+			match := false
+			for _, id := range arg.TemplateIDs {
+				if workspace.TemplateID == id {
+					match = true
+					break
+				}
+			}
+			if !match {
+				continue
+			}
+		}
+
+		// If the filter exists, ensure the object is authorized.
+		if prepared != nil && prepared.Authorize(ctx, workspace.RBACObject()) != nil {
+			continue
+		}
+		workspaces = append(workspaces, workspace)
+	}
+
+	// Sort workspaces (ORDER BY)
+	isRunning := func(build database.WorkspaceBuild, job database.ProvisionerJob) bool {
+		return job.CompletedAt.Valid && !job.CanceledAt.Valid && !job.Error.Valid && build.Transition == database.WorkspaceTransitionStart
+	}
+
+	preloadedWorkspaceBuilds := map[uuid.UUID]database.WorkspaceBuild{}
+	preloadedProvisionerJobs := map[uuid.UUID]database.ProvisionerJob{}
+	preloadedUsers := map[uuid.UUID]database.User{}
+
+	for _, w := range workspaces {
+		build, err := q.getLatestWorkspaceBuildByWorkspaceIDNoLock(ctx, w.ID)
+		if err == nil {
+			preloadedWorkspaceBuilds[w.ID] = build
+		} else if !errors.Is(err, sql.ErrNoRows) {
+			return nil, xerrors.Errorf("get latest build: %w", err)
+		}
+
+		job, err := q.getProvisionerJobByIDNoLock(ctx, build.JobID)
+		if err == nil {
+			preloadedProvisionerJobs[w.ID] = job
+		} else if !errors.Is(err, sql.ErrNoRows) {
+			return nil, xerrors.Errorf("get provisioner job: %w", err)
+		}
+
+		user, err := q.getUserByIDNoLock(w.OwnerID)
+		if err == nil {
+			preloadedUsers[w.ID] = user
+		} else if !errors.Is(err, sql.ErrNoRows) {
+			return nil, xerrors.Errorf("get user: %w", err)
+		}
+	}
+
+	sort.Slice(workspaces, func(i, j int) bool {
+		w1 := workspaces[i]
+		w2 := workspaces[j]
+
+		// Order by: running first
+		w1IsRunning := isRunning(preloadedWorkspaceBuilds[w1.ID], preloadedProvisionerJobs[w1.ID])
+		w2IsRunning := isRunning(preloadedWorkspaceBuilds[w2.ID], preloadedProvisionerJobs[w2.ID])
+
+		if w1IsRunning && !w2IsRunning {
+			return true
+		}
+
+		if !w1IsRunning && w2IsRunning {
+			return false
+		}
+
+		// Order by: usernames
+		if w1.ID != w2.ID {
+			return sort.StringsAreSorted([]string{preloadedUsers[w1.ID].Username, preloadedUsers[w2.ID].Username})
+		}
+
+		// Order by: workspace names
+		return sort.StringsAreSorted([]string{w1.Name, w2.Name})
+	})
+
+	beforePageCount := len(workspaces)
+
+	if arg.Offset > 0 {
+		if int(arg.Offset) > len(workspaces) {
+			return []database.GetWorkspacesRow{}, nil
+		}
+		workspaces = workspaces[arg.Offset:]
+	}
+	if arg.Limit > 0 {
+		if int(arg.Limit) > len(workspaces) {
+			return q.convertToWorkspaceRowsNoLock(ctx, workspaces, int64(beforePageCount)), nil
+		}
+		workspaces = workspaces[:arg.Limit]
+	}
+
+	return q.convertToWorkspaceRowsNoLock(ctx, workspaces, int64(beforePageCount)), nil
+}
+
+func (q *FakeQuerier) GetAuthorizedUsers(ctx context.Context, arg database.GetUsersParams, prepared rbac.PreparedAuthorized) ([]database.GetUsersRow, error) {
+	if err := validateDatabaseType(arg); err != nil {
+		return nil, err
+	}
+
+	// Call this to match the same function calls as the SQL implementation.
+	if prepared != nil {
+		_, err := prepared.CompileToSQL(ctx, regosql.ConvertConfig{
+			VariableConverter: regosql.UserConverter(),
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	users, err := q.GetUsers(ctx, arg)
+	if err != nil {
+		return nil, err
+	}
+
+	q.mutex.RLock()
+	defer q.mutex.RUnlock()
+
+	filteredUsers := make([]database.GetUsersRow, 0, len(users))
+	for _, user := range users {
+		// If the filter exists, ensure the object is authorized.
+		if prepared != nil && prepared.Authorize(ctx, user.RBACObject()) != nil {
+			continue
+		}
+
+		filteredUsers = append(filteredUsers, user)
+	}
+	return filteredUsers, nil
 }

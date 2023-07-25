@@ -149,31 +149,34 @@ export const MockWorkspaceProxies: TypesGen.WorkspaceProxy[] = [
 ]
 
 export const MockProxyLatencies: Record<string, ProxyLatencyReport> = {
-  ...MockWorkspaceProxies.reduce((acc, proxy) => {
-    if (!proxy.healthy) {
+  ...MockWorkspaceProxies.reduce(
+    (acc, proxy) => {
+      if (!proxy.healthy) {
+        return acc
+      }
+      acc[proxy.id] = {
+        // Make one of them inaccurate.
+        accurate: proxy.id !== "26e84c16-db24-4636-a62d-aa1a4232b858",
+        // This is a deterministic way to generate a latency to for each proxy.
+        // It will be the same for each run as long as the IDs don't change.
+        latencyMS:
+          (Number(
+            Array.from(proxy.id).reduce(
+              // Multiply each char code by some large prime number to increase the
+              // size of the number and allow use to get some decimal points.
+              (acc, char) => acc + char.charCodeAt(0) * 37,
+              0,
+            ),
+          ) /
+            // Cap at 250ms
+            100) %
+          250,
+        at: new Date(),
+      }
       return acc
-    }
-    acc[proxy.id] = {
-      // Make one of them inaccurate.
-      accurate: proxy.id !== "26e84c16-db24-4636-a62d-aa1a4232b858",
-      // This is a deterministic way to generate a latency to for each proxy.
-      // It will be the same for each run as long as the IDs don't change.
-      latencyMS:
-        (Number(
-          Array.from(proxy.id).reduce(
-            // Multiply each char code by some large prime number to increase the
-            // size of the number and allow use to get some decimal points.
-            (acc, char) => acc + char.charCodeAt(0) * 37,
-            0,
-          ),
-        ) /
-          // Cap at 250ms
-          100) %
-        250,
-      at: new Date(),
-    }
-    return acc
-  }, {} as Record<string, ProxyLatencyReport>),
+    },
+    {} as Record<string, ProxyLatencyReport>,
+  ),
 }
 
 export const MockBuildInfo: TypesGen.BuildInfoResponse = {
@@ -265,6 +268,7 @@ export const MockUser: TypesGen.User = {
   roles: [MockOwnerRole],
   avatar_url: "https://avatars.githubusercontent.com/u/95932066?s=200&v=4",
   last_seen_at: "",
+  login_type: "password",
 }
 
 export const MockUserAdmin: TypesGen.User = {
@@ -277,6 +281,7 @@ export const MockUserAdmin: TypesGen.User = {
   roles: [MockUserAdminRole],
   avatar_url: "",
   last_seen_at: "",
+  login_type: "password",
 }
 
 export const MockUser2: TypesGen.User = {
@@ -289,6 +294,7 @@ export const MockUser2: TypesGen.User = {
   roles: [],
   avatar_url: "",
   last_seen_at: "2022-09-14T19:12:21Z",
+  login_type: "oidc",
 }
 
 export const SuspendedMockUser: TypesGen.User = {
@@ -301,6 +307,7 @@ export const SuspendedMockUser: TypesGen.User = {
   roles: [],
   avatar_url: "",
   last_seen_at: "",
+  login_type: "password",
 }
 
 export const MockProvisioner: TypesGen.ProvisionerDaemon = {
@@ -421,6 +428,10 @@ export const MockTemplate: TypesGen.Template = {
   description: "This is a test description.",
   default_ttl_ms: 24 * 60 * 60 * 1000,
   max_ttl_ms: 2 * 24 * 60 * 60 * 1000,
+  restart_requirement: {
+    days_of_week: [],
+    weeks: 1,
+  },
   created_by_id: "test-creator-id",
   created_by_name: "test_creator",
   icon: "/icon/code.svg",

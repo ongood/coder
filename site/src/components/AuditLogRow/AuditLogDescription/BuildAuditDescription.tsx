@@ -10,14 +10,25 @@ export const BuildAuditDescription: FC<{ auditLog: AuditLog }> = ({
   const { t } = useTranslation("auditLog")
 
   const workspaceName = auditLog.additional_fields?.workspace_name?.trim()
-  // workspaces can be started/stopped by a user, or kicked off automatically by Coder
+  // workspaces can be started/stopped/deleted by a user, or kicked off automatically by Coder
   const user =
     auditLog.additional_fields?.build_reason &&
     auditLog.additional_fields?.build_reason !== "initiator"
       ? "Coder 自动"
       : auditLog.user?.username.trim()
 
-  const action = auditLog.action === "start" ? "启动了" : "停止了"
+  const action: string = (() => {
+    switch (auditLog.action) {
+      case "start":
+        return "started"
+      case "stop":
+        return "stopped"
+      case "delete":
+        return "deleted"
+      default:
+        return auditLog.action
+    }
+  })()
 
   if (auditLog.resource_link) {
     return (

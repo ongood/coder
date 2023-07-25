@@ -11,6 +11,7 @@ import {
   deploymentGroupHasParent,
   useDeploymentOptions,
 } from "utils/deployOptions"
+import { docs } from "utils/docs"
 
 export type UserAuthSettingsPageViewProps = {
   options: DeploymentOption[]
@@ -28,7 +29,7 @@ export const UserAuthSettingsPageView = ({
           title="使用OIDC登录"
           secondary
           description="设置使用OpenID Connect(OIDC)进行登录的认证方式。"
-          docsHref="https://coder.com/docs/coder-oss/latest/admin/auth#openid-connect-with-google"
+          docsHref={docs("/admin/auth#openid-connect-with-google")}
         />
 
         <Badges>
@@ -51,7 +52,7 @@ export const UserAuthSettingsPageView = ({
           title="使用GitHub登录"
           secondary
           description="设置使用GitHub进行登录的认证方式。"
-          docsHref="https://coder.com/docs/coder-oss/latest/admin/auth#github"
+          docsHref={docs("/admin/auth#github")}
         />
 
         <Badges>

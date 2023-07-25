@@ -65,7 +65,8 @@ export const Language = {
   startSwitch: "启用自动启动",
   stopSection: "关闭",
   stopSwitch: "启用自动停止",
-};
+}
+
 export interface WorkspaceScheduleFormProps {
   submitScheduleError?: unknown
   initialValues: WorkspaceScheduleFormValues
@@ -166,7 +167,7 @@ export const validationSchema = Yup.object({
   ttl: Yup.number()
     .integer()
     .min(0)
-    .max(24 * 7 /* 7 days */, Language.errorTtlMax)
+    .max(24 * 30 /* 30 days */, Language.errorTtlMax)
     .test("positive-if-autostop", Language.errorNoStop, function (value) {
       const parent = this.parent as WorkspaceScheduleFormValues
       if (parent.autostopEnabled) {
