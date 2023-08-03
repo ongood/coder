@@ -174,6 +174,7 @@ curl -X GET http://coder-server:8080/api/v2/groups/{group} \
 ```json
 {
   "avatar_url": "string",
+  "display_name": "string",
   "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
   "members": [
     {
@@ -234,6 +235,7 @@ curl -X DELETE http://coder-server:8080/api/v2/groups/{group} \
 ```json
 {
   "avatar_url": "string",
+  "display_name": "string",
   "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
   "members": [
     {
@@ -294,6 +296,7 @@ curl -X PATCH http://coder-server:8080/api/v2/groups/{group} \
 ```json
 {
   "avatar_url": "string",
+  "display_name": "string",
   "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
   "members": [
     {
@@ -429,6 +432,7 @@ curl -X GET http://coder-server:8080/api/v2/organizations/{organization}/groups 
 [
   {
     "avatar_url": "string",
+    "display_name": "string",
     "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
     "members": [
       {
@@ -470,6 +474,7 @@ Status Code **200**
 | --------------------- | ---------------------------------------------------- | -------- | ------------ | ----------- |
 | `[array item]`        | array                                                | false    |              |             |
 | `» avatar_url`        | string                                               | false    |              |             |
+| `» display_name`      | string                                               | false    |              |             |
 | `» id`                | string(uuid)                                         | false    |              |             |
 | `» members`           | array                                                | false    |              |             |
 | `»» avatar_url`       | string(uri)                                          | false    |              |             |
@@ -521,6 +526,7 @@ curl -X POST http://coder-server:8080/api/v2/organizations/{organization}/groups
 ```json
 {
   "avatar_url": "string",
+  "display_name": "string",
   "name": "string",
   "quota_allowance": 0
 }
@@ -540,6 +546,7 @@ curl -X POST http://coder-server:8080/api/v2/organizations/{organization}/groups
 ```json
 {
   "avatar_url": "string",
+  "display_name": "string",
   "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
   "members": [
     {
@@ -601,6 +608,7 @@ curl -X GET http://coder-server:8080/api/v2/organizations/{organization}/groups/
 ```json
 {
   "avatar_url": "string",
+  "display_name": "string",
   "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
   "members": [
     {
@@ -1142,6 +1150,133 @@ curl -X PATCH http://coder-server:8080/api/v2/templates/{template}/acl \
 
 To perform this operation, you must be authenticated. [Learn more](authentication.md).
 
+## Get template available acl users/groups
+
+### Code samples
+
+```shell
+# Example request using curl
+curl -X GET http://coder-server:8080/api/v2/templates/{template}/acl/available \
+  -H 'Accept: application/json' \
+  -H 'Coder-Session-Token: API_KEY'
+```
+
+`GET /templates/{template}/acl/available`
+
+### Parameters
+
+| Name       | In   | Type         | Required | Description |
+| ---------- | ---- | ------------ | -------- | ----------- |
+| `template` | path | string(uuid) | true     | Template ID |
+
+### Example responses
+
+> 200 Response
+
+```json
+[
+  {
+    "groups": [
+      {
+        "avatar_url": "string",
+        "display_name": "string",
+        "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+        "members": [
+          {
+            "avatar_url": "http://example.com",
+            "created_at": "2019-08-24T14:15:22Z",
+            "email": "user@example.com",
+            "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+            "last_seen_at": "2019-08-24T14:15:22Z",
+            "login_type": "password",
+            "organization_ids": ["497f6eca-6276-4993-bfeb-53cbbbba6f08"],
+            "roles": [
+              {
+                "display_name": "string",
+                "name": "string"
+              }
+            ],
+            "status": "active",
+            "username": "string"
+          }
+        ],
+        "name": "string",
+        "organization_id": "7c60d51f-b44e-4682-87d6-449835ea4de6",
+        "quota_allowance": 0
+      }
+    ],
+    "users": [
+      {
+        "avatar_url": "http://example.com",
+        "created_at": "2019-08-24T14:15:22Z",
+        "email": "user@example.com",
+        "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+        "last_seen_at": "2019-08-24T14:15:22Z",
+        "login_type": "password",
+        "organization_ids": ["497f6eca-6276-4993-bfeb-53cbbbba6f08"],
+        "roles": [
+          {
+            "display_name": "string",
+            "name": "string"
+          }
+        ],
+        "status": "active",
+        "username": "string"
+      }
+    ]
+  }
+]
+```
+
+### Responses
+
+| Status | Meaning                                                 | Description | Schema                                                            |
+| ------ | ------------------------------------------------------- | ----------- | ----------------------------------------------------------------- |
+| 200    | [OK](https://tools.ietf.org/html/rfc7231#section-6.3.1) | OK          | array of [codersdk.ACLAvailable](schemas.md#codersdkaclavailable) |
+
+<h3 id="get-template-available-acl-users/groups-responseschema">Response Schema</h3>
+
+Status Code **200**
+
+| Name                   | Type                                                 | Required | Restrictions | Description |
+| ---------------------- | ---------------------------------------------------- | -------- | ------------ | ----------- |
+| `[array item]`         | array                                                | false    |              |             |
+| `» groups`             | array                                                | false    |              |             |
+| `»» avatar_url`        | string                                               | false    |              |             |
+| `»» display_name`      | string                                               | false    |              |             |
+| `»» id`                | string(uuid)                                         | false    |              |             |
+| `»» members`           | array                                                | false    |              |             |
+| `»»» avatar_url`       | string(uri)                                          | false    |              |             |
+| `»»» created_at`       | string(date-time)                                    | true     |              |             |
+| `»»» email`            | string(email)                                        | true     |              |             |
+| `»»» id`               | string(uuid)                                         | true     |              |             |
+| `»»» last_seen_at`     | string(date-time)                                    | false    |              |             |
+| `»»» login_type`       | [codersdk.LoginType](schemas.md#codersdklogintype)   | false    |              |             |
+| `»»» organization_ids` | array                                                | false    |              |             |
+| `»»» roles`            | array                                                | false    |              |             |
+| `»»»» display_name`    | string                                               | false    |              |             |
+| `»»»» name`            | string                                               | false    |              |             |
+| `»»» status`           | [codersdk.UserStatus](schemas.md#codersdkuserstatus) | false    |              |             |
+| `»»» username`         | string                                               | true     |              |             |
+| `»» name`              | string                                               | false    |              |             |
+| `»» organization_id`   | string(uuid)                                         | false    |              |             |
+| `»» quota_allowance`   | integer                                              | false    |              |             |
+| `» users`              | array                                                | false    |              |             |
+
+#### Enumerated Values
+
+| Property     | Value       |
+| ------------ | ----------- |
+| `login_type` | `password`  |
+| `login_type` | `github`    |
+| `login_type` | `oidc`      |
+| `login_type` | `token`     |
+| `login_type` | `none`      |
+| `status`     | `active`    |
+| `status`     | `suspended` |
+
+To perform this operation, you must be authenticated. [Learn more](authentication.md).
+
 ## Get user quiet hours schedule
 
 ### Code samples
@@ -1326,6 +1461,8 @@ curl -X GET http://coder-server:8080/api/v2/workspaceproxies \
       {
         "created_at": "2019-08-24T14:15:22Z",
         "deleted": true,
+        "derp_enabled": true,
+        "derp_only": true,
         "display_name": "string",
         "healthy": true,
         "icon_url": "string",
@@ -1364,6 +1501,8 @@ Status Code **200**
 | `» regions`            | array                                                                    | false    |              |                                                                                                                                                                                     |
 | `»» created_at`        | string(date-time)                                                        | false    |              |                                                                                                                                                                                     |
 | `»» deleted`           | boolean                                                                  | false    |              |                                                                                                                                                                                     |
+| `»» derp_enabled`      | boolean                                                                  | false    |              |                                                                                                                                                                                     |
+| `»» derp_only`         | boolean                                                                  | false    |              |                                                                                                                                                                                     |
 | `»» display_name`      | string                                                                   | false    |              |                                                                                                                                                                                     |
 | `»» healthy`           | boolean                                                                  | false    |              |                                                                                                                                                                                     |
 | `»» icon_url`          | string                                                                   | false    |              |                                                                                                                                                                                     |
@@ -1428,6 +1567,8 @@ curl -X POST http://coder-server:8080/api/v2/workspaceproxies \
 {
   "created_at": "2019-08-24T14:15:22Z",
   "deleted": true,
+  "derp_enabled": true,
+  "derp_only": true,
   "display_name": "string",
   "healthy": true,
   "icon_url": "string",
@@ -1482,6 +1623,8 @@ curl -X GET http://coder-server:8080/api/v2/workspaceproxies/{workspaceproxy} \
 {
   "created_at": "2019-08-24T14:15:22Z",
   "deleted": true,
+  "derp_enabled": true,
+  "derp_only": true,
   "display_name": "string",
   "healthy": true,
   "icon_url": "string",
@@ -1594,6 +1737,8 @@ curl -X PATCH http://coder-server:8080/api/v2/workspaceproxies/{workspaceproxy} 
 {
   "created_at": "2019-08-24T14:15:22Z",
   "deleted": true,
+  "derp_enabled": true,
+  "derp_only": true,
   "display_name": "string",
   "healthy": true,
   "icon_url": "string",

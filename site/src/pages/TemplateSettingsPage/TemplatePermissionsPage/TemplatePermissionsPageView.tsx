@@ -34,6 +34,7 @@ import { PageHeader, PageHeaderTitle } from "components/PageHeader/PageHeader"
 
 type AddTemplateUserOrGroupProps = {
   organizationId: string
+  templateID: string
   isLoading: boolean
   templateACL: TemplateACL | undefined
   onSubmit: (
@@ -47,6 +48,7 @@ const AddTemplateUserOrGroup: React.FC<AddTemplateUserOrGroupProps> = ({
   isLoading,
   onSubmit,
   organizationId,
+  templateID,
   templateACL,
 }) => {
   const styles = useStyles()
@@ -83,6 +85,7 @@ const AddTemplateUserOrGroup: React.FC<AddTemplateUserOrGroupProps> = ({
         <UserOrGroupAutocomplete
           exclude={excludeFromAutocomplete}
           organizationId={organizationId}
+          templateID={templateID}
           value={selectedOption}
           onChange={(newValue) => {
             setSelectedOption(newValue)
@@ -150,6 +153,7 @@ const RoleSelect: FC<SelectProps> = (props) => {
 
 export interface TemplatePermissionsPageViewProps {
   templateACL: TemplateACL | undefined
+  templateID: string
   organizationId: string
   canUpdatePermissions: boolean
   // User
@@ -176,6 +180,7 @@ export const TemplatePermissionsPageView: FC<
   templateACL,
   canUpdatePermissions,
   organizationId,
+  templateID,
   // User
   onAddUser,
   isAddingUser,
@@ -206,6 +211,7 @@ export const TemplatePermissionsPageView: FC<
         <Maybe condition={canUpdatePermissions}>
           <AddTemplateUserOrGroup
             templateACL={templateACL}
+            templateID={templateID}
             organizationId={organizationId}
             isLoading={isAddingUser || isAddingGroup}
             onSubmit={(value, role, resetAutocomplete) =>
@@ -246,11 +252,11 @@ export const TemplatePermissionsPageView: FC<
                         <AvatarData
                           avatar={
                             <GroupAvatar
-                              name={group.name}
+                              name={group.display_name || group.name}
                               avatarURL={group.avatar_url}
                             />
                           }
-                          title={group.name}
+                          title={group.display_name || group.name}
                           subtitle={getGroupSubtitle(group)}
                         />
                       </TableCell>

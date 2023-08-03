@@ -406,14 +406,16 @@ jobs:
   #         # to GitHub and then making a PR in a different repo.
   #         WINGET_GH_TOKEN: ${{ secrets.CDRCI_GITHUB_TOKEN }}
 
-  #     - name: Comment on PR
-  #       if: ${{ !inputs.dry_run }}
-  #       run: |
-  #         # Find the PR that wingetcreate just made.
-  #         $version = "${{ needs.release.outputs.version }}".Trim('v')
-  #         $pr_list = gh pr list --repo microsoft/winget-pkgs --search "author:ongood Ongood.Coder version ${version}" --limit 1 --json number | `
-  #           ConvertFrom-Json
-  #         $pr_number = $pr_list[0].number
+      # - name: Comment on PR
+      #   if: ${{ !inputs.dry_run }}
+      #   run: |
+      #     # wait 30 seconds
+      #     Start-Sleep -Seconds 30.0
+      #     # Find the PR that wingetcreate just made.
+      #     $version = "${{ needs.release.outputs.version }}".Trim('v')
+      #     $pr_list = gh pr list --repo microsoft/winget-pkgs --search "author:cdrci Coder.Coder version ${version}" --limit 1 --json number | `
+      #       ConvertFrom-Json
+      #     $pr_number = $pr_list[0].number
 
   #         gh pr comment --repo microsoft/winget-pkgs "${pr_number}" --body "🤖 cc: @deansheather @matifali"
 

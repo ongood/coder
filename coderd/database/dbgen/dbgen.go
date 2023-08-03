@@ -180,21 +180,34 @@ func Workspace(t testing.TB, db database.Store, orig database.Workspace) databas
 }
 
 func WorkspaceBuild(t testing.TB, db database.Store, orig database.WorkspaceBuild) database.WorkspaceBuild {
-	build, err := db.InsertWorkspaceBuild(genCtx, database.InsertWorkspaceBuildParams{
-		ID:                takeFirst(orig.ID, uuid.New()),
-		CreatedAt:         takeFirst(orig.CreatedAt, database.Now()),
-		UpdatedAt:         takeFirst(orig.UpdatedAt, database.Now()),
-		WorkspaceID:       takeFirst(orig.WorkspaceID, uuid.New()),
-		TemplateVersionID: takeFirst(orig.TemplateVersionID, uuid.New()),
-		BuildNumber:       takeFirst(orig.BuildNumber, 1),
-		Transition:        takeFirst(orig.Transition, database.WorkspaceTransitionStart),
-		InitiatorID:       takeFirst(orig.InitiatorID, uuid.New()),
-		JobID:             takeFirst(orig.JobID, uuid.New()),
-		ProvisionerState:  takeFirstSlice(orig.ProvisionerState, []byte{}),
-		Deadline:          takeFirst(orig.Deadline, database.Now().Add(time.Hour)),
-		Reason:            takeFirst(orig.Reason, database.BuildReasonInitiator),
-	})
+	buildID := takeFirst(orig.ID, uuid.New())
+	var build database.WorkspaceBuild
+	err := db.InTx(func(db database.Store) error {
+		err := db.InsertWorkspaceBuild(genCtx, database.InsertWorkspaceBuildParams{
+			ID:                buildID,
+			CreatedAt:         takeFirst(orig.CreatedAt, database.Now()),
+			UpdatedAt:         takeFirst(orig.UpdatedAt, database.Now()),
+			WorkspaceID:       takeFirst(orig.WorkspaceID, uuid.New()),
+			TemplateVersionID: takeFirst(orig.TemplateVersionID, uuid.New()),
+			BuildNumber:       takeFirst(orig.BuildNumber, 1),
+			Transition:        takeFirst(orig.Transition, database.WorkspaceTransitionStart),
+			InitiatorID:       takeFirst(orig.InitiatorID, uuid.New()),
+			JobID:             takeFirst(orig.JobID, uuid.New()),
+			ProvisionerState:  takeFirstSlice(orig.ProvisionerState, []byte{}),
+			Deadline:          takeFirst(orig.Deadline, database.Now().Add(time.Hour)),
+			Reason:            takeFirst(orig.Reason, database.BuildReasonInitiator),
+		})
+		if err != nil {
+			return err
+		}
+		build, err = db.GetWorkspaceBuildByID(genCtx, buildID)
+		if err != nil {
+			return err
+		}
+		return nil
+	}, nil)
 	require.NoError(t, err, "insert workspace build")
+
 	return build
 }
 
@@ -208,6 +221,13 @@ func User(t testing.TB, db database.Store, orig database.User) database.User {
 		UpdatedAt:      takeFirst(orig.UpdatedAt, database.Now()),
 		RBACRoles:      takeFirstSlice(orig.RBACRoles, []string{}),
 		LoginType:      takeFirst(orig.LoginType, database.LoginTypePassword),
+	})
+	require.NoError(t, err, "insert user")
+
+	user, err = db.UpdateUserStatus(genCtx, database.UpdateUserStatusParams{
+		ID:        user.ID,
+		Status:    database.UserStatusActive,
+		UpdatedAt: database.Now(),
 	})
 	require.NoError(t, err, "insert user")
 
@@ -259,9 +279,11 @@ func OrganizationMember(t testing.TB, db database.Store, orig database.Organizat
 }
 
 func Group(t testing.TB, db database.Store, orig database.Group) database.Group {
+	name := takeFirst(orig.Name, namesgenerator.GetRandomName(1))
 	group, err := db.InsertGroup(genCtx, database.InsertGroupParams{
 		ID:             takeFirst(orig.ID, uuid.New()),
-		Name:           takeFirst(orig.Name, namesgenerator.GetRandomName(1)),
+		Name:           name,
+		DisplayName:    takeFirst(orig.DisplayName, name),
 		OrganizationID: takeFirst(orig.OrganizationID, uuid.New()),
 		AvatarURL:      takeFirst(orig.AvatarURL, "https://logo.example.com"),
 		QuotaAllowance: takeFirst(orig.QuotaAllowance, 0),
@@ -474,19 +496,33 @@ func GitAuthLink(t testing.TB, db database.Store, orig database.GitAuthLink) dat
 }
 
 func TemplateVersion(t testing.TB, db database.Store, orig database.TemplateVersion) database.TemplateVersion {
-	version, err := db.InsertTemplateVersion(genCtx, database.InsertTemplateVersionParams{
-		ID:             takeFirst(orig.ID, uuid.New()),
-		TemplateID:     orig.TemplateID,
-		OrganizationID: takeFirst(orig.OrganizationID, uuid.New()),
-		CreatedAt:      takeFirst(orig.CreatedAt, database.Now()),
-		UpdatedAt:      takeFirst(orig.UpdatedAt, database.Now()),
-		Name:           takeFirst(orig.Name, namesgenerator.GetRandomName(1)),
-		Message:        orig.Message,
-		Readme:         takeFirst(orig.Readme, namesgenerator.GetRandomName(1)),
-		JobID:          takeFirst(orig.JobID, uuid.New()),
-		CreatedBy:      takeFirst(orig.CreatedBy, uuid.New()),
-	})
+	var version database.TemplateVersion
+	err := db.InTx(func(db database.Store) error {
+		versionID := takeFirst(orig.ID, uuid.New())
+		err := db.InsertTemplateVersion(genCtx, database.InsertTemplateVersionParams{
+			ID:             versionID,
+			TemplateID:     orig.TemplateID,
+			OrganizationID: takeFirst(orig.OrganizationID, uuid.New()),
+			CreatedAt:      takeFirst(orig.CreatedAt, database.Now()),
+			UpdatedAt:      takeFirst(orig.UpdatedAt, database.Now()),
+			Name:           takeFirst(orig.Name, namesgenerator.GetRandomName(1)),
+			Message:        orig.Message,
+			Readme:         takeFirst(orig.Readme, namesgenerator.GetRandomName(1)),
+			JobID:          takeFirst(orig.JobID, uuid.New()),
+			CreatedBy:      takeFirst(orig.CreatedBy, uuid.New()),
+		})
+		if err != nil {
+			return err
+		}
+
+		version, err = db.GetTemplateVersionByID(genCtx, versionID)
+		if err != nil {
+			return err
+		}
+		return nil
+	}, nil)
 	require.NoError(t, err, "insert template version")
+
 	return version
 }
 

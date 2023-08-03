@@ -635,9 +635,6 @@ type workspaceBuildsData struct {
 
 func (api *API) workspaceBuildsData(ctx context.Context, workspaces []database.Workspace, workspaceBuilds []database.WorkspaceBuild) (workspaceBuildsData, error) {
 	userIDs := make([]uuid.UUID, 0, len(workspaceBuilds))
-	for _, build := range workspaceBuilds {
-		userIDs = append(userIDs, build.InitiatorID)
-	}
 	for _, workspace := range workspaces {
 		userIDs = append(userIDs, workspace.OwnerID)
 	}
@@ -826,10 +823,6 @@ func (api *API) convertWorkspaceBuild(
 	if !exists {
 		return codersdk.WorkspaceBuild{}, xerrors.Errorf("owner not found for workspace: %q", workspace.Name)
 	}
-	initiator, exists := userByID[build.InitiatorID]
-	if !exists {
-		return codersdk.WorkspaceBuild{}, xerrors.Errorf("build initiator not found for workspace: %q", workspace.Name)
-	}
 
 	resources := resourcesByJobID[job.ProvisionerJob.ID]
 	apiResources := make([]codersdk.WorkspaceResource, 0)
@@ -839,7 +832,7 @@ func (api *API) convertWorkspaceBuild(
 		for _, agent := range agents {
 			apps := appsByAgentID[agent.ID]
 			apiAgent, err := convertWorkspaceAgent(
-				api.DERPMap, *api.TailnetCoordinator.Load(), agent, convertApps(apps), api.AgentInactiveDisconnectTimeout,
+				api.DERPMap(), *api.TailnetCoordinator.Load(), agent, convertApps(apps), api.AgentInactiveDisconnectTimeout,
 				api.DeploymentValues.AgentFallbackTroubleshootingURL.String(),
 			)
 			if err != nil {
@@ -865,7 +858,7 @@ func (api *API) convertWorkspaceBuild(
 		BuildNumber:         build.BuildNumber,
 		Transition:          transition,
 		InitiatorID:         build.InitiatorID,
-		InitiatorUsername:   initiator.Username,
+		InitiatorUsername:   build.InitiatorByUsername,
 		Job:                 apiJob,
 		Deadline:            codersdk.NewNullTime(build.Deadline, !build.Deadline.IsZero()),
 		MaxDeadline:         codersdk.NewNullTime(build.MaxDeadline, !build.MaxDeadline.IsZero()),

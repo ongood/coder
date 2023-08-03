@@ -56,6 +56,7 @@ func (*RootCmd) proxyServer() *clibase.Cmd {
 		}
 		proxySessionToken clibase.String
 		primaryAccessURL  clibase.URL
+		derpOnly          clibase.Bool
 	)
 	opts.Add(
 		// Options only for external workspace proxies
@@ -87,6 +88,17 @@ func (*RootCmd) proxyServer() *clibase.Cmd {
 			}),
 			Group:  &externalProxyOptionGroup,
 			Hidden: false,
+		},
+		clibase.Option{
+			Name:        "DERP-only proxy",
+			Description: "Run a proxy server that only supports DERP connections and does not proxy workspace app/terminal traffic.",
+			Flag:        "derp-only",
+			Env:         "CODER_PROXY_DERP_ONLY",
+			YAML:        "derpOnly",
+			Required:    false,
+			Value:       &derpOnly,
+			Group:       &externalProxyOptionGroup,
+			Hidden:      false,
 		},
 	)
 
@@ -163,6 +175,10 @@ func (*RootCmd) proxyServer() *clibase.Cmd {
 				}
 			}
 
+			if derpOnly.Value() && !cfg.DERP.Server.Enable.Value() {
+				return xerrors.Errorf("cannot use --derp-only with DERP server disabled")
+			}
+
 			// TODO: @emyrk I find this strange that we add this to the context
 			// at the root here.
 			ctx, httpClient, err := cli.ConfigureHTTPClient(
@@ -220,21 +236,24 @@ func (*RootCmd) proxyServer() *clibase.Cmd {
 			}
 
 			proxy, err := wsproxy.New(ctx, &wsproxy.Options{
-				Logger:             logger,
-				Experiments:        coderd.ReadExperiments(logger, cfg.Experiments.Value()),
-				HTTPClient:         httpClient,
-				DashboardURL:       primaryAccessURL.Value(),
-				AccessURL:          cfg.AccessURL.Value(),
-				AppHostname:        appHostname,
-				AppHostnameRegex:   appHostnameRegex,
-				RealIPConfig:       realIPConfig,
-				Tracing:            tracer,
-				PrometheusRegistry: prometheusRegistry,
-				APIRateLimit:       int(cfg.RateLimit.API.Value()),
-				SecureAuthCookie:   cfg.SecureAuthCookie.Value(),
-				DisablePathApps:    cfg.DisablePathApps.Value(),
-				ProxySessionToken:  proxySessionToken.Value(),
-				AllowAllCors:       cfg.Dangerous.AllowAllCors.Value(),
+				Logger:                 logger,
+				Experiments:            coderd.ReadExperiments(logger, cfg.Experiments.Value()),
+				HTTPClient:             httpClient,
+				DashboardURL:           primaryAccessURL.Value(),
+				AccessURL:              cfg.AccessURL.Value(),
+				AppHostname:            appHostname,
+				AppHostnameRegex:       appHostnameRegex,
+				RealIPConfig:           realIPConfig,
+				Tracing:                tracer,
+				PrometheusRegistry:     prometheusRegistry,
+				APIRateLimit:           int(cfg.RateLimit.API.Value()),
+				SecureAuthCookie:       cfg.SecureAuthCookie.Value(),
+				DisablePathApps:        cfg.DisablePathApps.Value(),
+				ProxySessionToken:      proxySessionToken.Value(),
+				AllowAllCors:           cfg.Dangerous.AllowAllCors.Value(),
+				DERPEnabled:            cfg.DERP.Server.Enable.Value(),
+				DERPOnly:               derpOnly.Value(),
+				DERPServerRelayAddress: cfg.DERP.Server.RelayURL.String(),
 			})
 			if err != nil {
 				return xerrors.Errorf("create workspace proxy: %w", err)

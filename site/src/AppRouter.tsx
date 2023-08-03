@@ -179,6 +179,11 @@ const AddNewLicensePage = lazy(
 const TemplateEmbedPage = lazy(
   () => import("./pages/TemplatePage/TemplateEmbedPage/TemplateEmbedPage"),
 )
+const TemplateInsightsPage = lazy(
+  () =>
+    import("./pages/TemplatePage/TemplateInsightsPage/TemplateInsightsPage"),
+)
+const HealthPage = lazy(() => import("./pages/HealthPage/HealthPage"))
 
 export const AppRouter: FC = () => {
   return (
@@ -192,6 +197,8 @@ export const AppRouter: FC = () => {
           <Route element={<RequireAuth />}>
             <Route element={<DashboardLayout />}>
               <Route index element={<IndexPage />} />
+
+              <Route path="health" element={<HealthPage />} />
 
               <Route path="gitauth/:provider" element={<GitAuthPage />} />
 
@@ -212,6 +219,7 @@ export const AppRouter: FC = () => {
                     <Route path="files" element={<TemplateFilesPage />} />
                     <Route path="versions" element={<TemplateVersionsPage />} />
                     <Route path="embed" element={<TemplateEmbedPage />} />
+                    <Route path="insights" element={<TemplateInsightsPage />} />
                   </Route>
 
                   <Route path="workspace" element={<CreateWorkspacePage />} />

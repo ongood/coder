@@ -19,6 +19,7 @@ type UserStatus string
 
 const (
 	UserStatusActive    UserStatus = "active"
+	UserStatusDormant   UserStatus = "dormant"
 	UserStatusSuspended UserStatus = "suspended"
 )
 
@@ -31,6 +32,14 @@ type UsersRequest struct {
 
 	SearchQuery string `json:"q,omitempty"`
 	Pagination
+}
+
+// MinimalUser is the minimal information needed to identify a user and show
+// them on the UI.
+type MinimalUser struct {
+	ID        uuid.UUID `json:"id" validate:"required" table:"id" format:"uuid"`
+	Username  string    `json:"username" validate:"required" table:"username,default_sort"`
+	AvatarURL string    `json:"avatar_url" format:"uri"`
 }
 
 // User represents a user in Coder.
@@ -152,10 +161,9 @@ type CreateOrganizationRequest struct {
 
 // AuthMethods contains authentication method information like whether they are enabled or not or custom text, etc.
 type AuthMethods struct {
-	ConvertToOIDCEnabled bool           `json:"convert_to_oidc_enabled"`
-	Password             AuthMethod     `json:"password"`
-	Github               AuthMethod     `json:"github"`
-	OIDC                 OIDCAuthMethod `json:"oidc"`
+	Password AuthMethod     `json:"password"`
+	Github   AuthMethod     `json:"github"`
+	OIDC     OIDCAuthMethod `json:"oidc"`
 }
 
 type AuthMethod struct {

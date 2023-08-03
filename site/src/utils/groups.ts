@@ -3,6 +3,7 @@ import { Group } from "api/typesGenerated"
 export const everyOneGroup = (organizationId: string): Group => ({
   id: organizationId,
   name: "Everyone",
+  display_name: "",
   organization_id: organizationId,
   members: [],
   avatar_url: "",
@@ -13,6 +14,10 @@ export const getGroupSubtitle = (group: Group): string => {
   // It is the everyone group when a group id is the same of the org id
   if (group.id === group.organization_id) {
     return `All users`
+  }
+
+  if (!group.members) {
+    return `0 members`
   }
 
   if (group.members.length === 1) {

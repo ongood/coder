@@ -384,7 +384,11 @@ export const handlers = [
     return res(ctx.status(200), ctx.json(M.MockDeploymentSSH))
   }),
 
-  rest.get("/api/v2/workspaceagents/:agent/startup-logs", (_, res, ctx) => {
-    return res(ctx.status(200), ctx.json(M.MockStartupLogs))
+  rest.get("/api/v2/workspaceagents/:agent/logs", (_, res, ctx) => {
+    return res(ctx.status(200), ctx.json(M.MockWorkspaceAgentLogs))
+  }),
+
+  rest.get("/api/v2/debug/health", (_, res, ctx) => {
+    return res(ctx.status(200), ctx.json(M.MockHealth))
   }),
 ]

@@ -340,9 +340,10 @@ type SwaggerConfig struct {
 }
 
 type LoggingConfig struct {
-	Human       clibase.String `json:"human" typescript:",notnull"`
-	JSON        clibase.String `json:"json" typescript:",notnull"`
-	Stackdriver clibase.String `json:"stackdriver" typescript:",notnull"`
+	Filter      clibase.StringArray `json:"log_filter" typescript:",notnull"`
+	Human       clibase.String      `json:"human" typescript:",notnull"`
+	JSON        clibase.String      `json:"json" typescript:",notnull"`
+	Stackdriver clibase.String      `json:"stackdriver" typescript:",notnull"`
 }
 
 type DangerousConfig struct {
@@ -525,6 +526,16 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		Group:       &deploymentGroupNetworking,
 		YAML:        "redirectToAccessURL",
 	}
+	logFilter := clibase.Option{
+		Name:          "Log Filter",
+		Description:   "Filter debug logs by matching against a given regex. Use .* to match all debug logs.",
+		Flag:          "log-filter",
+		FlagShorthand: "l",
+		Env:           "CODER_LOG_FILTER",
+		Value:         &c.Logging.Filter,
+		Group:         &deploymentGroupIntrospectionLogging,
+		YAML:          "filter",
+	}
 	opts := clibase.OptionSet{
 		{
 			Name:        "Access URL",
@@ -700,6 +711,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 			Value:       &c.DERP.Server.Enable,
 			Group:       &deploymentGroupNetworkingDERP,
 			YAML:        "enable",
+			Annotations: clibase.Annotations{}.Mark(annotationExternalProxies, "true"),
 		},
 		{
 			Name:        "DERP Server Region ID",
@@ -710,6 +722,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 			Value:       &c.DERP.Server.RegionID,
 			Group:       &deploymentGroupNetworkingDERP,
 			YAML:        "regionID",
+			// Does not apply to external proxies as this value is generated.
 		},
 		{
 			Name:        "DERP Server Region Code",
@@ -720,6 +733,18 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 			Value:       &c.DERP.Server.RegionCode,
 			Group:       &deploymentGroupNetworkingDERP,
 			YAML:        "regionCode",
+			// Does not apply to external proxies as we use the proxy name.
+		},
+		{
+			Name:        "DERP Server Region Name",
+			Description: "Region name that for the embedded DERP server.",
+			Flag:        "derp-server-region-name",
+			Env:         "CODER_DERP_SERVER_REGION_NAME",
+			Default:     "Coder Embedded Relay",
+			Value:       &c.DERP.Server.RegionName,
+			Group:       &deploymentGroupNetworkingDERP,
+			YAML:        "regionName",
+			// Does not apply to external proxies as we use the proxy name.
 		},
 		{
 			Name:        "DERP Server STUN Addresses",
@@ -736,10 +761,12 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 			Description: "其他副本可访问的 HTTP URL，用于中继 DERP 流量。在高可用性情况下需要。",
 			Flag:        "derp-server-relay-url",
 			Env:         "CODER_DERP_SERVER_RELAY_URL",
-			Annotations: clibase.Annotations{}.Mark(annotationEnterpriseKey, "true"),
 			Value:       &c.DERP.Server.RelayURL,
 			Group:       &deploymentGroupNetworkingDERP,
 			YAML:        "relayURL",
+			Annotations: clibase.Annotations{}.
+				Mark(annotationEnterpriseKey, "true").
+				Mark(annotationExternalProxies, "true"),
 		},
 		{
 			Name:        "Block Direct Connections",
@@ -1135,7 +1162,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "Capture Logs in Traces",
-			Description: "启用在跟踪中将日志作为事件捕获。这对于调试很有用，但可能会导致向跟踪后端发送大量事件，可能会产生显著的成本。如果提供了verbose标志，则会包含调试级别的日志。",
+			Description: "Enables capturing of logs as events in traces. This is useful for debugging, but may result in a very large amount of events being sent to the tracing backend which may incur significant costs.",
 			Flag:        "trace-logs",
 			Env:         "CODER_TRACE_LOGS",
 			Value:       &c.Trace.CaptureLogs,
@@ -1225,12 +1252,14 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 			Flag:          "verbose",
 			Env:           "CODER_VERBOSE",
 			FlagShorthand: "v",
-
-			Value:       &c.Verbose,
-			Group:       &deploymentGroupIntrospectionLogging,
-			YAML:        "verbose",
-			Annotations: clibase.Annotations{}.Mark(annotationExternalProxies, "true"),
+			Hidden:        true,
+			UseInstead:    []clibase.Option{logFilter},
+			Value:         &c.Verbose,
+			Group:         &deploymentGroupIntrospectionLogging,
+			YAML:          "verbose",
+			Annotations:   clibase.Annotations{}.Mark(annotationExternalProxies, "true"),
 		},
+		logFilter,
 		{
 			Name:        "Human Log Location",
 			Description: "将可读的日志输出到给定的文件。",
@@ -1803,14 +1832,9 @@ const (
 	// https://github.com/coder/coder/milestone/19
 	ExperimentWorkspaceActions Experiment = "workspace_actions"
 
-	// ExperimentTailnetHACoordinator downgrades to the haCoordinator instead
-	// of PGCoord.  Should only be used if we see issues in prod with PGCoord
-	// which is now the default.
-	ExperimentTailnetHACoordinator Experiment = "tailnet_ha_coordinator"
-
-	// ExperimentConvertToOIDC enables users to convert from password to
-	// oidc.
-	ExperimentConvertToOIDC Experiment = "convert-to-oidc"
+	// ExperimentTailnetPGCoordinator enables the PGCoord in favor of the pubsub-
+	// only Coordinator
+	ExperimentTailnetPGCoordinator Experiment = "tailnet_pg_coordinator"
 
 	// ExperimentSingleTailnet replaces workspace connections inside coderd to
 	// all use a single tailnet, instead of the previous behavior of creating a
@@ -1830,6 +1854,9 @@ const (
 	//   quiet hours instead of max_ttl.
 	ExperimentTemplateRestartRequirement Experiment = "template_restart_requirement"
 
+	// Deployment health page
+	ExperimentDeploymentHealthPage Experiment = "deployment_health_page"
+
 	// Add new experiments here!
 	// ExperimentExample Experiment = "example"
 )
@@ -1838,7 +1865,9 @@ const (
 // users to opt-in to via --experimental='*'.
 // Experiments that are not ready for consumption by all users should
 // not be included here and will be essentially hidden.
-var ExperimentsAll = Experiments{}
+var ExperimentsAll = Experiments{
+	ExperimentDeploymentHealthPage,
+}
 
 // Experiments is a list of experiments that are enabled for the deployment.
 // Multiple experiments may be enabled at the same time.

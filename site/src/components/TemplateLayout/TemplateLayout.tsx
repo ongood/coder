@@ -71,6 +71,7 @@ export const TemplateLayout: FC<{ children?: JSX.Element }> = ({
     queryKey: ["template", templateName],
     queryFn: () => fetchTemplate(orgId, templateName),
   })
+  const shouldShowInsights = data?.permissions?.canUpdateTemplate
 
   if (error) {
     return (
@@ -157,6 +158,19 @@ export const TemplateLayout: FC<{ children?: JSX.Element }> = ({
             >
               嵌入
             </NavLink>
+            {shouldShowInsights && (
+              <NavLink
+                to={`/templates/${templateName}/insights`}
+                className={({ isActive }) =>
+                  combineClasses([
+                    styles.tabItem,
+                    isActive ? styles.tabItemActive : undefined,
+                  ])
+                }
+              >
+                Insights
+              </NavLink>
+            )}
           </Stack>
         </Margins>
       </div>
