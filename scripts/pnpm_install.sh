@@ -8,6 +8,8 @@
 
 set -euo pipefail
 
+npm install -g pnpm
+
 pnpm_flags=(
 	# Do not execute install scripts
 	# TODO: check if build works properly with this enabled
