@@ -15,6 +15,7 @@ export const Language = {
   rolesLabel: "角色",
   statusLabel: "状态",
   lastSeenLabel: "最近登录",
+  loginTypeLabel: "登录类型",
 }
 
 export interface UsersTableProps {
@@ -69,8 +70,9 @@ export const UsersTable: FC<React.PropsWithChildren<UsersTableProps>> = ({
                 <UserRoleHelpTooltip />
               </Stack>
             </TableCell>
-            <TableCell width="15%">{Language.statusLabel}</TableCell>
-            <TableCell width="15%">{Language.lastSeenLabel}</TableCell>
+            <TableCell width="10%">{Language.loginTypeLabel}</TableCell>
+            <TableCell width="10%">{Language.statusLabel}</TableCell>
+            <TableCell width="10%">{Language.lastSeenLabel}</TableCell>
 
             {/* 1% is a trick to make the table cell width fit the content */}
             {canEditUsers && <TableCell width="1%" />}

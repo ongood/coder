@@ -23,11 +23,15 @@ export const EntitledBadge: FC = () => {
   )
 }
 
-export const HealthyBadge: FC = () => {
+export const HealthyBadge: FC<{ derpOnly: boolean }> = ({ derpOnly }) => {
   const styles = useStyles()
+  let text = "Healthy"
+  if (derpOnly) {
+    text = "Healthy (DERP Only)"
+  }
   return (
     <span className={combineClasses([styles.badge, styles.enabledBadge])}>
-      健康
+      {text}
     </span>
   )
 }

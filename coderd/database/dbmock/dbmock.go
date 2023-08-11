@@ -2332,6 +2332,21 @@ func (mr *MockStoreMockRecorder) InsertLicense(arg0, arg1 interface{}) *gomock.C
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertLicense", reflect.TypeOf((*MockStore)(nil).InsertLicense), arg0, arg1)
 }
 
+// InsertMissingGroups mocks base method.
+func (m *MockStore) InsertMissingGroups(arg0 context.Context, arg1 database.InsertMissingGroupsParams) ([]database.Group, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "InsertMissingGroups", arg0, arg1)
+	ret0, _ := ret[0].([]database.Group)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// InsertMissingGroups indicates an expected call of InsertMissingGroups.
+func (mr *MockStoreMockRecorder) InsertMissingGroups(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertMissingGroups", reflect.TypeOf((*MockStore)(nil).InsertMissingGroups), arg0, arg1)
+}
+
 // InsertOrganization mocks base method.
 func (m *MockStore) InsertOrganization(arg0 context.Context, arg1 database.InsertOrganizationParams) (database.Organization, error) {
 	m.ctrl.T.Helper()
@@ -2596,6 +2611,20 @@ func (m *MockStore) InsertWorkspaceAgentStat(arg0 context.Context, arg1 database
 func (mr *MockStoreMockRecorder) InsertWorkspaceAgentStat(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertWorkspaceAgentStat", reflect.TypeOf((*MockStore)(nil).InsertWorkspaceAgentStat), arg0, arg1)
+}
+
+// InsertWorkspaceAgentStats mocks base method.
+func (m *MockStore) InsertWorkspaceAgentStats(arg0 context.Context, arg1 database.InsertWorkspaceAgentStatsParams) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "InsertWorkspaceAgentStats", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// InsertWorkspaceAgentStats indicates an expected call of InsertWorkspaceAgentStats.
+func (mr *MockStoreMockRecorder) InsertWorkspaceAgentStats(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertWorkspaceAgentStats", reflect.TypeOf((*MockStore)(nil).InsertWorkspaceAgentStats), arg0, arg1)
 }
 
 // InsertWorkspaceApp mocks base method.

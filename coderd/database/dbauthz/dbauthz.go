@@ -1853,6 +1853,13 @@ func (q *querier) InsertLicense(ctx context.Context, arg database.InsertLicenseP
 	return q.db.InsertLicense(ctx, arg)
 }
 
+func (q *querier) InsertMissingGroups(ctx context.Context, arg database.InsertMissingGroupsParams) ([]database.Group, error) {
+	if err := q.authorizeContext(ctx, rbac.ActionCreate, rbac.ResourceSystem); err != nil {
+		return nil, err
+	}
+	return q.db.InsertMissingGroups(ctx, arg)
+}
+
 func (q *querier) InsertOrganization(ctx context.Context, arg database.InsertOrganizationParams) (database.Organization, error) {
 	return insert(q.log, q.auth, rbac.ResourceOrganization, q.db.InsertOrganization)(ctx, arg)
 }
@@ -2014,6 +2021,14 @@ func (q *querier) InsertWorkspaceAgentStat(ctx context.Context, arg database.Ins
 		return database.WorkspaceAgentStat{}, err
 	}
 	return q.db.InsertWorkspaceAgentStat(ctx, arg)
+}
+
+func (q *querier) InsertWorkspaceAgentStats(ctx context.Context, arg database.InsertWorkspaceAgentStatsParams) error {
+	if err := q.authorizeContext(ctx, rbac.ActionCreate, rbac.ResourceSystem); err != nil {
+		return err
+	}
+
+	return q.db.InsertWorkspaceAgentStats(ctx, arg)
 }
 
 func (q *querier) InsertWorkspaceApp(ctx context.Context, arg database.InsertWorkspaceAppParams) (database.WorkspaceApp, error) {
