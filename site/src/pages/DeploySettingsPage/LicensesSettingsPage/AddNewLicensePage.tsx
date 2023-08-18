@@ -17,7 +17,7 @@ const AddNewLicensePage: FC = () => {
   } = useMutation(createLicense, {
     onSuccess: () => {
       displaySuccess("成功添加了许可证")
-      navigate("/settings/deployment/licenses?success=true")
+      navigate("/deployment/licenses?success=true")
     },
     onError: () => displayError("保存许可证密钥失败"),
   })
@@ -28,7 +28,7 @@ const AddNewLicensePage: FC = () => {
       {
         onSuccess: () => {
           displaySuccess("成功添加了许可证")
-          navigate("/settings/deployment/licenses?success=true")
+          navigate("/deployment/licenses?success=true")
         },
         onError: () => displayError("保存许可证密钥失败"),
       },

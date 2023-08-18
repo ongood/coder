@@ -57,7 +57,7 @@ const LicensesSettingsPageView: FC<Props> = ({
 
         <Button
           component={Link}
-          to="/settings/deployment/licenses/add"
+          to="/deployment/licenses/add"
           startIcon={<AddIcon />}
         >
         添加许可证
