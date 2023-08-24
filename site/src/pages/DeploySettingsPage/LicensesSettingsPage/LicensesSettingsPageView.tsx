@@ -2,6 +2,7 @@ import Button from "@mui/material/Button"
 import { makeStyles, useTheme } from "@mui/styles"
 import Skeleton from "@mui/material/Skeleton"
 import AddIcon from "@mui/icons-material/AddOutlined"
+import RefreshIcon from "@mui/icons-material/Refresh"
 import { GetLicensesResponse } from "api/api"
 import { Header } from "components/DeploySettingsLayout/Header"
 import { LicenseCard } from "components/LicenseCard/LicenseCard"
@@ -11,6 +12,8 @@ import Confetti from "react-confetti"
 import { Link } from "react-router-dom"
 import useWindowSize from "react-use/lib/useWindowSize"
 import MuiLink from "@mui/material/Link"
+import { displaySuccess } from "components/GlobalSnackbar/utils"
+import Tooltip from "@mui/material/Tooltip"
 
 type Props = {
   showConfetti: boolean
@@ -20,6 +23,7 @@ type Props = {
   licenses?: GetLicensesResponse[]
   isRemovingLicense: boolean
   removeLicense: (licenseId: number) => void
+  refreshEntitlements?: () => boolean
 }
 
 const LicensesSettingsPageView: FC<Props> = ({
@@ -30,6 +34,7 @@ const LicensesSettingsPageView: FC<Props> = ({
   licenses,
   isRemovingLicense,
   removeLicense,
+  refreshEntitlements,
 }) => {
   const styles = useStyles()
   const { width, height } = useWindowSize()
@@ -55,13 +60,29 @@ const LicensesSettingsPageView: FC<Props> = ({
           description="管理许可证以解锁企业版功能。"
         />
 
-        <Button
-          component={Link}
-          to="/deployment/licenses/add"
-          startIcon={<AddIcon />}
-        >
-        添加许可证
-        </Button>
+        <Stack direction="row" spacing={2}>
+          <Button
+            component={Link}
+            to="/deployment/licenses/add"
+            startIcon={<AddIcon />}
+          >
+            添加许可证
+          </Button>
+          <Tooltip title="刷新许可权。此操作每10分钟自动进行一次。">
+            <Button
+              onClick={() => {
+                if (refreshEntitlements) {
+                  if (refreshEntitlements()) {
+                    displaySuccess("成功刷新了许可证")
+                  }
+                }
+              }}
+              startIcon={<RefreshIcon />}
+            >
+              刷新
+            </Button>
+          </Tooltip>
+        </Stack>
       </Stack>
 
       {isLoading && <Skeleton variant="rectangular" height={200} />}

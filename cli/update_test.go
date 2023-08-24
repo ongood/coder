@@ -9,14 +9,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/coder/coder/cli/clitest"
-	"github.com/coder/coder/coderd/coderdtest"
-	"github.com/coder/coder/coderd/util/ptr"
-	"github.com/coder/coder/codersdk"
-	"github.com/coder/coder/provisioner/echo"
-	"github.com/coder/coder/provisionersdk/proto"
-	"github.com/coder/coder/pty/ptytest"
-	"github.com/coder/coder/testutil"
+	"github.com/coder/coder/v2/cli/clitest"
+	"github.com/coder/coder/v2/coderd/coderdtest"
+	"github.com/coder/coder/v2/coderd/util/ptr"
+	"github.com/coder/coder/v2/codersdk"
+	"github.com/coder/coder/v2/provisioner/echo"
+	"github.com/coder/coder/v2/provisionersdk/proto"
+	"github.com/coder/coder/v2/pty/ptytest"
+	"github.com/coder/coder/v2/testutil"
 )
 
 func TestUpdate(t *testing.T) {
@@ -593,12 +593,269 @@ func TestUpdateValidateRichParameters(t *testing.T) {
 			assert.NoError(t, err)
 		}()
 
+		pty.ExpectMatch("Planning workspace...")
+		<-doneChan
+	})
+
+	t.Run("ParameterOptionChanged", func(t *testing.T) {
+		t.Parallel()
+
+		// Create template and workspace
+		client := coderdtest.New(t, &coderdtest.Options{IncludeProvisionerDaemon: true})
+		user := coderdtest.CreateFirstUser(t, client)
+
+		templateParameters := []*proto.RichParameter{
+			{Name: stringParameterName, Type: "string", Mutable: true, Required: true, Options: []*proto.RichParameterOption{
+				{Name: "First option", Description: "This is first option", Value: "1st"},
+				{Name: "Second option", Description: "This is second option", Value: "2nd"},
+				{Name: "Third option", Description: "This is third option", Value: "3rd"},
+			}},
+		}
+		version := coderdtest.CreateTemplateVersion(t, client, user.OrganizationID, prepareEchoResponses(templateParameters))
+		coderdtest.AwaitTemplateVersionJob(t, client, version.ID)
+		template := coderdtest.CreateTemplate(t, client, user.OrganizationID, version.ID)
+
+		inv, root := clitest.New(t, "create", "my-workspace", "--yes", "--template", template.Name, "--parameter", fmt.Sprintf("%s=%s", stringParameterName, "2nd"))
+		clitest.SetupConfig(t, client, root)
+		err := inv.Run()
+		require.NoError(t, err)
+
+		// Update template
+		updatedTemplateParameters := []*proto.RichParameter{
+			{Name: stringParameterName, Type: "string", Mutable: true, Required: true, Options: []*proto.RichParameterOption{
+				{Name: "first_option", Description: "This is first option", Value: "1"},
+				{Name: "second_option", Description: "This is second option", Value: "2"},
+				{Name: "third_option", Description: "This is third option", Value: "3"},
+			}},
+		}
+
+		updatedVersion := coderdtest.UpdateTemplateVersion(t, client, user.OrganizationID, prepareEchoResponses(updatedTemplateParameters), template.ID)
+		coderdtest.AwaitTemplateVersionJob(t, client, updatedVersion.ID)
+		err = client.UpdateActiveTemplateVersion(context.Background(), template.ID, codersdk.UpdateActiveTemplateVersion{
+			ID: updatedVersion.ID,
+		})
+		require.NoError(t, err)
+
+		// Update the workspace
+		inv, root = clitest.New(t, "update", "my-workspace")
+		clitest.SetupConfig(t, client, root)
+		doneChan := make(chan struct{})
+		pty := ptytest.New(t).Attach(inv)
+		go func() {
+			defer close(doneChan)
+			err := inv.Run()
+			assert.NoError(t, err)
+		}()
+
 		matches := []string{
+			stringParameterName, "second_option",
 			"Planning workspace...", "",
 		}
 		for i := 0; i < len(matches); i += 2 {
 			match := matches[i]
+			value := matches[i+1]
 			pty.ExpectMatch(match)
+
+			if value != "" {
+				pty.WriteLine(value)
+			}
+		}
+		<-doneChan
+	})
+
+	t.Run("ParameterOptionDisappeared", func(t *testing.T) {
+		t.Parallel()
+
+		// Create template and workspace
+		client := coderdtest.New(t, &coderdtest.Options{IncludeProvisionerDaemon: true})
+		user := coderdtest.CreateFirstUser(t, client)
+
+		templateParameters := []*proto.RichParameter{
+			{Name: stringParameterName, Type: "string", Mutable: true, Required: true, Options: []*proto.RichParameterOption{
+				{Name: "First option", Description: "This is first option", Value: "1st"},
+				{Name: "Second option", Description: "This is second option", Value: "2nd"},
+				{Name: "Third option", Description: "This is third option", Value: "3rd"},
+			}},
+		}
+		version := coderdtest.CreateTemplateVersion(t, client, user.OrganizationID, prepareEchoResponses(templateParameters))
+		coderdtest.AwaitTemplateVersionJob(t, client, version.ID)
+		template := coderdtest.CreateTemplate(t, client, user.OrganizationID, version.ID)
+
+		inv, root := clitest.New(t, "create", "my-workspace", "--yes", "--template", template.Name, "--parameter", fmt.Sprintf("%s=%s", stringParameterName, "2nd"))
+		clitest.SetupConfig(t, client, root)
+		err := inv.Run()
+		require.NoError(t, err)
+
+		// Update template - 2nd option disappeared, 4th option added
+		updatedTemplateParameters := []*proto.RichParameter{
+			{Name: stringParameterName, Type: "string", Mutable: true, Required: true, Options: []*proto.RichParameterOption{
+				{Name: "First option", Description: "This is first option", Value: "1st"},
+				{Name: "Third option", Description: "This is third option", Value: "3rd"},
+				{Name: "Fourth option", Description: "This is fourth option", Value: "4th"},
+			}},
+		}
+
+		updatedVersion := coderdtest.UpdateTemplateVersion(t, client, user.OrganizationID, prepareEchoResponses(updatedTemplateParameters), template.ID)
+		coderdtest.AwaitTemplateVersionJob(t, client, updatedVersion.ID)
+		err = client.UpdateActiveTemplateVersion(context.Background(), template.ID, codersdk.UpdateActiveTemplateVersion{
+			ID: updatedVersion.ID,
+		})
+		require.NoError(t, err)
+
+		// Update the workspace
+		inv, root = clitest.New(t, "update", "my-workspace")
+		clitest.SetupConfig(t, client, root)
+		doneChan := make(chan struct{})
+		pty := ptytest.New(t).Attach(inv)
+		go func() {
+			defer close(doneChan)
+			err := inv.Run()
+			assert.NoError(t, err)
+		}()
+
+		matches := []string{
+			stringParameterName, "Third option",
+			"Planning workspace...", "",
+		}
+		for i := 0; i < len(matches); i += 2 {
+			match := matches[i]
+			value := matches[i+1]
+			pty.ExpectMatch(match)
+
+			if value != "" {
+				pty.WriteLine(value)
+			}
+		}
+		<-doneChan
+	})
+
+	t.Run("ImmutableRequiredParameterExists_MutableRequiredParameterAdded", func(t *testing.T) {
+		t.Parallel()
+
+		// Create template and workspace
+		client := coderdtest.New(t, &coderdtest.Options{IncludeProvisionerDaemon: true})
+		user := coderdtest.CreateFirstUser(t, client)
+
+		templateParameters := []*proto.RichParameter{
+			{Name: stringParameterName, Type: "string", Mutable: false, Required: true, Options: []*proto.RichParameterOption{
+				{Name: "First option", Description: "This is first option", Value: "1st"},
+				{Name: "Second option", Description: "This is second option", Value: "2nd"},
+				{Name: "Third option", Description: "This is third option", Value: "3rd"},
+			}},
+		}
+		version := coderdtest.CreateTemplateVersion(t, client, user.OrganizationID, prepareEchoResponses(templateParameters))
+		coderdtest.AwaitTemplateVersionJob(t, client, version.ID)
+		template := coderdtest.CreateTemplate(t, client, user.OrganizationID, version.ID)
+
+		inv, root := clitest.New(t, "create", "my-workspace", "--yes", "--template", template.Name, "--parameter", fmt.Sprintf("%s=%s", stringParameterName, "2nd"))
+		clitest.SetupConfig(t, client, root)
+		err := inv.Run()
+		require.NoError(t, err)
+
+		// Update template: add required, mutable parameter
+		const mutableParameterName = "foobar"
+		updatedTemplateParameters := []*proto.RichParameter{
+			templateParameters[0],
+			{Name: mutableParameterName, Type: "string", Mutable: true, Required: true},
+		}
+
+		updatedVersion := coderdtest.UpdateTemplateVersion(t, client, user.OrganizationID, prepareEchoResponses(updatedTemplateParameters), template.ID)
+		coderdtest.AwaitTemplateVersionJob(t, client, updatedVersion.ID)
+		err = client.UpdateActiveTemplateVersion(context.Background(), template.ID, codersdk.UpdateActiveTemplateVersion{
+			ID: updatedVersion.ID,
+		})
+		require.NoError(t, err)
+
+		// Update the workspace
+		inv, root = clitest.New(t, "update", "my-workspace")
+		clitest.SetupConfig(t, client, root)
+		doneChan := make(chan struct{})
+		pty := ptytest.New(t).Attach(inv)
+		go func() {
+			defer close(doneChan)
+			err := inv.Run()
+			assert.NoError(t, err)
+		}()
+
+		matches := []string{
+			mutableParameterName, "hello",
+			"Planning workspace...", "",
+		}
+		for i := 0; i < len(matches); i += 2 {
+			match := matches[i]
+			value := matches[i+1]
+			pty.ExpectMatch(match)
+
+			if value != "" {
+				pty.WriteLine(value)
+			}
+		}
+		<-doneChan
+	})
+
+	t.Run("MutableRequiredParameterExists_ImmutableRequiredParameterAdded", func(t *testing.T) {
+		t.Parallel()
+
+		// Create template and workspace
+		client := coderdtest.New(t, &coderdtest.Options{IncludeProvisionerDaemon: true})
+		user := coderdtest.CreateFirstUser(t, client)
+
+		templateParameters := []*proto.RichParameter{
+			{Name: stringParameterName, Type: "string", Mutable: true, Required: true, Options: []*proto.RichParameterOption{
+				{Name: "First option", Description: "This is first option", Value: "1st"},
+				{Name: "Second option", Description: "This is second option", Value: "2nd"},
+				{Name: "Third option", Description: "This is third option", Value: "3rd"},
+			}},
+		}
+		version := coderdtest.CreateTemplateVersion(t, client, user.OrganizationID, prepareEchoResponses(templateParameters))
+		coderdtest.AwaitTemplateVersionJob(t, client, version.ID)
+		template := coderdtest.CreateTemplate(t, client, user.OrganizationID, version.ID)
+
+		inv, root := clitest.New(t, "create", "my-workspace", "--yes", "--template", template.Name, "--parameter", fmt.Sprintf("%s=%s", stringParameterName, "2nd"))
+		clitest.SetupConfig(t, client, root)
+		err := inv.Run()
+		require.NoError(t, err)
+
+		// Update template: add required, immutable parameter
+		updatedTemplateParameters := []*proto.RichParameter{
+			templateParameters[0],
+			{Name: immutableParameterName, Type: "string", Mutable: false, Required: true, Options: []*proto.RichParameterOption{
+				{Name: "fir", Description: "This is first option for immutable parameter", Value: "I"},
+				{Name: "sec", Description: "This is second option for immutable parameter", Value: "II"},
+				{Name: "thi", Description: "This is third option for immutable parameter", Value: "III"},
+			}},
+		}
+
+		updatedVersion := coderdtest.UpdateTemplateVersion(t, client, user.OrganizationID, prepareEchoResponses(updatedTemplateParameters), template.ID)
+		coderdtest.AwaitTemplateVersionJob(t, client, updatedVersion.ID)
+		err = client.UpdateActiveTemplateVersion(context.Background(), template.ID, codersdk.UpdateActiveTemplateVersion{
+			ID: updatedVersion.ID,
+		})
+		require.NoError(t, err)
+
+		// Update the workspace
+		inv, root = clitest.New(t, "update", "my-workspace")
+		clitest.SetupConfig(t, client, root)
+		doneChan := make(chan struct{})
+		pty := ptytest.New(t).Attach(inv)
+		go func() {
+			defer close(doneChan)
+			err := inv.Run()
+			assert.NoError(t, err)
+		}()
+
+		matches := []string{
+			immutableParameterName, "thi",
+			"Planning workspace...", "",
+		}
+		for i := 0; i < len(matches); i += 2 {
+			match := matches[i]
+			value := matches[i+1]
+			pty.ExpectMatch(match)
+
+			if value != "" {
+				pty.WriteLine(value)
+			}
 		}
 		<-doneChan
 	})

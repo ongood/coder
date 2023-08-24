@@ -8,14 +8,15 @@ import (
 
 	"github.com/google/uuid"
 	"golang.org/x/exp/slices"
+	"golang.org/x/sync/errgroup"
 	"golang.org/x/xerrors"
 
-	"github.com/coder/coder/coderd/database"
-	"github.com/coder/coder/coderd/database/db2sdk"
-	"github.com/coder/coder/coderd/httpapi"
-	"github.com/coder/coder/coderd/rbac"
-	"github.com/coder/coder/coderd/util/slice"
-	"github.com/coder/coder/codersdk"
+	"github.com/coder/coder/v2/coderd/database"
+	"github.com/coder/coder/v2/coderd/database/db2sdk"
+	"github.com/coder/coder/v2/coderd/httpapi"
+	"github.com/coder/coder/v2/coderd/rbac"
+	"github.com/coder/coder/v2/coderd/util/slice"
+	"github.com/coder/coder/v2/codersdk"
 )
 
 // Duplicated in codersdk.
@@ -188,15 +189,20 @@ func (api *API) insightsTemplates(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	var usage database.GetTemplateInsightsRow
+	var appUsage []database.GetTemplateAppInsightsRow
 	var dailyUsage []database.GetTemplateDailyInsightsRow
+	var parameterRows []database.GetTemplateParameterInsightsRow
 
-	// Use a transaction to ensure that we get consistent data between
-	// the full and interval report.
-	err := api.Database.InTx(func(tx database.Store) error {
+	eg, egCtx := errgroup.WithContext(ctx)
+	eg.SetLimit(4)
+
+	// The following insights data queries have a theoretical chance to be
+	// inconsistent between eachother when looking at "today", however, the
+	// overhead from a transaction is not worth it.
+	eg.Go(func() error {
 		var err error
-
 		if interval != "" {
-			dailyUsage, err = tx.GetTemplateDailyInsights(ctx, database.GetTemplateDailyInsightsParams{
+			dailyUsage, err = api.Database.GetTemplateDailyInsights(egCtx, database.GetTemplateDailyInsightsParams{
 				StartTime:   startTime,
 				EndTime:     endTime,
 				TemplateIDs: templateIDs,
@@ -205,8 +211,11 @@ func (api *API) insightsTemplates(rw http.ResponseWriter, r *http.Request) {
 				return xerrors.Errorf("get template daily insights: %w", err)
 			}
 		}
-
-		usage, err = tx.GetTemplateInsights(ctx, database.GetTemplateInsightsParams{
+		return nil
+	})
+	eg.Go(func() error {
+		var err error
+		usage, err = api.Database.GetTemplateInsights(egCtx, database.GetTemplateInsightsParams{
 			StartTime:   startTime,
 			EndTime:     endTime,
 			TemplateIDs: templateIDs,
@@ -214,9 +223,37 @@ func (api *API) insightsTemplates(rw http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return xerrors.Errorf("get template insights: %w", err)
 		}
-
 		return nil
-	}, nil)
+	})
+	eg.Go(func() error {
+		var err error
+		appUsage, err = api.Database.GetTemplateAppInsights(egCtx, database.GetTemplateAppInsightsParams{
+			StartTime:   startTime,
+			EndTime:     endTime,
+			TemplateIDs: templateIDs,
+		})
+		if err != nil {
+			return xerrors.Errorf("get template app insights: %w", err)
+		}
+		return nil
+	})
+
+	// Template parameter insights have no risk of inconsistency with the other
+	// insights.
+	eg.Go(func() error {
+		var err error
+		parameterRows, err = api.Database.GetTemplateParameterInsights(ctx, database.GetTemplateParameterInsightsParams{
+			StartTime:   startTime,
+			EndTime:     endTime,
+			TemplateIDs: templateIDs,
+		})
+		if err != nil {
+			return xerrors.Errorf("get template parameter insights: %w", err)
+		}
+		return nil
+	})
+
+	err := eg.Wait()
 	if httpapi.Is404Error(err) {
 		httpapi.ResourceNotFound(rw)
 		return
@@ -224,21 +261,6 @@ func (api *API) insightsTemplates(rw http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
 			Message: "Internal error fetching template insights.",
-			Detail:  err.Error(),
-		})
-		return
-	}
-
-	// Template parameter insights have no risk of inconsistency with the other
-	// insights, so we don't need to perform this in a transaction.
-	parameterRows, err := api.Database.GetTemplateParameterInsights(ctx, database.GetTemplateParameterInsightsParams{
-		StartTime:   startTime,
-		EndTime:     endTime,
-		TemplateIDs: templateIDs,
-	})
-	if err != nil {
-		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: "Internal error fetching template parameter insights.",
 			Detail:  err.Error(),
 		})
 		return
@@ -257,9 +279,9 @@ func (api *API) insightsTemplates(rw http.ResponseWriter, r *http.Request) {
 		Report: codersdk.TemplateInsightsReport{
 			StartTime:       startTime,
 			EndTime:         endTime,
-			TemplateIDs:     usage.TemplateIDs,
-			ActiveUsers:     usage.ActiveUsers,
-			AppsUsage:       convertTemplateInsightsBuiltinApps(usage),
+			TemplateIDs:     convertTemplateInsightsTemplateIDs(usage, appUsage),
+			ActiveUsers:     convertTemplateInsightsActiveUsers(usage, appUsage),
+			AppsUsage:       convertTemplateInsightsApps(usage, appUsage),
 			ParametersUsage: parametersUsage,
 		},
 		IntervalReports: []codersdk.TemplateInsightsIntervalReport{},
@@ -276,10 +298,45 @@ func (api *API) insightsTemplates(rw http.ResponseWriter, r *http.Request) {
 	httpapi.Write(ctx, rw, http.StatusOK, resp)
 }
 
-// convertTemplateInsightsBuiltinApps builds the list of builtin apps from the
-// database row, these are apps that are implicitly a part of all templates.
-func convertTemplateInsightsBuiltinApps(usage database.GetTemplateInsightsRow) []codersdk.TemplateAppUsage {
-	return []codersdk.TemplateAppUsage{
+func convertTemplateInsightsTemplateIDs(usage database.GetTemplateInsightsRow, appUsage []database.GetTemplateAppInsightsRow) []uuid.UUID {
+	templateIDSet := make(map[uuid.UUID]struct{})
+	for _, id := range usage.TemplateIDs {
+		templateIDSet[id] = struct{}{}
+	}
+	for _, app := range appUsage {
+		for _, id := range app.TemplateIDs {
+			templateIDSet[id] = struct{}{}
+		}
+	}
+	templateIDs := make([]uuid.UUID, 0, len(templateIDSet))
+	for id := range templateIDSet {
+		templateIDs = append(templateIDs, id)
+	}
+	slices.SortFunc(templateIDs, func(a, b uuid.UUID) int {
+		return slice.Ascending(a.String(), b.String())
+	})
+	return templateIDs
+}
+
+func convertTemplateInsightsActiveUsers(usage database.GetTemplateInsightsRow, appUsage []database.GetTemplateAppInsightsRow) int64 {
+	activeUserIDSet := make(map[uuid.UUID]struct{})
+	for _, id := range usage.ActiveUserIDs {
+		activeUserIDSet[id] = struct{}{}
+	}
+	for _, app := range appUsage {
+		for _, id := range app.ActiveUserIDs {
+			activeUserIDSet[id] = struct{}{}
+		}
+	}
+	return int64(len(activeUserIDSet))
+}
+
+// convertTemplateInsightsApps builds the list of builtin apps and template apps
+// from the provided database rows, builtin apps are implicitly a part of all
+// templates.
+func convertTemplateInsightsApps(usage database.GetTemplateInsightsRow, appUsage []database.GetTemplateAppInsightsRow) []codersdk.TemplateAppUsage {
+	// Builtin apps.
+	apps := []codersdk.TemplateAppUsage{
 		{
 			TemplateIDs: usage.TemplateIDs,
 			Type:        codersdk.TemplateAppsTypeBuiltin,
@@ -296,6 +353,12 @@ func convertTemplateInsightsBuiltinApps(usage database.GetTemplateInsightsRow) [
 			Icon:        "/icon/intellij.svg",
 			Seconds:     usage.UsageJetbrainsSeconds,
 		},
+		// TODO(mafredri): We could take Web Terminal usage from appUsage since
+		// that should be more accurate. The difference is that this reflects
+		// the rpty session as seen by the agent (can live past the connection),
+		// whereas appUsage reflects the lifetime of the client connection. The
+		// condition finding the corresponding app entry in appUsage is:
+		// !app.IsApp && app.AccessMethod == "terminal" && app.SlugOrPort == ""
 		{
 			TemplateIDs: usage.TemplateIDs,
 			Type:        codersdk.TemplateAppsTypeBuiltin,
@@ -313,6 +376,23 @@ func convertTemplateInsightsBuiltinApps(usage database.GetTemplateInsightsRow) [
 			Seconds:     usage.UsageSshSeconds,
 		},
 	}
+
+	// Template apps.
+	for _, app := range appUsage {
+		if !app.IsApp {
+			continue
+		}
+		apps = append(apps, codersdk.TemplateAppUsage{
+			TemplateIDs: app.TemplateIDs,
+			Type:        codersdk.TemplateAppsTypeApp,
+			DisplayName: app.DisplayName.String,
+			Slug:        app.SlugOrPort,
+			Icon:        app.Icon.String,
+			Seconds:     app.UsageSeconds,
+		})
+	}
+
+	return apps
 }
 
 // parseInsightsStartAndEndTime parses the start and end time query parameters
