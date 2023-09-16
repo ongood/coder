@@ -201,6 +201,9 @@ introspection:
     # which may incur significant costs.
     # (default: <unset>, type: bool)
     captureLogs: false
+    # Enables sending Go runtime traces to the local DataDog agent.
+    # (default: false, type: bool)
+    dataDog: false
   logging:
     # Output debug-level logs.
     # (default: <unset>, type: bool)
@@ -320,7 +323,7 @@ oidc:
   # The text to show on the OpenID Connect sign in button.
   # (default: OpenID Connect, type: string)
   signInText: OpenID Connect
-  # URL pointing to the icon to use on the OepnID Connect login button.
+  # URL pointing to the icon to use on the OpenID Connect login button.
   # (default: <unset>, type: url)
   iconURL:
 # Telemetry is critical to our ability to improve Coder. We strip all personal
@@ -331,11 +334,6 @@ telemetry:
   # help improve our product.
   # (default: false, type: bool)
   enable: false
-  # Whether Opentelemetry traces are sent to Coder. Coder collects anonymized
-  # application tracing to help improve our product. Disabling telemetry also
-  # disables this option.
-  # (default: false, type: bool)
-  trace: false
   # URL to send telemetry.
   # (default: https://telemetry.coder.com, type: url)
   url: https://telemetry.coder.com

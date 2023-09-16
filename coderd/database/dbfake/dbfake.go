@@ -21,6 +21,7 @@ import (
 
 	"github.com/coder/coder/v2/coderd/database"
 	"github.com/coder/coder/v2/coderd/database/db2sdk"
+	"github.com/coder/coder/v2/coderd/database/dbtime"
 	"github.com/coder/coder/v2/coderd/httpapi"
 	"github.com/coder/coder/v2/coderd/rbac"
 	"github.com/coder/coder/v2/coderd/rbac/regosql"
@@ -29,6 +30,11 @@ import (
 )
 
 var validProxyByHostnameRegex = regexp.MustCompile(`^[a-zA-Z0-9._-]+$`)
+
+var errForeignKeyConstraint = &pq.Error{
+	Code:    "23503",
+	Message: "update or delete on table violates foreign key constraint",
+}
 
 var errDuplicateKey = &pq.Error{
 	Code:    "23505",
@@ -44,6 +50,7 @@ func New() database.Store {
 			organizationMembers:       make([]database.OrganizationMember, 0),
 			organizations:             make([]database.Organization, 0),
 			users:                     make([]database.User, 0),
+			dbcryptKeys:               make([]database.DBCryptKey, 0),
 			gitAuthLinks:              make([]database.GitAuthLink, 0),
 			groups:                    make([]database.Group, 0),
 			groupMembers:              make([]database.GroupMember, 0),
@@ -116,6 +123,7 @@ type data struct {
 	// New tables
 	workspaceAgentStats           []database.WorkspaceAgentStat
 	auditLogs                     []database.AuditLog
+	dbcryptKeys                   []database.DBCryptKey
 	files                         []database.File
 	gitAuthLinks                  []database.GitAuthLink
 	gitSSHKey                     []database.GitSSHKey
@@ -300,7 +308,7 @@ func mapAgentStatus(dbAgent database.WorkspaceAgent, agentInactiveDisconnectTime
 	switch {
 	case !dbAgent.FirstConnectedAt.Valid:
 		switch {
-		case connectionTimeout > 0 && database.Now().Sub(dbAgent.CreatedAt) > connectionTimeout:
+		case connectionTimeout > 0 && dbtime.Now().Sub(dbAgent.CreatedAt) > connectionTimeout:
 			// If the agent took too long to connect the first time,
 			// mark it as timed out.
 			status = "timeout"
@@ -313,7 +321,7 @@ func mapAgentStatus(dbAgent database.WorkspaceAgent, agentInactiveDisconnectTime
 		// If we've disconnected after our last connection, we know the
 		// agent is no longer connected.
 		status = "disconnected"
-	case database.Now().Sub(dbAgent.LastConnectedAt.Time) > time.Duration(agentInactiveDisconnectTimeoutSeconds)*time.Second:
+	case dbtime.Now().Sub(dbAgent.LastConnectedAt.Time) > time.Duration(agentInactiveDisconnectTimeoutSeconds)*time.Second:
 		// The connection died without updating the last connected.
 		status = "disconnected"
 	case dbAgent.LastConnectedAt.Valid:
@@ -664,6 +672,26 @@ func (q *FakeQuerier) isEveryoneGroup(id uuid.UUID) bool {
 	return false
 }
 
+func (q *FakeQuerier) GetActiveDBCryptKeys(_ context.Context) ([]database.DBCryptKey, error) {
+	q.mutex.RLock()
+	defer q.mutex.RUnlock()
+	ks := make([]database.DBCryptKey, 0, len(q.dbcryptKeys))
+	for _, k := range q.dbcryptKeys {
+		if !k.ActiveKeyDigest.Valid {
+			continue
+		}
+		ks = append([]database.DBCryptKey{}, k)
+	}
+	return ks, nil
+}
+
+func minTime(t, u time.Time) time.Time {
+	if t.Before(u) {
+		return t
+	}
+	return u
+}
+
 func (*FakeQuerier) AcquireLock(_ context.Context, _ int64) error {
 	return xerrors.New("AcquireLock must only be called within a transaction")
 }
@@ -721,6 +749,77 @@ func (q *FakeQuerier) AcquireProvisionerJob(_ context.Context, arg database.Acqu
 		return provisionerJob, nil
 	}
 	return database.ProvisionerJob{}, sql.ErrNoRows
+}
+
+func (q *FakeQuerier) ActivityBumpWorkspace(ctx context.Context, workspaceID uuid.UUID) error {
+	err := validateDatabaseType(workspaceID)
+	if err != nil {
+		return err
+	}
+
+	q.mutex.Lock()
+	defer q.mutex.Unlock()
+
+	workspace, err := q.getWorkspaceByIDNoLock(ctx, workspaceID)
+	if err != nil {
+		return err
+	}
+	latestBuild, err := q.getLatestWorkspaceBuildByWorkspaceIDNoLock(ctx, workspaceID)
+	if err != nil {
+		return err
+	}
+
+	now := dbtime.Now()
+	for i := range q.workspaceBuilds {
+		if q.workspaceBuilds[i].BuildNumber != latestBuild.BuildNumber {
+			continue
+		}
+		// If the build is not active, do not bump.
+		if q.workspaceBuilds[i].Transition != database.WorkspaceTransitionStart {
+			return nil
+		}
+		// If the provisioner job is not completed, do not bump.
+		pj, err := q.getProvisionerJobByIDNoLock(ctx, q.workspaceBuilds[i].JobID)
+		if err != nil {
+			return err
+		}
+		if !pj.CompletedAt.Valid {
+			return nil
+		}
+		// Do not bump if the deadline is not set.
+		if q.workspaceBuilds[i].Deadline.IsZero() {
+			return nil
+		}
+		// Only bump if 5% of the deadline has passed.
+		ttlDur := time.Duration(workspace.Ttl.Int64)
+		ttlDur95 := ttlDur - (ttlDur / 20)
+		minBumpDeadline := q.workspaceBuilds[i].Deadline.Add(-ttlDur95)
+		if now.Before(minBumpDeadline) {
+			return nil
+		}
+
+		// Bump.
+		newDeadline := now.Add(ttlDur)
+		q.workspaceBuilds[i].UpdatedAt = now
+		if !q.workspaceBuilds[i].MaxDeadline.IsZero() {
+			q.workspaceBuilds[i].Deadline = minTime(newDeadline, q.workspaceBuilds[i].MaxDeadline)
+		} else {
+			q.workspaceBuilds[i].Deadline = newDeadline
+		}
+		return nil
+	}
+
+	return sql.ErrNoRows
+}
+
+func (q *FakeQuerier) AllUserIDs(_ context.Context) ([]uuid.UUID, error) {
+	q.mutex.RLock()
+	defer q.mutex.RUnlock()
+	userIDs := make([]uuid.UUID, 0, len(q.users))
+	for idx := range q.users {
+		userIDs[idx] = q.users[idx].ID
+	}
+	return userIDs, nil
 }
 
 func (*FakeQuerier) CleanTailnetCoordinators(_ context.Context) error {
@@ -1150,6 +1249,14 @@ func (q *FakeQuerier) GetAuthorizationUserRoles(_ context.Context, userID uuid.U
 	}, nil
 }
 
+func (q *FakeQuerier) GetDBCryptKeys(_ context.Context) ([]database.DBCryptKey, error) {
+	q.mutex.RLock()
+	defer q.mutex.RUnlock()
+	ks := make([]database.DBCryptKey, 0)
+	ks = append(ks, q.dbcryptKeys...)
+	return ks, nil
+}
+
 func (q *FakeQuerier) GetDERPMeshKey(_ context.Context) (string, error) {
 	q.mutex.RLock()
 	defer q.mutex.RUnlock()
@@ -1390,6 +1497,18 @@ func (q *FakeQuerier) GetGitAuthLink(_ context.Context, arg database.GetGitAuthL
 		return gitAuthLink, nil
 	}
 	return database.GitAuthLink{}, sql.ErrNoRows
+}
+
+func (q *FakeQuerier) GetGitAuthLinksByUserID(_ context.Context, userID uuid.UUID) ([]database.GitAuthLink, error) {
+	q.mutex.RLock()
+	defer q.mutex.RUnlock()
+	gals := make([]database.GitAuthLink, 0)
+	for _, gal := range q.gitAuthLinks {
+		if gal.UserID == userID {
+			gals = append(gals, gal)
+		}
+	}
+	return gals, nil
 }
 
 func (q *FakeQuerier) GetGitSSHKey(_ context.Context, userID uuid.UUID) (database.GitSSHKey, error) {
@@ -2231,92 +2350,6 @@ func (q *FakeQuerier) GetTemplateDAUs(_ context.Context, arg database.GetTemplat
 	return rs, nil
 }
 
-func (q *FakeQuerier) GetTemplateDailyInsights(ctx context.Context, arg database.GetTemplateDailyInsightsParams) ([]database.GetTemplateDailyInsightsRow, error) {
-	err := validateDatabaseType(arg)
-	if err != nil {
-		return nil, err
-	}
-
-	q.mutex.RLock()
-	defer q.mutex.RUnlock()
-
-	type dailyStat struct {
-		startTime, endTime time.Time
-		userSet            map[uuid.UUID]struct{}
-		templateIDSet      map[uuid.UUID]struct{}
-	}
-	dailyStats := []dailyStat{{arg.StartTime, arg.StartTime.AddDate(0, 0, 1), make(map[uuid.UUID]struct{}), make(map[uuid.UUID]struct{})}}
-	for dailyStats[len(dailyStats)-1].endTime.Before(arg.EndTime) {
-		dailyStats = append(dailyStats, dailyStat{dailyStats[len(dailyStats)-1].endTime, dailyStats[len(dailyStats)-1].endTime.AddDate(0, 0, 1), make(map[uuid.UUID]struct{}), make(map[uuid.UUID]struct{})})
-	}
-	if dailyStats[len(dailyStats)-1].endTime.After(arg.EndTime) {
-		dailyStats[len(dailyStats)-1].endTime = arg.EndTime
-	}
-
-	for _, s := range q.workspaceAgentStats {
-		if s.CreatedAt.Before(arg.StartTime) || s.CreatedAt.Equal(arg.EndTime) || s.CreatedAt.After(arg.EndTime) {
-			continue
-		}
-		if len(arg.TemplateIDs) > 0 && !slices.Contains(arg.TemplateIDs, s.TemplateID) {
-			continue
-		}
-		if s.ConnectionCount == 0 {
-			continue
-		}
-
-		for _, ds := range dailyStats {
-			if s.CreatedAt.Before(ds.startTime) || s.CreatedAt.Equal(ds.endTime) || s.CreatedAt.After(ds.endTime) {
-				continue
-			}
-			ds.userSet[s.UserID] = struct{}{}
-			ds.templateIDSet[s.TemplateID] = struct{}{}
-		}
-	}
-
-	for _, s := range q.workspaceAppStats {
-		w, err := q.getWorkspaceByIDNoLock(ctx, s.WorkspaceID)
-		if err != nil {
-			return nil, err
-		}
-
-		if len(arg.TemplateIDs) > 0 && !slices.Contains(arg.TemplateIDs, w.TemplateID) {
-			continue
-		}
-
-		for _, ds := range dailyStats {
-			// (was.session_started_at >= ts.from_ AND was.session_started_at < ts.to_)
-			// OR (was.session_ended_at > ts.from_ AND was.session_ended_at < ts.to_)
-			// OR (was.session_started_at < ts.from_ AND was.session_ended_at >= ts.to_)
-			if !(((s.SessionStartedAt.After(ds.startTime) || s.SessionStartedAt.Equal(ds.startTime)) && s.SessionStartedAt.Before(ds.endTime)) ||
-				(s.SessionEndedAt.After(ds.startTime) && s.SessionEndedAt.Before(ds.endTime)) ||
-				(s.SessionStartedAt.Before(ds.startTime) && (s.SessionEndedAt.After(ds.endTime) || s.SessionEndedAt.Equal(ds.endTime)))) {
-				continue
-			}
-
-			ds.userSet[s.UserID] = struct{}{}
-			ds.templateIDSet[w.TemplateID] = struct{}{}
-		}
-	}
-
-	var result []database.GetTemplateDailyInsightsRow
-	for _, ds := range dailyStats {
-		templateIDs := make([]uuid.UUID, 0, len(ds.templateIDSet))
-		for templateID := range ds.templateIDSet {
-			templateIDs = append(templateIDs, templateID)
-		}
-		slices.SortFunc(templateIDs, func(a, b uuid.UUID) int {
-			return slice.Ascending(a.String(), b.String())
-		})
-		result = append(result, database.GetTemplateDailyInsightsRow{
-			StartTime:   ds.startTime,
-			EndTime:     ds.endTime,
-			TemplateIDs: templateIDs,
-			ActiveUsers: int64(len(ds.userSet)),
-		})
-	}
-	return result, nil
-}
-
 func (q *FakeQuerier) GetTemplateInsights(_ context.Context, arg database.GetTemplateInsightsParams) (database.GetTemplateInsightsRow, error) {
 	err := validateDatabaseType(arg)
 	if err != nil {
@@ -2382,6 +2415,93 @@ func (q *FakeQuerier) GetTemplateInsights(_ context.Context, arg database.GetTem
 			result.UsageReconnectingPtySeconds += interval.UsageReconnectingPtySeconds
 			result.UsageSshSeconds += interval.UsageSshSeconds
 		}
+	}
+	return result, nil
+}
+
+func (q *FakeQuerier) GetTemplateInsightsByInterval(ctx context.Context, arg database.GetTemplateInsightsByIntervalParams) ([]database.GetTemplateInsightsByIntervalRow, error) {
+	err := validateDatabaseType(arg)
+	if err != nil {
+		return nil, err
+	}
+
+	q.mutex.RLock()
+	defer q.mutex.RUnlock()
+
+	type statByInterval struct {
+		startTime, endTime time.Time
+		userSet            map[uuid.UUID]struct{}
+		templateIDSet      map[uuid.UUID]struct{}
+	}
+
+	statsByInterval := []statByInterval{{arg.StartTime, arg.StartTime.AddDate(0, 0, int(arg.IntervalDays)), make(map[uuid.UUID]struct{}), make(map[uuid.UUID]struct{})}}
+	for statsByInterval[len(statsByInterval)-1].endTime.Before(arg.EndTime) {
+		statsByInterval = append(statsByInterval, statByInterval{statsByInterval[len(statsByInterval)-1].endTime, statsByInterval[len(statsByInterval)-1].endTime.AddDate(0, 0, int(arg.IntervalDays)), make(map[uuid.UUID]struct{}), make(map[uuid.UUID]struct{})})
+	}
+	if statsByInterval[len(statsByInterval)-1].endTime.After(arg.EndTime) {
+		statsByInterval[len(statsByInterval)-1].endTime = arg.EndTime
+	}
+
+	for _, s := range q.workspaceAgentStats {
+		if s.CreatedAt.Before(arg.StartTime) || s.CreatedAt.Equal(arg.EndTime) || s.CreatedAt.After(arg.EndTime) {
+			continue
+		}
+		if len(arg.TemplateIDs) > 0 && !slices.Contains(arg.TemplateIDs, s.TemplateID) {
+			continue
+		}
+		if s.ConnectionCount == 0 {
+			continue
+		}
+
+		for _, ds := range statsByInterval {
+			if s.CreatedAt.Before(ds.startTime) || s.CreatedAt.Equal(ds.endTime) || s.CreatedAt.After(ds.endTime) {
+				continue
+			}
+			ds.userSet[s.UserID] = struct{}{}
+			ds.templateIDSet[s.TemplateID] = struct{}{}
+		}
+	}
+
+	for _, s := range q.workspaceAppStats {
+		w, err := q.getWorkspaceByIDNoLock(ctx, s.WorkspaceID)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(arg.TemplateIDs) > 0 && !slices.Contains(arg.TemplateIDs, w.TemplateID) {
+			continue
+		}
+
+		for _, ds := range statsByInterval {
+			// (was.session_started_at >= ts.from_ AND was.session_started_at < ts.to_)
+			// OR (was.session_ended_at > ts.from_ AND was.session_ended_at < ts.to_)
+			// OR (was.session_started_at < ts.from_ AND was.session_ended_at >= ts.to_)
+			if !(((s.SessionStartedAt.After(ds.startTime) || s.SessionStartedAt.Equal(ds.startTime)) && s.SessionStartedAt.Before(ds.endTime)) ||
+				(s.SessionEndedAt.After(ds.startTime) && s.SessionEndedAt.Before(ds.endTime)) ||
+				(s.SessionStartedAt.Before(ds.startTime) && (s.SessionEndedAt.After(ds.endTime) || s.SessionEndedAt.Equal(ds.endTime)))) {
+				continue
+			}
+
+			ds.userSet[s.UserID] = struct{}{}
+			ds.templateIDSet[w.TemplateID] = struct{}{}
+		}
+	}
+
+	var result []database.GetTemplateInsightsByIntervalRow
+	for _, ds := range statsByInterval {
+		templateIDs := make([]uuid.UUID, 0, len(ds.templateIDSet))
+		for templateID := range ds.templateIDSet {
+			templateIDs = append(templateIDs, templateID)
+		}
+		slices.SortFunc(templateIDs, func(a, b uuid.UUID) int {
+			return slice.Ascending(a.String(), b.String())
+		})
+		result = append(result, database.GetTemplateInsightsByIntervalRow{
+			StartTime:   ds.startTime,
+			EndTime:     ds.endTime,
+			TemplateIDs: templateIDs,
+			ActiveUsers: int64(len(ds.userSet)),
+		})
 	}
 	return result, nil
 }
@@ -2830,6 +2950,18 @@ func (q *FakeQuerier) GetUserLinkByUserIDLoginType(_ context.Context, params dat
 		}
 	}
 	return database.UserLink{}, sql.ErrNoRows
+}
+
+func (q *FakeQuerier) GetUserLinksByUserID(_ context.Context, userID uuid.UUID) ([]database.UserLink, error) {
+	q.mutex.RLock()
+	defer q.mutex.RUnlock()
+	uls := make([]database.UserLink, 0)
+	for _, ul := range q.userLinks {
+		if ul.UserID == userID {
+			uls = append(uls, ul)
+		}
+	}
+	return uls, nil
 }
 
 func (q *FakeQuerier) GetUsers(_ context.Context, params database.GetUsersParams) ([]database.GetUsersRow, error) {
@@ -3758,7 +3890,7 @@ func (q *FakeQuerier) GetWorkspacesEligibleForTransition(ctx context.Context, no
 			continue
 		}
 
-		template, err := q.GetTemplateByID(ctx, workspace.TemplateID)
+		template, err := q.getTemplateByIDNoLock(ctx, workspace.TemplateID)
 		if err != nil {
 			return nil, xerrors.Errorf("get template by ID: %w", err)
 		}
@@ -3845,6 +3977,26 @@ func (q *FakeQuerier) InsertAuditLog(_ context.Context, arg database.InsertAudit
 	return alog, nil
 }
 
+func (q *FakeQuerier) InsertDBCryptKey(_ context.Context, arg database.InsertDBCryptKeyParams) error {
+	err := validateDatabaseType(arg)
+	if err != nil {
+		return err
+	}
+
+	for _, key := range q.dbcryptKeys {
+		if key.Number == arg.Number {
+			return errDuplicateKey
+		}
+	}
+
+	q.dbcryptKeys = append(q.dbcryptKeys, database.DBCryptKey{
+		Number:          arg.Number,
+		ActiveKeyDigest: sql.NullString{String: arg.ActiveKeyDigest, Valid: true},
+		Test:            arg.Test,
+	})
+	return nil
+}
+
 func (q *FakeQuerier) InsertDERPMeshKey(_ context.Context, id string) error {
 	q.mutex.Lock()
 	defer q.mutex.Unlock()
@@ -3891,13 +4043,15 @@ func (q *FakeQuerier) InsertGitAuthLink(_ context.Context, arg database.InsertGi
 	defer q.mutex.Unlock()
 	// nolint:gosimple
 	gitAuthLink := database.GitAuthLink{
-		ProviderID:        arg.ProviderID,
-		UserID:            arg.UserID,
-		CreatedAt:         arg.CreatedAt,
-		UpdatedAt:         arg.UpdatedAt,
-		OAuthAccessToken:  arg.OAuthAccessToken,
-		OAuthRefreshToken: arg.OAuthRefreshToken,
-		OAuthExpiry:       arg.OAuthExpiry,
+		ProviderID:             arg.ProviderID,
+		UserID:                 arg.UserID,
+		CreatedAt:              arg.CreatedAt,
+		UpdatedAt:              arg.UpdatedAt,
+		OAuthAccessToken:       arg.OAuthAccessToken,
+		OAuthAccessTokenKeyID:  arg.OAuthAccessTokenKeyID,
+		OAuthRefreshToken:      arg.OAuthRefreshToken,
+		OAuthRefreshTokenKeyID: arg.OAuthRefreshTokenKeyID,
+		OAuthExpiry:            arg.OAuthExpiry,
 	}
 	q.gitAuthLinks = append(q.gitAuthLinks, gitAuthLink)
 	return gitAuthLink, nil
@@ -4361,12 +4515,14 @@ func (q *FakeQuerier) InsertUserLink(_ context.Context, args database.InsertUser
 
 	//nolint:gosimple
 	link := database.UserLink{
-		UserID:            args.UserID,
-		LoginType:         args.LoginType,
-		LinkedID:          args.LinkedID,
-		OAuthAccessToken:  args.OAuthAccessToken,
-		OAuthRefreshToken: args.OAuthRefreshToken,
-		OAuthExpiry:       args.OAuthExpiry,
+		UserID:                 args.UserID,
+		LoginType:              args.LoginType,
+		LinkedID:               args.LinkedID,
+		OAuthAccessToken:       args.OAuthAccessToken,
+		OAuthAccessTokenKeyID:  args.OAuthAccessTokenKeyID,
+		OAuthRefreshToken:      args.OAuthRefreshToken,
+		OAuthRefreshTokenKeyID: args.OAuthRefreshTokenKeyID,
+		OAuthExpiry:            args.OAuthExpiry,
 	}
 
 	q.userLinks = append(q.userLinks, link)
@@ -4428,6 +4584,7 @@ func (q *FakeQuerier) InsertWorkspaceAgent(_ context.Context, arg database.Inser
 		MOTDFile:                 arg.MOTDFile,
 		LifecycleState:           database.WorkspaceAgentLifecycleStateCreated,
 		ShutdownScript:           arg.ShutdownScript,
+		DisplayApps:              arg.DisplayApps,
 	}
 
 	q.workspaceAgents = append(q.workspaceAgents, agent)
@@ -4663,6 +4820,7 @@ func (q *FakeQuerier) InsertWorkspaceBuild(_ context.Context, arg database.Inser
 		JobID:             arg.JobID,
 		ProvisionerState:  arg.ProvisionerState,
 		Deadline:          arg.Deadline,
+		MaxDeadline:       arg.MaxDeadline,
 		Reason:            arg.Reason,
 	}
 	q.workspaceBuilds = append(q.workspaceBuilds, workspaceBuild)
@@ -4783,12 +4941,52 @@ func (q *FakeQuerier) RegisterWorkspaceProxy(_ context.Context, arg database.Reg
 			p.WildcardHostname = arg.WildcardHostname
 			p.DerpEnabled = arg.DerpEnabled
 			p.DerpOnly = arg.DerpOnly
-			p.UpdatedAt = database.Now()
+			p.UpdatedAt = dbtime.Now()
 			q.workspaceProxies[i] = p
 			return p, nil
 		}
 	}
 	return database.WorkspaceProxy{}, sql.ErrNoRows
+}
+
+func (q *FakeQuerier) RevokeDBCryptKey(_ context.Context, activeKeyDigest string) error {
+	q.mutex.Lock()
+	defer q.mutex.Unlock()
+
+	for i := range q.dbcryptKeys {
+		key := q.dbcryptKeys[i]
+
+		// Is the key already revoked?
+		if !key.ActiveKeyDigest.Valid {
+			continue
+		}
+
+		if key.ActiveKeyDigest.String != activeKeyDigest {
+			continue
+		}
+
+		// Check for foreign key constraints.
+		for _, ul := range q.userLinks {
+			if (ul.OAuthAccessTokenKeyID.Valid && ul.OAuthAccessTokenKeyID.String == activeKeyDigest) ||
+				(ul.OAuthRefreshTokenKeyID.Valid && ul.OAuthRefreshTokenKeyID.String == activeKeyDigest) {
+				return errForeignKeyConstraint
+			}
+		}
+		for _, gal := range q.gitAuthLinks {
+			if (gal.OAuthAccessTokenKeyID.Valid && gal.OAuthAccessTokenKeyID.String == activeKeyDigest) ||
+				(gal.OAuthRefreshTokenKeyID.Valid && gal.OAuthRefreshTokenKeyID.String == activeKeyDigest) {
+				return errForeignKeyConstraint
+			}
+		}
+
+		// Revoke the key.
+		q.dbcryptKeys[i].RevokedAt = sql.NullTime{Time: dbtime.Now(), Valid: true}
+		q.dbcryptKeys[i].RevokedKeyDigest = sql.NullString{String: key.ActiveKeyDigest.String, Valid: true}
+		q.dbcryptKeys[i].ActiveKeyDigest = sql.NullString{}
+		return nil
+	}
+
+	return sql.ErrNoRows
 }
 
 func (*FakeQuerier) TryAcquireLock(_ context.Context, _ int64) (bool, error) {
@@ -4832,7 +5030,9 @@ func (q *FakeQuerier) UpdateGitAuthLink(_ context.Context, arg database.UpdateGi
 		}
 		gitAuthLink.UpdatedAt = arg.UpdatedAt
 		gitAuthLink.OAuthAccessToken = arg.OAuthAccessToken
+		gitAuthLink.OAuthAccessTokenKeyID = arg.OAuthAccessTokenKeyID
 		gitAuthLink.OAuthRefreshToken = arg.OAuthRefreshToken
+		gitAuthLink.OAuthRefreshTokenKeyID = arg.OAuthRefreshTokenKeyID
 		gitAuthLink.OAuthExpiry = arg.OAuthExpiry
 		q.gitAuthLinks[index] = gitAuthLink
 
@@ -5098,7 +5298,7 @@ func (q *FakeQuerier) UpdateTemplateMetaByID(_ context.Context, arg database.Upd
 		if tpl.ID != arg.ID {
 			continue
 		}
-		tpl.UpdatedAt = database.Now()
+		tpl.UpdatedAt = dbtime.Now()
 		tpl.Name = arg.Name
 		tpl.DisplayName = arg.DisplayName
 		tpl.Description = arg.Description
@@ -5124,11 +5324,11 @@ func (q *FakeQuerier) UpdateTemplateScheduleByID(_ context.Context, arg database
 		}
 		tpl.AllowUserAutostart = arg.AllowUserAutostart
 		tpl.AllowUserAutostop = arg.AllowUserAutostop
-		tpl.UpdatedAt = database.Now()
+		tpl.UpdatedAt = dbtime.Now()
 		tpl.DefaultTTL = arg.DefaultTTL
 		tpl.MaxTTL = arg.MaxTTL
-		tpl.RestartRequirementDaysOfWeek = arg.RestartRequirementDaysOfWeek
-		tpl.RestartRequirementWeeks = arg.RestartRequirementWeeks
+		tpl.AutostopRequirementDaysOfWeek = arg.AutostopRequirementDaysOfWeek
+		tpl.AutostopRequirementWeeks = arg.AutostopRequirementWeeks
 		tpl.FailureTTL = arg.FailureTTL
 		tpl.TimeTilDormant = arg.TimeTilDormant
 		tpl.TimeTilDormantAutoDelete = arg.TimeTilDormantAutoDelete
@@ -5304,7 +5504,9 @@ func (q *FakeQuerier) UpdateUserLink(_ context.Context, params database.UpdateUs
 	for i, link := range q.userLinks {
 		if link.UserID == params.UserID && link.LoginType == params.LoginType {
 			link.OAuthAccessToken = params.OAuthAccessToken
+			link.OAuthAccessTokenKeyID = params.OAuthAccessTokenKeyID
 			link.OAuthRefreshToken = params.OAuthRefreshToken
+			link.OAuthRefreshTokenKeyID = params.OAuthRefreshTokenKeyID
 			link.OAuthExpiry = params.OAuthExpiry
 
 			q.userLinks[i] = link
@@ -5711,7 +5913,7 @@ func (q *FakeQuerier) UpdateWorkspaceDormantDeletingAt(_ context.Context, arg da
 		}
 		workspace.DormantAt = arg.DormantAt
 		if workspace.DormantAt.Time.IsZero() {
-			workspace.LastUsedAt = database.Now()
+			workspace.LastUsedAt = dbtime.Now()
 			workspace.DeletingAt = sql.NullTime{}
 		}
 		if !workspace.DormantAt.Time.IsZero() {
@@ -5790,7 +5992,7 @@ func (q *FakeQuerier) UpdateWorkspaceProxyDeleted(_ context.Context, arg databas
 	for i, p := range q.workspaceProxies {
 		if p.ID == arg.ID {
 			p.Deleted = arg.Deleted
-			p.UpdatedAt = database.Now()
+			p.UpdatedAt = dbtime.Now()
 			q.workspaceProxies[i] = p
 			return nil
 		}
@@ -6053,7 +6255,6 @@ func (q *FakeQuerier) GetTemplateUserRoles(_ context.Context, id uuid.UUID) ([]d
 	return users, nil
 }
 
-//nolint:gocyclo
 func (q *FakeQuerier) GetAuthorizedWorkspaces(ctx context.Context, arg database.GetWorkspacesParams, prepared rbac.PreparedAuthorized) ([]database.GetWorkspacesRow, error) {
 	if err := validateDatabaseType(arg); err != nil {
 		return nil, err

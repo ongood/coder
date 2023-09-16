@@ -6,31 +6,32 @@ import {
   UploadResponse,
   VariableValue,
   WorkspaceResource,
-} from "api/typesGenerated"
-import { assign, createMachine } from "xstate"
-import * as API from "api/api"
-import { FileTree, traverse } from "utils/filetree"
-import { isAllowedFile } from "utils/templateVersion"
-import { TarReader, TarWriter } from "utils/tar"
-import { PublishVersionData } from "pages/TemplateVersionPage/TemplateVersionEditorPage/types"
+} from "api/typesGenerated";
+import { assign, createMachine } from "xstate";
+import * as API from "api/api";
+import { FileTree, traverse } from "utils/filetree";
+import { isAllowedFile } from "utils/templateVersion";
+import { TarReader, TarWriter } from "utils/tar";
+import { PublishVersionData } from "pages/TemplateVersionEditorPage/types";
 
 export interface TemplateVersionEditorMachineContext {
-  orgId: string
-  templateId?: string
-  fileTree?: FileTree
-  uploadResponse?: UploadResponse
-  version?: TemplateVersion
-  resources?: WorkspaceResource[]
-  buildLogs?: ProvisionerJobLog[]
-  tarReader?: TarReader
-  publishingError?: unknown
-  missingVariables?: TemplateVersionVariable[]
-  missingVariableValues?: VariableValue[]
+  orgId: string;
+  templateId?: string;
+  fileTree?: FileTree;
+  uploadResponse?: UploadResponse;
+  version?: TemplateVersion;
+  resources?: WorkspaceResource[];
+  buildLogs?: ProvisionerJobLog[];
+  tarReader?: TarReader;
+  publishingError?: unknown;
+  lastSuccessfulPublishedVersion?: TemplateVersion;
+  missingVariables?: TemplateVersionVariable[];
+  missingVariableValues?: VariableValue[];
 }
 
 export const templateVersionEditorMachine = createMachine(
   {
-    /** @xstate-layout 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 */
+    /** @xstate-layout N4IgpgJg5mDOIC5QBcwFsAOAbAhqgamAE6wCWA9gHYCiEpy5RAdKZfaTlqQF6tQDEASQByggCqCAggBlBALWoBtAAwBdRKAzkyyCpQ0gAHogC0AFgDsypgDYAnAFZlFpzefKbADgA0IAJ6IAIzKngDMTIF2FmYONoFW9s4Avkm+qJi4BMRkVLT0jCwQWGD8AMIAStSSYtQA+vjU5QDKggDywirqSCBaOnoGxggmoTYOTKEATIEOThNxDmajvgEIgTFjDhaeNpPTZpbRKWno2HhghCR6eQzMpEUlAAoAqgBCsk0AEp0GvexUA6Y5mNlKEzBNPJ5Ap4JjCbEt-EEJsozEw7MoHKEQhYJqFPBYbBYjiB0qcspdcnQboVivwACKCJoAWQZTVqzzeDI+tRekmEwka326v10-26gxMcM8TGcoRGc0CNjMyg8yyCkzsqOUkWcnjMEJhRJJmXO2SulIKOFgAGsHgBXABGXFgAAsHjgiDg0GBUCQyrzStRpGzXu8vmofto-voxaZAvFxnZ9mFonY7NswarVuCLEwLPjQlCPGsJodUsSTsaLjkaObmJabQ6na73Z7vdkyu0AGKCcqM4Mcz6CzSRkXR0CDOM5ta6ya4jHbZR2TNx1O5iHTHEWQLgzyGitnKtm-LMDCN0guviHqj8CBUMAsSgAN3IVvvp8d5+dl9NVCHPRH-QxggSrWOioSOHCdhzCEMzLuCGoFqMkJmGsgRynuGQHj+NbHkw75Nt+5KUPwxBEAUpIAGaMGgeFnhelBQFelB-sKgHjkEcbStESKbGYaZFoEy6LlKcJePE4IzDYEwYaSJpEdcBQAMY4JQilgFwDGCJQDxkVARBwLALy2qQWAQDed4Ps+r5MMpqnqUZJkQCxAGiuxQyhA4UpmLiLhePYaEjMuFgFqibjOPmqbKNJZZGlh8m1kwtrYOQOAQGI7rmZQ96sFZ95JVgKVpe6zl9K5RimFETAljioI4mmdgjBYy7QhsepWE4DVQShMmVthCnMIp+l4HwDmmZl2VPi+96DWAZyjU54ZCi5Y7lcBDgTNKeITGm+LYutNjNRMrV4uii7gRM+w9XF1b9UwADueCKV+DHzdI5BQLA-CSLStLck8gjSL90itAA4iVUYAggjg5o4UxJutkzbEFDgakionbImMKeVdZI3QlD3IE9I3GaZb0ffwLz-YDtS0u0SiLcOpUrYMvlMJJowwgqiZpsumPSoWnjIrEMTBTjcl47hBNEy9JMQGTn2lP6gb1I0LTtODo6QyYeKoidaZxBd0JxMuUnWCjFipiMITeeBYtMbdUvPVAr3vQrlTVHUDTNG0HQM-+TNa3ENi5vEnjQ6m20o4dgS2GC6L1W4upmHbfUJRR3rS4x2HjZZU1MOnhPOkxGtsatUkorqmxWLKFuC4JCIIHDwcuAj60uKCiwp-FuEF5nTE5zlee90X2GKIEXSMxDQHBDsuZah5cbBHYAWZk3uYzJEDVxlJdhdxLVIYGRmDIPg7ocI6cBMAVqV8Iy55kAxp9EOfxSfbeWW59ZsW40eB9HxgJ8z44AvrAK+hVb730vEAkBCBB7KVHJ0EuZVBhhVRAFTwvFI5TFXrVJg3l9Qll1CEGwe9f7kX-oA5+wDX7UhKE0agYhajMiaC0YQIN6iSHKFIN4nsZBPGoE0JBzNEAEgiDuWUippgW28qvdaG0rBrB3iEKKhIYr7h-hSXCh9yDHyfi-S+dwaSK2EAGIMzDWHsPwJw7h0heHSH4YIv2rFkFBEklVUI0ipgNSsPsVeJZg5RCxmhWYkRQikM0VSYe5Q4DkFtEQNSb8LKD2sjAZA0TYCxPiXAIRkNixjDQpCDwgTtz4hNk4WwDgFTKgxHxLcYSiSUHIBAOABhv7izIUQCMAcgImC3MHGUcog4gQOg3VMYx7DREWDEaEkJorHEwhonCVJWDsE4DwPgXSp5uQlCFPpUIkTInsBmBucYPARGiFFSYJYPAFnCUsgohiwCbM1j0gs8jqlgjRKmbcy4PIbTxEnI6BYYIODubdesdoPwujdB6L0Pp4BLW6ds7cGow6eVlOta2YIRkrG3MiTUGIsQ4jxASMFCV8KfkItWZ5pdBgeSlM4GYwtrZOF8ScuM4QkTgX2ASZUaZ6nzNkvbBKtk1IaSgFpHS719KwEMrLGlLihhKgZSUuuQIwg4tcZVYSWp4hSW2GEMluF8qFXSp0xFWzVrDEcNKSY6JDYzxxA4Q64R1ptxBEcw5RqqQzWGjLRyCrhGrEWGzDxVgwjeXWpCHwJzoSuqOkCKEnlwQkLUQs9pESCiO2Jo5eWgbIZwg2nHeeSIrAesOv0o5BIwR6lxLvNNQrU49wzk7Ji+agJeE5QSfyTgUYwjMKvLUGwbl2FGAU7qDberdz-jogBejqEtItS8ty20Y6JkWDCFw0zjkrCxuEFCCxLBxDzF6yd10Ol4QofOkBYCb4MTvrKqBVCQHtrcrKDU66pIlgWJ5HdiAcRKjQQsD1wRtoCvLOm4VWir3QJoY819q0wioo6mjLY2JFg4MVHg6Y4FZzbn7d6goUSYlxISQhicHiEJxCVCMewiotSrwKbYXYwQPAoTxCkFIQA */
     predictableActionArguments: true,
     id: "templateVersionEditor",
     schema: {
@@ -38,9 +39,9 @@ export const templateVersionEditorMachine = createMachine(
       events: {} as
         | { type: "INITIALIZE"; tarReader: TarReader }
         | {
-            type: "CREATE_VERSION"
-            fileTree: FileTree
-            templateId: string
+            type: "CREATE_VERSION";
+            fileTree: FileTree;
+            templateId: string;
           }
         | { type: "CANCEL_VERSION" }
         | { type: "SET_MISSING_VARIABLE_VALUES"; values: VariableValue[] }
@@ -53,26 +54,26 @@ export const templateVersionEditorMachine = createMachine(
 
       services: {} as {
         uploadTar: {
-          data: UploadResponse
-        }
+          data: UploadResponse;
+        };
         createBuild: {
-          data: TemplateVersion
-        }
+          data: TemplateVersion;
+        };
         cancelBuild: {
-          data: void
-        }
+          data: void;
+        };
         fetchVersion: {
-          data: TemplateVersion
-        }
+          data: TemplateVersion;
+        };
         getResources: {
-          data: WorkspaceResource[]
-        }
+          data: WorkspaceResource[];
+        };
         publishingVersion: {
-          data: void
-        }
+          data: void;
+        };
         loadMissingVariables: {
-          data: TemplateVersionVariable[]
-        }
+          data: TemplateVersionVariable[];
+        };
       },
     },
     tsTypes: {} as import("./templateVersionEditorXService.typegen").Typegen0,
@@ -108,7 +109,7 @@ export const templateVersionEditorMachine = createMachine(
 
       publishingVersion: {
         tags: "loading",
-        entry: ["clearPublishingError"],
+        entry: ["clearPublishingError", "clearLastSuccessfulPublishedVersion"],
         invoke: {
           id: "publishingVersion",
           src: "publishingVersion",
@@ -119,6 +120,7 @@ export const templateVersionEditorMachine = createMachine(
           },
 
           onDone: {
+            actions: ["assignLastSuccessfulPublishedVersion"],
             target: ["idle"],
           },
         },
@@ -256,10 +258,14 @@ export const templateVersionEditorMachine = createMachine(
       assignBuild: assign({
         version: (_, event) => event.data,
       }),
+      assignLastSuccessfulPublishedVersion: assign({
+        lastSuccessfulPublishedVersion: (ctx) => ctx.version,
+        version: () => undefined,
+      }),
       addBuildLog: assign({
         buildLogs: (context, event) => {
-          const previousLogs = context.buildLogs ?? []
-          return [...previousLogs, event.log]
+          const previousLogs = context.buildLogs ?? [];
+          return [...previousLogs, event.log];
         },
         // Instead of periodically fetching the version,
         // we just assume the state is running after the first log.
@@ -267,7 +273,7 @@ export const templateVersionEditorMachine = createMachine(
         // The machine fetches the version after the log stream ends anyways!
         version: (context) => {
           if (!context.version || context.buildLogs?.length !== 0) {
-            return context.version
+            return context.version;
           }
           return {
             ...context.version,
@@ -275,7 +281,7 @@ export const templateVersionEditorMachine = createMachine(
               ...context.version.job,
               status: "running" as ProvisionerJobStatus,
             },
-          }
+          };
         },
       }),
       assignTarReader: assign({
@@ -285,6 +291,9 @@ export const templateVersionEditorMachine = createMachine(
         publishingError: (_, event) => event.data,
       }),
       clearPublishingError: assign({ publishingError: (_) => undefined }),
+      clearLastSuccessfulPublishedVersion: assign({
+        lastSuccessfulPublishedVersion: (_) => undefined,
+      }),
       assignMissingVariables: assign({
         missingVariables: (_, event) => event.data,
       }),
@@ -295,12 +304,12 @@ export const templateVersionEditorMachine = createMachine(
     services: {
       uploadTar: async ({ fileTree, tarReader }) => {
         if (!fileTree) {
-          throw new Error("file tree must to be set")
+          throw new Error("file tree must to be set");
         }
         if (!tarReader) {
-          throw new Error("tar reader must to be set")
+          throw new Error("tar reader must to be set");
         }
-        const tar = new TarWriter()
+        const tar = new TarWriter();
 
         // Add previous non editable files
         for (const file of tarReader.fileInfo) {
@@ -311,7 +320,7 @@ export const templateVersionEditorMachine = createMachine(
                 mtime: file.mtime,
                 user: file.user,
                 group: file.group,
-              })
+              });
             } else {
               tar.addFile(
                 file.name,
@@ -322,7 +331,7 @@ export const templateVersionEditorMachine = createMachine(
                   user: file.user,
                   group: file.group,
                 },
-              )
+              );
             }
           }
         }
@@ -330,22 +339,22 @@ export const templateVersionEditorMachine = createMachine(
         traverse(fileTree, (content, _filename, fullPath) => {
           // When a file is deleted. Don't add it to the tar.
           if (content === undefined) {
-            return
+            return;
           }
 
           if (typeof content === "string") {
-            tar.addFile(fullPath, content)
-            return
+            tar.addFile(fullPath, content);
+            return;
           }
 
-          tar.addFolder(fullPath)
-        })
-        const blob = (await tar.write()) as Blob
-        return API.uploadTemplateFile(new File([blob], "template.tar"))
+          tar.addFolder(fullPath);
+        });
+        const blob = (await tar.write()) as Blob;
+        return API.uploadTemplateFile(new File([blob], "template.tar"));
       },
       createBuild: (ctx) => {
         if (!ctx.uploadResponse) {
-          throw new Error("no upload response")
+          throw new Error("no upload response");
         }
         return API.createTemplateVersion(ctx.orgId, {
           provisioner: "terraform",
@@ -354,49 +363,49 @@ export const templateVersionEditorMachine = createMachine(
           template_id: ctx.templateId,
           file_id: ctx.uploadResponse.hash,
           user_variable_values: ctx.missingVariableValues,
-        })
+        });
       },
       fetchVersion: (ctx) => {
         if (!ctx.version) {
-          throw new Error("template version must be set")
+          throw new Error("template version must be set");
         }
-        return API.getTemplateVersion(ctx.version.id)
+        return API.getTemplateVersion(ctx.version.id);
       },
       watchBuildLogs:
         ({ version }) =>
         async (callback) => {
           if (!version) {
-            throw new Error("version must be set")
+            throw new Error("version must be set");
           }
 
           const socket = API.watchBuildLogsByTemplateVersionId(version.id, {
             onMessage: (log) => {
-              callback({ type: "ADD_BUILD_LOG", log })
+              callback({ type: "ADD_BUILD_LOG", log });
             },
             onDone: () => {
-              callback({ type: "BUILD_DONE" })
+              callback({ type: "BUILD_DONE" });
             },
             onError: (error) => {
-              console.error(error)
+              console.error(error);
             },
-          })
+          });
 
           return () => {
-            socket.close()
-          }
+            socket.close();
+          };
         },
       getResources: (ctx) => {
         if (!ctx.version) {
-          throw new Error("template version must be set")
+          throw new Error("template version must be set");
         }
-        return API.getTemplateVersionResources(ctx.version.id)
+        return API.getTemplateVersionResources(ctx.version.id);
       },
       cancelBuild: async (ctx) => {
         if (!ctx.version) {
-          return
+          return;
         }
         if (ctx.version.job.status === "running") {
-          await API.cancelTemplateVersionBuild(ctx.version.id)
+          await API.cancelTemplateVersionBuild(ctx.version.id);
         }
       },
       publishingVersion: async (
@@ -404,12 +413,13 @@ export const templateVersionEditorMachine = createMachine(
         { name, message, isActiveVersion },
       ) => {
         if (!version) {
-          throw new Error("Version is not set")
+          throw new Error("Version is not set");
         }
         if (!templateId) {
-          throw new Error("Template is not set")
+          throw new Error("Template is not set");
         }
-        const haveChanges = name !== version.name || message !== version.message
+        const haveChanges =
+          name !== version.name || message !== version.message;
         await Promise.all([
           haveChanges
             ? API.patchTemplateVersion(version.id, { name, message })
@@ -419,20 +429,20 @@ export const templateVersionEditorMachine = createMachine(
                 id: version.id,
               })
             : Promise.resolve(),
-        ])
+        ]);
       },
       loadMissingVariables: ({ version }) => {
         if (!version) {
-          throw new Error("Version is not set")
+          throw new Error("Version is not set");
         }
-        const variables = API.getTemplateVersionVariables(version.id)
-        return variables
+        const variables = API.getTemplateVersionVariables(version.id);
+        return variables;
       },
     },
     guards: {
       jobFailedWithMissingVariables: (_, { data }) => {
-        return data.job.error_code === "REQUIRED_TEMPLATE_VARIABLES"
+        return data.job.error_code === "REQUIRED_TEMPLATE_VARIABLES";
       },
     },
   },
-)
+);

@@ -471,7 +471,8 @@ gen: \
 	site/.prettierrc.yaml \
 	site/.prettierignore \
 	site/.eslintignore \
-	site/e2e/provisionerGenerated.ts
+	site/e2e/provisionerGenerated.ts \
+	examples/examples.gen.json
 .PHONY: gen
 
 # Mark all generated files as fresh so make thinks they're up-to-date. This is
@@ -494,6 +495,7 @@ gen/mark-fresh:
 		site/.prettierignore \
 		site/.eslintignore \
 		site/e2e/provisionerGenerated.ts \
+		examples/examples.gen.json \
 	"
 	for file in $$files; do
 		echo "$$file"
@@ -545,6 +547,10 @@ site/e2e/provisionerGenerated.ts:
 	../scripts/pnpm_install.sh
 	pnpm run gen:provisioner
 
+
+examples/examples.gen.json: scripts/examplegen/main.go examples/examples.go $(shell find ./examples/templates)
+	go run ./scripts/examplegen/main.go > examples/examples.gen.json
+
 coderd/rbac/object_gen.go: scripts/rbacgen/main.go coderd/rbac/object.go
 	go run scripts/rbacgen/main.go ./coderd/rbac > coderd/rbac/object_gen.go
 
@@ -552,8 +558,8 @@ docs/admin/prometheus.md: scripts/metricsdocgen/main.go scripts/metricsdocgen/me
 	go run scripts/metricsdocgen/main.go
 	pnpm run format:write:only ./docs/admin/prometheus.md
 
-docs/cli.md: scripts/clidocgen/main.go $(GO_SRC_FILES)
-	BASE_PATH="." go run ./scripts/clidocgen
+docs/cli.md: scripts/clidocgen/main.go examples/examples.gen.json $(GO_SRC_FILES)
+	CI=true BASE_PATH="." go run ./scripts/clidocgen
 	pnpm run format:write:only ./docs/cli.md ./docs/cli/*.md ./docs/manifest.json
 
 docs/admin/audit-logs.md: scripts/auditdocgen/main.go enterprise/audit/table.go coderd/rbac/object_gen.go
@@ -564,7 +570,7 @@ coderd/apidoc/swagger.json: $(shell find ./scripts/apidocgen $(FIND_EXCLUSIONS) 
 	./scripts/apidocgen/generate.sh
 	pnpm run format:write:only ./docs/api ./docs/manifest.json ./coderd/apidoc/swagger.json
 
-update-golden-files: cli/testdata/.gen-golden helm/coder/tests/testdata/.gen-golden helm/provisioner/tests/testdata/.gen-golden scripts/ci-report/testdata/.gen-golden enterprise/cli/testdata/.gen-golden coderd/.gen-golden
+update-golden-files: cli/testdata/.gen-golden helm/coder/tests/testdata/.gen-golden helm/provisioner/tests/testdata/.gen-golden scripts/ci-report/testdata/.gen-golden enterprise/cli/testdata/.gen-golden coderd/.gen-golden provisioner/terraform/testdata/.gen-golden
 .PHONY: update-golden-files
 
 cli/testdata/.gen-golden: $(wildcard cli/testdata/*.golden) $(wildcard cli/*.tpl) $(GO_SRC_FILES) $(wildcard cli/*_test.go)
@@ -587,6 +593,10 @@ coderd/.gen-golden: $(wildcard coderd/testdata/*/*.golden) $(GO_SRC_FILES) $(wil
 	go test ./coderd -run="Test.*Golden$$" -update
 	touch "$@"
 
+provisioner/terraform/testdata/.gen-golden: $(wildcard provisioner/terraform/testdata/*/*.golden) $(GO_SRC_FILES) $(wildcard provisioner/terraform/*_test.go)
+	go test ./provisioner/terraform -run="Test.*Golden$$" -update
+	touch "$@"
+
 scripts/ci-report/testdata/.gen-golden: $(wildcard scripts/ci-report/testdata/*) $(wildcard scripts/ci-report/*.go)
 	go test ./scripts/ci-report -run=TestOutputMatchesGoldenFile -update
 	touch "$@"
@@ -605,7 +615,7 @@ site/.prettierrc.yaml: .prettierrc.yaml
 	# - ./ -> ../
 	# - ./site -> ./
 	yq \
-		'.overrides[].files |= map(. | sub("^./"; "") | sub("^"; "../") | sub("../site/"; "./"))' \
+		'.overrides[].files |= map(. | sub("^./"; "") | sub("^"; "../") | sub("../site/"; "./") | sub("../!"; "!../"))' \
 		"$<" >> "$@"
 
 # Combine .gitignore with .prettierignore.include to generate .prettierignore.

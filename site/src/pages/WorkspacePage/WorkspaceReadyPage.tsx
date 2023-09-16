@@ -1,65 +1,60 @@
-import { useActor, useMachine } from "@xstate/react"
-import { useDashboard } from "components/Dashboard/DashboardProvider"
-import dayjs from "dayjs"
-import { useFeatureVisibility } from "hooks/useFeatureVisibility"
-import { FC, useEffect, useState } from "react"
-import { Helmet } from "react-helmet-async"
-import { useTranslation } from "react-i18next"
-import { useNavigate } from "react-router-dom"
+import { useActor, useMachine } from "@xstate/react";
+import { useDashboard } from "components/Dashboard/DashboardProvider";
+import dayjs from "dayjs";
+import { useFeatureVisibility } from "hooks/useFeatureVisibility";
+import { FC, useEffect, useState } from "react";
+import { Helmet } from "react-helmet-async";
+import { useNavigate } from "react-router-dom";
 import {
   getDeadline,
   getMaxDeadline,
   getMaxDeadlineChange,
   getMinDeadline,
-} from "utils/schedule"
-import { quotaMachine } from "xServices/quotas/quotasXService"
-import { StateFrom } from "xstate"
-import { DeleteDialog } from "../../components/Dialogs/DeleteDialog/DeleteDialog"
-import {
-  Workspace,
-  WorkspaceErrors,
-} from "../../components/Workspace/Workspace"
-import { pageTitle } from "../../utils/page"
-import { getFaviconByStatus, hasJobError } from "../../utils/workspace"
+} from "utils/schedule";
+import { StateFrom } from "xstate";
+import { DeleteDialog } from "components/Dialogs/DeleteDialog/DeleteDialog";
+import { Workspace, WorkspaceErrors } from "./Workspace";
+import { pageTitle } from "utils/page";
+import { getFaviconByStatus, hasJobError } from "utils/workspace";
 import {
   WorkspaceEvent,
   workspaceMachine,
-} from "../../xServices/workspace/workspaceXService"
-import { UpdateBuildParametersDialog } from "./UpdateBuildParametersDialog"
-import { ChangeVersionDialog } from "./ChangeVersionDialog"
-import { useMutation, useQuery } from "@tanstack/react-query"
-import { getTemplateVersions, restartWorkspace } from "api/api"
+} from "xServices/workspace/workspaceXService";
+import { UpdateBuildParametersDialog } from "./UpdateBuildParametersDialog";
+import { ChangeVersionDialog } from "./ChangeVersionDialog";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { restartWorkspace } from "api/api";
 import {
   ConfirmDialog,
   ConfirmDialogProps,
-} from "components/Dialogs/ConfirmDialog/ConfirmDialog"
-import { useMe } from "hooks/useMe"
-import Checkbox from "@mui/material/Checkbox"
-import FormControlLabel from "@mui/material/FormControlLabel"
-import { workspaceBuildMachine } from "xServices/workspaceBuild/workspaceBuildXService"
-import * as TypesGen from "api/typesGenerated"
-import { WorkspaceBuildLogsSection } from "./WorkspaceBuildLogsSection"
+} from "components/Dialogs/ConfirmDialog/ConfirmDialog";
+import { workspaceBuildMachine } from "xServices/workspaceBuild/workspaceBuildXService";
+import * as TypesGen from "api/typesGenerated";
+import { WorkspaceBuildLogsSection } from "./WorkspaceBuildLogsSection";
+import { templateVersion, templateVersions } from "api/queries/templates";
+import { Alert } from "components/Alert/Alert";
+import { Stack } from "components/Stack/Stack";
 
 interface WorkspaceReadyPageProps {
-  workspaceState: StateFrom<typeof workspaceMachine>
-  quotaState: StateFrom<typeof quotaMachine>
-  workspaceSend: (event: WorkspaceEvent) => void
+  workspaceState: StateFrom<typeof workspaceMachine>;
+  workspaceSend: (event: WorkspaceEvent) => void;
+  quota?: TypesGen.WorkspaceQuota;
 }
 
 export const WorkspaceReadyPage = ({
   workspaceState,
-  quotaState,
   workspaceSend,
+  quota,
 }: WorkspaceReadyPageProps): JSX.Element => {
   const [_, bannerSend] = useActor(
     workspaceState.children["scheduleBannerMachine"],
-  )
-  const { buildInfo } = useDashboard()
-  const featureVisibility = useFeatureVisibility()
+  );
+  const { buildInfo } = useDashboard();
+  const featureVisibility = useFeatureVisibility();
   const {
     workspace,
     template,
-    templateVersion,
+    templateVersion: currentVersion,
     deploymentValues,
     builds,
     getBuildsError,
@@ -68,49 +63,52 @@ export const WorkspaceReadyPage = ({
     sshPrefix,
     permissions,
     missedParameters,
-  } = workspaceState.context
+  } = workspaceState.context;
   if (workspace === undefined) {
-    throw Error("工作区未定义")
+    throw Error("工作区未定义");
   }
-  const deadline = getDeadline(workspace)
-  const canUpdateWorkspace = Boolean(permissions?.updateWorkspace)
-  const canUpdateTemplate = Boolean(permissions?.updateTemplate)
+  const deadline = getDeadline(workspace);
+  const canUpdateWorkspace = Boolean(permissions?.updateWorkspace);
+  const canUpdateTemplate = Boolean(permissions?.updateTemplate);
   const canRetryDebugMode =
     Boolean(permissions?.viewDeploymentValues) &&
-    Boolean(deploymentValues?.enable_terraform_debug_mode)
-  const { t } = useTranslation("workspacePage")
-  const favicon = getFaviconByStatus(workspace.latest_build)
-  const navigate = useNavigate()
-  const [changeVersionDialogOpen, setChangeVersionDialogOpen] = useState(false)
-  const { data: templateVersions } = useQuery({
-    queryKey: ["template", "versions", workspace.template_id],
-    queryFn: () => getTemplateVersions(workspace.template_id),
-    enabled: changeVersionDialogOpen,
-  })
-  const [isConfirmingUpdate, setIsConfirmingUpdate] = useState(false)
+    Boolean(deploymentValues?.enable_terraform_debug_mode);
+  const favicon = getFaviconByStatus(workspace.latest_build);
+  const navigate = useNavigate();
+  const [changeVersionDialogOpen, setChangeVersionDialogOpen] = useState(false);
+  const [isConfirmingUpdate, setIsConfirmingUpdate] = useState(false);
   const [confirmingRestart, setConfirmingRestart] = useState<{
-    open: boolean
-    buildParameters?: TypesGen.WorkspaceBuildParameter[]
-  }>({ open: false })
-  const user = useMe()
-  const { isWarningIgnored, ignoreWarning } = useIgnoreWarnings(user.id)
-  const buildLogs = useBuildLogs(workspace)
+    open: boolean;
+    buildParameters?: TypesGen.WorkspaceBuildParameter[];
+  }>({ open: false });
+
+  const { data: allVersions } = useQuery({
+    ...templateVersions(workspace.template_id),
+    enabled: changeVersionDialogOpen,
+  });
+  const { data: latestVersion } = useQuery({
+    ...templateVersion(workspace.template_active_version_id),
+    enabled: workspace.outdated,
+  });
+
+  const buildLogs = useBuildLogs(workspace);
   const shouldDisplayBuildLogs =
     hasJobError(workspace) ||
     ["canceling", "deleting", "pending", "starting", "stopping"].includes(
       workspace.latest_build.status,
-    )
+    );
   const {
     mutate: mutateRestartWorkspace,
     error: restartBuildError,
     isLoading: isRestarting,
   } = useMutation({
     mutationFn: restartWorkspace,
-  })
+  });
   // keep banner machine in sync with workspace
   useEffect(() => {
-    bannerSend({ type: "REFRESH_WORKSPACE", workspace })
-  }, [bannerSend, workspace])
+    bannerSend({ type: "REFRESH_WORKSPACE", workspace });
+  }, [bannerSend, workspace]);
+
   return (
     <>
       <Helmet>
@@ -133,13 +131,13 @@ export const WorkspaceReadyPage = ({
             bannerSend({
               type: "DECREASE_DEADLINE",
               hours,
-            })
+            });
           },
           onDeadlinePlus: (hours: number) => {
             bannerSend({
               type: "INCREASE_DEADLINE",
               hours,
-            })
+            });
           },
           maxDeadlineDecrease: getMaxDeadlineChange(deadline, getMinDeadline()),
           maxDeadlineIncrease: getMaxDeadlineChange(
@@ -156,29 +154,22 @@ export const WorkspaceReadyPage = ({
         handleStop={() => workspaceSend({ type: "STOP" })}
         handleDelete={() => workspaceSend({ type: "ASK_DELETE" })}
         handleRestart={(buildParameters) => {
-          if (isWarningIgnored("restart")) {
-            mutateRestartWorkspace({ workspace, buildParameters })
-          } else {
-            setConfirmingRestart({ open: true, buildParameters })
-          }
+          setConfirmingRestart({ open: true, buildParameters });
         }}
         handleUpdate={() => {
-          if (isWarningIgnored("update")) {
-            workspaceSend({ type: "UPDATE" })
-          } else {
-            setIsConfirmingUpdate(true)
-          }
+          setIsConfirmingUpdate(true);
         }}
         handleCancel={() => workspaceSend({ type: "CANCEL" })}
         handleSettings={() => navigate("settings")}
         handleBuildRetry={() => workspaceSend({ type: "RETRY_BUILD" })}
         handleChangeVersion={() => {
-          setChangeVersionDialogOpen(true)
+          setChangeVersionDialogOpen(true);
         }}
         handleDormantActivate={() => workspaceSend({ type: "ACTIVATE" })}
         resources={workspace.latest_build.resources}
         builds={builds}
         canUpdateWorkspace={canUpdateWorkspace}
+        updateMessage={latestVersion?.message}
         canRetryDebugMode={canRetryDebugMode}
         canChangeVersions={canUpdateTemplate}
         hideSSHButton={featureVisibility["browser_only"]}
@@ -191,8 +182,8 @@ export const WorkspaceReadyPage = ({
         buildInfo={buildInfo}
         sshPrefix={sshPrefix}
         template={template}
-        quota_budget={quotaState.context.quota?.budget}
-        templateWarnings={templateVersion?.warnings}
+        quotaBudget={quota?.budget}
+        templateWarnings={currentVersion?.warnings}
         buildLogs={
           shouldDisplayBuildLogs && (
             <WorkspaceBuildLogsSection logs={buildLogs} />
@@ -202,155 +193,101 @@ export const WorkspaceReadyPage = ({
       <DeleteDialog
         entity="工作区"
         name={workspace.name}
-        info={t("deleteDialog.info", {
-          timeAgo: dayjs(workspace.created_at).fromNow(),
-        }).toString()}
+        info={`This workspace was created ${dayjs(
+          workspace.created_at,
+        ).fromNow()}.`}
         isOpen={workspaceState.matches({ ready: { build: "askingDelete" } })}
         onCancel={() => workspaceSend({ type: "CANCEL_DELETE" })}
         onConfirm={() => {
-          workspaceSend({ type: "DELETE" })
+          workspaceSend({ type: "DELETE" });
         }}
       />
       <UpdateBuildParametersDialog
-        missedParameters={missedParameters}
+        missedParameters={missedParameters ?? []}
         open={workspaceState.matches(
           "ready.build.askingForMissedBuildParameters",
         )}
         onClose={() => {
-          workspaceSend({ type: "CANCEL" })
+          workspaceSend({ type: "CANCEL" });
         }}
         onUpdate={(buildParameters) => {
-          workspaceSend({ type: "UPDATE", buildParameters })
+          workspaceSend({ type: "UPDATE", buildParameters });
         }}
       />
       <ChangeVersionDialog
-        templateVersions={templateVersions?.reverse()}
+        templateVersions={allVersions?.reverse()}
         template={template}
-        defaultTemplateVersion={templateVersions?.find(
+        defaultTemplateVersion={allVersions?.find(
           (v) => workspace.latest_build.template_version_id === v.id,
         )}
         open={changeVersionDialogOpen}
         onClose={() => {
-          setChangeVersionDialogOpen(false)
+          setChangeVersionDialogOpen(false);
         }}
         onConfirm={(templateVersion) => {
-          setChangeVersionDialogOpen(false)
+          setChangeVersionDialogOpen(false);
           workspaceSend({
             type: "CHANGE_VERSION",
             templateVersionId: templateVersion.id,
-          })
+          });
         }}
       />
       <WarningDialog
         open={isConfirmingUpdate}
-        onConfirm={(shouldIgnore) => {
-          if (shouldIgnore) {
-            ignoreWarning("update")
-          }
-          workspaceSend({ type: "UPDATE" })
-          setIsConfirmingUpdate(false)
+        onConfirm={() => {
+          workspaceSend({ type: "UPDATE" });
+          setIsConfirmingUpdate(false);
         }}
         onClose={() => setIsConfirmingUpdate(false)}
-        title="确认更新"
-        confirmText="更新"
-        description="您确定要更新工作区吗？更新工作区将停止所有运行中的进程并删除非持久化数据。"
+        title="Update and restart?"
+        confirmText="Update"
+        description={
+          <Stack>
+            <p>
+              Restarting your workspace will stop all running processes and{" "}
+              <strong>delete non-persistent data</strong>.
+            </p>
+            {latestVersion && (
+              <Alert severity="info">{latestVersion.message}</Alert>
+            )}
+          </Stack>
+        }
       />
 
       <WarningDialog
         open={confirmingRestart.open}
-        onConfirm={(shouldIgnore) => {
-          if (shouldIgnore) {
-            ignoreWarning("restart")
-          }
+        onConfirm={() => {
           mutateRestartWorkspace({
             workspace,
             buildParameters: confirmingRestart.buildParameters,
-          })
-          setConfirmingRestart({ open: false })
+          });
+          setConfirmingRestart({ open: false });
         }}
         onClose={() => setConfirmingRestart({ open: false })}
-        title="确认重新启动"
-        confirmText="重新启动"
-        description="您确定要重新启动工作区吗？更新工作区将停止所有正在运行的进程并删除非持久化数据。"
+        title="Restart your workspace?"
+        confirmText="Restart"
+        description={
+          <>
+            Restarting your workspace will stop all running processes and{" "}
+            <strong>delete non-persistent data</strong>.
+          </>
+        }
       />
     </>
-  )
-}
-
-type IgnoredWarnings = Record<string, string>
-
-const useIgnoreWarnings = (prefix: string) => {
-  const ignoredWarningsJSON = localStorage.getItem(`${prefix}_ignoredWarnings`)
-  let ignoredWarnings: IgnoredWarnings | undefined
-  if (ignoredWarningsJSON) {
-    ignoredWarnings = JSON.parse(ignoredWarningsJSON)
-  }
-
-  const isWarningIgnored = (warningId: string) => {
-    return Boolean(ignoredWarnings?.[warningId])
-  }
-
-  const ignoreWarning = (warningId: string) => {
-    if (!ignoredWarnings) {
-      ignoredWarnings = {}
-    }
-    ignoredWarnings[warningId] = new Date().toISOString()
-    localStorage.setItem(
-      `${prefix}_ignoredWarnings`,
-      JSON.stringify(ignoredWarnings),
-    )
-  }
-
-  return {
-    isWarningIgnored,
-    ignoreWarning,
-  }
-}
+  );
+};
 
 const WarningDialog: FC<
   Pick<
     ConfirmDialogProps,
-    "open" | "onClose" | "title" | "confirmText" | "description"
-  > & { onConfirm: (shouldIgnore: boolean) => void }
-> = ({ open, onConfirm, onClose, title, confirmText, description }) => {
-  const [shouldIgnore, setShouldIgnore] = useState(false)
-
-  return (
-    <ConfirmDialog
-      type="info"
-      hideCancel={false}
-      open={open}
-      onConfirm={() => {
-        onConfirm(shouldIgnore)
-      }}
-      onClose={onClose}
-      title={title}
-      confirmText={confirmText}
-      description={
-        <>
-          <div>{description}</div>
-          <FormControlLabel
-            sx={{
-              marginTop: 2,
-            }}
-            control={
-              <Checkbox
-                size="small"
-                onChange={(e) => {
-                  setShouldIgnore(e.target.checked)
-                }}
-              />
-            }
-            label="不再显示此消息"
-          />
-        </>
-      }
-    />
-  )
-}
+    "open" | "onClose" | "title" | "confirmText" | "description" | "onConfirm"
+  >
+> = (props) => {
+  return <ConfirmDialog type="info" hideCancel={false} {...props} />;
+};
 
 const useBuildLogs = (workspace: TypesGen.Workspace) => {
-  const buildNumber = workspace.latest_build.build_number
+  const buildNumber = workspace.latest_build.build_number;
   const [buildState, buildSend] = useMachine(workspaceBuildMachine, {
     context: {
       buildNumber,
@@ -358,12 +295,12 @@ const useBuildLogs = (workspace: TypesGen.Workspace) => {
       workspaceName: workspace.name,
       timeCursor: new Date(),
     },
-  })
-  const { logs } = buildState.context
+  });
+  const { logs } = buildState.context;
 
   useEffect(() => {
-    buildSend({ type: "RESET", buildNumber, timeCursor: new Date() })
-  }, [buildNumber, buildSend])
+    buildSend({ type: "RESET", buildNumber, timeCursor: new Date() });
+  }, [buildNumber, buildSend]);
 
-  return logs
-}
+  return logs;
+};

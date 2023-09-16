@@ -184,8 +184,6 @@ type Options struct {
 // @in header
 // @name Coder-Session-Token
 // New constructs a Coder API handler.
-//
-//nolint:gocyclo
 func New(options *Options) *API {
 	if options == nil {
 		options = &Options{}
@@ -1079,47 +1077,44 @@ func (api *API) CreateInMemoryProvisionerDaemon(ctx context.Context, debounce ti
 		}
 	}()
 
-	name := namesgenerator.GetRandomName(1)
-	// nolint:gocritic // Inserting a provisioner daemon is a system function.
-	daemon, err := api.Database.InsertProvisionerDaemon(dbauthz.AsSystemRestricted(ctx), database.InsertProvisionerDaemonParams{
-		ID:           uuid.New(),
-		CreatedAt:    database.Now(),
-		Name:         name,
-		Provisioners: []database.ProvisionerType{database.ProvisionerTypeEcho, database.ProvisionerTypeTerraform},
-		Tags: database.StringMap{
-			provisionerdserver.TagScope: provisionerdserver.ScopeOrganization,
-		},
+	tags, err := json.Marshal(database.StringMap{
+		provisionerdserver.TagScope: provisionerdserver.ScopeOrganization,
 	})
-	if err != nil {
-		return nil, xerrors.Errorf("insert provisioner daemon %q: %w", name, err)
-	}
-
-	tags, err := json.Marshal(daemon.Tags)
 	if err != nil {
 		return nil, xerrors.Errorf("marshal tags: %w", err)
 	}
 
 	mux := drpcmux.New()
-
-	err = proto.DRPCRegisterProvisionerDaemon(mux, &provisionerdserver.Server{
-		AccessURL:                   api.AccessURL,
-		ID:                          daemon.ID,
-		OIDCConfig:                  api.OIDCConfig,
-		Database:                    api.Database,
-		Pubsub:                      api.Pubsub,
-		Provisioners:                daemon.Provisioners,
-		GitAuthConfigs:              api.GitAuthConfigs,
-		Telemetry:                   api.Telemetry,
-		Tracer:                      tracer,
-		Tags:                        tags,
-		QuotaCommitter:              &api.QuotaCommitter,
-		Auditor:                     &api.Auditor,
-		TemplateScheduleStore:       api.TemplateScheduleStore,
-		UserQuietHoursScheduleStore: api.UserQuietHoursScheduleStore,
-		AcquireJobDebounce:          debounce,
-		Logger:                      api.Logger.Named(fmt.Sprintf("provisionerd-%s", daemon.Name)),
-		DeploymentValues:            api.DeploymentValues,
-	})
+	name := namesgenerator.GetRandomName(1)
+	logger := api.Logger.Named(fmt.Sprintf("inmem-provisionerd-%s", name))
+	logger.Info(ctx, "starting in-memory provisioner daemon")
+	srv, err := provisionerdserver.NewServer(
+		api.AccessURL,
+		uuid.New(),
+		logger,
+		[]database.ProvisionerType{
+			database.ProvisionerTypeEcho, database.ProvisionerTypeTerraform,
+		},
+		tags,
+		api.Database,
+		api.Pubsub,
+		api.Telemetry,
+		tracer,
+		&api.QuotaCommitter,
+		&api.Auditor,
+		api.TemplateScheduleStore,
+		api.UserQuietHoursScheduleStore,
+		api.DeploymentValues,
+		debounce,
+		provisionerdserver.Options{
+			OIDCConfig:     api.OIDCConfig,
+			GitAuthConfigs: api.GitAuthConfigs,
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+	err = proto.DRPCRegisterProvisionerDaemon(mux, srv)
 	if err != nil {
 		return nil, err
 	}
@@ -1129,16 +1124,14 @@ func (api *API) CreateInMemoryProvisionerDaemon(ctx context.Context, debounce ti
 				if xerrors.Is(err, io.EOF) {
 					return
 				}
-				api.Logger.Debug(ctx, "drpc server error", slog.Error(err))
+				logger.Debug(ctx, "drpc server error", slog.Error(err))
 			},
 		},
 	)
 	go func() {
 		err := server.Serve(ctx, serverSession)
-		if err != nil && !xerrors.Is(err, io.EOF) {
-			api.Logger.Debug(ctx, "provisioner daemon disconnected", slog.Error(err))
-		}
-		// close the sessions so we don't leak goroutines serving them.
+		logger.Info(ctx, "provisioner daemon disconnected", slog.Error(err))
+		// close the sessions, so we don't leak goroutines serving them.
 		_ = clientSession.Close()
 		_ = serverSession.Close()
 	}()

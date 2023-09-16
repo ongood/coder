@@ -15,6 +15,52 @@ import (
 	"github.com/sqlc-dev/pqtype"
 )
 
+const activityBumpWorkspace = `-- name: ActivityBumpWorkspace :exec
+WITH latest AS (
+	SELECT
+		workspace_builds.id::uuid AS build_id,
+		workspace_builds.deadline::timestamp with time zone AS build_deadline,
+		workspace_builds.max_deadline::timestamp with time zone AS build_max_deadline,
+		workspace_builds.transition AS build_transition,
+		provisioner_jobs.completed_at::timestamp with time zone AS job_completed_at,
+		(workspaces.ttl / 1000 / 1000 / 1000 || ' seconds')::interval AS ttl_interval
+	FROM workspace_builds
+	JOIN provisioner_jobs
+		ON provisioner_jobs.id = workspace_builds.job_id
+	JOIN workspaces
+		ON workspaces.id = workspace_builds.workspace_id
+	WHERE workspace_builds.workspace_id = $1::uuid
+	ORDER BY workspace_builds.build_number DESC
+	LIMIT 1
+)
+UPDATE
+	workspace_builds wb
+SET
+	updated_at = NOW(),
+	deadline = CASE
+		WHEN l.build_max_deadline = '0001-01-01 00:00:00+00'
+		THEN NOW() + l.ttl_interval
+		ELSE LEAST(NOW() + l.ttl_interval, l.build_max_deadline)
+	END
+FROM latest l
+WHERE wb.id = l.build_id
+AND l.job_completed_at IS NOT NULL
+AND l.build_transition = 'start'
+AND l.build_deadline != '0001-01-01 00:00:00+00'
+AND l.build_deadline - (l.ttl_interval * 0.95) < NOW()
+`
+
+// We bump by the original TTL to prevent counter-intuitive behavior
+// as the TTL wraps. For example, if I set the TTL to 12 hours, sign off
+// work at midnight, come back at 10am, I would want another full day
+// of uptime.
+// We only bump if workspace shutdown is manual.
+// We only bump when 5% of the deadline has elapsed.
+func (q *sqlQuerier) ActivityBumpWorkspace(ctx context.Context, workspaceID uuid.UUID) error {
+	_, err := q.db.ExecContext(ctx, activityBumpWorkspace, workspaceID)
+	return err
+}
+
 const deleteAPIKeyByID = `-- name: DeleteAPIKeyByID :exec
 DELETE FROM
 	api_keys
@@ -636,6 +682,74 @@ func (q *sqlQuerier) InsertAuditLog(ctx context.Context, arg InsertAuditLogParam
 	return i, err
 }
 
+const getDBCryptKeys = `-- name: GetDBCryptKeys :many
+SELECT number, active_key_digest, revoked_key_digest, created_at, revoked_at, test FROM dbcrypt_keys ORDER BY number ASC
+`
+
+func (q *sqlQuerier) GetDBCryptKeys(ctx context.Context) ([]DBCryptKey, error) {
+	rows, err := q.db.QueryContext(ctx, getDBCryptKeys)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []DBCryptKey
+	for rows.Next() {
+		var i DBCryptKey
+		if err := rows.Scan(
+			&i.Number,
+			&i.ActiveKeyDigest,
+			&i.RevokedKeyDigest,
+			&i.CreatedAt,
+			&i.RevokedAt,
+			&i.Test,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const insertDBCryptKey = `-- name: InsertDBCryptKey :exec
+INSERT INTO dbcrypt_keys
+	(number, active_key_digest, created_at, test)
+VALUES ($1::int, $2::text, CURRENT_TIMESTAMP, $3::text)
+`
+
+type InsertDBCryptKeyParams struct {
+	Number          int32  `db:"number" json:"number"`
+	ActiveKeyDigest string `db:"active_key_digest" json:"active_key_digest"`
+	Test            string `db:"test" json:"test"`
+}
+
+func (q *sqlQuerier) InsertDBCryptKey(ctx context.Context, arg InsertDBCryptKeyParams) error {
+	_, err := q.db.ExecContext(ctx, insertDBCryptKey, arg.Number, arg.ActiveKeyDigest, arg.Test)
+	return err
+}
+
+const revokeDBCryptKey = `-- name: RevokeDBCryptKey :exec
+UPDATE dbcrypt_keys
+SET
+	revoked_key_digest = active_key_digest,
+	active_key_digest = revoked_key_digest,
+	revoked_at = CURRENT_TIMESTAMP
+WHERE
+	active_key_digest = $1::text
+AND
+	revoked_key_digest IS NULL
+`
+
+func (q *sqlQuerier) RevokeDBCryptKey(ctx context.Context, activeKeyDigest string) error {
+	_, err := q.db.ExecContext(ctx, revokeDBCryptKey, activeKeyDigest)
+	return err
+}
+
 const getFileByHashAndCreator = `-- name: GetFileByHashAndCreator :one
 SELECT
 	hash, created_at, created_by, mimetype, data, id
@@ -800,7 +914,7 @@ func (q *sqlQuerier) InsertFile(ctx context.Context, arg InsertFileParams) (File
 }
 
 const getGitAuthLink = `-- name: GetGitAuthLink :one
-SELECT provider_id, user_id, created_at, updated_at, oauth_access_token, oauth_refresh_token, oauth_expiry FROM git_auth_links WHERE provider_id = $1 AND user_id = $2
+SELECT provider_id, user_id, created_at, updated_at, oauth_access_token, oauth_refresh_token, oauth_expiry, oauth_access_token_key_id, oauth_refresh_token_key_id FROM git_auth_links WHERE provider_id = $1 AND user_id = $2
 `
 
 type GetGitAuthLinkParams struct {
@@ -819,8 +933,47 @@ func (q *sqlQuerier) GetGitAuthLink(ctx context.Context, arg GetGitAuthLinkParam
 		&i.OAuthAccessToken,
 		&i.OAuthRefreshToken,
 		&i.OAuthExpiry,
+		&i.OAuthAccessTokenKeyID,
+		&i.OAuthRefreshTokenKeyID,
 	)
 	return i, err
+}
+
+const getGitAuthLinksByUserID = `-- name: GetGitAuthLinksByUserID :many
+SELECT provider_id, user_id, created_at, updated_at, oauth_access_token, oauth_refresh_token, oauth_expiry, oauth_access_token_key_id, oauth_refresh_token_key_id FROM git_auth_links WHERE user_id = $1
+`
+
+func (q *sqlQuerier) GetGitAuthLinksByUserID(ctx context.Context, userID uuid.UUID) ([]GitAuthLink, error) {
+	rows, err := q.db.QueryContext(ctx, getGitAuthLinksByUserID, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GitAuthLink
+	for rows.Next() {
+		var i GitAuthLink
+		if err := rows.Scan(
+			&i.ProviderID,
+			&i.UserID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.OAuthAccessToken,
+			&i.OAuthRefreshToken,
+			&i.OAuthExpiry,
+			&i.OAuthAccessTokenKeyID,
+			&i.OAuthRefreshTokenKeyID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const insertGitAuthLink = `-- name: InsertGitAuthLink :one
@@ -830,7 +983,9 @@ INSERT INTO git_auth_links (
     created_at,
     updated_at,
     oauth_access_token,
+    oauth_access_token_key_id,
     oauth_refresh_token,
+    oauth_refresh_token_key_id,
     oauth_expiry
 ) VALUES (
     $1,
@@ -839,18 +994,22 @@ INSERT INTO git_auth_links (
     $4,
     $5,
     $6,
-    $7
-) RETURNING provider_id, user_id, created_at, updated_at, oauth_access_token, oauth_refresh_token, oauth_expiry
+    $7,
+    $8,
+    $9
+) RETURNING provider_id, user_id, created_at, updated_at, oauth_access_token, oauth_refresh_token, oauth_expiry, oauth_access_token_key_id, oauth_refresh_token_key_id
 `
 
 type InsertGitAuthLinkParams struct {
-	ProviderID        string    `db:"provider_id" json:"provider_id"`
-	UserID            uuid.UUID `db:"user_id" json:"user_id"`
-	CreatedAt         time.Time `db:"created_at" json:"created_at"`
-	UpdatedAt         time.Time `db:"updated_at" json:"updated_at"`
-	OAuthAccessToken  string    `db:"oauth_access_token" json:"oauth_access_token"`
-	OAuthRefreshToken string    `db:"oauth_refresh_token" json:"oauth_refresh_token"`
-	OAuthExpiry       time.Time `db:"oauth_expiry" json:"oauth_expiry"`
+	ProviderID             string         `db:"provider_id" json:"provider_id"`
+	UserID                 uuid.UUID      `db:"user_id" json:"user_id"`
+	CreatedAt              time.Time      `db:"created_at" json:"created_at"`
+	UpdatedAt              time.Time      `db:"updated_at" json:"updated_at"`
+	OAuthAccessToken       string         `db:"oauth_access_token" json:"oauth_access_token"`
+	OAuthAccessTokenKeyID  sql.NullString `db:"oauth_access_token_key_id" json:"oauth_access_token_key_id"`
+	OAuthRefreshToken      string         `db:"oauth_refresh_token" json:"oauth_refresh_token"`
+	OAuthRefreshTokenKeyID sql.NullString `db:"oauth_refresh_token_key_id" json:"oauth_refresh_token_key_id"`
+	OAuthExpiry            time.Time      `db:"oauth_expiry" json:"oauth_expiry"`
 }
 
 func (q *sqlQuerier) InsertGitAuthLink(ctx context.Context, arg InsertGitAuthLinkParams) (GitAuthLink, error) {
@@ -860,7 +1019,9 @@ func (q *sqlQuerier) InsertGitAuthLink(ctx context.Context, arg InsertGitAuthLin
 		arg.CreatedAt,
 		arg.UpdatedAt,
 		arg.OAuthAccessToken,
+		arg.OAuthAccessTokenKeyID,
 		arg.OAuthRefreshToken,
+		arg.OAuthRefreshTokenKeyID,
 		arg.OAuthExpiry,
 	)
 	var i GitAuthLink
@@ -872,6 +1033,8 @@ func (q *sqlQuerier) InsertGitAuthLink(ctx context.Context, arg InsertGitAuthLin
 		&i.OAuthAccessToken,
 		&i.OAuthRefreshToken,
 		&i.OAuthExpiry,
+		&i.OAuthAccessTokenKeyID,
+		&i.OAuthRefreshTokenKeyID,
 	)
 	return i, err
 }
@@ -880,18 +1043,22 @@ const updateGitAuthLink = `-- name: UpdateGitAuthLink :one
 UPDATE git_auth_links SET
     updated_at = $3,
     oauth_access_token = $4,
-    oauth_refresh_token = $5,
-    oauth_expiry = $6
-WHERE provider_id = $1 AND user_id = $2 RETURNING provider_id, user_id, created_at, updated_at, oauth_access_token, oauth_refresh_token, oauth_expiry
+    oauth_access_token_key_id = $5,
+    oauth_refresh_token = $6,
+    oauth_refresh_token_key_id = $7,
+    oauth_expiry = $8
+WHERE provider_id = $1 AND user_id = $2 RETURNING provider_id, user_id, created_at, updated_at, oauth_access_token, oauth_refresh_token, oauth_expiry, oauth_access_token_key_id, oauth_refresh_token_key_id
 `
 
 type UpdateGitAuthLinkParams struct {
-	ProviderID        string    `db:"provider_id" json:"provider_id"`
-	UserID            uuid.UUID `db:"user_id" json:"user_id"`
-	UpdatedAt         time.Time `db:"updated_at" json:"updated_at"`
-	OAuthAccessToken  string    `db:"oauth_access_token" json:"oauth_access_token"`
-	OAuthRefreshToken string    `db:"oauth_refresh_token" json:"oauth_refresh_token"`
-	OAuthExpiry       time.Time `db:"oauth_expiry" json:"oauth_expiry"`
+	ProviderID             string         `db:"provider_id" json:"provider_id"`
+	UserID                 uuid.UUID      `db:"user_id" json:"user_id"`
+	UpdatedAt              time.Time      `db:"updated_at" json:"updated_at"`
+	OAuthAccessToken       string         `db:"oauth_access_token" json:"oauth_access_token"`
+	OAuthAccessTokenKeyID  sql.NullString `db:"oauth_access_token_key_id" json:"oauth_access_token_key_id"`
+	OAuthRefreshToken      string         `db:"oauth_refresh_token" json:"oauth_refresh_token"`
+	OAuthRefreshTokenKeyID sql.NullString `db:"oauth_refresh_token_key_id" json:"oauth_refresh_token_key_id"`
+	OAuthExpiry            time.Time      `db:"oauth_expiry" json:"oauth_expiry"`
 }
 
 func (q *sqlQuerier) UpdateGitAuthLink(ctx context.Context, arg UpdateGitAuthLinkParams) (GitAuthLink, error) {
@@ -900,7 +1067,9 @@ func (q *sqlQuerier) UpdateGitAuthLink(ctx context.Context, arg UpdateGitAuthLin
 		arg.UserID,
 		arg.UpdatedAt,
 		arg.OAuthAccessToken,
+		arg.OAuthAccessTokenKeyID,
 		arg.OAuthRefreshToken,
+		arg.OAuthRefreshTokenKeyID,
 		arg.OAuthExpiry,
 	)
 	var i GitAuthLink
@@ -912,6 +1081,8 @@ func (q *sqlQuerier) UpdateGitAuthLink(ctx context.Context, arg UpdateGitAuthLin
 		&i.OAuthAccessToken,
 		&i.OAuthRefreshToken,
 		&i.OAuthExpiry,
+		&i.OAuthAccessTokenKeyID,
+		&i.OAuthRefreshTokenKeyID,
 	)
 	return i, err
 }
@@ -1567,112 +1738,6 @@ func (q *sqlQuerier) GetTemplateAppInsights(ctx context.Context, arg GetTemplate
 	return items, nil
 }
 
-const getTemplateDailyInsights = `-- name: GetTemplateDailyInsights :many
-WITH ts AS (
-	SELECT
-		d::timestamptz AS from_,
-		CASE
-			WHEN (d::timestamptz + '1 day'::interval) <= $1::timestamptz
-			THEN (d::timestamptz + '1 day'::interval)
-			ELSE $1::timestamptz
-		END AS to_
-	FROM
-		-- Subtract 1 second from end_time to avoid including the next interval in the results.
-		generate_series($2::timestamptz, ($1::timestamptz) - '1 second'::interval, '1 day'::interval) AS d
-), unflattened_usage_by_day AS (
-	-- We select data from both workspace agent stats and workspace app stats to
-	-- get a complete picture of usage. This matches how usage is calculated by
-	-- the combination of GetTemplateInsights and GetTemplateAppInsights. We use
-	-- a union all to avoid a costly distinct operation.
-	--
-	-- Note that one query must perform a left join so that all intervals are
-	-- present at least once.
-	SELECT
-		ts.from_, ts.to_,
-		was.template_id,
-		was.user_id
-	FROM ts
-	LEFT JOIN workspace_agent_stats was ON (
-		was.created_at >= ts.from_
-		AND was.created_at < ts.to_
-		AND was.connection_count > 0
-		AND CASE WHEN COALESCE(array_length($3::uuid[], 1), 0) > 0 THEN was.template_id = ANY($3::uuid[]) ELSE TRUE END
-	)
-	GROUP BY ts.from_, ts.to_, was.template_id, was.user_id
-
-	UNION ALL
-
-	SELECT
-		ts.from_, ts.to_,
-		w.template_id,
-		was.user_id
-	FROM ts
-	JOIN workspace_app_stats was ON (
-		(was.session_started_at >= ts.from_ AND was.session_started_at < ts.to_)
-		OR (was.session_ended_at > ts.from_ AND was.session_ended_at < ts.to_)
-		OR (was.session_started_at < ts.from_ AND was.session_ended_at >= ts.to_)
-	)
-	JOIN workspaces w ON (
-		w.id = was.workspace_id
-		AND CASE WHEN COALESCE(array_length($3::uuid[], 1), 0) > 0 THEN w.template_id = ANY($3::uuid[]) ELSE TRUE END
-	)
-	GROUP BY ts.from_, ts.to_, w.template_id, was.user_id
-)
-
-SELECT
-	from_ AS start_time,
-	to_ AS end_time,
-	array_remove(array_agg(DISTINCT template_id), NULL)::uuid[] AS template_ids,
-	COUNT(DISTINCT user_id) AS active_users
-FROM unflattened_usage_by_day
-GROUP BY from_, to_
-`
-
-type GetTemplateDailyInsightsParams struct {
-	EndTime     time.Time   `db:"end_time" json:"end_time"`
-	StartTime   time.Time   `db:"start_time" json:"start_time"`
-	TemplateIDs []uuid.UUID `db:"template_ids" json:"template_ids"`
-}
-
-type GetTemplateDailyInsightsRow struct {
-	StartTime   time.Time   `db:"start_time" json:"start_time"`
-	EndTime     time.Time   `db:"end_time" json:"end_time"`
-	TemplateIDs []uuid.UUID `db:"template_ids" json:"template_ids"`
-	ActiveUsers int64       `db:"active_users" json:"active_users"`
-}
-
-// GetTemplateDailyInsights returns all daily intervals between start and end
-// time, if end time is a partial day, it will be included in the results and
-// that interval will be less than 24 hours. If there is no data for a selected
-// interval/template, it will be included in the results with 0 active users.
-func (q *sqlQuerier) GetTemplateDailyInsights(ctx context.Context, arg GetTemplateDailyInsightsParams) ([]GetTemplateDailyInsightsRow, error) {
-	rows, err := q.db.QueryContext(ctx, getTemplateDailyInsights, arg.EndTime, arg.StartTime, pq.Array(arg.TemplateIDs))
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []GetTemplateDailyInsightsRow
-	for rows.Next() {
-		var i GetTemplateDailyInsightsRow
-		if err := rows.Scan(
-			&i.StartTime,
-			&i.EndTime,
-			pq.Array(&i.TemplateIDs),
-			&i.ActiveUsers,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const getTemplateInsights = `-- name: GetTemplateInsights :one
 WITH agent_stats_by_interval_and_user AS (
 	SELECT
@@ -1737,6 +1802,118 @@ func (q *sqlQuerier) GetTemplateInsights(ctx context.Context, arg GetTemplateIns
 		&i.UsageSshSeconds,
 	)
 	return i, err
+}
+
+const getTemplateInsightsByInterval = `-- name: GetTemplateInsightsByInterval :many
+WITH ts AS (
+	SELECT
+		d::timestamptz AS from_,
+		CASE
+			WHEN (d::timestamptz + ($1::int || ' day')::interval) <= $2::timestamptz
+			THEN (d::timestamptz + ($1::int || ' day')::interval)
+			ELSE $2::timestamptz
+		END AS to_
+	FROM
+		-- Subtract 1 microsecond from end_time to avoid including the next interval in the results.
+		generate_series($3::timestamptz, ($2::timestamptz) - '1 microsecond'::interval, ($1::int || ' day')::interval) AS d
+), unflattened_usage_by_interval AS (
+	-- We select data from both workspace agent stats and workspace app stats to
+	-- get a complete picture of usage. This matches how usage is calculated by
+	-- the combination of GetTemplateInsights and GetTemplateAppInsights. We use
+	-- a union all to avoid a costly distinct operation.
+	--
+	-- Note that one query must perform a left join so that all intervals are
+	-- present at least once.
+	SELECT
+		ts.from_, ts.to_,
+		was.template_id,
+		was.user_id
+	FROM ts
+	LEFT JOIN workspace_agent_stats was ON (
+		was.created_at >= ts.from_
+		AND was.created_at < ts.to_
+		AND was.connection_count > 0
+		AND CASE WHEN COALESCE(array_length($4::uuid[], 1), 0) > 0 THEN was.template_id = ANY($4::uuid[]) ELSE TRUE END
+	)
+	GROUP BY ts.from_, ts.to_, was.template_id, was.user_id
+
+	UNION ALL
+
+	SELECT
+		ts.from_, ts.to_,
+		w.template_id,
+		was.user_id
+	FROM ts
+	JOIN workspace_app_stats was ON (
+		(was.session_started_at >= ts.from_ AND was.session_started_at < ts.to_)
+		OR (was.session_ended_at > ts.from_ AND was.session_ended_at < ts.to_)
+		OR (was.session_started_at < ts.from_ AND was.session_ended_at >= ts.to_)
+	)
+	JOIN workspaces w ON (
+		w.id = was.workspace_id
+		AND CASE WHEN COALESCE(array_length($4::uuid[], 1), 0) > 0 THEN w.template_id = ANY($4::uuid[]) ELSE TRUE END
+	)
+	GROUP BY ts.from_, ts.to_, w.template_id, was.user_id
+)
+
+SELECT
+	from_ AS start_time,
+	to_ AS end_time,
+	array_remove(array_agg(DISTINCT template_id), NULL)::uuid[] AS template_ids,
+	COUNT(DISTINCT user_id) AS active_users
+FROM unflattened_usage_by_interval
+GROUP BY from_, to_
+`
+
+type GetTemplateInsightsByIntervalParams struct {
+	IntervalDays int32       `db:"interval_days" json:"interval_days"`
+	EndTime      time.Time   `db:"end_time" json:"end_time"`
+	StartTime    time.Time   `db:"start_time" json:"start_time"`
+	TemplateIDs  []uuid.UUID `db:"template_ids" json:"template_ids"`
+}
+
+type GetTemplateInsightsByIntervalRow struct {
+	StartTime   time.Time   `db:"start_time" json:"start_time"`
+	EndTime     time.Time   `db:"end_time" json:"end_time"`
+	TemplateIDs []uuid.UUID `db:"template_ids" json:"template_ids"`
+	ActiveUsers int64       `db:"active_users" json:"active_users"`
+}
+
+// GetTemplateInsightsByInterval returns all intervals between start and end
+// time, if end time is a partial interval, it will be included in the results and
+// that interval will be shorter than a full one. If there is no data for a selected
+// interval/template, it will be included in the results with 0 active users.
+func (q *sqlQuerier) GetTemplateInsightsByInterval(ctx context.Context, arg GetTemplateInsightsByIntervalParams) ([]GetTemplateInsightsByIntervalRow, error) {
+	rows, err := q.db.QueryContext(ctx, getTemplateInsightsByInterval,
+		arg.IntervalDays,
+		arg.EndTime,
+		arg.StartTime,
+		pq.Array(arg.TemplateIDs),
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetTemplateInsightsByIntervalRow
+	for rows.Next() {
+		var i GetTemplateInsightsByIntervalRow
+		if err := rows.Scan(
+			&i.StartTime,
+			&i.EndTime,
+			pq.Array(&i.TemplateIDs),
+			&i.ActiveUsers,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getTemplateParameterInsights = `-- name: GetTemplateParameterInsights :many
@@ -4317,7 +4494,7 @@ func (q *sqlQuerier) GetTemplateAverageBuildTime(ctx context.Context, arg GetTem
 
 const getTemplateByID = `-- name: GetTemplateByID :one
 SELECT
-	id, created_at, updated_at, organization_id, deleted, name, provisioner, active_version_id, description, default_ttl, created_by, icon, user_acl, group_acl, display_name, allow_user_cancel_workspace_jobs, max_ttl, allow_user_autostart, allow_user_autostop, failure_ttl, time_til_dormant, time_til_dormant_autodelete, restart_requirement_days_of_week, restart_requirement_weeks, created_by_avatar_url, created_by_username
+	id, created_at, updated_at, organization_id, deleted, name, provisioner, active_version_id, description, default_ttl, created_by, icon, user_acl, group_acl, display_name, allow_user_cancel_workspace_jobs, max_ttl, allow_user_autostart, allow_user_autostop, failure_ttl, time_til_dormant, time_til_dormant_autodelete, autostop_requirement_days_of_week, autostop_requirement_weeks, created_by_avatar_url, created_by_username
 FROM
 	template_with_users
 WHERE
@@ -4352,8 +4529,8 @@ func (q *sqlQuerier) GetTemplateByID(ctx context.Context, id uuid.UUID) (Templat
 		&i.FailureTTL,
 		&i.TimeTilDormant,
 		&i.TimeTilDormantAutoDelete,
-		&i.RestartRequirementDaysOfWeek,
-		&i.RestartRequirementWeeks,
+		&i.AutostopRequirementDaysOfWeek,
+		&i.AutostopRequirementWeeks,
 		&i.CreatedByAvatarURL,
 		&i.CreatedByUsername,
 	)
@@ -4362,7 +4539,7 @@ func (q *sqlQuerier) GetTemplateByID(ctx context.Context, id uuid.UUID) (Templat
 
 const getTemplateByOrganizationAndName = `-- name: GetTemplateByOrganizationAndName :one
 SELECT
-	id, created_at, updated_at, organization_id, deleted, name, provisioner, active_version_id, description, default_ttl, created_by, icon, user_acl, group_acl, display_name, allow_user_cancel_workspace_jobs, max_ttl, allow_user_autostart, allow_user_autostop, failure_ttl, time_til_dormant, time_til_dormant_autodelete, restart_requirement_days_of_week, restart_requirement_weeks, created_by_avatar_url, created_by_username
+	id, created_at, updated_at, organization_id, deleted, name, provisioner, active_version_id, description, default_ttl, created_by, icon, user_acl, group_acl, display_name, allow_user_cancel_workspace_jobs, max_ttl, allow_user_autostart, allow_user_autostop, failure_ttl, time_til_dormant, time_til_dormant_autodelete, autostop_requirement_days_of_week, autostop_requirement_weeks, created_by_avatar_url, created_by_username
 FROM
 	template_with_users AS templates
 WHERE
@@ -4405,8 +4582,8 @@ func (q *sqlQuerier) GetTemplateByOrganizationAndName(ctx context.Context, arg G
 		&i.FailureTTL,
 		&i.TimeTilDormant,
 		&i.TimeTilDormantAutoDelete,
-		&i.RestartRequirementDaysOfWeek,
-		&i.RestartRequirementWeeks,
+		&i.AutostopRequirementDaysOfWeek,
+		&i.AutostopRequirementWeeks,
 		&i.CreatedByAvatarURL,
 		&i.CreatedByUsername,
 	)
@@ -4414,7 +4591,7 @@ func (q *sqlQuerier) GetTemplateByOrganizationAndName(ctx context.Context, arg G
 }
 
 const getTemplates = `-- name: GetTemplates :many
-SELECT id, created_at, updated_at, organization_id, deleted, name, provisioner, active_version_id, description, default_ttl, created_by, icon, user_acl, group_acl, display_name, allow_user_cancel_workspace_jobs, max_ttl, allow_user_autostart, allow_user_autostop, failure_ttl, time_til_dormant, time_til_dormant_autodelete, restart_requirement_days_of_week, restart_requirement_weeks, created_by_avatar_url, created_by_username FROM template_with_users AS templates
+SELECT id, created_at, updated_at, organization_id, deleted, name, provisioner, active_version_id, description, default_ttl, created_by, icon, user_acl, group_acl, display_name, allow_user_cancel_workspace_jobs, max_ttl, allow_user_autostart, allow_user_autostop, failure_ttl, time_til_dormant, time_til_dormant_autodelete, autostop_requirement_days_of_week, autostop_requirement_weeks, created_by_avatar_url, created_by_username FROM template_with_users AS templates
 ORDER BY (name, id) ASC
 `
 
@@ -4450,8 +4627,8 @@ func (q *sqlQuerier) GetTemplates(ctx context.Context) ([]Template, error) {
 			&i.FailureTTL,
 			&i.TimeTilDormant,
 			&i.TimeTilDormantAutoDelete,
-			&i.RestartRequirementDaysOfWeek,
-			&i.RestartRequirementWeeks,
+			&i.AutostopRequirementDaysOfWeek,
+			&i.AutostopRequirementWeeks,
 			&i.CreatedByAvatarURL,
 			&i.CreatedByUsername,
 		); err != nil {
@@ -4470,7 +4647,7 @@ func (q *sqlQuerier) GetTemplates(ctx context.Context) ([]Template, error) {
 
 const getTemplatesWithFilter = `-- name: GetTemplatesWithFilter :many
 SELECT
-	id, created_at, updated_at, organization_id, deleted, name, provisioner, active_version_id, description, default_ttl, created_by, icon, user_acl, group_acl, display_name, allow_user_cancel_workspace_jobs, max_ttl, allow_user_autostart, allow_user_autostop, failure_ttl, time_til_dormant, time_til_dormant_autodelete, restart_requirement_days_of_week, restart_requirement_weeks, created_by_avatar_url, created_by_username
+	id, created_at, updated_at, organization_id, deleted, name, provisioner, active_version_id, description, default_ttl, created_by, icon, user_acl, group_acl, display_name, allow_user_cancel_workspace_jobs, max_ttl, allow_user_autostart, allow_user_autostop, failure_ttl, time_til_dormant, time_til_dormant_autodelete, autostop_requirement_days_of_week, autostop_requirement_weeks, created_by_avatar_url, created_by_username
 FROM
 	template_with_users AS templates
 WHERE
@@ -4543,8 +4720,8 @@ func (q *sqlQuerier) GetTemplatesWithFilter(ctx context.Context, arg GetTemplate
 			&i.FailureTTL,
 			&i.TimeTilDormant,
 			&i.TimeTilDormantAutoDelete,
-			&i.RestartRequirementDaysOfWeek,
-			&i.RestartRequirementWeeks,
+			&i.AutostopRequirementDaysOfWeek,
+			&i.AutostopRequirementWeeks,
 			&i.CreatedByAvatarURL,
 			&i.CreatedByUsername,
 		); err != nil {
@@ -4729,8 +4906,8 @@ SET
 	allow_user_autostop = $4,
 	default_ttl = $5,
 	max_ttl = $6,
-	restart_requirement_days_of_week = $7,
-	restart_requirement_weeks = $8,
+	autostop_requirement_days_of_week = $7,
+	autostop_requirement_weeks = $8,
 	failure_ttl = $9,
 	time_til_dormant = $10,
 	time_til_dormant_autodelete = $11
@@ -4739,17 +4916,17 @@ WHERE
 `
 
 type UpdateTemplateScheduleByIDParams struct {
-	ID                           uuid.UUID `db:"id" json:"id"`
-	UpdatedAt                    time.Time `db:"updated_at" json:"updated_at"`
-	AllowUserAutostart           bool      `db:"allow_user_autostart" json:"allow_user_autostart"`
-	AllowUserAutostop            bool      `db:"allow_user_autostop" json:"allow_user_autostop"`
-	DefaultTTL                   int64     `db:"default_ttl" json:"default_ttl"`
-	MaxTTL                       int64     `db:"max_ttl" json:"max_ttl"`
-	RestartRequirementDaysOfWeek int16     `db:"restart_requirement_days_of_week" json:"restart_requirement_days_of_week"`
-	RestartRequirementWeeks      int64     `db:"restart_requirement_weeks" json:"restart_requirement_weeks"`
-	FailureTTL                   int64     `db:"failure_ttl" json:"failure_ttl"`
-	TimeTilDormant               int64     `db:"time_til_dormant" json:"time_til_dormant"`
-	TimeTilDormantAutoDelete     int64     `db:"time_til_dormant_autodelete" json:"time_til_dormant_autodelete"`
+	ID                            uuid.UUID `db:"id" json:"id"`
+	UpdatedAt                     time.Time `db:"updated_at" json:"updated_at"`
+	AllowUserAutostart            bool      `db:"allow_user_autostart" json:"allow_user_autostart"`
+	AllowUserAutostop             bool      `db:"allow_user_autostop" json:"allow_user_autostop"`
+	DefaultTTL                    int64     `db:"default_ttl" json:"default_ttl"`
+	MaxTTL                        int64     `db:"max_ttl" json:"max_ttl"`
+	AutostopRequirementDaysOfWeek int16     `db:"autostop_requirement_days_of_week" json:"autostop_requirement_days_of_week"`
+	AutostopRequirementWeeks      int64     `db:"autostop_requirement_weeks" json:"autostop_requirement_weeks"`
+	FailureTTL                    int64     `db:"failure_ttl" json:"failure_ttl"`
+	TimeTilDormant                int64     `db:"time_til_dormant" json:"time_til_dormant"`
+	TimeTilDormantAutoDelete      int64     `db:"time_til_dormant_autodelete" json:"time_til_dormant_autodelete"`
 }
 
 func (q *sqlQuerier) UpdateTemplateScheduleByID(ctx context.Context, arg UpdateTemplateScheduleByIDParams) error {
@@ -4760,8 +4937,8 @@ func (q *sqlQuerier) UpdateTemplateScheduleByID(ctx context.Context, arg UpdateT
 		arg.AllowUserAutostop,
 		arg.DefaultTTL,
 		arg.MaxTTL,
-		arg.RestartRequirementDaysOfWeek,
-		arg.RestartRequirementWeeks,
+		arg.AutostopRequirementDaysOfWeek,
+		arg.AutostopRequirementWeeks,
 		arg.FailureTTL,
 		arg.TimeTilDormant,
 		arg.TimeTilDormantAutoDelete,
@@ -5450,7 +5627,7 @@ func (q *sqlQuerier) InsertTemplateVersionVariable(ctx context.Context, arg Inse
 
 const getUserLinkByLinkedID = `-- name: GetUserLinkByLinkedID :one
 SELECT
-	user_id, login_type, linked_id, oauth_access_token, oauth_refresh_token, oauth_expiry
+	user_id, login_type, linked_id, oauth_access_token, oauth_refresh_token, oauth_expiry, oauth_access_token_key_id, oauth_refresh_token_key_id
 FROM
 	user_links
 WHERE
@@ -5467,13 +5644,15 @@ func (q *sqlQuerier) GetUserLinkByLinkedID(ctx context.Context, linkedID string)
 		&i.OAuthAccessToken,
 		&i.OAuthRefreshToken,
 		&i.OAuthExpiry,
+		&i.OAuthAccessTokenKeyID,
+		&i.OAuthRefreshTokenKeyID,
 	)
 	return i, err
 }
 
 const getUserLinkByUserIDLoginType = `-- name: GetUserLinkByUserIDLoginType :one
 SELECT
-	user_id, login_type, linked_id, oauth_access_token, oauth_refresh_token, oauth_expiry
+	user_id, login_type, linked_id, oauth_access_token, oauth_refresh_token, oauth_expiry, oauth_access_token_key_id, oauth_refresh_token_key_id
 FROM
 	user_links
 WHERE
@@ -5495,8 +5674,46 @@ func (q *sqlQuerier) GetUserLinkByUserIDLoginType(ctx context.Context, arg GetUs
 		&i.OAuthAccessToken,
 		&i.OAuthRefreshToken,
 		&i.OAuthExpiry,
+		&i.OAuthAccessTokenKeyID,
+		&i.OAuthRefreshTokenKeyID,
 	)
 	return i, err
+}
+
+const getUserLinksByUserID = `-- name: GetUserLinksByUserID :many
+SELECT user_id, login_type, linked_id, oauth_access_token, oauth_refresh_token, oauth_expiry, oauth_access_token_key_id, oauth_refresh_token_key_id FROM user_links WHERE user_id = $1
+`
+
+func (q *sqlQuerier) GetUserLinksByUserID(ctx context.Context, userID uuid.UUID) ([]UserLink, error) {
+	rows, err := q.db.QueryContext(ctx, getUserLinksByUserID, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []UserLink
+	for rows.Next() {
+		var i UserLink
+		if err := rows.Scan(
+			&i.UserID,
+			&i.LoginType,
+			&i.LinkedID,
+			&i.OAuthAccessToken,
+			&i.OAuthRefreshToken,
+			&i.OAuthExpiry,
+			&i.OAuthAccessTokenKeyID,
+			&i.OAuthRefreshTokenKeyID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const insertUserLink = `-- name: InsertUserLink :one
@@ -5506,20 +5723,24 @@ INSERT INTO
 		login_type,
 		linked_id,
 		oauth_access_token,
+		oauth_access_token_key_id,
 		oauth_refresh_token,
+		oauth_refresh_token_key_id,
 		oauth_expiry
 	)
 VALUES
-	( $1, $2, $3, $4, $5, $6 ) RETURNING user_id, login_type, linked_id, oauth_access_token, oauth_refresh_token, oauth_expiry
+	( $1, $2, $3, $4, $5, $6, $7, $8 ) RETURNING user_id, login_type, linked_id, oauth_access_token, oauth_refresh_token, oauth_expiry, oauth_access_token_key_id, oauth_refresh_token_key_id
 `
 
 type InsertUserLinkParams struct {
-	UserID            uuid.UUID `db:"user_id" json:"user_id"`
-	LoginType         LoginType `db:"login_type" json:"login_type"`
-	LinkedID          string    `db:"linked_id" json:"linked_id"`
-	OAuthAccessToken  string    `db:"oauth_access_token" json:"oauth_access_token"`
-	OAuthRefreshToken string    `db:"oauth_refresh_token" json:"oauth_refresh_token"`
-	OAuthExpiry       time.Time `db:"oauth_expiry" json:"oauth_expiry"`
+	UserID                 uuid.UUID      `db:"user_id" json:"user_id"`
+	LoginType              LoginType      `db:"login_type" json:"login_type"`
+	LinkedID               string         `db:"linked_id" json:"linked_id"`
+	OAuthAccessToken       string         `db:"oauth_access_token" json:"oauth_access_token"`
+	OAuthAccessTokenKeyID  sql.NullString `db:"oauth_access_token_key_id" json:"oauth_access_token_key_id"`
+	OAuthRefreshToken      string         `db:"oauth_refresh_token" json:"oauth_refresh_token"`
+	OAuthRefreshTokenKeyID sql.NullString `db:"oauth_refresh_token_key_id" json:"oauth_refresh_token_key_id"`
+	OAuthExpiry            time.Time      `db:"oauth_expiry" json:"oauth_expiry"`
 }
 
 func (q *sqlQuerier) InsertUserLink(ctx context.Context, arg InsertUserLinkParams) (UserLink, error) {
@@ -5528,7 +5749,9 @@ func (q *sqlQuerier) InsertUserLink(ctx context.Context, arg InsertUserLinkParam
 		arg.LoginType,
 		arg.LinkedID,
 		arg.OAuthAccessToken,
+		arg.OAuthAccessTokenKeyID,
 		arg.OAuthRefreshToken,
+		arg.OAuthRefreshTokenKeyID,
 		arg.OAuthExpiry,
 	)
 	var i UserLink
@@ -5539,6 +5762,8 @@ func (q *sqlQuerier) InsertUserLink(ctx context.Context, arg InsertUserLinkParam
 		&i.OAuthAccessToken,
 		&i.OAuthRefreshToken,
 		&i.OAuthExpiry,
+		&i.OAuthAccessTokenKeyID,
+		&i.OAuthRefreshTokenKeyID,
 	)
 	return i, err
 }
@@ -5548,24 +5773,30 @@ UPDATE
 	user_links
 SET
 	oauth_access_token = $1,
-	oauth_refresh_token = $2,
-	oauth_expiry = $3
+	oauth_access_token_key_id = $2,
+	oauth_refresh_token = $3,
+	oauth_refresh_token_key_id = $4,
+	oauth_expiry = $5
 WHERE
-	user_id = $4 AND login_type = $5 RETURNING user_id, login_type, linked_id, oauth_access_token, oauth_refresh_token, oauth_expiry
+	user_id = $6 AND login_type = $7 RETURNING user_id, login_type, linked_id, oauth_access_token, oauth_refresh_token, oauth_expiry, oauth_access_token_key_id, oauth_refresh_token_key_id
 `
 
 type UpdateUserLinkParams struct {
-	OAuthAccessToken  string    `db:"oauth_access_token" json:"oauth_access_token"`
-	OAuthRefreshToken string    `db:"oauth_refresh_token" json:"oauth_refresh_token"`
-	OAuthExpiry       time.Time `db:"oauth_expiry" json:"oauth_expiry"`
-	UserID            uuid.UUID `db:"user_id" json:"user_id"`
-	LoginType         LoginType `db:"login_type" json:"login_type"`
+	OAuthAccessToken       string         `db:"oauth_access_token" json:"oauth_access_token"`
+	OAuthAccessTokenKeyID  sql.NullString `db:"oauth_access_token_key_id" json:"oauth_access_token_key_id"`
+	OAuthRefreshToken      string         `db:"oauth_refresh_token" json:"oauth_refresh_token"`
+	OAuthRefreshTokenKeyID sql.NullString `db:"oauth_refresh_token_key_id" json:"oauth_refresh_token_key_id"`
+	OAuthExpiry            time.Time      `db:"oauth_expiry" json:"oauth_expiry"`
+	UserID                 uuid.UUID      `db:"user_id" json:"user_id"`
+	LoginType              LoginType      `db:"login_type" json:"login_type"`
 }
 
 func (q *sqlQuerier) UpdateUserLink(ctx context.Context, arg UpdateUserLinkParams) (UserLink, error) {
 	row := q.db.QueryRowContext(ctx, updateUserLink,
 		arg.OAuthAccessToken,
+		arg.OAuthAccessTokenKeyID,
 		arg.OAuthRefreshToken,
+		arg.OAuthRefreshTokenKeyID,
 		arg.OAuthExpiry,
 		arg.UserID,
 		arg.LoginType,
@@ -5578,6 +5809,8 @@ func (q *sqlQuerier) UpdateUserLink(ctx context.Context, arg UpdateUserLinkParam
 		&i.OAuthAccessToken,
 		&i.OAuthRefreshToken,
 		&i.OAuthExpiry,
+		&i.OAuthAccessTokenKeyID,
+		&i.OAuthRefreshTokenKeyID,
 	)
 	return i, err
 }
@@ -5588,7 +5821,7 @@ UPDATE
 SET
 	linked_id = $1
 WHERE
-	user_id = $2 AND login_type = $3 RETURNING user_id, login_type, linked_id, oauth_access_token, oauth_refresh_token, oauth_expiry
+	user_id = $2 AND login_type = $3 RETURNING user_id, login_type, linked_id, oauth_access_token, oauth_refresh_token, oauth_expiry, oauth_access_token_key_id, oauth_refresh_token_key_id
 `
 
 type UpdateUserLinkedIDParams struct {
@@ -5607,8 +5840,38 @@ func (q *sqlQuerier) UpdateUserLinkedID(ctx context.Context, arg UpdateUserLinke
 		&i.OAuthAccessToken,
 		&i.OAuthRefreshToken,
 		&i.OAuthExpiry,
+		&i.OAuthAccessTokenKeyID,
+		&i.OAuthRefreshTokenKeyID,
 	)
 	return i, err
+}
+
+const allUserIDs = `-- name: AllUserIDs :many
+SELECT DISTINCT id FROM USERS
+`
+
+// AllUserIDs returns all UserIDs regardless of user status or deletion.
+func (q *sqlQuerier) AllUserIDs(ctx context.Context) ([]uuid.UUID, error) {
+	rows, err := q.db.QueryContext(ctx, allUserIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []uuid.UUID
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getActiveUserCount = `-- name: GetActiveUserCount :one
@@ -6362,7 +6625,7 @@ func (q *sqlQuerier) DeleteOldWorkspaceAgentLogs(ctx context.Context) error {
 
 const getWorkspaceAgentAndOwnerByAuthToken = `-- name: GetWorkspaceAgentAndOwnerByAuthToken :one
 SELECT
-	workspace_agents.id, workspace_agents.created_at, workspace_agents.updated_at, workspace_agents.name, workspace_agents.first_connected_at, workspace_agents.last_connected_at, workspace_agents.disconnected_at, workspace_agents.resource_id, workspace_agents.auth_token, workspace_agents.auth_instance_id, workspace_agents.architecture, workspace_agents.environment_variables, workspace_agents.operating_system, workspace_agents.startup_script, workspace_agents.instance_metadata, workspace_agents.resource_metadata, workspace_agents.directory, workspace_agents.version, workspace_agents.last_connected_replica_id, workspace_agents.connection_timeout_seconds, workspace_agents.troubleshooting_url, workspace_agents.motd_file, workspace_agents.lifecycle_state, workspace_agents.startup_script_timeout_seconds, workspace_agents.expanded_directory, workspace_agents.shutdown_script, workspace_agents.shutdown_script_timeout_seconds, workspace_agents.logs_length, workspace_agents.logs_overflowed, workspace_agents.startup_script_behavior, workspace_agents.started_at, workspace_agents.ready_at, workspace_agents.subsystems,
+	workspace_agents.id, workspace_agents.created_at, workspace_agents.updated_at, workspace_agents.name, workspace_agents.first_connected_at, workspace_agents.last_connected_at, workspace_agents.disconnected_at, workspace_agents.resource_id, workspace_agents.auth_token, workspace_agents.auth_instance_id, workspace_agents.architecture, workspace_agents.environment_variables, workspace_agents.operating_system, workspace_agents.startup_script, workspace_agents.instance_metadata, workspace_agents.resource_metadata, workspace_agents.directory, workspace_agents.version, workspace_agents.last_connected_replica_id, workspace_agents.connection_timeout_seconds, workspace_agents.troubleshooting_url, workspace_agents.motd_file, workspace_agents.lifecycle_state, workspace_agents.startup_script_timeout_seconds, workspace_agents.expanded_directory, workspace_agents.shutdown_script, workspace_agents.shutdown_script_timeout_seconds, workspace_agents.logs_length, workspace_agents.logs_overflowed, workspace_agents.startup_script_behavior, workspace_agents.started_at, workspace_agents.ready_at, workspace_agents.subsystems, workspace_agents.display_apps,
 	workspaces.id AS workspace_id,
 	users.id AS owner_id,
 	users.username AS owner_name,
@@ -6461,6 +6724,7 @@ func (q *sqlQuerier) GetWorkspaceAgentAndOwnerByAuthToken(ctx context.Context, a
 		&i.WorkspaceAgent.StartedAt,
 		&i.WorkspaceAgent.ReadyAt,
 		pq.Array(&i.WorkspaceAgent.Subsystems),
+		pq.Array(&i.WorkspaceAgent.DisplayApps),
 		&i.WorkspaceID,
 		&i.OwnerID,
 		&i.OwnerName,
@@ -6473,7 +6737,7 @@ func (q *sqlQuerier) GetWorkspaceAgentAndOwnerByAuthToken(ctx context.Context, a
 
 const getWorkspaceAgentByID = `-- name: GetWorkspaceAgentByID :one
 SELECT
-	id, created_at, updated_at, name, first_connected_at, last_connected_at, disconnected_at, resource_id, auth_token, auth_instance_id, architecture, environment_variables, operating_system, startup_script, instance_metadata, resource_metadata, directory, version, last_connected_replica_id, connection_timeout_seconds, troubleshooting_url, motd_file, lifecycle_state, startup_script_timeout_seconds, expanded_directory, shutdown_script, shutdown_script_timeout_seconds, logs_length, logs_overflowed, startup_script_behavior, started_at, ready_at, subsystems
+	id, created_at, updated_at, name, first_connected_at, last_connected_at, disconnected_at, resource_id, auth_token, auth_instance_id, architecture, environment_variables, operating_system, startup_script, instance_metadata, resource_metadata, directory, version, last_connected_replica_id, connection_timeout_seconds, troubleshooting_url, motd_file, lifecycle_state, startup_script_timeout_seconds, expanded_directory, shutdown_script, shutdown_script_timeout_seconds, logs_length, logs_overflowed, startup_script_behavior, started_at, ready_at, subsystems, display_apps
 FROM
 	workspace_agents
 WHERE
@@ -6517,13 +6781,14 @@ func (q *sqlQuerier) GetWorkspaceAgentByID(ctx context.Context, id uuid.UUID) (W
 		&i.StartedAt,
 		&i.ReadyAt,
 		pq.Array(&i.Subsystems),
+		pq.Array(&i.DisplayApps),
 	)
 	return i, err
 }
 
 const getWorkspaceAgentByInstanceID = `-- name: GetWorkspaceAgentByInstanceID :one
 SELECT
-	id, created_at, updated_at, name, first_connected_at, last_connected_at, disconnected_at, resource_id, auth_token, auth_instance_id, architecture, environment_variables, operating_system, startup_script, instance_metadata, resource_metadata, directory, version, last_connected_replica_id, connection_timeout_seconds, troubleshooting_url, motd_file, lifecycle_state, startup_script_timeout_seconds, expanded_directory, shutdown_script, shutdown_script_timeout_seconds, logs_length, logs_overflowed, startup_script_behavior, started_at, ready_at, subsystems
+	id, created_at, updated_at, name, first_connected_at, last_connected_at, disconnected_at, resource_id, auth_token, auth_instance_id, architecture, environment_variables, operating_system, startup_script, instance_metadata, resource_metadata, directory, version, last_connected_replica_id, connection_timeout_seconds, troubleshooting_url, motd_file, lifecycle_state, startup_script_timeout_seconds, expanded_directory, shutdown_script, shutdown_script_timeout_seconds, logs_length, logs_overflowed, startup_script_behavior, started_at, ready_at, subsystems, display_apps
 FROM
 	workspace_agents
 WHERE
@@ -6569,6 +6834,7 @@ func (q *sqlQuerier) GetWorkspaceAgentByInstanceID(ctx context.Context, authInst
 		&i.StartedAt,
 		&i.ReadyAt,
 		pq.Array(&i.Subsystems),
+		pq.Array(&i.DisplayApps),
 	)
 	return i, err
 }
@@ -6688,7 +6954,7 @@ func (q *sqlQuerier) GetWorkspaceAgentMetadata(ctx context.Context, workspaceAge
 
 const getWorkspaceAgentsByResourceIDs = `-- name: GetWorkspaceAgentsByResourceIDs :many
 SELECT
-	id, created_at, updated_at, name, first_connected_at, last_connected_at, disconnected_at, resource_id, auth_token, auth_instance_id, architecture, environment_variables, operating_system, startup_script, instance_metadata, resource_metadata, directory, version, last_connected_replica_id, connection_timeout_seconds, troubleshooting_url, motd_file, lifecycle_state, startup_script_timeout_seconds, expanded_directory, shutdown_script, shutdown_script_timeout_seconds, logs_length, logs_overflowed, startup_script_behavior, started_at, ready_at, subsystems
+	id, created_at, updated_at, name, first_connected_at, last_connected_at, disconnected_at, resource_id, auth_token, auth_instance_id, architecture, environment_variables, operating_system, startup_script, instance_metadata, resource_metadata, directory, version, last_connected_replica_id, connection_timeout_seconds, troubleshooting_url, motd_file, lifecycle_state, startup_script_timeout_seconds, expanded_directory, shutdown_script, shutdown_script_timeout_seconds, logs_length, logs_overflowed, startup_script_behavior, started_at, ready_at, subsystems, display_apps
 FROM
 	workspace_agents
 WHERE
@@ -6738,6 +7004,7 @@ func (q *sqlQuerier) GetWorkspaceAgentsByResourceIDs(ctx context.Context, ids []
 			&i.StartedAt,
 			&i.ReadyAt,
 			pq.Array(&i.Subsystems),
+			pq.Array(&i.DisplayApps),
 		); err != nil {
 			return nil, err
 		}
@@ -6753,7 +7020,7 @@ func (q *sqlQuerier) GetWorkspaceAgentsByResourceIDs(ctx context.Context, ids []
 }
 
 const getWorkspaceAgentsCreatedAfter = `-- name: GetWorkspaceAgentsCreatedAfter :many
-SELECT id, created_at, updated_at, name, first_connected_at, last_connected_at, disconnected_at, resource_id, auth_token, auth_instance_id, architecture, environment_variables, operating_system, startup_script, instance_metadata, resource_metadata, directory, version, last_connected_replica_id, connection_timeout_seconds, troubleshooting_url, motd_file, lifecycle_state, startup_script_timeout_seconds, expanded_directory, shutdown_script, shutdown_script_timeout_seconds, logs_length, logs_overflowed, startup_script_behavior, started_at, ready_at, subsystems FROM workspace_agents WHERE created_at > $1
+SELECT id, created_at, updated_at, name, first_connected_at, last_connected_at, disconnected_at, resource_id, auth_token, auth_instance_id, architecture, environment_variables, operating_system, startup_script, instance_metadata, resource_metadata, directory, version, last_connected_replica_id, connection_timeout_seconds, troubleshooting_url, motd_file, lifecycle_state, startup_script_timeout_seconds, expanded_directory, shutdown_script, shutdown_script_timeout_seconds, logs_length, logs_overflowed, startup_script_behavior, started_at, ready_at, subsystems, display_apps FROM workspace_agents WHERE created_at > $1
 `
 
 func (q *sqlQuerier) GetWorkspaceAgentsCreatedAfter(ctx context.Context, createdAt time.Time) ([]WorkspaceAgent, error) {
@@ -6799,6 +7066,7 @@ func (q *sqlQuerier) GetWorkspaceAgentsCreatedAfter(ctx context.Context, created
 			&i.StartedAt,
 			&i.ReadyAt,
 			pq.Array(&i.Subsystems),
+			pq.Array(&i.DisplayApps),
 		); err != nil {
 			return nil, err
 		}
@@ -6815,7 +7083,7 @@ func (q *sqlQuerier) GetWorkspaceAgentsCreatedAfter(ctx context.Context, created
 
 const getWorkspaceAgentsInLatestBuildByWorkspaceID = `-- name: GetWorkspaceAgentsInLatestBuildByWorkspaceID :many
 SELECT
-	workspace_agents.id, workspace_agents.created_at, workspace_agents.updated_at, workspace_agents.name, workspace_agents.first_connected_at, workspace_agents.last_connected_at, workspace_agents.disconnected_at, workspace_agents.resource_id, workspace_agents.auth_token, workspace_agents.auth_instance_id, workspace_agents.architecture, workspace_agents.environment_variables, workspace_agents.operating_system, workspace_agents.startup_script, workspace_agents.instance_metadata, workspace_agents.resource_metadata, workspace_agents.directory, workspace_agents.version, workspace_agents.last_connected_replica_id, workspace_agents.connection_timeout_seconds, workspace_agents.troubleshooting_url, workspace_agents.motd_file, workspace_agents.lifecycle_state, workspace_agents.startup_script_timeout_seconds, workspace_agents.expanded_directory, workspace_agents.shutdown_script, workspace_agents.shutdown_script_timeout_seconds, workspace_agents.logs_length, workspace_agents.logs_overflowed, workspace_agents.startup_script_behavior, workspace_agents.started_at, workspace_agents.ready_at, workspace_agents.subsystems
+	workspace_agents.id, workspace_agents.created_at, workspace_agents.updated_at, workspace_agents.name, workspace_agents.first_connected_at, workspace_agents.last_connected_at, workspace_agents.disconnected_at, workspace_agents.resource_id, workspace_agents.auth_token, workspace_agents.auth_instance_id, workspace_agents.architecture, workspace_agents.environment_variables, workspace_agents.operating_system, workspace_agents.startup_script, workspace_agents.instance_metadata, workspace_agents.resource_metadata, workspace_agents.directory, workspace_agents.version, workspace_agents.last_connected_replica_id, workspace_agents.connection_timeout_seconds, workspace_agents.troubleshooting_url, workspace_agents.motd_file, workspace_agents.lifecycle_state, workspace_agents.startup_script_timeout_seconds, workspace_agents.expanded_directory, workspace_agents.shutdown_script, workspace_agents.shutdown_script_timeout_seconds, workspace_agents.logs_length, workspace_agents.logs_overflowed, workspace_agents.startup_script_behavior, workspace_agents.started_at, workspace_agents.ready_at, workspace_agents.subsystems, workspace_agents.display_apps
 FROM
 	workspace_agents
 JOIN
@@ -6877,6 +7145,7 @@ func (q *sqlQuerier) GetWorkspaceAgentsInLatestBuildByWorkspaceID(ctx context.Co
 			&i.StartedAt,
 			&i.ReadyAt,
 			pq.Array(&i.Subsystems),
+			pq.Array(&i.DisplayApps),
 		); err != nil {
 			return nil, err
 		}
@@ -6914,10 +7183,11 @@ INSERT INTO
 		startup_script_behavior,
 		startup_script_timeout_seconds,
 		shutdown_script,
-		shutdown_script_timeout_seconds
+		shutdown_script_timeout_seconds,
+		display_apps
 	)
 VALUES
-	($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21) RETURNING id, created_at, updated_at, name, first_connected_at, last_connected_at, disconnected_at, resource_id, auth_token, auth_instance_id, architecture, environment_variables, operating_system, startup_script, instance_metadata, resource_metadata, directory, version, last_connected_replica_id, connection_timeout_seconds, troubleshooting_url, motd_file, lifecycle_state, startup_script_timeout_seconds, expanded_directory, shutdown_script, shutdown_script_timeout_seconds, logs_length, logs_overflowed, startup_script_behavior, started_at, ready_at, subsystems
+	($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22) RETURNING id, created_at, updated_at, name, first_connected_at, last_connected_at, disconnected_at, resource_id, auth_token, auth_instance_id, architecture, environment_variables, operating_system, startup_script, instance_metadata, resource_metadata, directory, version, last_connected_replica_id, connection_timeout_seconds, troubleshooting_url, motd_file, lifecycle_state, startup_script_timeout_seconds, expanded_directory, shutdown_script, shutdown_script_timeout_seconds, logs_length, logs_overflowed, startup_script_behavior, started_at, ready_at, subsystems, display_apps
 `
 
 type InsertWorkspaceAgentParams struct {
@@ -6942,6 +7212,7 @@ type InsertWorkspaceAgentParams struct {
 	StartupScriptTimeoutSeconds  int32                 `db:"startup_script_timeout_seconds" json:"startup_script_timeout_seconds"`
 	ShutdownScript               sql.NullString        `db:"shutdown_script" json:"shutdown_script"`
 	ShutdownScriptTimeoutSeconds int32                 `db:"shutdown_script_timeout_seconds" json:"shutdown_script_timeout_seconds"`
+	DisplayApps                  []DisplayApp          `db:"display_apps" json:"display_apps"`
 }
 
 func (q *sqlQuerier) InsertWorkspaceAgent(ctx context.Context, arg InsertWorkspaceAgentParams) (WorkspaceAgent, error) {
@@ -6967,6 +7238,7 @@ func (q *sqlQuerier) InsertWorkspaceAgent(ctx context.Context, arg InsertWorkspa
 		arg.StartupScriptTimeoutSeconds,
 		arg.ShutdownScript,
 		arg.ShutdownScriptTimeoutSeconds,
+		pq.Array(arg.DisplayApps),
 	)
 	var i WorkspaceAgent
 	err := row.Scan(
@@ -7003,6 +7275,7 @@ func (q *sqlQuerier) InsertWorkspaceAgent(ctx context.Context, arg InsertWorkspa
 		&i.StartedAt,
 		&i.ReadyAt,
 		pq.Array(&i.Subsystems),
+		pq.Array(&i.DisplayApps),
 	)
 	return i, err
 }

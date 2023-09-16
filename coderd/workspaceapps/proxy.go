@@ -19,7 +19,7 @@ import (
 
 	"cdr.dev/slog"
 	"github.com/coder/coder/v2/agent/agentssh"
-	"github.com/coder/coder/v2/coderd/database"
+	"github.com/coder/coder/v2/coderd/database/dbtime"
 	"github.com/coder/coder/v2/coderd/httpapi"
 	"github.com/coder/coder/v2/coderd/httpmw"
 	"github.com/coder/coder/v2/coderd/tracing"
@@ -220,8 +220,12 @@ func (s *Server) handleAPIKeySmuggling(rw http.ResponseWriter, r *http.Request, 
 	// We don't set an expiration because the key in the database already has an
 	// expiration, and expired tokens don't affect the user experience (they get
 	// auto-redirected to re-smuggle the API key).
+	//
+	// We use different cookie names for path apps and for subdomain apps to
+	// avoid both being set and sent to the server at the same time and the
+	// server using the wrong value.
 	http.SetCookie(rw, &http.Cookie{
-		Name:     codersdk.DevURLSessionTokenCookie,
+		Name:     AppConnectSessionTokenCookieName(accessMethod),
 		Value:    token,
 		Domain:   domain,
 		Path:     "/",
@@ -252,7 +256,7 @@ func (s *Server) handleAPIKeySmuggling(rw http.ResponseWriter, r *http.Request, 
 func (s *Server) workspaceAppsProxyPath(rw http.ResponseWriter, r *http.Request) {
 	if s.DisablePathApps {
 		site.RenderStaticErrorPage(rw, r, site.ErrorPageData{
-			Status:       http.StatusUnauthorized,
+			Status:       http.StatusForbidden,
 			Title:        "未经授权",
 			Description:  "此 Coder 部署已被管理员禁用路径应用程序。",
 			RetryEnabled: false,
@@ -596,7 +600,7 @@ func (s *Server) proxyWorkspaceApp(rw http.ResponseWriter, r *http.Request, appT
 	s.collectStats(report)
 	defer func() {
 		// We must use defer here because ServeHTTP may panic.
-		report.SessionEndedAt = database.Now()
+		report.SessionEndedAt = dbtime.Now()
 		s.collectStats(report)
 	}()
 
@@ -696,7 +700,7 @@ func (s *Server) workspaceAgentPTY(rw http.ResponseWriter, r *http.Request) {
 	report := newStatsReportFromSignedToken(*appToken)
 	s.collectStats(report)
 	defer func() {
-		report.SessionEndedAt = database.Now()
+		report.SessionEndedAt = dbtime.Now()
 		s.collectStats(report)
 	}()
 

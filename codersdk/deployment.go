@@ -35,19 +35,21 @@ const (
 type FeatureName string
 
 const (
-	FeatureUserLimit                  FeatureName = "user_limit"
-	FeatureAuditLog                   FeatureName = "audit_log"
-	FeatureBrowserOnly                FeatureName = "browser_only"
-	FeatureSCIM                       FeatureName = "scim"
-	FeatureTemplateRBAC               FeatureName = "template_rbac"
-	FeatureUserRoleManagement         FeatureName = "user_role_management"
-	FeatureHighAvailability           FeatureName = "high_availability"
-	FeatureMultipleGitAuth            FeatureName = "multiple_git_auth"
-	FeatureExternalProvisionerDaemons FeatureName = "external_provisioner_daemons"
-	FeatureAppearance                 FeatureName = "appearance"
-	FeatureAdvancedTemplateScheduling FeatureName = "advanced_template_scheduling"
-	FeatureTemplateRestartRequirement FeatureName = "template_restart_requirement"
-	FeatureWorkspaceProxy             FeatureName = "workspace_proxy"
+	FeatureUserLimit                   FeatureName = "user_limit"
+	FeatureAuditLog                    FeatureName = "audit_log"
+	FeatureBrowserOnly                 FeatureName = "browser_only"
+	FeatureSCIM                        FeatureName = "scim"
+	FeatureTemplateRBAC                FeatureName = "template_rbac"
+	FeatureUserRoleManagement          FeatureName = "user_role_management"
+	FeatureHighAvailability            FeatureName = "high_availability"
+	FeatureMultipleGitAuth             FeatureName = "multiple_git_auth"
+	FeatureExternalProvisionerDaemons  FeatureName = "external_provisioner_daemons"
+	FeatureAppearance                  FeatureName = "appearance"
+	FeatureAdvancedTemplateScheduling  FeatureName = "advanced_template_scheduling"
+	FeatureWorkspaceProxy              FeatureName = "workspace_proxy"
+	FeatureExternalTokenEncryption     FeatureName = "external_token_encryption"
+	FeatureTemplateAutostopRequirement FeatureName = "template_autostop_requirement"
+	FeatureWorkspaceBatchActions       FeatureName = "workspace_batch_actions"
 )
 
 // FeatureNames must be kept in-sync with the Feature enum above.
@@ -62,8 +64,12 @@ var FeatureNames = []FeatureName{
 	FeatureExternalProvisionerDaemons,
 	FeatureAppearance,
 	FeatureAdvancedTemplateScheduling,
+	FeatureTemplateAutostopRequirement,
 	FeatureWorkspaceProxy,
 	FeatureUserRoleManagement,
+	FeatureExternalTokenEncryption,
+	FeatureTemplateAutostopRequirement,
+	FeatureWorkspaceBatchActions,
 }
 
 // Humanize returns the feature name in a human-readable format.
@@ -152,6 +158,7 @@ type DeploymentValues struct {
 	AgentFallbackTroubleshootingURL clibase.URL                     `json:"agent_fallback_troubleshooting_url,omitempty" typescript:",notnull"`
 	BrowserOnly                     clibase.Bool                    `json:"browser_only,omitempty" typescript:",notnull"`
 	SCIMAPIKey                      clibase.String                  `json:"scim_api_key,omitempty" typescript:",notnull"`
+	ExternalTokenEncryptionKeys     clibase.StringArray             `json:"external_token_encryption_keys,omitempty" typescript:",notnull"`
 	Provisioner                     ProvisionerConfig               `json:"provisioner,omitempty" typescript:",notnull"`
 	RateLimit                       RateLimitConfig                 `json:"rate_limit,omitempty" typescript:",notnull"`
 	Experiments                     clibase.StringArray             `json:"experiments,omitempty" typescript:",notnull"`
@@ -310,6 +317,7 @@ type TraceConfig struct {
 	Enable          clibase.Bool   `json:"enable" typescript:",notnull"`
 	HoneycombAPIKey clibase.String `json:"honeycomb_api_key" typescript:",notnull"`
 	CaptureLogs     clibase.Bool   `json:"capture_logs" typescript:",notnull"`
+	DataDog         clibase.Bool   `json:"data_dog" typescript:",notnull"`
 }
 
 type GitAuthConfig struct {
@@ -402,9 +410,6 @@ func DefaultCacheDir() string {
 }
 
 // DeploymentConfig contains both the deployment values and how they're set.
-//
-// @typescript-ignore DeploymentConfig
-// apitypings doesn't know how to generate the OptionSet... yet.
 type DeploymentConfig struct {
 	Values  *DeploymentValues `json:"config,omitempty"`
 	Options clibase.OptionSet `json:"options,omitempty"`
@@ -1179,16 +1184,6 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 			YAML:        "enable",
 		},
 		{
-			Name:        "Telemetry Trace",
-			Description: "确定是否将 OpenTelemetry 追踪发送到 Coder。Coder 收集匿名化的应用程序追踪数据，以帮助改进我们的产品。禁用遥测也将禁用此选项。",
-			Flag:        "telemetry-trace",
-			Env:         "CODER_TELEMETRY_TRACE",
-			Default:     strconv.FormatBool(flag.Lookup("test.v") == nil),
-			Value:       &c.Telemetry.Trace,
-			Group:       &deploymentGroupTelemetry,
-			YAML:        "trace",
-		},
-		{
 			Name:        "Telemetry URL",
 			Description: "用于发送遥测的URL。",
 			Flag:        "telemetry-url",
@@ -1227,6 +1222,22 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 			Value:       &c.Trace.CaptureLogs,
 			Group:       &deploymentGroupIntrospectionTracing,
 			YAML:        "captureLogs",
+			Annotations: clibase.Annotations{}.Mark(annotationExternalProxies, "true"),
+		},
+		{
+			Name:        "Send Go runtime traces to DataDog",
+			Description: "Enables sending Go runtime traces to the local DataDog agent.",
+			Flag:        "trace-datadog",
+			Env:         "CODER_TRACE_DATADOG",
+			Value:       &c.Trace.DataDog,
+			Group:       &deploymentGroupIntrospectionTracing,
+			YAML:        "dataDog",
+			// Hidden until an external user asks for it. For the time being,
+			// it's used to detect leaks in dogfood.
+			Hidden: true,
+			// Default is false because datadog creates a bunch of goroutines that
+			// don't get cleaned up and trip the leak detector.
+			Default:     "false",
 			Annotations: clibase.Annotations{}.Mark(annotationExternalProxies, "true"),
 		},
 		// Provisioner settings
@@ -1575,7 +1586,14 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 			Annotations: clibase.Annotations{}.Mark(annotationEnterpriseKey, "true").Mark(annotationSecretKey, "true"),
 			Value:       &c.SCIMAPIKey,
 		},
-
+		{
+			Name:        "External Token Encryption Keys",
+			Description: "Encrypt OIDC and Git authentication tokens with AES-256-GCM in the database. The value must be a comma-separated list of base64-encoded keys. Each key, when base64-decoded, must be exactly 32 bytes in length. The first key will be used to encrypt new values. Subsequent keys will be used as a fallback when decrypting. During normal operation it is recommended to only set one key unless you are in the process of rotating keys with the `coder server dbcrypt rotate` command.",
+			Flag:        "external-token-encryption-keys",
+			Env:         "CODER_EXTERNAL_TOKEN_ENCRYPTION_KEYS",
+			Annotations: clibase.Annotations{}.Mark(annotationEnterpriseKey, "true").Mark(annotationSecretKey, "true"),
+			Value:       &c.ExternalTokenEncryptionKeys,
+		},
 		{
 			Name:        "Disable Path Apps",
 			Description: "禁用非子域名服务的工作区应用程序。基于路径的应用程序可以向Coder API发送请求，并在工作区提供恶意JavaScript时构成安全风险。如果配置了--wildcard-access-url，出于安全目的建议使用此选项。",
@@ -1750,7 +1768,7 @@ func (c *DeploymentValues) WithoutSecrets() (*DeploymentValues, error) {
 
 		// This only works with string values for now.
 		switch v := opt.Value.(type) {
-		case *clibase.String:
+		case *clibase.String, *clibase.StringArray:
 			err := v.Set("")
 			if err != nil {
 				panic(err)
@@ -1910,23 +1928,22 @@ const (
 	// WARNING: This cannot be enabled when using HA.
 	ExperimentSingleTailnet Experiment = "single_tailnet"
 
-	// ExperimentTemplateRestartRequirement allows template admins to have more
+	// ExperimentTemplateAutostopRequirement allows template admins to have more
 	// control over when workspaces created on a template are required to
-	// restart, and allows users to ensure these restarts never happen during
-	// their business hours.
+	// stop, and allows users to ensure these restarts never happen during their
+	// business hours.
+	//
+	// This will replace the MaxTTL setting on templates.
 	//
 	// Enables:
 	// - User quiet hours schedule settings
-	// - Template restart requirement settings
-	// - Changes the max_deadline algorithm to use restart requirement and user
+	// - Template autostop requirement settings
+	// - Changes the max_deadline algorithm to use autostop requirement and user
 	//   quiet hours instead of max_ttl.
-	ExperimentTemplateRestartRequirement Experiment = "template_restart_requirement"
+	ExperimentTemplateAutostopRequirement Experiment = "template_autostop_requirement"
 
 	// Deployment health page
 	ExperimentDeploymentHealthPage Experiment = "deployment_health_page"
-
-	// Workspaces batch actions
-	ExperimentWorkspacesBatchActions Experiment = "workspaces_batch_actions"
 
 	// Add new experiments here!
 	// ExperimentExample Experiment = "example"
@@ -1938,7 +1955,6 @@ const (
 // not be included here and will be essentially hidden.
 var ExperimentsAll = Experiments{
 	ExperimentDeploymentHealthPage,
-	ExperimentWorkspacesBatchActions,
 }
 
 // Experiments is a list of experiments that are enabled for the deployment.

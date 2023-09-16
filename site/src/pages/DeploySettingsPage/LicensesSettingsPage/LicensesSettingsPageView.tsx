@@ -1,30 +1,31 @@
-import Button from "@mui/material/Button"
-import { makeStyles, useTheme } from "@mui/styles"
-import Skeleton from "@mui/material/Skeleton"
-import AddIcon from "@mui/icons-material/AddOutlined"
-import RefreshIcon from "@mui/icons-material/Refresh"
-import { GetLicensesResponse } from "api/api"
-import { Header } from "components/DeploySettingsLayout/Header"
-import { LicenseCard } from "components/LicenseCard/LicenseCard"
-import { Stack } from "components/Stack/Stack"
-import { FC } from "react"
-import Confetti from "react-confetti"
-import { Link } from "react-router-dom"
-import useWindowSize from "react-use/lib/useWindowSize"
-import MuiLink from "@mui/material/Link"
-import { displaySuccess } from "components/GlobalSnackbar/utils"
-import Tooltip from "@mui/material/Tooltip"
+import Button from "@mui/material/Button";
+import { makeStyles, useTheme } from "@mui/styles";
+import Skeleton from "@mui/material/Skeleton";
+import AddIcon from "@mui/icons-material/AddOutlined";
+import RefreshIcon from "@mui/icons-material/Refresh";
+import { GetLicensesResponse } from "api/api";
+import { Header } from "components/DeploySettingsLayout/Header";
+import { LicenseCard } from "./LicenseCard";
+import { Stack } from "components/Stack/Stack";
+import { FC } from "react";
+import Confetti from "react-confetti";
+import { Link } from "react-router-dom";
+import useWindowSize from "react-use/lib/useWindowSize";
+import MuiLink from "@mui/material/Link";
+import Tooltip from "@mui/material/Tooltip";
+import { LoadingButton } from "components/LoadingButton/LoadingButton";
 
 type Props = {
-  showConfetti: boolean
-  isLoading: boolean
-  userLimitActual?: number
-  userLimitLimit?: number
-  licenses?: GetLicensesResponse[]
-  isRemovingLicense: boolean
-  removeLicense: (licenseId: number) => void
-  refreshEntitlements?: () => boolean
-}
+  showConfetti: boolean;
+  isLoading: boolean;
+  userLimitActual?: number;
+  userLimitLimit?: number;
+  licenses?: GetLicensesResponse[];
+  isRemovingLicense: boolean;
+  isRefreshing: boolean;
+  removeLicense: (licenseId: number) => void;
+  refreshEntitlements: () => void;
+};
 
 const LicensesSettingsPageView: FC<Props> = ({
   showConfetti,
@@ -33,13 +34,14 @@ const LicensesSettingsPageView: FC<Props> = ({
   userLimitLimit,
   licenses,
   isRemovingLicense,
+  isRefreshing,
   removeLicense,
   refreshEntitlements,
 }) => {
-  const styles = useStyles()
-  const { width, height } = useWindowSize()
+  const styles = useStyles();
+  const { width, height } = useWindowSize();
 
-  const theme = useTheme()
+  const theme = useTheme();
 
   return (
     <>
@@ -69,18 +71,13 @@ const LicensesSettingsPageView: FC<Props> = ({
             添加许可证
           </Button>
           <Tooltip title="刷新许可权。此操作每10分钟自动进行一次。">
-            <Button
-              onClick={() => {
-                if (refreshEntitlements) {
-                  if (refreshEntitlements()) {
-                    displaySuccess("成功刷新了许可证")
-                  }
-                }
-              }}
+            <LoadingButton
+              loading={isRefreshing}
+              onClick={refreshEntitlements}
               startIcon={<RefreshIcon />}
             >
               刷新
-            </Button>
+            </LoadingButton>
           </Tooltip>
         </Stack>
       </Stack>
@@ -128,8 +125,8 @@ const LicensesSettingsPageView: FC<Props> = ({
         </div>
       )}
     </>
-  )
-}
+  );
+};
 
 const useStyles = makeStyles((theme) => ({
   title: {
@@ -152,6 +149,6 @@ const useStyles = makeStyles((theme) => ({
     maxWidth: theme.spacing(58),
     marginTop: theme.spacing(1),
   },
-}))
+}));
 
-export default LicensesSettingsPageView
+export default LicensesSettingsPageView;

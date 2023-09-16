@@ -93,6 +93,20 @@ func (m metricsStore) AcquireProvisionerJob(ctx context.Context, arg database.Ac
 	return provisionerJob, err
 }
 
+func (m metricsStore) ActivityBumpWorkspace(ctx context.Context, arg uuid.UUID) error {
+	start := time.Now()
+	r0 := m.s.ActivityBumpWorkspace(ctx, arg)
+	m.queryLatencies.WithLabelValues("ActivityBumpWorkspace").Observe(time.Since(start).Seconds())
+	return r0
+}
+
+func (m metricsStore) AllUserIDs(ctx context.Context) ([]uuid.UUID, error) {
+	start := time.Now()
+	r0, r1 := m.s.AllUserIDs(ctx)
+	m.queryLatencies.WithLabelValues("AllUserIDs").Observe(time.Since(start).Seconds())
+	return r0, r1
+}
+
 func (m metricsStore) CleanTailnetCoordinators(ctx context.Context) error {
 	start := time.Now()
 	err := m.s.CleanTailnetCoordinators(ctx)
@@ -279,6 +293,13 @@ func (m metricsStore) GetAuthorizationUserRoles(ctx context.Context, userID uuid
 	return row, err
 }
 
+func (m metricsStore) GetDBCryptKeys(ctx context.Context) ([]database.DBCryptKey, error) {
+	start := time.Now()
+	r0, r1 := m.s.GetDBCryptKeys(ctx)
+	m.queryLatencies.WithLabelValues("GetDBCryptKeys").Observe(time.Since(start).Seconds())
+	return r0, r1
+}
+
 func (m metricsStore) GetDERPMeshKey(ctx context.Context) (string, error) {
 	start := time.Now()
 	key, err := m.s.GetDERPMeshKey(ctx)
@@ -347,6 +368,13 @@ func (m metricsStore) GetGitAuthLink(ctx context.Context, arg database.GetGitAut
 	link, err := m.s.GetGitAuthLink(ctx, arg)
 	m.queryLatencies.WithLabelValues("GetGitAuthLink").Observe(time.Since(start).Seconds())
 	return link, err
+}
+
+func (m metricsStore) GetGitAuthLinksByUserID(ctx context.Context, userID uuid.UUID) ([]database.GitAuthLink, error) {
+	start := time.Now()
+	r0, r1 := m.s.GetGitAuthLinksByUserID(ctx, userID)
+	m.queryLatencies.WithLabelValues("GetGitAuthLinksByUserID").Observe(time.Since(start).Seconds())
+	return r0, r1
 }
 
 func (m metricsStore) GetGitSSHKey(ctx context.Context, userID uuid.UUID) (database.GitSSHKey, error) {
@@ -634,17 +662,17 @@ func (m metricsStore) GetTemplateDAUs(ctx context.Context, arg database.GetTempl
 	return daus, err
 }
 
-func (m metricsStore) GetTemplateDailyInsights(ctx context.Context, arg database.GetTemplateDailyInsightsParams) ([]database.GetTemplateDailyInsightsRow, error) {
-	start := time.Now()
-	r0, r1 := m.s.GetTemplateDailyInsights(ctx, arg)
-	m.queryLatencies.WithLabelValues("GetTemplateDailyInsights").Observe(time.Since(start).Seconds())
-	return r0, r1
-}
-
 func (m metricsStore) GetTemplateInsights(ctx context.Context, arg database.GetTemplateInsightsParams) (database.GetTemplateInsightsRow, error) {
 	start := time.Now()
 	r0, r1 := m.s.GetTemplateInsights(ctx, arg)
 	m.queryLatencies.WithLabelValues("GetTemplateInsights").Observe(time.Since(start).Seconds())
+	return r0, r1
+}
+
+func (m metricsStore) GetTemplateInsightsByInterval(ctx context.Context, arg database.GetTemplateInsightsByIntervalParams) ([]database.GetTemplateInsightsByIntervalRow, error) {
+	start := time.Now()
+	r0, r1 := m.s.GetTemplateInsightsByInterval(ctx, arg)
+	m.queryLatencies.WithLabelValues("GetTemplateInsightsByInterval").Observe(time.Since(start).Seconds())
 	return r0, r1
 }
 
@@ -772,6 +800,13 @@ func (m metricsStore) GetUserLinkByUserIDLoginType(ctx context.Context, arg data
 	link, err := m.s.GetUserLinkByUserIDLoginType(ctx, arg)
 	m.queryLatencies.WithLabelValues("GetUserLinkByUserIDLoginType").Observe(time.Since(start).Seconds())
 	return link, err
+}
+
+func (m metricsStore) GetUserLinksByUserID(ctx context.Context, userID uuid.UUID) ([]database.UserLink, error) {
+	start := time.Now()
+	r0, r1 := m.s.GetUserLinksByUserID(ctx, userID)
+	m.queryLatencies.WithLabelValues("GetUserLinksByUserID").Observe(time.Since(start).Seconds())
+	return r0, r1
 }
 
 func (m metricsStore) GetUsers(ctx context.Context, arg database.GetUsersParams) ([]database.GetUsersRow, error) {
@@ -1068,6 +1103,13 @@ func (m metricsStore) InsertAuditLog(ctx context.Context, arg database.InsertAud
 	return log, err
 }
 
+func (m metricsStore) InsertDBCryptKey(ctx context.Context, arg database.InsertDBCryptKeyParams) error {
+	start := time.Now()
+	r0 := m.s.InsertDBCryptKey(ctx, arg)
+	m.queryLatencies.WithLabelValues("InsertDBCryptKey").Observe(time.Since(start).Seconds())
+	return r0
+}
+
 func (m metricsStore) InsertDERPMeshKey(ctx context.Context, value string) error {
 	start := time.Now()
 	err := m.s.InsertDERPMeshKey(ctx, value)
@@ -1318,6 +1360,13 @@ func (m metricsStore) RegisterWorkspaceProxy(ctx context.Context, arg database.R
 	proxy, err := m.s.RegisterWorkspaceProxy(ctx, arg)
 	m.queryLatencies.WithLabelValues("RegisterWorkspaceProxy").Observe(time.Since(start).Seconds())
 	return proxy, err
+}
+
+func (m metricsStore) RevokeDBCryptKey(ctx context.Context, activeKeyDigest string) error {
+	start := time.Now()
+	r0 := m.s.RevokeDBCryptKey(ctx, activeKeyDigest)
+	m.queryLatencies.WithLabelValues("RevokeDBCryptKey").Observe(time.Since(start).Seconds())
+	return r0
 }
 
 func (m metricsStore) TryAcquireLock(ctx context.Context, pgTryAdvisoryXactLock int64) (bool, error) {

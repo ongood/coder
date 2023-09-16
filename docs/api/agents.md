@@ -389,6 +389,7 @@ curl -X GET http://coder-server:8080/api/v2/workspaceagents/me/manifest \
       "sharing_level": "owner",
       "slug": "string",
       "subdomain": true,
+      "subdomain_name": "string",
       "url": "string"
     }
   ],
@@ -658,6 +659,7 @@ curl -X GET http://coder-server:8080/api/v2/workspaceagents/{workspaceagent} \
       "sharing_level": "owner",
       "slug": "string",
       "subdomain": true,
+      "subdomain_name": "string",
       "url": "string"
     }
   ],
@@ -666,6 +668,7 @@ curl -X GET http://coder-server:8080/api/v2/workspaceagents/{workspaceagent} \
   "created_at": "2019-08-24T14:15:22Z",
   "directory": "string",
   "disconnected_at": "2019-08-24T14:15:22Z",
+  "display_apps": ["vscode"],
   "environment_variables": {
     "property1": "string",
     "property2": "string"

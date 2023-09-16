@@ -1,88 +1,92 @@
-import { DeploymentOption } from "api/types"
+import { DeploymentOption } from "api/api";
 import {
   Badges,
   DisabledBadge,
   EnabledBadge,
   EnterpriseBadge,
-} from "components/DeploySettingsLayout/Badges"
-import { Header } from "components/DeploySettingsLayout/Header"
-import OptionsTable from "components/DeploySettingsLayout/OptionsTable"
-import { Stack } from "components/Stack/Stack"
+} from "components/DeploySettingsLayout/Badges";
+import { Header } from "components/DeploySettingsLayout/Header";
+import OptionsTable from "components/DeploySettingsLayout/OptionsTable";
+import { Stack } from "components/Stack/Stack";
 import {
   deploymentGroupHasParent,
   useDeploymentOptions,
-} from "utils/deployOptions"
-import { docs } from "utils/docs"
+} from "utils/deployOptions";
+import { docs } from "utils/docs";
 
 export type SecuritySettingsPageViewProps = {
-  options: DeploymentOption[]
-  featureAuditLogEnabled: boolean
-  featureBrowserOnlyEnabled: boolean
-}
+  options: DeploymentOption[];
+  featureAuditLogEnabled: boolean;
+  featureBrowserOnlyEnabled: boolean;
+};
 export const SecuritySettingsPageView = ({
   options: options,
   featureAuditLogEnabled,
   featureBrowserOnlyEnabled,
-}: SecuritySettingsPageViewProps): JSX.Element => (
-  <>
-    <Stack direction="column" spacing={6}>
-      <div>
-        <Header
-          title="安全性"
-          description="确保您的Coder部署是安全的。"
-        />
+}: SecuritySettingsPageViewProps): JSX.Element => {
+  const tlsOptions = options.filter((o) =>
+    deploymentGroupHasParent(o.group, "TLS"),
+  );
 
-        <OptionsTable
-          options={useDeploymentOptions(
-            options,
-            "SSH Keygen Algorithm",
-            "Secure Auth Cookie",
-            "Disable Owner Workspace Access",
-          )}
-        />
-      </div>
+  return (
+    <>
+      <Stack direction="column" spacing={6}>
+        <div>
+          <Header
+            title="Security"
+            description="Ensure your Coder deployment is secure."
+          />
 
-      <div>
-        <Header
-          title="审计日志"
-          secondary
-          description="允许审计人员监控您的部署中的用户操作。"
-          docsHref={docs("/admin/audit-logs")}
-        />
+          <OptionsTable
+            options={useDeploymentOptions(
+              options,
+              "SSH Keygen Algorithm",
+              "Secure Auth Cookie",
+              "Disable Owner Workspace Access",
+            )}
+          />
+        </div>
 
-        <Badges>
-          {featureAuditLogEnabled ? <EnabledBadge /> : <DisabledBadge />}
-          <EnterpriseBadge />
-        </Badges>
-      </div>
+        <div>
+          <Header
+            title="Audit Logging"
+            secondary
+            description="Allow auditors to monitor user operations in your deployment."
+            docsHref={docs("/admin/audit-logs")}
+          />
 
-      <div>
-        <Header
-          title="仅限浏览器连接"
-          secondary
-          description="阻止通过SSH、端口转发和其他非浏览器连接访问所有工作区。"
-          docsHref={docs("/networking#browser-only-connections-enterprise")}
-        />
+          <Badges>
+            {featureAuditLogEnabled ? <EnabledBadge /> : <DisabledBadge />}
+            <EnterpriseBadge />
+          </Badges>
+        </div>
 
-        <Badges>
-          {featureBrowserOnlyEnabled ? <EnabledBadge /> : <DisabledBadge />}
-          <EnterpriseBadge />
-        </Badges>
-      </div>
+        <div>
+          <Header
+            title="Browser Only Connections"
+            secondary
+            description="Block all workspace access via SSH, port forward, and other non-browser connections."
+            docsHref={docs("/networking#browser-only-connections-enterprise")}
+          />
 
-      <div>
-        <Header
-          title="TLS"
-          secondary
-          description="确保为您的Coder部署正确配置了TLS。"
-        />
+          <Badges>
+            {featureBrowserOnlyEnabled ? <EnabledBadge /> : <DisabledBadge />}
+            <EnterpriseBadge />
+          </Badges>
+        </div>
 
-        <OptionsTable
-          options={options.filter((o) =>
-            deploymentGroupHasParent(o.group, "TLS"),
-          )}
-        />
-      </div>
-    </Stack>
-  </>
-)
+        {tlsOptions.length > 0 && (
+          <div>
+            <Header
+              title="TLS"
+              secondary
+              description="Ensure TLS is properly configured for your Coder deployment."
+            />
+
+            <OptionsTable options={tlsOptions} />
+          </div>
+        )}
+      </Stack>
+    </>
+  );
+};

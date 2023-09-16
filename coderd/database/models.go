@@ -281,6 +281,73 @@ func AllBuildReasonValues() []BuildReason {
 	}
 }
 
+type DisplayApp string
+
+const (
+	DisplayAppVscode               DisplayApp = "vscode"
+	DisplayAppVscodeInsiders       DisplayApp = "vscode_insiders"
+	DisplayAppWebTerminal          DisplayApp = "web_terminal"
+	DisplayAppSSHHelper            DisplayApp = "ssh_helper"
+	DisplayAppPortForwardingHelper DisplayApp = "port_forwarding_helper"
+)
+
+func (e *DisplayApp) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = DisplayApp(s)
+	case string:
+		*e = DisplayApp(s)
+	default:
+		return fmt.Errorf("unsupported scan type for DisplayApp: %T", src)
+	}
+	return nil
+}
+
+type NullDisplayApp struct {
+	DisplayApp DisplayApp `json:"display_app"`
+	Valid      bool       `json:"valid"` // Valid is true if DisplayApp is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullDisplayApp) Scan(value interface{}) error {
+	if value == nil {
+		ns.DisplayApp, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.DisplayApp.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullDisplayApp) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.DisplayApp), nil
+}
+
+func (e DisplayApp) Valid() bool {
+	switch e {
+	case DisplayAppVscode,
+		DisplayAppVscodeInsiders,
+		DisplayAppWebTerminal,
+		DisplayAppSSHHelper,
+		DisplayAppPortForwardingHelper:
+		return true
+	}
+	return false
+}
+
+func AllDisplayAppValues() []DisplayApp {
+	return []DisplayApp{
+		DisplayAppVscode,
+		DisplayAppVscodeInsiders,
+		DisplayAppWebTerminal,
+		DisplayAppSSHHelper,
+		DisplayAppPortForwardingHelper,
+	}
+}
+
 type GroupSource string
 
 const (
@@ -1524,6 +1591,22 @@ type AuditLog struct {
 	ResourceIcon     string          `db:"resource_icon" json:"resource_icon"`
 }
 
+// A table used to store the keys used to encrypt the database.
+type DBCryptKey struct {
+	// An integer used to identify the key.
+	Number int32 `db:"number" json:"number"`
+	// If the key is active, the digest of the active key.
+	ActiveKeyDigest sql.NullString `db:"active_key_digest" json:"active_key_digest"`
+	// If the key has been revoked, the digest of the revoked key.
+	RevokedKeyDigest sql.NullString `db:"revoked_key_digest" json:"revoked_key_digest"`
+	// The time at which the key was created.
+	CreatedAt sql.NullTime `db:"created_at" json:"created_at"`
+	// The time at which the key was revoked.
+	RevokedAt sql.NullTime `db:"revoked_at" json:"revoked_at"`
+	// A column used to test the encryption.
+	Test string `db:"test" json:"test"`
+}
+
 type File struct {
 	Hash      string    `db:"hash" json:"hash"`
 	CreatedAt time.Time `db:"created_at" json:"created_at"`
@@ -1541,6 +1624,10 @@ type GitAuthLink struct {
 	OAuthAccessToken  string    `db:"oauth_access_token" json:"oauth_access_token"`
 	OAuthRefreshToken string    `db:"oauth_refresh_token" json:"oauth_refresh_token"`
 	OAuthExpiry       time.Time `db:"oauth_expiry" json:"oauth_expiry"`
+	// The ID of the key used to encrypt the OAuth access token. If this is NULL, the access token is not encrypted
+	OAuthAccessTokenKeyID sql.NullString `db:"oauth_access_token_key_id" json:"oauth_access_token_key_id"`
+	// The ID of the key used to encrypt the OAuth refresh token. If this is NULL, the refresh token is not encrypted
+	OAuthRefreshTokenKeyID sql.NullString `db:"oauth_refresh_token_key_id" json:"oauth_refresh_token_key_id"`
 }
 
 type GitSSHKey struct {
@@ -1709,32 +1796,32 @@ type TailnetCoordinator struct {
 
 // Joins in the username + avatar url of the created by user.
 type Template struct {
-	ID                           uuid.UUID       `db:"id" json:"id"`
-	CreatedAt                    time.Time       `db:"created_at" json:"created_at"`
-	UpdatedAt                    time.Time       `db:"updated_at" json:"updated_at"`
-	OrganizationID               uuid.UUID       `db:"organization_id" json:"organization_id"`
-	Deleted                      bool            `db:"deleted" json:"deleted"`
-	Name                         string          `db:"name" json:"name"`
-	Provisioner                  ProvisionerType `db:"provisioner" json:"provisioner"`
-	ActiveVersionID              uuid.UUID       `db:"active_version_id" json:"active_version_id"`
-	Description                  string          `db:"description" json:"description"`
-	DefaultTTL                   int64           `db:"default_ttl" json:"default_ttl"`
-	CreatedBy                    uuid.UUID       `db:"created_by" json:"created_by"`
-	Icon                         string          `db:"icon" json:"icon"`
-	UserACL                      TemplateACL     `db:"user_acl" json:"user_acl"`
-	GroupACL                     TemplateACL     `db:"group_acl" json:"group_acl"`
-	DisplayName                  string          `db:"display_name" json:"display_name"`
-	AllowUserCancelWorkspaceJobs bool            `db:"allow_user_cancel_workspace_jobs" json:"allow_user_cancel_workspace_jobs"`
-	MaxTTL                       int64           `db:"max_ttl" json:"max_ttl"`
-	AllowUserAutostart           bool            `db:"allow_user_autostart" json:"allow_user_autostart"`
-	AllowUserAutostop            bool            `db:"allow_user_autostop" json:"allow_user_autostop"`
-	FailureTTL                   int64           `db:"failure_ttl" json:"failure_ttl"`
-	TimeTilDormant               int64           `db:"time_til_dormant" json:"time_til_dormant"`
-	TimeTilDormantAutoDelete     int64           `db:"time_til_dormant_autodelete" json:"time_til_dormant_autodelete"`
-	RestartRequirementDaysOfWeek int16           `db:"restart_requirement_days_of_week" json:"restart_requirement_days_of_week"`
-	RestartRequirementWeeks      int64           `db:"restart_requirement_weeks" json:"restart_requirement_weeks"`
-	CreatedByAvatarURL           sql.NullString  `db:"created_by_avatar_url" json:"created_by_avatar_url"`
-	CreatedByUsername            string          `db:"created_by_username" json:"created_by_username"`
+	ID                            uuid.UUID       `db:"id" json:"id"`
+	CreatedAt                     time.Time       `db:"created_at" json:"created_at"`
+	UpdatedAt                     time.Time       `db:"updated_at" json:"updated_at"`
+	OrganizationID                uuid.UUID       `db:"organization_id" json:"organization_id"`
+	Deleted                       bool            `db:"deleted" json:"deleted"`
+	Name                          string          `db:"name" json:"name"`
+	Provisioner                   ProvisionerType `db:"provisioner" json:"provisioner"`
+	ActiveVersionID               uuid.UUID       `db:"active_version_id" json:"active_version_id"`
+	Description                   string          `db:"description" json:"description"`
+	DefaultTTL                    int64           `db:"default_ttl" json:"default_ttl"`
+	CreatedBy                     uuid.UUID       `db:"created_by" json:"created_by"`
+	Icon                          string          `db:"icon" json:"icon"`
+	UserACL                       TemplateACL     `db:"user_acl" json:"user_acl"`
+	GroupACL                      TemplateACL     `db:"group_acl" json:"group_acl"`
+	DisplayName                   string          `db:"display_name" json:"display_name"`
+	AllowUserCancelWorkspaceJobs  bool            `db:"allow_user_cancel_workspace_jobs" json:"allow_user_cancel_workspace_jobs"`
+	MaxTTL                        int64           `db:"max_ttl" json:"max_ttl"`
+	AllowUserAutostart            bool            `db:"allow_user_autostart" json:"allow_user_autostart"`
+	AllowUserAutostop             bool            `db:"allow_user_autostop" json:"allow_user_autostop"`
+	FailureTTL                    int64           `db:"failure_ttl" json:"failure_ttl"`
+	TimeTilDormant                int64           `db:"time_til_dormant" json:"time_til_dormant"`
+	TimeTilDormantAutoDelete      int64           `db:"time_til_dormant_autodelete" json:"time_til_dormant_autodelete"`
+	AutostopRequirementDaysOfWeek int16           `db:"autostop_requirement_days_of_week" json:"autostop_requirement_days_of_week"`
+	AutostopRequirementWeeks      int64           `db:"autostop_requirement_weeks" json:"autostop_requirement_weeks"`
+	CreatedByAvatarURL            sql.NullString  `db:"created_by_avatar_url" json:"created_by_avatar_url"`
+	CreatedByUsername             string          `db:"created_by_username" json:"created_by_username"`
 }
 
 type TemplateTable struct {
@@ -1766,9 +1853,9 @@ type TemplateTable struct {
 	TimeTilDormant           int64 `db:"time_til_dormant" json:"time_til_dormant"`
 	TimeTilDormantAutoDelete int64 `db:"time_til_dormant_autodelete" json:"time_til_dormant_autodelete"`
 	// A bitmap of days of week to restart the workspace on, starting with Monday as the 0th bit, and Sunday as the 6th bit. The 7th bit is unused.
-	RestartRequirementDaysOfWeek int16 `db:"restart_requirement_days_of_week" json:"restart_requirement_days_of_week"`
+	AutostopRequirementDaysOfWeek int16 `db:"autostop_requirement_days_of_week" json:"autostop_requirement_days_of_week"`
 	// The number of weeks between restarts. 0 or 1 weeks means "every week", 2 week means "every second week", etc. Weeks are counted from January 2, 2023, which is the first Monday of 2023. This is to ensure workspaces are started consistently for all customers on the same n-week cycles.
-	RestartRequirementWeeks int64 `db:"restart_requirement_weeks" json:"restart_requirement_weeks"`
+	AutostopRequirementWeeks int64 `db:"autostop_requirement_weeks" json:"autostop_requirement_weeks"`
 }
 
 // Joins in the username + avatar url of the created by user.
@@ -1882,6 +1969,10 @@ type UserLink struct {
 	OAuthAccessToken  string    `db:"oauth_access_token" json:"oauth_access_token"`
 	OAuthRefreshToken string    `db:"oauth_refresh_token" json:"oauth_refresh_token"`
 	OAuthExpiry       time.Time `db:"oauth_expiry" json:"oauth_expiry"`
+	// The ID of the key used to encrypt the OAuth access token. If this is NULL, the access token is not encrypted
+	OAuthAccessTokenKeyID sql.NullString `db:"oauth_access_token_key_id" json:"oauth_access_token_key_id"`
+	// The ID of the key used to encrypt the OAuth refresh token. If this is NULL, the refresh token is not encrypted
+	OAuthRefreshTokenKeyID sql.NullString `db:"oauth_refresh_token_key_id" json:"oauth_refresh_token_key_id"`
 }
 
 // Visible fields of users are allowed to be joined with other tables for including context of other resources.
@@ -1953,8 +2044,9 @@ type WorkspaceAgent struct {
 	// The time the agent entered the starting lifecycle state
 	StartedAt sql.NullTime `db:"started_at" json:"started_at"`
 	// The time the agent entered the ready or start_error lifecycle state
-	ReadyAt    sql.NullTime              `db:"ready_at" json:"ready_at"`
-	Subsystems []WorkspaceAgentSubsystem `db:"subsystems" json:"subsystems"`
+	ReadyAt     sql.NullTime              `db:"ready_at" json:"ready_at"`
+	Subsystems  []WorkspaceAgentSubsystem `db:"subsystems" json:"subsystems"`
+	DisplayApps []DisplayApp              `db:"display_apps" json:"display_apps"`
 }
 
 type WorkspaceAgentLog struct {

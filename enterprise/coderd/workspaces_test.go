@@ -15,7 +15,9 @@ import (
 	"github.com/coder/coder/v2/coderd/autobuild"
 	"github.com/coder/coder/v2/coderd/coderdtest"
 	"github.com/coder/coder/v2/coderd/database"
+	"github.com/coder/coder/v2/coderd/database/dbtestutil"
 	agplschedule "github.com/coder/coder/v2/coderd/schedule"
+	"github.com/coder/coder/v2/coderd/schedule/cron"
 	"github.com/coder/coder/v2/coderd/util/ptr"
 	"github.com/coder/coder/v2/codersdk"
 	"github.com/coder/coder/v2/enterprise/coderd/coderdenttest"
@@ -585,7 +587,7 @@ func TestWorkspaceAutobuild(t *testing.T) {
 
 		template := coderdtest.CreateTemplate(t, client, user.OrganizationID, version.ID)
 
-		sched, err := agplschedule.Weekly("CRON_TZ=UTC 0 * * * *")
+		sched, err := cron.Weekly("CRON_TZ=UTC 0 * * * *")
 		require.NoError(t, err)
 
 		ws := coderdtest.CreateWorkspace(t, client, user.OrganizationID, template.ID, func(cwr *codersdk.CreateWorkspaceRequest) {
@@ -640,9 +642,14 @@ func TestWorkspacesFiltering(t *testing.T) {
 
 		dormantTTL := 24 * time.Hour
 
+		// nolint:gocritic // https://github.com/coder/coder/issues/9682
+		db, ps := dbtestutil.NewDB(t, dbtestutil.WithTimezone("UTC"))
+
 		client, user := coderdenttest.New(t, &coderdenttest.Options{
 			Options: &coderdtest.Options{
 				IncludeProvisionerDaemon: true,
+				Database:                 db,
+				Pubsub:                   ps,
 			},
 			LicenseOptions: &coderdenttest.LicenseOptions{
 				Features: license.Features{

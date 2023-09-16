@@ -14,12 +14,12 @@ import (
 	"github.com/google/uuid"
 	"golang.org/x/xerrors"
 
+	"github.com/coder/pretty"
+
 	"github.com/coder/coder/v2/cli/clibase"
 	"github.com/coder/coder/v2/cli/cliui"
-	"github.com/coder/coder/v2/coderd/database"
 	"github.com/coder/coder/v2/coderd/util/ptr"
 	"github.com/coder/coder/v2/codersdk"
-	"github.com/coder/coder/v2/provisionerd"
 )
 
 func (r *RootCmd) templateCreate() *clibase.Cmd {
@@ -111,7 +111,7 @@ func (r *RootCmd) templateCreate() *clibase.Cmd {
 				Message:         message,
 				Client:          client,
 				Organization:    organization,
-				Provisioner:     database.ProvisionerType(provisioner),
+				Provisioner:     codersdk.ProvisionerType(provisioner),
 				FileID:          resp.ID,
 				ProvisionerTags: tags,
 				VariablesFile:   variablesFile,
@@ -146,11 +146,13 @@ func (r *RootCmd) templateCreate() *clibase.Cmd {
 				return err
 			}
 
-			_, _ = fmt.Fprintln(inv.Stdout, "\n"+cliui.DefaultStyles.Wrap.Render(
-				"The "+cliui.DefaultStyles.Keyword.Render(templateName)+" template has been created at "+cliui.DefaultStyles.DateTimeStamp.Render(time.Now().Format(time.Stamp))+"! "+
+			_, _ = fmt.Fprintln(inv.Stdout, "\n"+pretty.Sprint(cliui.DefaultStyles.Wrap,
+				"The "+pretty.Sprint(
+					cliui.DefaultStyles.Keyword, templateName)+" template has been created at "+
+					pretty.Sprint(cliui.DefaultStyles.DateTimeStamp, time.Now().Format(time.Stamp))+"! "+
 					"Developers can provision a workspace with this template using:")+"\n")
 
-			_, _ = fmt.Fprintln(inv.Stdout, "  "+cliui.DefaultStyles.Code.Render(fmt.Sprintf("coder create --template=%q [workspace name]", templateName)))
+			_, _ = fmt.Fprintln(inv.Stdout, "  "+pretty.Sprint(cliui.DefaultStyles.Code, fmt.Sprintf("coder create --template=%q [workspace name]", templateName)))
 			_, _ = fmt.Fprintln(inv.Stdout)
 
 			return nil
@@ -224,7 +226,7 @@ type createValidTemplateVersionArgs struct {
 	Message      string
 	Client       *codersdk.Client
 	Organization codersdk.Organization
-	Provisioner  database.ProvisionerType
+	Provisioner  codersdk.ProvisionerType
 	FileID       uuid.UUID
 
 	VariablesFile string
@@ -258,7 +260,7 @@ func createValidTemplateVersion(inv *clibase.Invocation, args createValidTemplat
 		Message:            args.Message,
 		StorageMethod:      codersdk.ProvisionerStorageMethodFile,
 		FileID:             args.FileID,
-		Provisioner:        codersdk.ProvisionerType(args.Provisioner),
+		Provisioner:        args.Provisioner,
 		ProvisionerTags:    args.ProvisionerTags,
 		UserVariableValues: variableValues,
 	}
@@ -284,7 +286,10 @@ func createValidTemplateVersion(inv *clibase.Invocation, args createValidTemplat
 	})
 	if err != nil {
 		var jobErr *cliui.ProvisionerJobError
-		if errors.As(err, &jobErr) && !provisionerd.IsMissingParameterErrorCode(string(jobErr.Code)) {
+		if errors.As(err, &jobErr) && !codersdk.JobIsMissingParameterErrorCode(jobErr.Code) {
+			return nil, err
+		}
+		if err != nil {
 			return nil, err
 		}
 	}
@@ -330,12 +335,12 @@ func prettyDirectoryPath(dir string) string {
 	if err != nil {
 		return dir
 	}
-	pretty := dir
-	if strings.HasPrefix(pretty, homeDir) {
-		pretty = strings.TrimPrefix(pretty, homeDir)
-		pretty = "~" + pretty
+	prettyDir := dir
+	if strings.HasPrefix(prettyDir, homeDir) {
+		prettyDir = strings.TrimPrefix(prettyDir, homeDir)
+		prettyDir = "~" + prettyDir
 	}
-	return pretty
+	return prettyDir
 }
 
 func ParseProvisionerTags(rawTags []string) (map[string]string, error) {

@@ -1,95 +1,93 @@
-import Table from "@mui/material/Table"
-import TableBody from "@mui/material/TableBody"
-import TableCell from "@mui/material/TableCell"
-import TableContainer from "@mui/material/TableContainer"
-import TableHead from "@mui/material/TableHead"
-import TableRow from "@mui/material/TableRow"
-import { Workspace } from "api/typesGenerated"
-import { FC, ReactNode } from "react"
-import { TableEmpty } from "components/TableEmpty/TableEmpty"
-import { useTranslation } from "react-i18next"
-import { TableLoaderSkeleton } from "components/TableLoader/TableLoader"
-import AddOutlined from "@mui/icons-material/AddOutlined"
-import Button from "@mui/material/Button"
-import { ChooseOne, Cond } from "components/Conditionals/ChooseOne"
-import { Link as RouterLink, useNavigate } from "react-router-dom"
-import { makeStyles } from "@mui/styles"
+import Table from "@mui/material/Table";
+import TableBody from "@mui/material/TableBody";
+import TableCell from "@mui/material/TableCell";
+import TableContainer from "@mui/material/TableContainer";
+import TableHead from "@mui/material/TableHead";
+import TableRow from "@mui/material/TableRow";
+import { Workspace } from "api/typesGenerated";
+import { FC, ReactNode } from "react";
+import { TableEmpty } from "components/TableEmpty/TableEmpty";
+import {
+  TableLoaderSkeleton,
+  TableRowSkeleton,
+} from "components/TableLoader/TableLoader";
+import AddOutlined from "@mui/icons-material/AddOutlined";
+import Button from "@mui/material/Button";
+import { ChooseOne, Cond } from "components/Conditionals/ChooseOne";
+import { Link as RouterLink, useNavigate } from "react-router-dom";
+import { makeStyles } from "@mui/styles";
 import {
   HelpTooltip,
   HelpTooltipText,
   HelpTooltipTitle,
-} from "components/Tooltips/HelpTooltip"
-import InfoIcon from "@mui/icons-material/InfoOutlined"
-import { colors } from "theme/colors"
-import { useClickableTableRow } from "hooks/useClickableTableRow"
-import KeyboardArrowRight from "@mui/icons-material/KeyboardArrowRight"
-import Box from "@mui/material/Box"
-import { AvatarData } from "components/AvatarData/AvatarData"
-import { Avatar } from "components/Avatar/Avatar"
-import { Stack } from "components/Stack/Stack"
-import { LastUsed } from "pages/WorkspacesPage/LastUsed"
-import { WorkspaceOutdatedTooltip } from "components/Tooltips"
-import { WorkspaceStatusBadge } from "components/WorkspaceStatusBadge/WorkspaceStatusBadge"
-import { getDisplayWorkspaceTemplateName } from "utils/workspace"
-import Checkbox from "@mui/material/Checkbox"
+} from "components/HelpTooltip/HelpTooltip";
+import InfoIcon from "@mui/icons-material/InfoOutlined";
+import { colors } from "theme/colors";
+import { useClickableTableRow } from "hooks/useClickableTableRow";
+import KeyboardArrowRight from "@mui/icons-material/KeyboardArrowRight";
+import Box from "@mui/material/Box";
+import { AvatarData } from "components/AvatarData/AvatarData";
+import { Avatar } from "components/Avatar/Avatar";
+import { Stack } from "components/Stack/Stack";
+import { LastUsed } from "pages/WorkspacesPage/LastUsed";
+import { WorkspaceOutdatedTooltip } from "components/WorkspaceOutdatedTooltip/WorkspaceOutdatedTooltip";
+import { WorkspaceStatusBadge } from "components/WorkspaceStatusBadge/WorkspaceStatusBadge";
+import { getDisplayWorkspaceTemplateName } from "utils/workspace";
+import Checkbox from "@mui/material/Checkbox";
+import { AvatarDataSkeleton } from "components/AvatarData/AvatarDataSkeleton";
+import Skeleton from "@mui/material/Skeleton";
 
 export interface WorkspacesTableProps {
-  workspaces?: Workspace[]
-  checkedWorkspaces: Workspace[]
-  error?: unknown
-  isUsingFilter: boolean
-  isWorkspaceBatchActionsEnabled?: boolean
-  onUpdateWorkspace: (workspace: Workspace) => void
-  onCheckChange: (checkedWorkspaces: Workspace[]) => void
+  workspaces?: Workspace[];
+  checkedWorkspaces: Workspace[];
+  error?: unknown;
+  isUsingFilter: boolean;
+  onUpdateWorkspace: (workspace: Workspace) => void;
+  onCheckChange: (checkedWorkspaces: Workspace[]) => void;
+  canCheckWorkspaces: boolean;
 }
 
 export const WorkspacesTable: FC<WorkspacesTableProps> = ({
   workspaces,
   checkedWorkspaces,
   isUsingFilter,
-  isWorkspaceBatchActionsEnabled,
   onUpdateWorkspace,
   onCheckChange,
+  canCheckWorkspaces,
 }) => {
-  const { t } = useTranslation("workspacesPage")
-  const styles = useStyles()
+  const styles = useStyles();
 
   return (
     <TableContainer>
       <Table>
         <TableHead>
           <TableRow>
-            {isWorkspaceBatchActionsEnabled ? (
-              <TableCell
-                width="40%"
-                sx={{
-                  paddingLeft: (theme) => `${theme.spacing(1.5)} !important`,
-                }}
-              >
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <TableCell width="40%">
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                {canCheckWorkspaces && (
                   <Checkbox
+                    // Remove the extra padding added for the first cell in the
+                    // table
+                    sx={{ marginLeft: "-20px" }}
                     disabled={!workspaces || workspaces.length === 0}
                     checked={checkedWorkspaces.length === workspaces?.length}
                     size="small"
                     onChange={(_, checked) => {
                       if (!workspaces) {
-                        return
+                        return;
                       }
 
                       if (!checked) {
-                        onCheckChange([])
+                        onCheckChange([]);
                       } else {
-                        onCheckChange(workspaces)
+                        onCheckChange(workspaces);
                       }
                     }}
                   />
-                  Name
-                </Box>
-              </TableCell>
-            ) : (
-              <TableCell width="40%">Name</TableCell>
-            )}
-
+                )}
+                Name
+              </Box>
+            </TableCell>
             <TableCell width="25%">Template</TableCell>
             <TableCell width="20%">Last used</TableCell>
             <TableCell width="15%">Status</TableCell>
@@ -97,18 +95,20 @@ export const WorkspacesTable: FC<WorkspacesTableProps> = ({
           </TableRow>
         </TableHead>
         <TableBody>
-          {!workspaces && <TableLoaderSkeleton columns={5} useAvatarData />}
+          {!workspaces && (
+            <TableLoader canCheckWorkspaces={canCheckWorkspaces} />
+          )}
           {workspaces && workspaces.length === 0 && (
             <ChooseOne>
               <Cond condition={isUsingFilter}>
-                <TableEmpty message={t("emptyResultsMessage")} />
+                <TableEmpty message="No results matched your search" />
               </Cond>
 
               <Cond>
                 <TableEmpty
                   className={styles.withImage}
-                  message={t("emptyCreateWorkspaceMessage")}
-                  description={t("emptyCreateWorkspaceDescription")}
+                  message="Create a workspace"
+                  description="A workspace is your personal, customizable development environment in the cloud"
                   cta={
                     <Button
                       component={RouterLink}
@@ -116,7 +116,7 @@ export const WorkspacesTable: FC<WorkspacesTableProps> = ({
                       startIcon={<AddOutlined />}
                       variant="contained"
                     >
-                      {t("createFromTemplateButton")}
+                      Select a Template
                     </Button>
                   }
                   image={
@@ -132,40 +132,36 @@ export const WorkspacesTable: FC<WorkspacesTableProps> = ({
             workspaces.map((workspace) => {
               const checked = checkedWorkspaces.some(
                 (w) => w.id === workspace.id,
-              )
+              );
               return (
                 <WorkspacesRow
                   workspace={workspace}
                   key={workspace.id}
                   checked={checked}
                 >
-                  <TableCell
-                    sx={{
-                      paddingLeft: (theme) =>
-                        isWorkspaceBatchActionsEnabled
-                          ? `${theme.spacing(1.5)} !important`
-                          : undefined,
-                    }}
-                  >
+                  <TableCell>
                     <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                      {isWorkspaceBatchActionsEnabled && (
+                      {canCheckWorkspaces && (
                         <Checkbox
+                          // Remove the extra padding added for the first cell in the
+                          // table
+                          sx={{ marginLeft: "-20px" }}
                           data-testid={`checkbox-${workspace.id}`}
                           size="small"
                           disabled={cantBeChecked(workspace)}
                           checked={checked}
                           onClick={(e) => {
-                            e.stopPropagation()
+                            e.stopPropagation();
                           }}
                           onChange={(e) => {
                             if (e.currentTarget.checked) {
-                              onCheckChange([...checkedWorkspaces, workspace])
+                              onCheckChange([...checkedWorkspaces, workspace]);
                             } else {
                               onCheckChange(
                                 checkedWorkspaces.filter(
                                   (w) => w.id !== workspace.id,
                                 ),
-                              )
+                              );
                             }
                           }}
                         />
@@ -181,9 +177,11 @@ export const WorkspacesTable: FC<WorkspacesTableProps> = ({
                             {workspace.outdated && (
                               <WorkspaceOutdatedTooltip
                                 templateName={workspace.template_name}
-                                templateId={workspace.template_id}
+                                latestVersionId={
+                                  workspace.template_active_version_id
+                                }
                                 onUpdateVersion={() => {
-                                  onUpdateWorkspace(workspace)
+                                  onUpdateWorkspace(workspace);
                                 }}
                               />
                             )}
@@ -238,24 +236,24 @@ export const WorkspacesTable: FC<WorkspacesTableProps> = ({
                     </Box>
                   </TableCell>
                 </WorkspacesRow>
-              )
+              );
             })}
         </TableBody>
       </Table>
     </TableContainer>
-  )
-}
+  );
+};
 
 const WorkspacesRow: FC<{
-  workspace: Workspace
-  children: ReactNode
-  checked: boolean
+  workspace: Workspace;
+  children: ReactNode;
+  checked: boolean;
 }> = ({ workspace, children, checked }) => {
-  const navigate = useNavigate()
-  const workspacePageLink = `/@${workspace.owner_name}/${workspace.name}`
+  const navigate = useNavigate();
+  const workspacePageLink = `/@${workspace.owner_name}/${workspace.name}`;
   const clickable = useClickableTableRow(() => {
-    navigate(workspacePageLink)
-  })
+    navigate(workspacePageLink);
+  });
 
   return (
     <TableRow
@@ -268,11 +266,11 @@ const WorkspacesRow: FC<{
     >
       {children}
     </TableRow>
-  )
-}
+  );
+};
 
 export const UnhealthyTooltip = () => {
-  const styles = useUnhealthyTooltipStyles()
+  const styles = useUnhealthyTooltipStyles();
 
   return (
     <HelpTooltip
@@ -286,12 +284,45 @@ export const UnhealthyTooltip = () => {
         Your workspace is running but some agents are unhealthy.
       </HelpTooltipText>
     </HelpTooltip>
-  )
-}
+  );
+};
+
+const TableLoader = ({
+  canCheckWorkspaces,
+}: {
+  canCheckWorkspaces: boolean;
+}) => {
+  return (
+    <TableLoaderSkeleton>
+      <TableRowSkeleton>
+        <TableCell width="40%">
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            {canCheckWorkspaces && (
+              <Checkbox size="small" disabled sx={{ marginLeft: "-20px" }} />
+            )}
+            <AvatarDataSkeleton />
+          </Box>
+        </TableCell>
+        <TableCell>
+          <Skeleton variant="text" width="25%" />
+        </TableCell>
+        <TableCell>
+          <Skeleton variant="text" width="25%" />
+        </TableCell>
+        <TableCell>
+          <Skeleton variant="text" width="25%" />
+        </TableCell>
+        <TableCell>
+          <Skeleton variant="text" width="25%" />
+        </TableCell>
+      </TableRowSkeleton>
+    </TableLoaderSkeleton>
+  );
+};
 
 const cantBeChecked = (workspace: Workspace) => {
-  return ["deleting", "pending"].includes(workspace.latest_build.status)
-}
+  return ["deleting", "pending"].includes(workspace.latest_build.status);
+};
 
 const useUnhealthyTooltipStyles = makeStyles(() => ({
   unhealthyIcon: {
@@ -305,7 +336,7 @@ const useUnhealthyTooltipStyles = makeStyles(() => ({
       opacity: 1,
     },
   },
-}))
+}));
 
 const useStyles = makeStyles((theme) => ({
   withImage: {
@@ -322,4 +353,4 @@ const useStyles = makeStyles((theme) => ({
       maxWidth: "100%",
     },
   },
-}))
+}));

@@ -26,9 +26,11 @@ import (
 	"github.com/coder/coder/v2/coderd/database/dbauthz"
 	"github.com/coder/coder/v2/coderd/database/dbgen"
 	"github.com/coder/coder/v2/coderd/database/dbtestutil"
+	"github.com/coder/coder/v2/coderd/database/dbtime"
 	"github.com/coder/coder/v2/coderd/parameter"
 	"github.com/coder/coder/v2/coderd/rbac"
 	"github.com/coder/coder/v2/coderd/schedule"
+	"github.com/coder/coder/v2/coderd/schedule/cron"
 	"github.com/coder/coder/v2/coderd/util/ptr"
 	"github.com/coder/coder/v2/codersdk"
 	"github.com/coder/coder/v2/codersdk/agentsdk"
@@ -116,6 +118,8 @@ func TestWorkspace(t *testing.T) {
 		if len(want) > 32 {
 			want = want[:32-5] + "-test"
 		}
+		// Sometimes truncated names result in `--test` which is not an allowed name.
+		want = strings.Replace(want, "--", "-", -1)
 		err := client.UpdateWorkspace(ctx, ws1.ID, codersdk.UpdateWorkspaceRequest{
 			Name: want,
 		})
@@ -445,7 +449,7 @@ func TestPostWorkspacesByOrganization(t *testing.T) {
 		require.Error(t, err)
 		var apiErr *codersdk.Error
 		require.ErrorAs(t, err, &apiErr)
-		require.Equal(t, http.StatusUnauthorized, apiErr.StatusCode())
+		require.Equal(t, http.StatusForbidden, apiErr.StatusCode())
 	})
 
 	t.Run("AlreadyExists", func(t *testing.T) {
@@ -489,6 +493,62 @@ func TestPostWorkspacesByOrganization(t *testing.T) {
 		}, testutil.WaitMedium, testutil.IntervalFast)
 	})
 
+	t.Run("CreateFromVersion", func(t *testing.T) {
+		t.Parallel()
+		auditor := audit.NewMock()
+		client := coderdtest.New(t, &coderdtest.Options{IncludeProvisionerDaemon: true, Auditor: auditor})
+		user := coderdtest.CreateFirstUser(t, client)
+		versionDefault := coderdtest.CreateTemplateVersion(t, client, user.OrganizationID, nil)
+		template := coderdtest.CreateTemplate(t, client, user.OrganizationID, versionDefault.ID)
+		versionTest := coderdtest.UpdateTemplateVersion(t, client, user.OrganizationID, nil, template.ID)
+		coderdtest.AwaitTemplateVersionJob(t, client, versionDefault.ID)
+		coderdtest.AwaitTemplateVersionJob(t, client, versionTest.ID)
+		defaultWorkspace := coderdtest.CreateWorkspace(t, client, user.OrganizationID, uuid.Nil,
+			func(c *codersdk.CreateWorkspaceRequest) { c.TemplateVersionID = versionDefault.ID },
+		)
+		testWorkspace := coderdtest.CreateWorkspace(t, client, user.OrganizationID, uuid.Nil,
+			func(c *codersdk.CreateWorkspaceRequest) { c.TemplateVersionID = versionTest.ID },
+		)
+		defaultWorkspaceBuild := coderdtest.AwaitWorkspaceBuildJob(t, client, defaultWorkspace.LatestBuild.ID)
+		testWorkspaceBuild := coderdtest.AwaitWorkspaceBuildJob(t, client, testWorkspace.LatestBuild.ID)
+
+		require.Equal(t, testWorkspaceBuild.TemplateVersionID, versionTest.ID)
+		require.Equal(t, defaultWorkspaceBuild.TemplateVersionID, versionDefault.ID)
+		require.Eventually(t, func() bool {
+			if len(auditor.AuditLogs()) < 6 {
+				return false
+			}
+			return auditor.AuditLogs()[4].Action == database.AuditActionCreate
+		}, testutil.WaitMedium, testutil.IntervalFast)
+	})
+
+	t.Run("InvalidCombinationOfTemplateAndTemplateVersion", func(t *testing.T) {
+		t.Parallel()
+		auditor := audit.NewMock()
+		client := coderdtest.New(t, &coderdtest.Options{IncludeProvisionerDaemon: true, Auditor: auditor})
+		user := coderdtest.CreateFirstUser(t, client)
+		versionTest := coderdtest.CreateTemplateVersion(t, client, user.OrganizationID, nil)
+		versionDefault := coderdtest.CreateTemplateVersion(t, client, user.OrganizationID, nil)
+		template := coderdtest.CreateTemplate(t, client, user.OrganizationID, versionDefault.ID)
+		coderdtest.AwaitTemplateVersionJob(t, client, versionTest.ID)
+		coderdtest.AwaitTemplateVersionJob(t, client, versionDefault.ID)
+
+		name, se := cryptorand.String(8)
+		require.NoError(t, se)
+		req := codersdk.CreateWorkspaceRequest{
+			// Deny setting both of these ID fields, even if they might correlate.
+			// Allowing both to be set would just create extra work for everyone involved.
+			TemplateID:        template.ID,
+			TemplateVersionID: versionTest.ID,
+			Name:              name,
+			AutostartSchedule: ptr.Ref("CRON_TZ=US/Central 30 9 * * 1-5"),
+			TTLMillis:         ptr.Ref((8 * time.Hour).Milliseconds()),
+		}
+		_, err := client.CreateWorkspace(context.Background(), user.OrganizationID, codersdk.Me, req)
+
+		require.Error(t, err)
+	})
+
 	t.Run("CreateWithDeletedTemplate", func(t *testing.T) {
 		t.Parallel()
 		client := coderdtest.New(t, &coderdtest.Options{IncludeProvisionerDaemon: true})
@@ -526,6 +586,8 @@ func TestPostWorkspacesByOrganization(t *testing.T) {
 		workspace := coderdtest.CreateWorkspace(t, client, user.OrganizationID, template.ID, func(cwr *codersdk.CreateWorkspaceRequest) {
 			cwr.TTLMillis = ptr.Ref(int64(0))
 		})
+		coderdtest.AwaitWorkspaceBuildJob(t, client, workspace.LatestBuild.ID)
+
 		// Then: No TTL should be set by the template
 		require.Nil(t, workspace.TTLMillis)
 	})
@@ -543,6 +605,8 @@ func TestPostWorkspacesByOrganization(t *testing.T) {
 		workspace := coderdtest.CreateWorkspace(t, client, user.OrganizationID, template.ID, func(cwr *codersdk.CreateWorkspaceRequest) {
 			cwr.TTLMillis = nil // ensure that no default TTL is set
 		})
+		coderdtest.AwaitWorkspaceBuildJob(t, client, workspace.LatestBuild.ID)
+
 		// TTL should be set by the template
 		require.Equal(t, template.DefaultTTLMillis, templateTTL)
 		require.Equal(t, template.DefaultTTLMillis, *workspace.TTLMillis)
@@ -1450,8 +1514,13 @@ func TestWorkspaceFilterManual(t *testing.T) {
 
 	t.Run("LastUsed", func(t *testing.T) {
 		t.Parallel()
+
+		// nolint:gocritic // https://github.com/coder/coder/issues/9682
+		db, ps := dbtestutil.NewDB(t, dbtestutil.WithTimezone("UTC"))
 		client, _, api := coderdtest.NewWithAPI(t, &coderdtest.Options{
 			IncludeProvisionerDaemon: true,
+			Database:                 db,
+			Pubsub:                   ps,
 		})
 		user := coderdtest.CreateFirstUser(t, client)
 		authToken := uuid.NewString()
@@ -1467,7 +1536,7 @@ func TestWorkspaceFilterManual(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), testutil.WaitLong)
 		defer cancel()
 
-		now := database.Now()
+		now := dbtime.Now()
 		before := coderdtest.CreateWorkspace(t, client, user.OrganizationID, template.ID)
 		_ = coderdtest.AwaitWorkspaceBuildJob(t, client, before.LatestBuild.ID)
 
@@ -1810,7 +1879,7 @@ func TestWorkspaceUpdateAutostart(t *testing.T) {
 
 			require.EqualValues(t, *testCase.schedule, *updated.AutostartSchedule, "expected autostart schedule to equal requested")
 
-			sched, err := schedule.Weekly(*updated.AutostartSchedule)
+			sched, err := cron.Weekly(*updated.AutostartSchedule)
 			require.NoError(t, err, "parse returned schedule")
 
 			next := sched.Next(testCase.at)
@@ -1837,7 +1906,7 @@ func TestWorkspaceUpdateAutostart(t *testing.T) {
 						UserAutostartEnabled: false,
 						UserAutostopEnabled:  false,
 						DefaultTTL:           0,
-						RestartRequirement:   schedule.TemplateRestartRequirement{},
+						AutostopRequirement:  schedule.TemplateAutostopRequirement{},
 					}, nil
 				},
 				SetFn: func(_ context.Context, _ database.Store, tpl database.Template, _ schedule.TemplateScheduleOptions) (database.Template, error) {
@@ -2004,7 +2073,7 @@ func TestWorkspaceUpdateTTL(t *testing.T) {
 						UserAutostartEnabled: false,
 						UserAutostopEnabled:  false,
 						DefaultTTL:           0,
-						RestartRequirement:   schedule.TemplateRestartRequirement{},
+						AutostopRequirement:  schedule.TemplateAutostopRequirement{},
 					}, nil
 				},
 				SetFn: func(_ context.Context, _ database.Store, tpl database.Template, _ schedule.TemplateScheduleOptions) (database.Template, error) {
