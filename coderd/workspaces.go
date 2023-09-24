@@ -19,6 +19,7 @@ import (
 	"github.com/coder/coder/v2/coderd/database"
 	"github.com/coder/coder/v2/coderd/database/dbauthz"
 	"github.com/coder/coder/v2/coderd/database/dbtime"
+	"github.com/coder/coder/v2/coderd/database/provisionerjobs"
 	"github.com/coder/coder/v2/coderd/httpapi"
 	"github.com/coder/coder/v2/coderd/httpmw"
 	"github.com/coder/coder/v2/coderd/rbac"
@@ -485,7 +486,9 @@ func (api *API) postWorkspacesByOrganization(rw http.ResponseWriter, r *http.Req
 		}
 
 		workspaceBuild, provisionerJob, err = builder.Build(
-			ctx, db, func(action rbac.Action, object rbac.Objecter) bool {
+			ctx,
+			db,
+			func(action rbac.Action, object rbac.Objecter) bool {
 				return api.Authorize(r, action, object)
 			})
 		return err
@@ -504,6 +507,11 @@ func (api *API) postWorkspacesByOrganization(rw http.ResponseWriter, r *http.Req
 			Detail:  err.Error(),
 		})
 		return
+	}
+	err = provisionerjobs.PostJob(api.Pubsub, *provisionerJob)
+	if err != nil {
+		// Client probably doesn't care about this error, so just log it.
+		api.Logger.Error(ctx, "failed to post provisioner job to pubsub", slog.Error(err))
 	}
 	aReq.New = workspace
 
@@ -933,12 +941,11 @@ func (api *API) putExtendWorkspace(rw http.ResponseWriter, r *http.Request) {
 			return xerrors.New("无法延长工作区时间：截止日期超出模板规定的最大截止日期")
 		}
 
-		if err := s.UpdateWorkspaceBuildByID(ctx, database.UpdateWorkspaceBuildByIDParams{
-			ID:               build.ID,
-			UpdatedAt:        build.UpdatedAt,
-			ProvisionerState: build.ProvisionerState,
-			Deadline:         newDeadline,
-			MaxDeadline:      build.MaxDeadline,
+		if err := s.UpdateWorkspaceBuildDeadlineByID(ctx, database.UpdateWorkspaceBuildDeadlineByIDParams{
+			ID:          build.ID,
+			UpdatedAt:   dbtime.Now(),
+			Deadline:    newDeadline,
+			MaxDeadline: build.MaxDeadline,
 		}); err != nil {
 			code = http.StatusInternalServerError
 			resp.Message = "无法延长工作区截止日期。"

@@ -461,8 +461,9 @@ export const TemplateScheduleForm: FC<TemplateScheduleForm> = ({
       {allowAdvancedScheduling && allowWorkspaceActions && (
         <>
           <FormSection
-            title="失败清理"
-            description="启用后，Coder 将尝试在指定天数后停止处于失败状态的工作区。"
+            title="Failure Cleanup"
+            description="When enabled, Coder will attempt to stop workspaces that are in a failed state after a specified number of days."
+            alpha
           >
             <FormFields>
               <FormControlLabel
@@ -491,6 +492,7 @@ export const TemplateScheduleForm: FC<TemplateScheduleForm> = ({
           <FormSection
             title="Dormancy Threshold"
             description="When enabled, Coder will mark workspaces as dormant after a period of time with no connections. Dormant workspaces can be auto-deleted (see below) or manually reviewed by the workspace owner or admins."
+            alpha
           >
             <FormFields>
               <FormControlLabel
@@ -523,6 +525,7 @@ export const TemplateScheduleForm: FC<TemplateScheduleForm> = ({
           <FormSection
             title="Dormancy Auto-Deletion"
             description="When enabled, Coder will permanently delete dormant workspaces after a period of time. Once a workspace is deleted it cannot be recovered."
+            alpha
           >
             <FormFields>
               <FormControlLabel

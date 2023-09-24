@@ -23,7 +23,6 @@ import (
 	"github.com/coder/coder/v2/agent"
 	"github.com/coder/coder/v2/coderd/coderdtest"
 	"github.com/coder/coder/v2/coderd/database"
-	"github.com/coder/coder/v2/coderd/database/dbtestutil"
 	"github.com/coder/coder/v2/coderd/database/dbtime"
 	"github.com/coder/coder/v2/codersdk"
 	"github.com/coder/coder/v2/codersdk/agentsdk"
@@ -386,33 +385,13 @@ func TestWorkspaceAgentStartupLogs(t *testing.T) {
 			_ = closer.Close()
 		}()
 
-		first := make(chan struct{})
-		go func() {
-			select {
-			case <-ctx.Done():
-				assert.Fail(t, "context done while waiting in goroutine")
-			case <-logs:
-				close(first)
-			}
-		}()
 		select {
 		case <-ctx.Done():
 			require.FailNow(t, "context done while waiting for first log")
-		case <-first:
+		case <-logs:
 		}
 
 		_ = coderdtest.CreateWorkspaceBuild(t, client, workspace, database.WorkspaceTransitionStart)
-
-		// Send a new log message to trigger a re-check.
-		err = agentClient.PatchLogs(ctx, agentsdk.PatchLogs{
-			Logs: []agentsdk.Log{
-				{
-					CreatedAt: dbtime.Now(),
-					Output:    "testing2",
-				},
-			},
-		})
-		require.NoError(t, err)
 
 		select {
 		case <-ctx.Done():
@@ -1185,12 +1164,8 @@ func TestWorkspaceAgent_LifecycleState(t *testing.T) {
 func TestWorkspaceAgent_Metadata(t *testing.T) {
 	t.Parallel()
 
-	// nolint:gocritic // https://github.com/coder/coder/issues/9682
-	db, ps := dbtestutil.NewDB(t, dbtestutil.WithTimezone("UTC"))
 	client := coderdtest.New(t, &coderdtest.Options{
 		IncludeProvisionerDaemon: true,
-		Database:                 db,
-		Pubsub:                   ps,
 	})
 	user := coderdtest.CreateFirstUser(t, client)
 	authToken := uuid.NewString()

@@ -92,6 +92,7 @@ func (n FeatureName) AlwaysEnable() bool {
 		FeatureMultipleGitAuth:            true,
 		FeatureExternalProvisionerDaemons: true,
 		FeatureAppearance:                 true,
+		FeatureWorkspaceBatchActions:      true,
 	}[n]
 }
 
@@ -1264,7 +1265,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "Poll Interval",
-			Description: "在轮询新作业之前等待的时间。",
+			Description: "Deprecated and ignored.",
 			Flag:        "provisioner-daemon-poll-interval",
 			Env:         "CODER_PROVISIONER_DAEMON_POLL_INTERVAL",
 			Default:     time.Second.String(),
@@ -1274,7 +1275,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "Poll Jitter",
-			Description: "添加到轮询间隔的随机抖动。",
+			Description: "Deprecated and ignored.",
 			Flag:        "provisioner-daemon-poll-jitter",
 			Env:         "CODER_PROVISIONER_DAEMON_POLL_JITTER",
 			Default:     (100 * time.Millisecond).String(),

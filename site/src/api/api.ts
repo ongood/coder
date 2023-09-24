@@ -792,11 +792,11 @@ export const getWorkspaceBuildByNumber = async (
 };
 
 export const getWorkspaceBuildLogs = async (
-  buildname: string,
+  buildId: string,
   before: Date,
 ): Promise<TypesGen.ProvisionerJobLog[]> => {
   const response = await axios.get<TypesGen.ProvisionerJobLog[]>(
-    `/api/v2/workspacebuilds/${buildname}/logs?before=${before.getTime()}`,
+    `/api/v2/workspacebuilds/${buildId}/logs?before=${before.getTime()}`,
   );
   return response.data;
 };
@@ -969,6 +969,24 @@ export const patchGroup = async (
   return response.data;
 };
 
+export const addMember = async (groupId: string, userId: string) => {
+  return patchGroup(groupId, {
+    name: "",
+    display_name: "",
+    add_users: [userId],
+    remove_users: [],
+  });
+};
+
+export const removeMember = async (groupId: string, userId: string) => {
+  return patchGroup(groupId, {
+    name: "",
+    display_name: "",
+    add_users: [],
+    remove_users: [userId],
+  });
+};
+
 export const deleteGroup = async (groupId: string): Promise<void> => {
   await axios.delete(`/api/v2/groups/${groupId}`);
 };
@@ -1014,6 +1032,7 @@ export interface DeploymentOption {
   readonly value: unknown;
   readonly hidden: boolean;
   readonly group?: DeploymentGroup;
+  readonly env?: string;
 }
 
 export type DeploymentConfig = {
@@ -1373,7 +1392,7 @@ export const watchBuildLogsByTemplateVersionId = (
 type WatchWorkspaceAgentLogsOptions = {
   after: number;
   onMessage: (logs: TypesGen.WorkspaceAgentLog[]) => void;
-  onDone: () => void;
+  onDone?: () => void;
   onError: (error: Error) => void;
 };
 
@@ -1404,7 +1423,7 @@ export const watchWorkspaceAgentLogs = (
     onError(new Error("socket errored"));
   });
   socket.addEventListener("close", () => {
-    onDone();
+    onDone && onDone();
   });
 
   return socket;
@@ -1413,8 +1432,8 @@ export const watchWorkspaceAgentLogs = (
 type WatchBuildLogsByBuildIdOptions = {
   after?: number;
   onMessage: (log: TypesGen.ProvisionerJobLog) => void;
-  onDone: () => void;
-  onError: (error: Error) => void;
+  onDone?: () => void;
+  onError?: (error: Error) => void;
 };
 export const watchBuildLogsByBuildId = (
   buildId: string,
@@ -1435,12 +1454,12 @@ export const watchBuildLogsByBuildId = (
     onMessage(JSON.parse(event.data) as TypesGen.ProvisionerJobLog),
   );
   socket.addEventListener("error", () => {
-    onError(new Error("Connection for logs failed."));
+    onError && onError(new Error("Connection for logs failed."));
     socket.close();
   });
   socket.addEventListener("close", () => {
     // When the socket closes, logs have finished streaming!
-    onDone();
+    onDone && onDone();
   });
   return socket;
 };

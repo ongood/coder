@@ -789,7 +789,7 @@ func TestWorkspaceFilterAllStatus(t *testing.T) {
 	file := dbgen.File(t, db, database.File{
 		CreatedBy: owner.UserID,
 	})
-	versionJob := dbgen.ProvisionerJob(t, db, database.ProvisionerJob{
+	versionJob := dbgen.ProvisionerJob(t, db, pubsub, database.ProvisionerJob{
 		OrganizationID: owner.OrganizationID,
 		InitiatorID:    owner.UserID,
 		WorkerID:       uuid.NullUUID{},
@@ -825,7 +825,7 @@ func TestWorkspaceFilterAllStatus(t *testing.T) {
 		job.Tags = database.StringMap{
 			jobID.String(): "true",
 		}
-		job = dbgen.ProvisionerJob(t, db, job)
+		job = dbgen.ProvisionerJob(t, db, pubsub, job)
 
 		build := dbgen.WorkspaceBuild(t, db, database.WorkspaceBuild{
 			WorkspaceID:       workspace.ID,
@@ -1515,12 +1515,8 @@ func TestWorkspaceFilterManual(t *testing.T) {
 	t.Run("LastUsed", func(t *testing.T) {
 		t.Parallel()
 
-		// nolint:gocritic // https://github.com/coder/coder/issues/9682
-		db, ps := dbtestutil.NewDB(t, dbtestutil.WithTimezone("UTC"))
 		client, _, api := coderdtest.NewWithAPI(t, &coderdtest.Options{
 			IncludeProvisionerDaemon: true,
-			Database:                 db,
-			Pubsub:                   ps,
 		})
 		user := coderdtest.CreateFirstUser(t, client)
 		authToken := uuid.NewString()
