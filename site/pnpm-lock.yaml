@@ -14,7 +14,7 @@ dependencies:
     version: 1.1.2
   '@emoji-mart/react':
     specifier: 1.0.1
-    version: 1.0.1(emoji-mart@5.4.0)(react@18.2.0)
+    version: 1.0.1(emoji-mart@5.5.2)(react@18.2.0)
   '@emotion/react':
     specifier: 11.11.1
     version: 11.11.1(@types/react@18.2.6)(react@18.2.0)
@@ -109,8 +109,8 @@ dependencies:
     specifier: 1.11.4
     version: 1.11.4
   emoji-mart:
-    specifier: 5.4.0
-    version: 5.4.0
+    specifier: 5.5.2
+    version: 5.5.2
   eslint-plugin-testing-library:
     specifier: 6.0.1
     version: 6.0.1(eslint@8.49.0)(typescript@5.2.2)
@@ -2092,13 +2092,13 @@ packages:
     resolution: {integrity: sha512-1HP8BxD2azjqWJvxIaWAMyTySeZY0Osr83ukYjltPVkNXeJvTz7yDrPLBtnrD5uqJ3tg4CcLuuBW09wahqL/fg==}
     dev: false
 
-  /@emoji-mart/react@1.0.1(emoji-mart@5.4.0)(react@18.2.0):
+  /@emoji-mart/react@1.0.1(emoji-mart@5.5.2)(react@18.2.0):
     resolution: {integrity: sha512-ALhLD96BOL5w+a4NI5NpmfqfF1aVjjj2qJE0dLst/OhjBfVmpteWNgn/h8LZy9ulU6AnbeS+13KnPFzDjCvRRw==}
     peerDependencies:
       emoji-mart: ^5.2
       react: ^16.8 || ^17 || ^18
     dependencies:
-      emoji-mart: 5.4.0
+      emoji-mart: 5.5.2
       react: 18.2.0
     dev: false
 
@@ -7836,8 +7836,8 @@ packages:
     engines: {node: '>=12'}
     dev: true
 
-  /emoji-mart@5.4.0:
-    resolution: {integrity: sha512-xrRrUmMqZG64oRxmUZcf8zSMUGQtIUYUL3aZD5iMkqAve+I9wMNh3OVOXL7NW9fEm48L2LI3BUPpj/DUIAJrVg==}
+  /emoji-mart@5.5.2:
+    resolution: {integrity: sha512-Sqc/nso4cjxhOwWJsp9xkVm8OF5c+mJLZJFoFfzRuKO+yWiN7K8c96xmtughYb0d/fZ8UC6cLIQ/p4BR6Pv3/A==}
     dev: false
 
   /emoji-regex@8.0.0:

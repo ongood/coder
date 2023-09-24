@@ -64,7 +64,7 @@
     "cronstrue": "2.32.0",
     "date-fns": "2.30.0",
     "dayjs": "1.11.4",
-    "emoji-mart": "5.4.0",
+    "emoji-mart": "5.5.2",
     "eslint-plugin-testing-library": "6.0.1",
     "eventsourcemock": "2.0.0",
     "formik": "2.4.1",
