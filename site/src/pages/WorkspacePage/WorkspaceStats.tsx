@@ -20,7 +20,7 @@ import Popover from "@mui/material/Popover";
 import TextField from "@mui/material/TextField";
 import Button from "@mui/material/Button";
 import { WorkspaceStatusText } from "components/WorkspaceStatusBadge/WorkspaceStatusBadge";
-import { ImpendingDeletionStat } from "components/WorkspaceDeletion";
+import { DormantDeletionStat } from "components/WorkspaceDeletion";
 
 const Language = {
   workspaceDetails: "工作区详细信息",
@@ -75,7 +75,7 @@ export const WorkspaceStats: FC<WorkspaceStatsProps> = ({
           label="状态"
           value={<WorkspaceStatusText workspace={workspace} />}
         />
-        <ImpendingDeletionStat workspace={workspace} />
+        <DormantDeletionStat workspace={workspace} />
         <StatsItem
           className={styles.statsItem}
           label={Language.templateLabel}

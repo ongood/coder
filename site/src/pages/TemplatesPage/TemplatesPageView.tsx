@@ -8,7 +8,6 @@ import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import AddIcon from "@mui/icons-material/AddOutlined";
 import { ChooseOne, Cond } from "components/Conditionals/ChooseOne";
-import { Maybe } from "components/Conditionals/Maybe";
 import { FC } from "react";
 import { useNavigate, Link as RouterLink } from "react-router-dom";
 import { createDayString } from "utils/createDayString";
@@ -83,10 +82,9 @@ const TemplateRow: FC<{ template: Template }> = ({ template }) => {
   const hasIcon = template.icon && template.icon !== "";
   const navigate = useNavigate();
   const styles = useStyles();
+
   const { className: clickableClassName, ...clickableRow } =
-    useClickableTableRow(() => {
-      navigate(templatePageLink);
-    });
+    useClickableTableRow({ onClick: () => navigate(templatePageLink) });
 
   return (
     <TableRow
@@ -159,19 +157,21 @@ export const TemplatesPageView: FC<TemplatesPageViewProps> = ({
     <Margins>
       <PageHeader
         actions={
-          <Maybe condition={canCreateTemplates}>
-            <Button component={RouterLink} to="/starter-templates">
-               入门模板
-            </Button>
-            <Button
-              startIcon={<AddIcon />}
-              component={RouterLink}
-              to="new"
-              variant="contained"
-            >
-               创建模板
-            </Button>
-          </Maybe>
+          canCreateTemplates && (
+            <>
+              <Button component={RouterLink} to="/starter-templates">
+                入门模板
+              </Button>
+              <Button
+                startIcon={<AddIcon />}
+                component={RouterLink}
+                to="new"
+                variant="contained"
+              >
+                创建模板
+              </Button>
+            </>
+          )
         }
       >
         <PageHeaderTitle>
@@ -180,11 +180,11 @@ export const TemplatesPageView: FC<TemplatesPageViewProps> = ({
             <TemplateHelpTooltip />
           </Stack>
         </PageHeaderTitle>
-        <Maybe condition={Boolean(templates && templates.length > 0)}>
+        {templates && templates.length > 0 && (
           <PageHeaderSubtitle>
             选择一个模板来创建工作区。
           </PageHeaderSubtitle>
-        </Maybe>
+        )}
       </PageHeader>
 
       <ChooseOne>
@@ -205,9 +205,7 @@ export const TemplatesPageView: FC<TemplatesPageViewProps> = ({
                 </TableRow>
               </TableHead>
               <TableBody>
-                <Maybe condition={isLoading}>
-                  <TableLoader />
-                </Maybe>
+                {isLoading && <TableLoader />}
 
                 <ChooseOne>
                   <Cond condition={isEmpty}>
