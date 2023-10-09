@@ -27,7 +27,6 @@ import { TemplateVersionWarnings } from "components/TemplateVersionWarnings/Temp
 import { ErrorAlert } from "components/Alert/ErrorAlert";
 import { DormantWorkspaceBanner } from "components/WorkspaceDeletion";
 import { useLocalStorage } from "hooks";
-import { ChooseOne, Cond } from "components/Conditionals/ChooseOne";
 import AlertTitle from "@mui/material/AlertTitle";
 import dayjs from "dayjs";
 
@@ -56,7 +55,6 @@ export interface WorkspaceProps {
   isRestarting: boolean;
   workspace: TypesGen.Workspace;
   resources?: TypesGen.WorkspaceResource[];
-  builds?: TypesGen.WorkspaceBuild[];
   templateWarnings?: TypesGen.TemplateVersionWarning[];
   canUpdateWorkspace: boolean;
   updateMessage?: string;
@@ -71,6 +69,10 @@ export interface WorkspaceProps {
   quotaBudget?: number;
   handleBuildRetry: () => void;
   buildLogs?: React.ReactNode;
+  builds: TypesGen.WorkspaceBuild[] | undefined;
+  onLoadMoreBuilds: () => void;
+  isLoadingMoreBuilds: boolean;
+  hasMoreBuilds: boolean;
 }
 
 /**
@@ -106,6 +108,9 @@ export const Workspace: FC<React.PropsWithChildren<WorkspaceProps>> = ({
   handleBuildRetry,
   templateWarnings,
   buildLogs,
+  onLoadMoreBuilds,
+  isLoadingMoreBuilds,
+  hasMoreBuilds,
 }) => {
   const styles = useStyles();
   const navigate = useNavigate();
@@ -257,23 +262,19 @@ export const Workspace: FC<React.PropsWithChildren<WorkspaceProps>> = ({
               </Alert>
             )}
 
-          <ChooseOne>
-            <Cond condition={workspace.latest_build.status === "deleted"}>
-              <WorkspaceDeletedBanner
-                handleClick={() => navigate(`/templates`)}
-              />
-            </Cond>
-            <Cond>
-              {/* <DormantWorkspaceBanner/> determines its own visibility */}
-              <DormantWorkspaceBanner
-                workspaces={[workspace]}
-                shouldRedisplayBanner={
-                  getLocal("dismissedWorkspace") !== workspace.id
-                }
-                onDismiss={() => saveLocal("dismissedWorkspace", workspace.id)}
-              />
-            </Cond>
-          </ChooseOne>
+          {workspace.latest_build.status === "deleted" && (
+            <WorkspaceDeletedBanner
+              handleClick={() => navigate(`/templates`)}
+            />
+          )}
+          {/* <DormantWorkspaceBanner/> determines its own visibility */}
+          <DormantWorkspaceBanner
+            workspaces={[workspace]}
+            shouldRedisplayBanner={
+              getLocal("dismissedWorkspace") !== workspace.id
+            }
+            onDismiss={() => saveLocal("dismissedWorkspace", workspace.id)}
+          />
 
           <TemplateVersionWarnings warnings={templateWarnings} />
 
@@ -350,7 +351,12 @@ export const Workspace: FC<React.PropsWithChildren<WorkspaceProps>> = ({
               error={workspaceErrors[WorkspaceErrors.GET_BUILDS_ERROR]}
             />
           ) : (
-            <BuildsTable builds={builds} />
+            <BuildsTable
+              builds={builds}
+              onLoadMoreBuilds={onLoadMoreBuilds}
+              isLoadingMoreBuilds={isLoadingMoreBuilds}
+              hasMoreBuilds={hasMoreBuilds}
+            />
           )}
         </Stack>
       </Margins>

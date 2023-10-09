@@ -20,7 +20,6 @@ import (
 	"golang.org/x/xerrors"
 
 	"github.com/coder/coder/v2/coderd/database"
-	"github.com/coder/coder/v2/coderd/database/db2sdk"
 	"github.com/coder/coder/v2/coderd/database/dbtime"
 	"github.com/coder/coder/v2/coderd/httpapi"
 	"github.com/coder/coder/v2/coderd/rbac"
@@ -51,7 +50,7 @@ func New() database.Store {
 			organizations:             make([]database.Organization, 0),
 			users:                     make([]database.User, 0),
 			dbcryptKeys:               make([]database.DBCryptKey, 0),
-			gitAuthLinks:              make([]database.GitAuthLink, 0),
+			externalAuthLinks:         make([]database.ExternalAuthLink, 0),
 			groups:                    make([]database.Group, 0),
 			groupMembers:              make([]database.GroupMember, 0),
 			auditLogs:                 make([]database.AuditLog, 0),
@@ -125,7 +124,7 @@ type data struct {
 	auditLogs                     []database.AuditLog
 	dbcryptKeys                   []database.DBCryptKey
 	files                         []database.File
-	gitAuthLinks                  []database.GitAuthLink
+	externalAuthLinks             []database.ExternalAuthLink
 	gitSSHKey                     []database.GitSSHKey
 	groupMembers                  []database.GroupMember
 	groups                        []database.Group
@@ -355,6 +354,7 @@ func (q *FakeQuerier) convertToWorkspaceRowsNoLock(ctx context.Context, workspac
 			DormantAt:         w.DormantAt,
 			DeletingAt:        w.DeletingAt,
 			Count:             count,
+			AutomaticUpdates:  w.AutomaticUpdates,
 		}
 
 		for _, t := range q.templates {
@@ -604,16 +604,6 @@ func (q *FakeQuerier) getGroupByIDNoLock(_ context.Context, id uuid.UUID) (datab
 	return database.Group{}, sql.ErrNoRows
 }
 
-// isNull is only used in dbfake, so reflect is ok. Use this to make the logic
-// look more similar to the postgres.
-func isNull(v interface{}) bool {
-	return !isNotNull(v)
-}
-
-func isNotNull(v interface{}) bool {
-	return reflect.ValueOf(v).FieldByName("Valid").Bool()
-}
-
 // ErrUnimplemented is returned by methods only used by the enterprise/tailnet.pgCoord.  This coordinator explicitly
 // depends on  postgres triggers that announce changes on the pubsub.  Implementing support for this in the fake
 // database would  strongly couple the FakeQuerier to the pubsub, which is undesirable.  Furthermore, it makes little
@@ -695,6 +685,36 @@ func minTime(t, u time.Time) time.Time {
 	return u
 }
 
+func provisonerJobStatus(j database.ProvisionerJob) database.ProvisionerJobStatus {
+	if isNotNull(j.CompletedAt) {
+		if j.Error.String != "" {
+			return database.ProvisionerJobStatusFailed
+		}
+		if isNotNull(j.CanceledAt) {
+			return database.ProvisionerJobStatusCanceled
+		}
+		return database.ProvisionerJobStatusSucceeded
+	}
+
+	if isNotNull(j.CanceledAt) {
+		return database.ProvisionerJobStatusCanceling
+	}
+	if isNull(j.StartedAt) {
+		return database.ProvisionerJobStatusPending
+	}
+	return database.ProvisionerJobStatusRunning
+}
+
+// isNull is only used in dbfake, so reflect is ok. Use this to make the logic
+// look more similar to the postgres.
+func isNull(v interface{}) bool {
+	return !isNotNull(v)
+}
+
+func isNotNull(v interface{}) bool {
+	return reflect.ValueOf(v).FieldByName("Valid").Bool()
+}
+
 func (*FakeQuerier) AcquireLock(_ context.Context, _ int64) error {
 	return xerrors.New("AcquireLock must only be called within a transaction")
 }
@@ -748,6 +768,7 @@ func (q *FakeQuerier) AcquireProvisionerJob(_ context.Context, arg database.Acqu
 		provisionerJob.StartedAt = arg.StartedAt
 		provisionerJob.UpdatedAt = arg.StartedAt.Time
 		provisionerJob.WorkerID = arg.WorkerID
+		provisionerJob.JobStatus = provisonerJobStatus(provisionerJob)
 		q.provisionerJobs[index] = provisionerJob
 		return provisionerJob, nil
 	}
@@ -1438,6 +1459,37 @@ func (q *FakeQuerier) GetDeploymentWorkspaceStats(ctx context.Context) (database
 	return stat, nil
 }
 
+func (q *FakeQuerier) GetExternalAuthLink(_ context.Context, arg database.GetExternalAuthLinkParams) (database.ExternalAuthLink, error) {
+	if err := validateDatabaseType(arg); err != nil {
+		return database.ExternalAuthLink{}, err
+	}
+
+	q.mutex.RLock()
+	defer q.mutex.RUnlock()
+	for _, gitAuthLink := range q.externalAuthLinks {
+		if arg.UserID != gitAuthLink.UserID {
+			continue
+		}
+		if arg.ProviderID != gitAuthLink.ProviderID {
+			continue
+		}
+		return gitAuthLink, nil
+	}
+	return database.ExternalAuthLink{}, sql.ErrNoRows
+}
+
+func (q *FakeQuerier) GetExternalAuthLinksByUserID(_ context.Context, userID uuid.UUID) ([]database.ExternalAuthLink, error) {
+	q.mutex.RLock()
+	defer q.mutex.RUnlock()
+	gals := make([]database.ExternalAuthLink, 0)
+	for _, gal := range q.externalAuthLinks {
+		if gal.UserID == userID {
+			gals = append(gals, gal)
+		}
+	}
+	return gals, nil
+}
+
 func (q *FakeQuerier) GetFileByHashAndCreator(_ context.Context, arg database.GetFileByHashAndCreatorParams) (database.File, error) {
 	if err := validateDatabaseType(arg); err != nil {
 		return database.File{}, err
@@ -1505,37 +1557,6 @@ func (q *FakeQuerier) GetFileTemplates(_ context.Context, id uuid.UUID) ([]datab
 	}
 
 	return rows, nil
-}
-
-func (q *FakeQuerier) GetGitAuthLink(_ context.Context, arg database.GetGitAuthLinkParams) (database.GitAuthLink, error) {
-	if err := validateDatabaseType(arg); err != nil {
-		return database.GitAuthLink{}, err
-	}
-
-	q.mutex.RLock()
-	defer q.mutex.RUnlock()
-	for _, gitAuthLink := range q.gitAuthLinks {
-		if arg.UserID != gitAuthLink.UserID {
-			continue
-		}
-		if arg.ProviderID != gitAuthLink.ProviderID {
-			continue
-		}
-		return gitAuthLink, nil
-	}
-	return database.GitAuthLink{}, sql.ErrNoRows
-}
-
-func (q *FakeQuerier) GetGitAuthLinksByUserID(_ context.Context, userID uuid.UUID) ([]database.GitAuthLink, error) {
-	q.mutex.RLock()
-	defer q.mutex.RUnlock()
-	gals := make([]database.GitAuthLink, 0)
-	for _, gal := range q.gitAuthLinks {
-		if gal.UserID == userID {
-			gals = append(gals, gal)
-		}
-	}
-	return gals, nil
 }
 
 func (q *FakeQuerier) GetGitSSHKey(_ context.Context, userID uuid.UUID) (database.GitSSHKey, error) {
@@ -4077,7 +4098,7 @@ func (q *FakeQuerier) GetWorkspacesEligibleForTransition(ctx context.Context, no
 		if err != nil {
 			return nil, xerrors.Errorf("get provisioner job by ID: %w", err)
 		}
-		if db2sdk.ProvisionerJobStatus(job) == codersdk.ProvisionerJobFailed {
+		if codersdk.ProvisionerJobStatus(job.JobStatus) == codersdk.ProvisionerJobFailed {
 			workspaces = append(workspaces, workspace)
 			continue
 		}
@@ -4142,6 +4163,8 @@ func (q *FakeQuerier) InsertAllUsersGroup(ctx context.Context, orgID uuid.UUID) 
 		Name:           database.EveryoneGroup,
 		DisplayName:    "",
 		OrganizationID: orgID,
+		AvatarURL:      "",
+		QuotaAllowance: 0,
 	})
 }
 
@@ -4205,6 +4228,29 @@ func (q *FakeQuerier) InsertDeploymentID(_ context.Context, id string) error {
 	return nil
 }
 
+func (q *FakeQuerier) InsertExternalAuthLink(_ context.Context, arg database.InsertExternalAuthLinkParams) (database.ExternalAuthLink, error) {
+	if err := validateDatabaseType(arg); err != nil {
+		return database.ExternalAuthLink{}, err
+	}
+
+	q.mutex.Lock()
+	defer q.mutex.Unlock()
+	// nolint:gosimple
+	gitAuthLink := database.ExternalAuthLink{
+		ProviderID:             arg.ProviderID,
+		UserID:                 arg.UserID,
+		CreatedAt:              arg.CreatedAt,
+		UpdatedAt:              arg.UpdatedAt,
+		OAuthAccessToken:       arg.OAuthAccessToken,
+		OAuthAccessTokenKeyID:  arg.OAuthAccessTokenKeyID,
+		OAuthRefreshToken:      arg.OAuthRefreshToken,
+		OAuthRefreshTokenKeyID: arg.OAuthRefreshTokenKeyID,
+		OAuthExpiry:            arg.OAuthExpiry,
+	}
+	q.externalAuthLinks = append(q.externalAuthLinks, gitAuthLink)
+	return gitAuthLink, nil
+}
+
 func (q *FakeQuerier) InsertFile(_ context.Context, arg database.InsertFileParams) (database.File, error) {
 	if err := validateDatabaseType(arg); err != nil {
 		return database.File{}, err
@@ -4224,29 +4270,6 @@ func (q *FakeQuerier) InsertFile(_ context.Context, arg database.InsertFileParam
 	}
 	q.files = append(q.files, file)
 	return file, nil
-}
-
-func (q *FakeQuerier) InsertGitAuthLink(_ context.Context, arg database.InsertGitAuthLinkParams) (database.GitAuthLink, error) {
-	if err := validateDatabaseType(arg); err != nil {
-		return database.GitAuthLink{}, err
-	}
-
-	q.mutex.Lock()
-	defer q.mutex.Unlock()
-	// nolint:gosimple
-	gitAuthLink := database.GitAuthLink{
-		ProviderID:             arg.ProviderID,
-		UserID:                 arg.UserID,
-		CreatedAt:              arg.CreatedAt,
-		UpdatedAt:              arg.UpdatedAt,
-		OAuthAccessToken:       arg.OAuthAccessToken,
-		OAuthAccessTokenKeyID:  arg.OAuthAccessTokenKeyID,
-		OAuthRefreshToken:      arg.OAuthRefreshToken,
-		OAuthRefreshTokenKeyID: arg.OAuthRefreshTokenKeyID,
-		OAuthExpiry:            arg.OAuthExpiry,
-	}
-	q.gitAuthLinks = append(q.gitAuthLinks, gitAuthLink)
-	return gitAuthLink, nil
 }
 
 func (q *FakeQuerier) InsertGitSSHKey(_ context.Context, arg database.InsertGitSSHKeyParams) (database.GitSSHKey, error) {
@@ -4462,6 +4485,7 @@ func (q *FakeQuerier) InsertProvisionerJob(_ context.Context, arg database.Inser
 		Input:          arg.Input,
 		Tags:           arg.Tags,
 	}
+	job.JobStatus = provisonerJobStatus(job)
 	q.provisionerJobs = append(q.provisionerJobs, job)
 	return job, nil
 }
@@ -4742,6 +4766,7 @@ func (q *FakeQuerier) InsertWorkspace(_ context.Context, arg database.InsertWork
 		AutostartSchedule: arg.AutostartSchedule,
 		Ttl:               arg.Ttl,
 		LastUsedAt:        arg.LastUsedAt,
+		AutomaticUpdates:  arg.AutomaticUpdates,
 	}
 	q.workspaces = append(q.workspaces, workspace)
 	return workspace, nil
@@ -5214,7 +5239,7 @@ func (q *FakeQuerier) RevokeDBCryptKey(_ context.Context, activeKeyDigest string
 				return errForeignKeyConstraint
 			}
 		}
-		for _, gal := range q.gitAuthLinks {
+		for _, gal := range q.externalAuthLinks {
 			if (gal.OAuthAccessTokenKeyID.Valid && gal.OAuthAccessTokenKeyID.String == activeKeyDigest) ||
 				(gal.OAuthRefreshTokenKeyID.Valid && gal.OAuthRefreshTokenKeyID.String == activeKeyDigest) {
 				return errForeignKeyConstraint
@@ -5256,14 +5281,14 @@ func (q *FakeQuerier) UpdateAPIKeyByID(_ context.Context, arg database.UpdateAPI
 	return sql.ErrNoRows
 }
 
-func (q *FakeQuerier) UpdateGitAuthLink(_ context.Context, arg database.UpdateGitAuthLinkParams) (database.GitAuthLink, error) {
+func (q *FakeQuerier) UpdateExternalAuthLink(_ context.Context, arg database.UpdateExternalAuthLinkParams) (database.ExternalAuthLink, error) {
 	if err := validateDatabaseType(arg); err != nil {
-		return database.GitAuthLink{}, err
+		return database.ExternalAuthLink{}, err
 	}
 
 	q.mutex.Lock()
 	defer q.mutex.Unlock()
-	for index, gitAuthLink := range q.gitAuthLinks {
+	for index, gitAuthLink := range q.externalAuthLinks {
 		if gitAuthLink.ProviderID != arg.ProviderID {
 			continue
 		}
@@ -5276,11 +5301,11 @@ func (q *FakeQuerier) UpdateGitAuthLink(_ context.Context, arg database.UpdateGi
 		gitAuthLink.OAuthRefreshToken = arg.OAuthRefreshToken
 		gitAuthLink.OAuthRefreshTokenKeyID = arg.OAuthRefreshTokenKeyID
 		gitAuthLink.OAuthExpiry = arg.OAuthExpiry
-		q.gitAuthLinks[index] = gitAuthLink
+		q.externalAuthLinks[index] = gitAuthLink
 
 		return gitAuthLink, nil
 	}
-	return database.GitAuthLink{}, sql.ErrNoRows
+	return database.ExternalAuthLink{}, sql.ErrNoRows
 }
 
 func (q *FakeQuerier) UpdateGitSSHKey(_ context.Context, arg database.UpdateGitSSHKeyParams) (database.GitSSHKey, error) {
@@ -5391,6 +5416,7 @@ func (q *FakeQuerier) UpdateProvisionerJobByID(_ context.Context, arg database.U
 			continue
 		}
 		job.UpdatedAt = arg.UpdatedAt
+		job.JobStatus = provisonerJobStatus(job)
 		q.provisionerJobs[index] = job
 		return nil
 	}
@@ -5411,6 +5437,7 @@ func (q *FakeQuerier) UpdateProvisionerJobWithCancelByID(_ context.Context, arg 
 		}
 		job.CanceledAt = arg.CanceledAt
 		job.CompletedAt = arg.CompletedAt
+		job.JobStatus = provisonerJobStatus(job)
 		q.provisionerJobs[index] = job
 		return nil
 	}
@@ -5433,6 +5460,7 @@ func (q *FakeQuerier) UpdateProvisionerJobWithCompleteByID(_ context.Context, ar
 		job.CompletedAt = arg.CompletedAt
 		job.Error = arg.Error
 		job.ErrorCode = arg.ErrorCode
+		job.JobStatus = provisonerJobStatus(job)
 		q.provisionerJobs[index] = job
 		return nil
 	}
@@ -5623,7 +5651,7 @@ func (q *FakeQuerier) UpdateTemplateVersionDescriptionByJobID(_ context.Context,
 	return sql.ErrNoRows
 }
 
-func (q *FakeQuerier) UpdateTemplateVersionGitAuthProvidersByJobID(_ context.Context, arg database.UpdateTemplateVersionGitAuthProvidersByJobIDParams) error {
+func (q *FakeQuerier) UpdateTemplateVersionExternalAuthProvidersByJobID(_ context.Context, arg database.UpdateTemplateVersionExternalAuthProvidersByJobIDParams) error {
 	if err := validateDatabaseType(arg); err != nil {
 		return err
 	}
@@ -5635,7 +5663,7 @@ func (q *FakeQuerier) UpdateTemplateVersionGitAuthProvidersByJobID(_ context.Con
 		if templateVersion.JobID != arg.JobID {
 			continue
 		}
-		templateVersion.GitAuthProviders = arg.GitAuthProviders
+		templateVersion.ExternalAuthProviders = arg.ExternalAuthProviders
 		templateVersion.UpdatedAt = arg.UpdatedAt
 		q.templateVersions[index] = templateVersion
 		return nil
@@ -6060,6 +6088,26 @@ func (q *FakeQuerier) UpdateWorkspaceAppHealthByID(_ context.Context, arg databa
 		q.workspaceApps[index] = app
 		return nil
 	}
+	return sql.ErrNoRows
+}
+
+func (q *FakeQuerier) UpdateWorkspaceAutomaticUpdates(_ context.Context, arg database.UpdateWorkspaceAutomaticUpdatesParams) error {
+	if err := validateDatabaseType(arg); err != nil {
+		return err
+	}
+
+	q.mutex.Lock()
+	defer q.mutex.Unlock()
+
+	for index, workspace := range q.workspaces {
+		if workspace.ID != arg.ID {
+			continue
+		}
+		workspace.AutomaticUpdates = arg.AutomaticUpdates
+		q.workspaces[index] = workspace
+		return nil
+	}
+
 	return sql.ErrNoRows
 }
 
@@ -6602,61 +6650,30 @@ func (q *FakeQuerier) GetAuthorizedWorkspaces(ctx context.Context, arg database.
 			// This logic should match the logic in the workspace.sql file.
 			var statusMatch bool
 			switch database.WorkspaceStatus(arg.Status) {
-			case database.WorkspaceStatusPending:
-				statusMatch = isNull(job.StartedAt)
 			case database.WorkspaceStatusStarting:
-				statusMatch = isNotNull(job.StartedAt) &&
-					isNull(job.CanceledAt) &&
-					isNull(job.CompletedAt) &&
-					time.Since(job.UpdatedAt) < 30*time.Second &&
+				statusMatch = job.JobStatus == database.ProvisionerJobStatusRunning &&
 					build.Transition == database.WorkspaceTransitionStart
-
-			case database.WorkspaceStatusRunning:
-				statusMatch = isNotNull(job.CompletedAt) &&
-					isNull(job.CanceledAt) &&
-					isNull(job.Error) &&
-					build.Transition == database.WorkspaceTransitionStart
-
 			case database.WorkspaceStatusStopping:
-				statusMatch = isNotNull(job.StartedAt) &&
-					isNull(job.CanceledAt) &&
-					isNull(job.CompletedAt) &&
-					time.Since(job.UpdatedAt) < 30*time.Second &&
+				statusMatch = job.JobStatus == database.ProvisionerJobStatusRunning &&
 					build.Transition == database.WorkspaceTransitionStop
-
-			case database.WorkspaceStatusStopped:
-				statusMatch = isNotNull(job.CompletedAt) &&
-					isNull(job.CanceledAt) &&
-					isNull(job.Error) &&
-					build.Transition == database.WorkspaceTransitionStop
-			case database.WorkspaceStatusFailed:
-				statusMatch = (isNotNull(job.CanceledAt) && isNotNull(job.Error)) ||
-					(isNotNull(job.CompletedAt) && isNotNull(job.Error))
-
-			case database.WorkspaceStatusCanceling:
-				statusMatch = isNotNull(job.CanceledAt) &&
-					isNull(job.CompletedAt)
-
-			case database.WorkspaceStatusCanceled:
-				statusMatch = isNotNull(job.CanceledAt) &&
-					isNotNull(job.CompletedAt)
-
-			case database.WorkspaceStatusDeleted:
-				statusMatch = isNotNull(job.StartedAt) &&
-					isNull(job.CanceledAt) &&
-					isNotNull(job.CompletedAt) &&
-					time.Since(job.UpdatedAt) < 30*time.Second &&
-					build.Transition == database.WorkspaceTransitionDelete &&
-					isNull(job.Error)
-
 			case database.WorkspaceStatusDeleting:
-				statusMatch = isNull(job.CompletedAt) &&
-					isNull(job.CanceledAt) &&
-					isNull(job.Error) &&
+				statusMatch = job.JobStatus == database.ProvisionerJobStatusRunning &&
 					build.Transition == database.WorkspaceTransitionDelete
 
+			case "started":
+				statusMatch = job.JobStatus == database.ProvisionerJobStatusSucceeded &&
+					build.Transition == database.WorkspaceTransitionStart
+			case database.WorkspaceStatusDeleted:
+				statusMatch = job.JobStatus == database.ProvisionerJobStatusSucceeded &&
+					build.Transition == database.WorkspaceTransitionDelete
+			case database.WorkspaceStatusStopped:
+				statusMatch = job.JobStatus == database.ProvisionerJobStatusSucceeded &&
+					build.Transition == database.WorkspaceTransitionStop
+			case database.WorkspaceStatusRunning:
+				statusMatch = job.JobStatus == database.ProvisionerJobStatusSucceeded &&
+					build.Transition == database.WorkspaceTransitionStart
 			default:
-				return nil, xerrors.Errorf("unknown workspace status in filter: %q", arg.Status)
+				statusMatch = job.JobStatus == database.ProvisionerJobStatus(arg.Status)
 			}
 			if !statusMatch {
 				continue

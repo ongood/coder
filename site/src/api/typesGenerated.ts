@@ -279,6 +279,7 @@ export interface CreateWorkspaceRequest {
   readonly autostart_schedule?: string;
   readonly ttl_ms?: number;
   readonly rich_parameter_values?: WorkspaceBuildParameter[];
+  readonly automatic_updates?: AutomaticUpdates;
 }
 
 // From codersdk/deployment.go
@@ -396,7 +397,7 @@ export interface DeploymentValues {
   readonly disable_session_expiry_refresh?: boolean;
   readonly disable_password_auth?: boolean;
   readonly support?: SupportConfig;
-  readonly git_auth?: GitAuthConfig[];
+  readonly external_auth?: ExternalAuthConfig[];
   readonly config_ssh?: SSHConfig;
   readonly wgtunnel_host?: string;
   readonly disable_owner_workspace_exec?: boolean;
@@ -422,6 +423,65 @@ export interface Entitlements {
 // From codersdk/deployment.go
 export type Experiments = Experiment[];
 
+// From codersdk/externalauth.go
+export interface ExternalAuth {
+  readonly authenticated: boolean;
+  readonly device: boolean;
+  readonly display_name: string;
+  readonly user?: ExternalAuthUser;
+  readonly app_installable: boolean;
+  readonly installations: ExternalAuthAppInstallation[];
+  readonly app_install_url: string;
+}
+
+// From codersdk/externalauth.go
+export interface ExternalAuthAppInstallation {
+  readonly id: number;
+  readonly account: ExternalAuthUser;
+  readonly configure_url: string;
+}
+
+// From codersdk/deployment.go
+export interface ExternalAuthConfig {
+  readonly type: string;
+  readonly client_id: string;
+  readonly id: string;
+  readonly auth_url: string;
+  readonly token_url: string;
+  readonly validate_url: string;
+  readonly app_install_url: string;
+  readonly app_installations_url: string;
+  readonly no_refresh: boolean;
+  readonly scopes: string[];
+  readonly device_flow: boolean;
+  readonly device_code_url: string;
+  readonly regex: string;
+  readonly display_name: string;
+  readonly display_icon: string;
+}
+
+// From codersdk/externalauth.go
+export interface ExternalAuthDevice {
+  readonly device_code: string;
+  readonly user_code: string;
+  readonly verification_uri: string;
+  readonly expires_in: number;
+  readonly interval: number;
+}
+
+// From codersdk/externalauth.go
+export interface ExternalAuthDeviceExchange {
+  readonly device_code: string;
+}
+
+// From codersdk/externalauth.go
+export interface ExternalAuthUser {
+  readonly login: string;
+  readonly avatar_url: string;
+  readonly profile_url: string;
+  readonly name: string;
+}
+
 // From codersdk/deployment.go
 export interface Feature {
   readonly entitlement: Entitlement;
@@ -439,63 +499,6 @@ export interface GenerateAPIKeyResponse {
 export interface GetUsersResponse {
   readonly users: User[];
   readonly count: number;
-}
-
-// From codersdk/gitauth.go
-export interface GitAuth {
-  readonly authenticated: boolean;
-  readonly device: boolean;
-  readonly type: string;
-  readonly user?: GitAuthUser;
-  readonly app_installable: boolean;
-  readonly installations: GitAuthAppInstallation[];
-  readonly app_install_url: string;
-}
-
-// From codersdk/gitauth.go
-export interface GitAuthAppInstallation {
-  readonly id: number;
-  readonly account: GitAuthUser;
-  readonly configure_url: string;
-}
-
-// From codersdk/deployment.go
-export interface GitAuthConfig {
-  readonly id: string;
-  readonly type: string;
-  readonly client_id: string;
-  readonly auth_url: string;
-  readonly token_url: string;
-  readonly validate_url: string;
-  readonly app_install_url: string;
-  readonly app_installations_url: string;
-  readonly regex: string;
-  readonly no_refresh: boolean;
-  readonly scopes: string[];
-  readonly device_flow: boolean;
-  readonly device_code_url: string;
-}
-
-// From codersdk/gitauth.go
-export interface GitAuthDevice {
-  readonly device_code: string;
-  readonly user_code: string;
-  readonly verification_uri: string;
-  readonly expires_in: number;
-  readonly interval: number;
-}
-
-// From codersdk/gitauth.go
-export interface GitAuthDeviceExchange {
-  readonly device_code: string;
-}
-
-// From codersdk/gitauth.go
-export interface GitAuthUser {
-  readonly login: string;
-  readonly avatar_url: string;
-  readonly profile_url: string;
-  readonly name: string;
 }
 
 // From codersdk/gitsshkey.go
@@ -964,12 +967,13 @@ export interface TemplateInsightsRequest {
   readonly end_time: string;
   readonly template_ids: string[];
   readonly interval: InsightsReportInterval;
+  readonly sections: TemplateInsightsSection[];
 }
 
 // From codersdk/insights.go
 export interface TemplateInsightsResponse {
-  readonly report: TemplateInsightsReport;
-  readonly interval_reports: TemplateInsightsIntervalReport[];
+  readonly report?: TemplateInsightsReport;
+  readonly interval_reports?: TemplateInsightsIntervalReport[];
 }
 
 // From codersdk/insights.go
@@ -1010,9 +1014,11 @@ export interface TemplateVersion {
 }
 
 // From codersdk/templateversions.go
-export interface TemplateVersionGitAuth {
+export interface TemplateVersionExternalAuth {
   readonly id: string;
-  readonly type: GitProvider;
+  readonly type: string;
+  readonly display_name: string;
+  readonly display_icon: string;
   readonly authenticate_url: string;
   readonly authenticated: boolean;
 }
@@ -1148,6 +1154,11 @@ export interface UpdateUserProfileRequest {
 // From codersdk/users.go
 export interface UpdateUserQuietHoursScheduleRequest {
   readonly schedule: string;
+}
+
+// From codersdk/workspaces.go
+export interface UpdateWorkspaceAutomaticUpdatesRequest {
+  readonly automatic_updates: AutomaticUpdates;
 }
 
 // From codersdk/workspaces.go
@@ -1318,6 +1329,7 @@ export interface Workspace {
   readonly deleting_at?: string;
   readonly dormant_at?: string;
   readonly health: WorkspaceHealth;
+  readonly automatic_updates: AutomaticUpdates;
 }
 
 // From codersdk/workspaceagents.go
@@ -1474,8 +1486,7 @@ export interface WorkspaceBuildParameter {
 
 // From codersdk/workspaces.go
 export interface WorkspaceBuildsRequest extends Pagination {
-  readonly WorkspaceID: string;
-  readonly Since: string;
+  readonly since?: string;
 }
 
 // From codersdk/deployment.go
@@ -1607,6 +1618,10 @@ export const AuditActions: AuditAction[] = [
   "write",
 ];
 
+// From codersdk/workspaces.go
+export type AutomaticUpdates = "always" | "never";
+export const AutomaticUpdateses: AutomaticUpdates[] = ["always", "never"];
+
 // From codersdk/workspacebuilds.go
 export type BuildReason = "autostart" | "autostop" | "initiator";
 export const BuildReasons: BuildReason[] = [
@@ -1630,6 +1645,19 @@ export const DisplayApps: DisplayApp[] = [
   "web_terminal",
 ];
 
+// From codersdk/externalauth.go
+export type EnhancedExternalAuthProvider =
+  | "azure-devops"
+  | "bitbucket"
+  | "github"
+  | "gitlab";
+export const EnhancedExternalAuthProviders: EnhancedExternalAuthProvider[] = [
+  "azure-devops",
+  "bitbucket",
+  "github",
+  "gitlab",
+];
+
 // From codersdk/deployment.go
 export type Entitlement = "entitled" | "grace_period" | "not_entitled";
 export const Entitlements: Entitlement[] = [
@@ -1640,19 +1668,19 @@ export const Entitlements: Entitlement[] = [
 
 // From codersdk/deployment.go
 export type Experiment =
+  | "dashboard_theme"
   | "deployment_health_page"
   | "moons"
   | "single_tailnet"
   | "tailnet_pg_coordinator"
-  | "template_autostop_requirement"
-  | "workspace_actions";
+  | "template_autostop_requirement";
 export const Experiments: Experiment[] = [
+  "dashboard_theme",
   "deployment_health_page",
   "moons",
   "single_tailnet",
   "tailnet_pg_coordinator",
   "template_autostop_requirement",
-  "workspace_actions",
 ];
 
 // From codersdk/deployment.go
@@ -1664,7 +1692,7 @@ export type FeatureName =
   | "external_provisioner_daemons"
   | "external_token_encryption"
   | "high_availability"
-  | "multiple_git_auth"
+  | "multiple_external_auth"
   | "scim"
   | "template_autostop_requirement"
   | "template_rbac"
@@ -1680,7 +1708,7 @@ export const FeatureNames: FeatureName[] = [
   "external_provisioner_daemons",
   "external_token_encryption",
   "high_availability",
-  "multiple_git_auth",
+  "multiple_external_auth",
   "scim",
   "template_autostop_requirement",
   "template_rbac",
@@ -1688,15 +1716,6 @@ export const FeatureNames: FeatureName[] = [
   "user_role_management",
   "workspace_batch_actions",
   "workspace_proxy",
-];
-
-// From codersdk/workspaceagents.go
-export type GitProvider = "azure-devops" | "bitbucket" | "github" | "gitlab";
-export const GitProviders: GitProvider[] = [
-  "azure-devops",
-  "bitbucket",
-  "github",
-  "gitlab",
 ];
 
 // From codersdk/groups.go
@@ -1746,7 +1765,8 @@ export type ProvisionerJobStatus =
   | "failed"
   | "pending"
   | "running"
-  | "succeeded";
+  | "succeeded"
+  | "unknown";
 export const ProvisionerJobStatuses: ProvisionerJobStatus[] = [
   "canceled",
   "canceling",
@@ -1754,6 +1774,7 @@ export const ProvisionerJobStatuses: ProvisionerJobStatus[] = [
   "pending",
   "running",
   "succeeded",
+  "unknown",
 ];
 
 // From codersdk/workspaces.go
@@ -1870,6 +1891,13 @@ export const ServerSentEventTypes: ServerSentEventType[] = [
 // From codersdk/insights.go
 export type TemplateAppsType = "app" | "builtin";
 export const TemplateAppsTypes: TemplateAppsType[] = ["app", "builtin"];
+
+// From codersdk/insights.go
+export type TemplateInsightsSection = "interval_reports" | "report";
+export const TemplateInsightsSections: TemplateInsightsSection[] = [
+  "interval_reports",
+  "report",
+];
 
 // From codersdk/templates.go
 export type TemplateRole = "" | "admin" | "use";
@@ -2106,8 +2134,8 @@ export interface ClibaseOption {
   readonly env?: string;
   readonly yaml?: string;
   readonly default?: string;
-  // actual value is an interface that implements 'String()'
-  readonly value?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Golang interface, unable to resolve type.
+  readonly value?: any;
   readonly annotations?: ClibaseAnnotations;
   readonly group?: ClibaseGroup;
   readonly use_instead?: ClibaseOption[];

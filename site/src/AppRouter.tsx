@@ -110,10 +110,10 @@ const UserAuthSettingsPage = lazy(
       "./pages/DeploySettingsPage/UserAuthSettingsPage/UserAuthSettingsPage"
     ),
 );
-const GitAuthSettingsPage = lazy(
+const ExternalAuthSettingsPage = lazy(
   () =>
     import(
-      "./pages/DeploySettingsPage/GitAuthSettingsPage/GitAuthSettingsPage"
+      "./pages/DeploySettingsPage/ExternalAuthSettingsPage/ExternalAuthSettingsPage"
     ),
 );
 const NetworkSettingsPage = lazy(
@@ -122,7 +122,9 @@ const NetworkSettingsPage = lazy(
       "./pages/DeploySettingsPage/NetworkSettingsPage/NetworkSettingsPage"
     ),
 );
-const GitAuthPage = lazy(() => import("./pages/GitAuthPage/GitAuthPage"));
+const ExternalAuthPage = lazy(
+  () => import("./pages/ExternalAuthPage/ExternalAuthPage"),
+);
 const TemplateVersionPage = lazy(
   () => import("./pages/TemplateVersionPage/TemplateVersionPage"),
 );
@@ -207,7 +209,10 @@ export const AppRouter: FC = () => {
 
               <Route path="health" element={<HealthPage />} />
 
-              <Route path="gitauth/:provider" element={<GitAuthPage />} />
+              <Route
+                path="external-auth/:provider"
+                element={<ExternalAuthPage />}
+              />
 
               <Route path="workspaces" element={<WorkspacesPage />} />
 
@@ -287,7 +292,10 @@ export const AppRouter: FC = () => {
                 <Route path="appearance" element={<AppearanceSettingsPage />} />
                 <Route path="network" element={<NetworkSettingsPage />} />
                 <Route path="userauth" element={<UserAuthSettingsPage />} />
-                <Route path="gitauth" element={<GitAuthSettingsPage />} />
+                <Route
+                  path="external-auth"
+                  element={<ExternalAuthSettingsPage />}
+                />
                 <Route
                   path="workspace-proxies"
                   element={<WorkspaceProxyPage />}

@@ -42,6 +42,16 @@ export const AppearanceSettingsPageView = ({
   const styles = useStyles();
   const theme = useTheme();
 
+  const applicationNameForm = useFormik<{
+    application_name: string;
+  }>({
+    initialValues: {
+      application_name: appearance.application_name,
+    },
+    onSubmit: (values) => onSaveAppearance(values, false),
+  });
+  const applicationNameFieldHelpers = getFormHelpers(applicationNameForm);
+
   const logoForm = useFormik<{
     logo_url: string;
   }>({
@@ -88,8 +98,25 @@ export const AppearanceSettingsPageView = ({
       </Badges>
 
       <Fieldset
-        title="徽标网址"
-        subtitle="指定一个自定义的URL，用于在仪表板左上角显示您的徽标。"
+        title="Application name"
+        subtitle="Specify a custom application name to be displayed on the login page."
+        validation={!isEntitled ? "This is an Enterprise only feature." : ""}
+        onSubmit={applicationNameForm.handleSubmit}
+        button={!isEntitled && <Button disabled>Submit</Button>}
+      >
+        <TextField
+          {...applicationNameFieldHelpers("application_name")}
+          defaultValue={appearance.application_name}
+          fullWidth
+          placeholder='Leave empty to display "Coder".'
+          disabled={!isEntitled}
+        />
+      </Fieldset>
+
+      <Fieldset
+        title="Logo URL"
+        subtitle="Specify a custom URL for your logo to be displayed in the top left
+          corner of the dashboard."
         validation={
           isEntitled
             ? "我们建议使用长宽比为3:1的透明图像。"
