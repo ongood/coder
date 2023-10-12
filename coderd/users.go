@@ -501,7 +501,7 @@ func (api *API) deleteUser(rw http.ResponseWriter, r *http.Request) {
 // @Security CoderSessionToken
 // @Produce json
 // @Tags Users
-// @Param user path string true "User ID, name, or me"
+// @Param user path string true "User ID, username, or me"
 // @Success 200 {object} codersdk.User
 // @Router /users/{user} [get]
 func (api *API) userByName(rw http.ResponseWriter, r *http.Request) {
@@ -1177,13 +1177,13 @@ func userOrganizationIDs(ctx context.Context, api *API, user database.User) ([]u
 	return member.OrganizationIDs, nil
 }
 
-func findUser(id uuid.UUID, users []database.User) *database.User {
-	for _, u := range users {
-		if u.ID == id {
-			return &u
+func usernameWithID(id uuid.UUID, users []database.User) (string, bool) {
+	for _, user := range users {
+		if id == user.ID {
+			return user.Username, true
 		}
 	}
-	return nil
+	return "", false
 }
 
 func convertAPIKey(k database.APIKey) codersdk.APIKey {

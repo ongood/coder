@@ -1,20 +1,28 @@
-import Tooltip from "@mui/material/Tooltip";
+import Tooltip, { type TooltipProps } from "@mui/material/Tooltip";
 import { useClickable } from "hooks/useClickable";
 import { useClipboard } from "hooks/useClipboard";
-import { FC, HTMLProps } from "react";
+import { type FC, type HTMLProps } from "react";
 
 interface CopyableValueProps extends HTMLProps<HTMLDivElement> {
   value: string;
+  placement?: TooltipProps["placement"];
+  PopperProps?: TooltipProps["PopperProps"];
 }
 
-export const CopyableValue: FC<CopyableValueProps> = ({ value, ...props }) => {
+export const CopyableValue: FC<CopyableValueProps> = ({
+  value,
+  placement = "bottom-start",
+  PopperProps,
+  ...props
+}) => {
   const { isCopied, copy } = useClipboard(value);
   const clickableProps = useClickable<HTMLSpanElement>(copy);
 
   return (
     <Tooltip
-      title={isCopied ? "已复制!" : "点击复制"}
-      placement="bottom-start"
+      title={isCopied ? "Copied!" : "Click to copy"}
+      placement={placement}
+      PopperProps={PopperProps}
     >
       <span {...props} {...clickableProps} css={{ cursor: "pointer" }} />
     </Tooltip>
