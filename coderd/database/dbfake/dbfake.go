@@ -814,8 +814,26 @@ func (q *FakeQuerier) ActivityBumpWorkspace(ctx context.Context, workspaceID uui
 		if q.workspaceBuilds[i].Deadline.IsZero() {
 			return nil
 		}
+
+		// Check the template default TTL.
+		template, err := q.getTemplateByIDNoLock(ctx, workspace.TemplateID)
+		if err != nil {
+			return err
+		}
+
+		var ttlDur time.Duration
+		if workspace.Ttl.Valid {
+			ttlDur = time.Duration(workspace.Ttl.Int64)
+		}
+		if !template.AllowUserAutostop {
+			ttlDur = time.Duration(template.DefaultTTL)
+		}
+		if ttlDur <= 0 {
+			// There's no TTL set anymore, so we don't know the bump duration.
+			return nil
+		}
+
 		// Only bump if 5% of the deadline has passed.
-		ttlDur := time.Duration(workspace.Ttl.Int64)
 		ttlDur95 := ttlDur - (ttlDur / 20)
 		minBumpDeadline := q.workspaceBuilds[i].Deadline.Add(-ttlDur95)
 		if now.Before(minBumpDeadline) {
@@ -1691,7 +1709,7 @@ func (q *FakeQuerier) GetGroupMembers(_ context.Context, id uuid.UUID) ([]databa
 
 	for _, member := range members {
 		for _, user := range q.users {
-			if user.ID == member.UserID && user.Status == database.UserStatusActive && !user.Deleted {
+			if user.ID == member.UserID && !user.Deleted {
 				users = append(users, user)
 				break
 			}
@@ -2482,6 +2500,10 @@ func (q *FakeQuerier) GetTemplateInsights(_ context.Context, arg database.GetTem
 
 	templateIDSet := make(map[uuid.UUID]struct{})
 	appUsageIntervalsByUser := make(map[uuid.UUID]map[time.Time]*database.GetTemplateInsightsRow)
+
+	q.mutex.RLock()
+	defer q.mutex.RUnlock()
+
 	for _, s := range q.workspaceAgentStats {
 		if s.CreatedAt.Before(arg.StartTime) || s.CreatedAt.Equal(arg.EndTime) || s.CreatedAt.After(arg.EndTime) {
 			continue
@@ -2626,6 +2648,101 @@ func (q *FakeQuerier) GetTemplateInsightsByInterval(ctx context.Context, arg dat
 			TemplateIDs: templateIDs,
 			ActiveUsers: int64(len(ds.userSet)),
 		})
+	}
+	return result, nil
+}
+
+func (q *FakeQuerier) GetTemplateInsightsByTemplate(_ context.Context, arg database.GetTemplateInsightsByTemplateParams) ([]database.GetTemplateInsightsByTemplateRow, error) {
+	err := validateDatabaseType(arg)
+	if err != nil {
+		return nil, err
+	}
+
+	q.mutex.RLock()
+	defer q.mutex.RUnlock()
+
+	// map time.Time x TemplateID x UserID x <usage>
+	appUsageByTemplateAndUser := map[time.Time]map[uuid.UUID]map[uuid.UUID]database.GetTemplateInsightsByTemplateRow{}
+
+	// Review agent stats in terms of usage
+	templateIDSet := make(map[uuid.UUID]struct{})
+
+	for _, s := range q.workspaceAgentStats {
+		if s.CreatedAt.Before(arg.StartTime) || s.CreatedAt.Equal(arg.EndTime) || s.CreatedAt.After(arg.EndTime) {
+			continue
+		}
+		if s.ConnectionCount == 0 {
+			continue
+		}
+
+		t := s.CreatedAt.Truncate(time.Minute)
+		templateIDSet[s.TemplateID] = struct{}{}
+
+		if _, ok := appUsageByTemplateAndUser[t]; !ok {
+			appUsageByTemplateAndUser[t] = make(map[uuid.UUID]map[uuid.UUID]database.GetTemplateInsightsByTemplateRow)
+		}
+
+		if _, ok := appUsageByTemplateAndUser[t][s.TemplateID]; !ok {
+			appUsageByTemplateAndUser[t][s.TemplateID] = make(map[uuid.UUID]database.GetTemplateInsightsByTemplateRow)
+		}
+
+		if _, ok := appUsageByTemplateAndUser[t][s.TemplateID][s.UserID]; !ok {
+			appUsageByTemplateAndUser[t][s.TemplateID][s.UserID] = database.GetTemplateInsightsByTemplateRow{}
+		}
+
+		u := appUsageByTemplateAndUser[t][s.TemplateID][s.UserID]
+		if s.SessionCountJetBrains > 0 {
+			u.UsageJetbrainsSeconds = 60
+		}
+		if s.SessionCountVSCode > 0 {
+			u.UsageVscodeSeconds = 60
+		}
+		if s.SessionCountReconnectingPTY > 0 {
+			u.UsageReconnectingPtySeconds = 60
+		}
+		if s.SessionCountSSH > 0 {
+			u.UsageSshSeconds = 60
+		}
+		appUsageByTemplateAndUser[t][s.TemplateID][s.UserID] = u
+	}
+
+	// Sort used templates
+	templateIDs := make([]uuid.UUID, 0, len(templateIDSet))
+	for templateID := range templateIDSet {
+		templateIDs = append(templateIDs, templateID)
+	}
+	slices.SortFunc(templateIDs, func(a, b uuid.UUID) int {
+		return slice.Ascending(a.String(), b.String())
+	})
+
+	// Build result
+	var result []database.GetTemplateInsightsByTemplateRow
+	for _, templateID := range templateIDs {
+		r := database.GetTemplateInsightsByTemplateRow{
+			TemplateID: templateID,
+		}
+
+		uniqueUsers := map[uuid.UUID]struct{}{}
+
+		for _, mTemplateUserUsage := range appUsageByTemplateAndUser {
+			mUserUsage, ok := mTemplateUserUsage[templateID]
+			if !ok {
+				continue // template was not used in this time window
+			}
+
+			for userID, usage := range mUserUsage {
+				uniqueUsers[userID] = struct{}{}
+
+				r.UsageJetbrainsSeconds += usage.UsageJetbrainsSeconds
+				r.UsageVscodeSeconds += usage.UsageVscodeSeconds
+				r.UsageReconnectingPtySeconds += usage.UsageReconnectingPtySeconds
+				r.UsageSshSeconds += usage.UsageSshSeconds
+			}
+		}
+
+		r.ActiveUsers = int64(len(uniqueUsers))
+
+		result = append(result, r)
 	}
 	return result, nil
 }
@@ -3500,13 +3617,20 @@ func (q *FakeQuerier) GetWorkspaceAgentLogsAfter(_ context.Context, arg database
 	return logs, nil
 }
 
-func (q *FakeQuerier) GetWorkspaceAgentMetadata(_ context.Context, workspaceAgentID uuid.UUID) ([]database.WorkspaceAgentMetadatum, error) {
+func (q *FakeQuerier) GetWorkspaceAgentMetadata(_ context.Context, arg database.GetWorkspaceAgentMetadataParams) ([]database.WorkspaceAgentMetadatum, error) {
+	if err := validateDatabaseType(arg); err != nil {
+		return nil, err
+	}
+
 	q.mutex.RLock()
 	defer q.mutex.RUnlock()
 
 	metadata := make([]database.WorkspaceAgentMetadatum, 0)
 	for _, m := range q.workspaceAgentMetadata {
-		if m.WorkspaceAgentID == workspaceAgentID {
+		if m.WorkspaceAgentID == arg.WorkspaceAgentID {
+			if len(arg.Keys) > 0 && !slices.Contains(arg.Keys, m.Key) {
+				continue
+			}
 			metadata = append(metadata, m)
 		}
 	}
@@ -4564,6 +4688,7 @@ func (q *FakeQuerier) InsertProvisionerJob(_ context.Context, arg database.Inser
 		Type:           arg.Type,
 		Input:          arg.Input,
 		Tags:           arg.Tags,
+		TraceMetadata:  arg.TraceMetadata,
 	}
 	job.JobStatus = provisonerJobStatus(job)
 	q.provisionerJobs = append(q.provisionerJobs, job)
@@ -5617,6 +5742,25 @@ func (q *FakeQuerier) UpdateTemplateACLByID(_ context.Context, arg database.Upda
 	return sql.ErrNoRows
 }
 
+func (q *FakeQuerier) UpdateTemplateAccessControlByID(_ context.Context, arg database.UpdateTemplateAccessControlByIDParams) error {
+	if err := validateDatabaseType(arg); err != nil {
+		return err
+	}
+
+	q.mutex.Lock()
+	defer q.mutex.Unlock()
+
+	for idx, tpl := range q.templates {
+		if tpl.ID != arg.ID {
+			continue
+		}
+		q.templates[idx].RequireActiveVersion = arg.RequireActiveVersion
+		return nil
+	}
+
+	return sql.ErrNoRows
+}
+
 func (q *FakeQuerier) UpdateTemplateActiveVersionByID(_ context.Context, arg database.UpdateTemplateActiveVersionByIDParams) error {
 	if err := validateDatabaseType(arg); err != nil {
 		return err
@@ -5700,6 +5844,7 @@ func (q *FakeQuerier) UpdateTemplateScheduleByID(_ context.Context, arg database
 		tpl.MaxTTL = arg.MaxTTL
 		tpl.AutostopRequirementDaysOfWeek = arg.AutostopRequirementDaysOfWeek
 		tpl.AutostopRequirementWeeks = arg.AutostopRequirementWeeks
+		tpl.AutostartBlockDaysOfWeek = arg.AutostartBlockDaysOfWeek
 		tpl.FailureTTL = arg.FailureTTL
 		tpl.TimeTilDormant = arg.TimeTilDormant
 		tpl.TimeTilDormantAutoDelete = arg.TimeTilDormantAutoDelete
@@ -6115,19 +6260,17 @@ func (q *FakeQuerier) UpdateWorkspaceAgentMetadata(_ context.Context, arg databa
 	q.mutex.Lock()
 	defer q.mutex.Unlock()
 
-	//nolint:gosimple
-	updated := database.WorkspaceAgentMetadatum{
-		WorkspaceAgentID: arg.WorkspaceAgentID,
-		Key:              arg.Key,
-		Value:            arg.Value,
-		Error:            arg.Error,
-		CollectedAt:      arg.CollectedAt,
-	}
-
 	for i, m := range q.workspaceAgentMetadata {
-		if m.WorkspaceAgentID == arg.WorkspaceAgentID && m.Key == arg.Key {
-			q.workspaceAgentMetadata[i] = updated
-			return nil
+		if m.WorkspaceAgentID != arg.WorkspaceAgentID {
+			continue
+		}
+		for j := 0; j < len(arg.Key); j++ {
+			if m.Key == arg.Key[j] {
+				q.workspaceAgentMetadata[i].Value = arg.Value[j]
+				q.workspaceAgentMetadata[i].Error = arg.Error[j]
+				q.workspaceAgentMetadata[i].CollectedAt = arg.CollectedAt[j]
+				return nil
+			}
 		}
 	}
 

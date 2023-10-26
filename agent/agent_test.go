@@ -350,8 +350,13 @@ func TestAgent_Session_TTY_MOTD(t *testing.T) {
 			unexpected: []string{},
 		},
 		{
-			name:     "Trim",
-			manifest: agentsdk.Manifest{},
+			name: "Trim",
+			// Enable motd since it will be printed after the banner,
+			// this ensures that we can test for an exact mount of
+			// newlines.
+			manifest: agentsdk.Manifest{
+				MOTDFile: name,
+			},
 			banner: codersdk.ServiceBannerConfig{
 				Enabled: true,
 				Message: "\n\n\n\n\n\nbanner\n\n\n\n\n\n",
@@ -375,6 +380,7 @@ func TestAgent_Session_TTY_MOTD(t *testing.T) {
 	}
 }
 
+//nolint:tparallel // Sub tests need to run sequentially.
 func TestAgent_Session_TTY_MOTD_Update(t *testing.T) {
 	t.Parallel()
 	if runtime.GOOS == "windows" {
@@ -434,33 +440,38 @@ func TestAgent_Session_TTY_MOTD_Update(t *testing.T) {
 	}
 	//nolint:dogsled // Allow the blank identifiers.
 	conn, client, _, _, _ := setupAgent(t, agentsdk.Manifest{}, 0, setSBInterval)
-	for _, test := range tests {
+
+	sshClient, err := conn.SSHClient(ctx)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_ = sshClient.Close()
+	})
+
+	//nolint:paralleltest // These tests need to swap the banner func.
+	for i, test := range tests {
 		test := test
-		// Set new banner func and wait for the agent to call it to update the
-		// banner.
-		ready := make(chan struct{}, 2)
-		client.SetServiceBannerFunc(func() (codersdk.ServiceBannerConfig, error) {
-			select {
-			case ready <- struct{}{}:
-			default:
-			}
-			return test.banner, nil
-		})
-		<-ready
-		<-ready // Wait for two updates to ensure the value has propagated.
+		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
+			// Set new banner func and wait for the agent to call it to update the
+			// banner.
+			ready := make(chan struct{}, 2)
+			client.SetServiceBannerFunc(func() (codersdk.ServiceBannerConfig, error) {
+				select {
+				case ready <- struct{}{}:
+				default:
+				}
+				return test.banner, nil
+			})
+			<-ready
+			<-ready // Wait for two updates to ensure the value has propagated.
 
-		sshClient, err := conn.SSHClient(ctx)
-		require.NoError(t, err)
-		t.Cleanup(func() {
-			_ = sshClient.Close()
-		})
-		session, err := sshClient.NewSession()
-		require.NoError(t, err)
-		t.Cleanup(func() {
-			_ = session.Close()
-		})
+			session, err := sshClient.NewSession()
+			require.NoError(t, err)
+			t.Cleanup(func() {
+				_ = session.Close()
+			})
 
-		testSessionOutput(t, session, test.expected, test.unexpected, nil)
+			testSessionOutput(t, session, test.expected, test.unexpected, nil)
+		})
 	}
 }
 
@@ -1066,34 +1077,43 @@ func TestAgent_Metadata(t *testing.T) {
 
 	t.Run("Once", func(t *testing.T) {
 		t.Parallel()
+
 		//nolint:dogsled
 		_, client, _, _, _ := setupAgent(t, agentsdk.Manifest{
 			Metadata: []codersdk.WorkspaceAgentMetadataDescription{
 				{
-					Key:      "greeting",
+					Key:      "greeting1",
 					Interval: 0,
+					Script:   echoHello,
+				},
+				{
+					Key:      "greeting2",
+					Interval: 1,
 					Script:   echoHello,
 				},
 			},
 		}, 0, func(_ *agenttest.Client, opts *agent.Options) {
-			opts.ReportMetadataInterval = 100 * time.Millisecond
+			opts.ReportMetadataInterval = testutil.IntervalFast
 		})
 
-		var gotMd map[string]agentsdk.PostMetadataRequest
+		var gotMd map[string]agentsdk.Metadata
 		require.Eventually(t, func() bool {
 			gotMd = client.GetMetadata()
-			return len(gotMd) == 1
-		}, testutil.WaitShort, testutil.IntervalMedium)
+			return len(gotMd) == 2
+		}, testutil.WaitShort, testutil.IntervalFast/2)
 
-		collectedAt := gotMd["greeting"].CollectedAt
+		collectedAt1 := gotMd["greeting1"].CollectedAt
+		collectedAt2 := gotMd["greeting2"].CollectedAt
 
-		require.Never(t, func() bool {
+		require.Eventually(t, func() bool {
 			gotMd = client.GetMetadata()
-			if len(gotMd) != 1 {
+			if len(gotMd) != 2 {
 				panic("unexpected number of metadata")
 			}
-			return !gotMd["greeting"].CollectedAt.Equal(collectedAt)
-		}, testutil.WaitShort, testutil.IntervalMedium)
+			return !gotMd["greeting2"].CollectedAt.Equal(collectedAt2)
+		}, testutil.WaitShort, testutil.IntervalFast/2)
+
+		require.Equal(t, gotMd["greeting1"].CollectedAt, collectedAt1, "metadata should not be collected again")
 	})
 
 	t.Run("Many", func(t *testing.T) {
@@ -1112,7 +1132,7 @@ func TestAgent_Metadata(t *testing.T) {
 			opts.ReportMetadataInterval = testutil.IntervalFast
 		})
 
-		var gotMd map[string]agentsdk.PostMetadataRequest
+		var gotMd map[string]agentsdk.Metadata
 		require.Eventually(t, func() bool {
 			gotMd = client.GetMetadata()
 			return len(gotMd) == 1

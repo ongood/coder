@@ -24,12 +24,13 @@ import (
 	"cdr.dev/slog"
 	"github.com/coder/coder/v2/coderd"
 	agplaudit "github.com/coder/coder/v2/coderd/audit"
-	"github.com/coder/coder/v2/coderd/database/dbauthz"
+	agpldbauthz "github.com/coder/coder/v2/coderd/database/dbauthz"
 	"github.com/coder/coder/v2/coderd/httpapi"
 	"github.com/coder/coder/v2/coderd/httpmw"
 	"github.com/coder/coder/v2/coderd/rbac"
 	agplschedule "github.com/coder/coder/v2/coderd/schedule"
 	"github.com/coder/coder/v2/codersdk"
+	"github.com/coder/coder/v2/enterprise/coderd/dbauthz"
 	"github.com/coder/coder/v2/enterprise/coderd/license"
 	"github.com/coder/coder/v2/enterprise/coderd/proxyhealth"
 	"github.com/coder/coder/v2/enterprise/coderd/schedule"
@@ -113,7 +114,7 @@ func New(ctx context.Context, options *Options) (_ *API, err error) {
 	api.AGPL.SiteHandler.RegionsFetcher = func(ctx context.Context) (any, error) {
 		// If the user can read the workspace proxy resource, return that.
 		// If not, always default to the regions.
-		actor, ok := dbauthz.ActorFromContext(ctx)
+		actor, ok := agpldbauthz.ActorFromContext(ctx)
 		if ok && api.Authorizer.Authorize(ctx, actor, rbac.ActionRead, rbac.ResourceWorkspaceProxy) == nil {
 			return api.fetchWorkspaceProxies(ctx)
 		}
@@ -375,6 +376,11 @@ func New(ctx context.Context, options *Options) (_ *API, err error) {
 		api.AGPL.WorkspaceProxyHostsFn.Store(&f)
 	}
 
+	err = api.PrometheusRegistry.Register(&api.licenseMetricsCollector)
+	if err != nil {
+		return nil, xerrors.Errorf("unable to register license metrics collector")
+	}
+
 	err = api.updateEntitlements(ctx)
 	if err != nil {
 		return nil, xerrors.Errorf("update entitlements: %w", err)
@@ -434,6 +440,8 @@ type API struct {
 	entitlements         codersdk.Entitlements
 
 	provisionerDaemonAuth *provisionerDaemonAuth
+
+	licenseMetricsCollector license.MetricsCollector
 }
 
 func (api *API) Close() error {
@@ -475,6 +483,7 @@ func (api *API) updateEntitlements(ctx context.Context) error {
 			codersdk.FeatureTemplateAutostopRequirement: api.AGPL.Experiments.Enabled(codersdk.ExperimentTemplateAutostopRequirement) && api.DefaultQuietHoursSchedule != "",
 			codersdk.FeatureWorkspaceProxy:              true,
 			codersdk.FeatureUserRoleManagement:          true,
+			codersdk.FeatureAccessControl:               true,
 		})
 	if err != nil {
 		return err
@@ -647,6 +656,14 @@ func (api *API) updateEntitlements(ctx context.Context) error {
 		}
 	}
 
+	if initial, changed, enabled := featureChanged(codersdk.FeatureAccessControl); shouldUpdate(initial, changed, enabled) {
+		var acs agpldbauthz.AccessControlStore = agpldbauthz.AGPLTemplateAccessControlStore{}
+		if enabled {
+			acs = dbauthz.EnterpriseTemplateAccessControlStore{}
+		}
+		api.AGPL.AccessControlStore.Store(&acs)
+	}
+
 	// External token encryption is soft-enforced
 	featureExternalTokenEncryption := entitlements.Features[codersdk.FeatureExternalTokenEncryption]
 	featureExternalTokenEncryption.Enabled = len(api.ExternalTokenEncryption) > 0
@@ -660,8 +677,8 @@ func (api *API) updateEntitlements(ctx context.Context) error {
 	api.entitlementsMu.Lock()
 	defer api.entitlementsMu.Unlock()
 	api.entitlements = entitlements
+	api.licenseMetricsCollector.Entitlements.Store(&entitlements)
 	api.AGPL.SiteHandler.Entitlements.Store(&entitlements)
-
 	return nil
 }
 

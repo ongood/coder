@@ -26,6 +26,16 @@ const validFormValues: TemplateScheduleFormValues = {
   failure_cleanup_enabled: false,
   inactivity_cleanup_enabled: false,
   dormant_autodeletion_cleanup_enabled: false,
+  require_active_version: false,
+  autostart_requirement_days_of_week: [
+    "monday",
+    "tuesday",
+    "wednesday",
+    "thursday",
+    "friday",
+    "saturday",
+    "sunday",
+  ],
 };
 
 const renderTemplateSchedulePage = async () => {
@@ -123,6 +133,9 @@ describe("TemplateSchedulePage", () => {
     jest
       .spyOn(API, "getEntitlements")
       .mockResolvedValue(MockEntitlementsWithScheduling);
+
+    // remove when https://github.com/coder/coder/milestone/19 is completed.
+    jest.spyOn(API, "getExperiments").mockResolvedValue(["workspace_actions"]);
   });
 
   it("Calls the API when user fills in and submits a form", async () => {

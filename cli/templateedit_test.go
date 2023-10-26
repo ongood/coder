@@ -248,7 +248,7 @@ func TestTemplateEdit(t *testing.T) {
 		assert.Equal(t, "", updated.Icon)
 		assert.Equal(t, "", updated.DisplayName)
 	})
-	t.Run("AutostopRequirement", func(t *testing.T) {
+	t.Run("Autostop/startRequirement", func(t *testing.T) {
 		t.Parallel()
 		t.Run("BlockedAGPL", func(t *testing.T) {
 			t.Parallel()
@@ -286,6 +286,12 @@ func TestTemplateEdit(t *testing.T) {
 						"--autostop-requirement-weeks", "1",
 					},
 				},
+				{
+					name: "AutostartDays",
+					flags: []string{
+						"--autostart-requirement-weekdays", "monday",
+					},
+				},
 			}
 
 			for _, c := range cases {
@@ -321,6 +327,8 @@ func TestTemplateEdit(t *testing.T) {
 					assert.Equal(t, template.DefaultTTLMillis, updated.DefaultTTLMillis)
 					assert.Equal(t, template.AutostopRequirement.DaysOfWeek, updated.AutostopRequirement.DaysOfWeek)
 					assert.Equal(t, template.AutostopRequirement.Weeks, updated.AutostopRequirement.Weeks)
+					assert.Equal(t, template.AutostartRequirement.DaysOfWeek, updated.AutostartRequirement.DaysOfWeek)
+					assert.Equal(t, template.AutostartRequirement.DaysOfWeek, updated.AutostartRequirement.DaysOfWeek)
 				})
 			}
 		})
@@ -436,6 +444,7 @@ func TestTemplateEdit(t *testing.T) {
 					assert.Equal(t, template.DefaultTTLMillis, updated.DefaultTTLMillis)
 					assert.Equal(t, template.AutostopRequirement.DaysOfWeek, updated.AutostopRequirement.DaysOfWeek)
 					assert.Equal(t, template.AutostopRequirement.Weeks, updated.AutostopRequirement.Weeks)
+					assert.Equal(t, template.AutostartRequirement.DaysOfWeek, updated.AutostartRequirement.DaysOfWeek)
 				})
 			}
 		})
@@ -536,6 +545,7 @@ func TestTemplateEdit(t *testing.T) {
 			assert.Equal(t, template.DefaultTTLMillis, updated.DefaultTTLMillis)
 			assert.Equal(t, template.AutostopRequirement.DaysOfWeek, updated.AutostopRequirement.DaysOfWeek)
 			assert.Equal(t, template.AutostopRequirement.Weeks, updated.AutostopRequirement.Weeks)
+			assert.Equal(t, template.AutostartRequirement.DaysOfWeek, updated.AutostartRequirement.DaysOfWeek)
 		})
 	})
 	// TODO(@dean): remove this test when we remove max_ttl
@@ -808,6 +818,7 @@ func TestTemplateEdit(t *testing.T) {
 			assert.Equal(t, template.DefaultTTLMillis, updated.DefaultTTLMillis)
 			assert.Equal(t, template.AutostopRequirement.DaysOfWeek, updated.AutostopRequirement.DaysOfWeek)
 			assert.Equal(t, template.AutostopRequirement.Weeks, updated.AutostopRequirement.Weeks)
+			assert.Equal(t, template.AutostartRequirement.DaysOfWeek, updated.AutostartRequirement.DaysOfWeek)
 			assert.Equal(t, template.AllowUserAutostart, updated.AllowUserAutostart)
 			assert.Equal(t, template.AllowUserAutostop, updated.AllowUserAutostop)
 			assert.Equal(t, template.FailureTTLMillis, updated.FailureTTLMillis)
@@ -903,6 +914,7 @@ func TestTemplateEdit(t *testing.T) {
 			assert.Equal(t, template.DefaultTTLMillis, updated.DefaultTTLMillis)
 			assert.Equal(t, template.AutostopRequirement.DaysOfWeek, updated.AutostopRequirement.DaysOfWeek)
 			assert.Equal(t, template.AutostopRequirement.Weeks, updated.AutostopRequirement.Weeks)
+			assert.Equal(t, template.AutostartRequirement.DaysOfWeek, updated.AutostartRequirement.DaysOfWeek)
 			assert.Equal(t, template.AllowUserAutostart, updated.AllowUserAutostart)
 			assert.Equal(t, template.AllowUserAutostop, updated.AllowUserAutostop)
 			assert.Equal(t, template.FailureTTLMillis, updated.FailureTTLMillis)
@@ -1002,10 +1014,37 @@ func TestTemplateEdit(t *testing.T) {
 			assert.Equal(t, template.DefaultTTLMillis, updated.DefaultTTLMillis)
 			assert.Equal(t, template.AutostopRequirement.DaysOfWeek, updated.AutostopRequirement.DaysOfWeek)
 			assert.Equal(t, template.AutostopRequirement.Weeks, updated.AutostopRequirement.Weeks)
+			assert.Equal(t, template.AutostartRequirement.DaysOfWeek, updated.AutostartRequirement.DaysOfWeek)
 			assert.Equal(t, template.AllowUserAutostart, updated.AllowUserAutostart)
 			assert.Equal(t, template.AllowUserAutostop, updated.AllowUserAutostop)
 			assert.Equal(t, template.FailureTTLMillis, updated.FailureTTLMillis)
 			assert.Equal(t, template.TimeTilDormantMillis, updated.TimeTilDormantMillis)
 		})
+	})
+
+	t.Run("RequireActiveVersion", func(t *testing.T) {
+		t.Parallel()
+		client := coderdtest.New(t, &coderdtest.Options{IncludeProvisionerDaemon: true})
+		owner := coderdtest.CreateFirstUser(t, client)
+
+		version := coderdtest.CreateTemplateVersion(t, client, owner.OrganizationID, nil)
+		_ = coderdtest.AwaitTemplateVersionJobCompleted(t, client, version.ID)
+		template := coderdtest.CreateTemplate(t, client, owner.OrganizationID, version.ID, func(ctr *codersdk.CreateTemplateRequest) {})
+
+		// Test the cli command with --allow-user-autostart.
+		cmdArgs := []string{
+			"templates",
+			"edit",
+			template.Name,
+			"--require-active-version",
+		}
+		inv, root := clitest.New(t, cmdArgs...)
+		//nolint
+		clitest.SetupConfig(t, client, root)
+
+		ctx := testutil.Context(t, testutil.WaitLong)
+		err := inv.WithContext(ctx).Run()
+		require.Error(t, err)
+		require.ErrorContains(t, err, "appears to be an AGPL deployment")
 	})
 }

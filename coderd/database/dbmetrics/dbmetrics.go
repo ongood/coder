@@ -704,6 +704,13 @@ func (m metricsStore) GetTemplateInsightsByInterval(ctx context.Context, arg dat
 	return r0, r1
 }
 
+func (m metricsStore) GetTemplateInsightsByTemplate(ctx context.Context, arg database.GetTemplateInsightsByTemplateParams) ([]database.GetTemplateInsightsByTemplateRow, error) {
+	start := time.Now()
+	r0, r1 := m.s.GetTemplateInsightsByTemplate(ctx, arg)
+	m.queryLatencies.WithLabelValues("GetTemplateInsightsByTemplate").Observe(time.Since(start).Seconds())
+	return r0, r1
+}
+
 func (m metricsStore) GetTemplateParameterInsights(ctx context.Context, arg database.GetTemplateParameterInsightsParams) ([]database.GetTemplateParameterInsightsRow, error) {
 	start := time.Now()
 	r0, r1 := m.s.GetTemplateParameterInsights(ctx, arg)
@@ -900,7 +907,7 @@ func (m metricsStore) GetWorkspaceAgentLogsAfter(ctx context.Context, arg databa
 	return r0, r1
 }
 
-func (m metricsStore) GetWorkspaceAgentMetadata(ctx context.Context, workspaceAgentID uuid.UUID) ([]database.WorkspaceAgentMetadatum, error) {
+func (m metricsStore) GetWorkspaceAgentMetadata(ctx context.Context, workspaceAgentID database.GetWorkspaceAgentMetadataParams) ([]database.WorkspaceAgentMetadatum, error) {
 	start := time.Now()
 	metadata, err := m.s.GetWorkspaceAgentMetadata(ctx, workspaceAgentID)
 	m.queryLatencies.WithLabelValues("GetWorkspaceAgentMetadata").Observe(time.Since(start).Seconds())
@@ -1521,6 +1528,13 @@ func (m metricsStore) UpdateTemplateACLByID(ctx context.Context, arg database.Up
 	err := m.s.UpdateTemplateACLByID(ctx, arg)
 	m.queryLatencies.WithLabelValues("UpdateTemplateACLByID").Observe(time.Since(start).Seconds())
 	return err
+}
+
+func (m metricsStore) UpdateTemplateAccessControlByID(ctx context.Context, arg database.UpdateTemplateAccessControlByIDParams) error {
+	start := time.Now()
+	r0 := m.s.UpdateTemplateAccessControlByID(ctx, arg)
+	m.queryLatencies.WithLabelValues("UpdateTemplateAccessControlByID").Observe(time.Since(start).Seconds())
+	return r0
 }
 
 func (m metricsStore) UpdateTemplateActiveVersionByID(ctx context.Context, arg database.UpdateTemplateActiveVersionByIDParams) error {

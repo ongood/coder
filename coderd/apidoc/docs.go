@@ -587,8 +587,36 @@ const docTemplate = `{
                 "tags": [
                     "General"
                 ],
-                "summary": "Get experiments",
-                "operationId": "get-experiments",
+                "summary": "Get enabled experiments",
+                "operationId": "get-enabled-experiments",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/codersdk.Experiment"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/experiments/available": {
+            "get": {
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "General"
+                ],
+                "summary": "Get safe experiments",
+                "operationId": "get-safe-experiments",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -4867,7 +4895,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/workspaceagents/me/metadata/{key}": {
+        "/workspaceagents/me/metadata": {
             "post": {
                 "security": [
                     {
@@ -4889,7 +4917,46 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/agentsdk.PostMetadataRequest"
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/agentsdk.PostMetadataRequest"
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Success"
+                    }
+                },
+                "x-apidocgen": {
+                    "skip": true
+                }
+            }
+        },
+        "/workspaceagents/me/metadata/{key}": {
+            "post": {
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Agents"
+                ],
+                "summary": "Removed: Submit workspace agent metadata",
+                "operationId": "removed-submit-workspace-agent-metadata",
+                "parameters": [
+                    {
+                        "description": "Workspace agent metadata request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/agentsdk.PostMetadataRequestDeprecated"
                         }
                     },
                     {
@@ -6708,6 +6775,28 @@ const docTemplate = `{
                 }
             }
         },
+        "agentsdk.Metadata": {
+            "type": "object",
+            "properties": {
+                "age": {
+                    "description": "Age is the number of seconds since the metadata was collected.\nIt is provided in addition to CollectedAt to protect against clock skew.",
+                    "type": "integer"
+                },
+                "collected_at": {
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "error": {
+                    "type": "string"
+                },
+                "key": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "string"
+                }
+            }
+        },
         "agentsdk.PatchLogs": {
             "type": "object",
             "properties": {
@@ -6746,6 +6835,17 @@ const docTemplate = `{
             }
         },
         "agentsdk.PostMetadataRequest": {
+            "type": "object",
+            "properties": {
+                "metadata": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/agentsdk.Metadata"
+                    }
+                }
+            }
+        },
+        "agentsdk.PostMetadataRequestDeprecated": {
             "type": "object",
             "properties": {
                 "age": {
@@ -7660,6 +7760,14 @@ const docTemplate = `{
                     "description": "Allow users to cancel in-progress workspace jobs.\n*bool as the default value is \"true\".",
                     "type": "boolean"
                 },
+                "autostart_requirement": {
+                    "description": "AutostartRequirement allows optionally specifying the autostart allowed days\nfor workspaces created from this template. This is an enterprise feature.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/codersdk.TemplateAutostartRequirement"
+                        }
+                    ]
+                },
                 "autostop_requirement": {
                     "description": "AutostopRequirement allows optionally specifying the autostop requirement\nfor workspaces created from this template. This is an enterprise feature.",
                     "allOf": [
@@ -7707,6 +7815,10 @@ const docTemplate = `{
                 "name": {
                     "description": "Name is the name of the template.",
                     "type": "string"
+                },
+                "require_active_version": {
+                    "description": "RequireActiveVersion mandates that workspaces are built with the active\ntemplate version.",
+                    "type": "boolean"
                 },
                 "template_version_id": {
                     "description": "VersionID is an in-progress or completed job to use as an initial version\nof the template.\n\nThis is required on creation to enable a user-flow of validating a\ntemplate works. There is no reason the data-model cannot support empty\ntemplates, but it doesn't make sense for users.",
@@ -8425,19 +8537,23 @@ const docTemplate = `{
             "type": "string",
             "enum": [
                 "moons",
+                "workspace_actions",
                 "tailnet_pg_coordinator",
                 "single_tailnet",
                 "template_autostop_requirement",
                 "deployment_health_page",
-                "dashboard_theme"
+                "dashboard_theme",
+                "template_update_policies"
             ],
             "x-enum-varnames": [
                 "ExperimentMoons",
+                "ExperimentWorkspaceActions",
                 "ExperimentTailnetPGCoordinator",
                 "ExperimentSingleTailnet",
                 "ExperimentTemplateAutostopRequirement",
                 "ExperimentDeploymentHealthPage",
-                "ExperimentDashboardTheme"
+                "ExperimentDashboardTheme",
+                "ExperimentTemplateUpdatePolicies"
             ]
         },
         "codersdk.ExternalAuth": {
@@ -9824,8 +9940,11 @@ const docTemplate = `{
                 "allow_user_cancel_workspace_jobs": {
                     "type": "boolean"
                 },
+                "autostart_requirement": {
+                    "$ref": "#/definitions/codersdk.TemplateAutostartRequirement"
+                },
                 "autostop_requirement": {
-                    "description": "AutostopRequirement is an enterprise feature. Its value is only used if\nyour license is entitled to use the advanced template scheduling feature.",
+                    "description": "AutostopRequirement and AutostartRequirement are enterprise features. Its\nvalue is only used if your license is entitled to use the advanced template\nscheduling feature.",
                     "allOf": [
                         {
                             "$ref": "#/definitions/codersdk.TemplateAutostopRequirement"
@@ -9882,6 +10001,10 @@ const docTemplate = `{
                     "enum": [
                         "terraform"
                     ]
+                },
+                "require_active_version": {
+                    "description": "RequireActiveVersion mandates that workspaces are built with the active\ntemplate version.",
+                    "type": "boolean"
                 },
                 "time_til_dormant_autodelete_ms": {
                     "type": "integer"
@@ -9940,6 +10063,27 @@ const docTemplate = `{
                 "TemplateAppsTypeBuiltin",
                 "TemplateAppsTypeApp"
             ]
+        },
+        "codersdk.TemplateAutostartRequirement": {
+            "type": "object",
+            "properties": {
+                "days_of_week": {
+                    "description": "DaysOfWeek is a list of days of the week in which autostart is allowed\nto happen. If no days are specified, autostart is not allowed.",
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "enum": [
+                            "monday",
+                            "tuesday",
+                            "wednesday",
+                            "thursday",
+                            "friday",
+                            "saturday",
+                            "sunday"
+                        ]
+                    }
+                }
+            }
         },
         "codersdk.TemplateAutostopRequirement": {
             "type": "object",
@@ -10982,6 +11126,9 @@ const docTemplate = `{
                 },
                 "template_name": {
                     "type": "string"
+                },
+                "template_require_active_version": {
+                    "type": "boolean"
                 },
                 "ttl_ms": {
                     "type": "integer"

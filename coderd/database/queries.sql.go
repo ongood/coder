@@ -23,12 +23,20 @@ WITH latest AS (
 		workspace_builds.max_deadline::timestamp with time zone AS build_max_deadline,
 		workspace_builds.transition AS build_transition,
 		provisioner_jobs.completed_at::timestamp with time zone AS job_completed_at,
-		(workspaces.ttl / 1000 / 1000 / 1000 || ' seconds')::interval AS ttl_interval
+		(
+			CASE
+				WHEN templates.allow_user_autostop
+				THEN (workspaces.ttl / 1000 / 1000 / 1000 || ' seconds')::interval
+				ELSE (templates.default_ttl / 1000 / 1000 / 1000 || ' seconds')::interval
+			END
+		) AS ttl_interval
 	FROM workspace_builds
 	JOIN provisioner_jobs
 		ON provisioner_jobs.id = workspace_builds.job_id
 	JOIN workspaces
 		ON workspaces.id = workspace_builds.workspace_id
+	JOIN templates
+		ON templates.id = workspaces.template_id
 	WHERE workspace_builds.workspace_id = $1::uuid
 	ORDER BY workspace_builds.build_number DESC
 	LIMIT 1
@@ -46,6 +54,7 @@ FROM latest l
 WHERE wb.id = l.build_id
 AND l.job_completed_at IS NOT NULL
 AND l.build_transition = 'start'
+AND l.ttl_interval > '0 seconds'::interval
 AND l.build_deadline != '0001-01-01 00:00:00+00'
 AND l.build_deadline - (l.ttl_interval * 0.95) < NOW()
 `
@@ -54,6 +63,7 @@ AND l.build_deadline - (l.ttl_interval * 0.95) < NOW()
 // as the TTL wraps. For example, if I set the TTL to 12 hours, sign off
 // work at midnight, come back at 10am, I would want another full day
 // of uptime.
+// We only bump if the raw interval is positive and non-zero.
 // We only bump if workspace shutdown is manual.
 // We only bump when 5% of the deadline has elapsed.
 func (q *sqlQuerier) ActivityBumpWorkspace(ctx context.Context, workspaceID uuid.UUID) error {
@@ -1267,8 +1277,6 @@ WHERE
          OR
      organization_members.organization_id = $1)
 AND
-	users.status = 'active'
-AND
 	users.deleted = 'false'
 `
 
@@ -1913,6 +1921,79 @@ func (q *sqlQuerier) GetTemplateInsightsByInterval(ctx context.Context, arg GetT
 			&i.EndTime,
 			pq.Array(&i.TemplateIDs),
 			&i.ActiveUsers,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getTemplateInsightsByTemplate = `-- name: GetTemplateInsightsByTemplate :many
+WITH agent_stats_by_interval_and_user AS (
+	SELECT
+		date_trunc('minute', was.created_at) AS created_at_trunc,
+		was.template_id,
+		was.user_id,
+		CASE WHEN SUM(was.session_count_vscode) > 0 THEN 60 ELSE 0 END AS usage_vscode_seconds,
+		CASE WHEN SUM(was.session_count_jetbrains) > 0 THEN 60 ELSE 0 END AS usage_jetbrains_seconds,
+		CASE WHEN SUM(was.session_count_reconnecting_pty) > 0 THEN 60 ELSE 0 END AS usage_reconnecting_pty_seconds,
+		CASE WHEN SUM(was.session_count_ssh) > 0 THEN 60 ELSE 0 END AS usage_ssh_seconds
+	FROM workspace_agent_stats was
+	WHERE
+		was.created_at >= $1::timestamptz
+		AND was.created_at < $2::timestamptz
+		AND was.connection_count > 0
+	GROUP BY created_at_trunc, was.template_id, was.user_id
+)
+
+SELECT
+	template_id,
+	COALESCE(COUNT(DISTINCT user_id))::bigint AS active_users,
+	COALESCE(SUM(usage_vscode_seconds), 0)::bigint AS usage_vscode_seconds,
+	COALESCE(SUM(usage_jetbrains_seconds), 0)::bigint AS usage_jetbrains_seconds,
+	COALESCE(SUM(usage_reconnecting_pty_seconds), 0)::bigint AS usage_reconnecting_pty_seconds,
+	COALESCE(SUM(usage_ssh_seconds), 0)::bigint AS usage_ssh_seconds
+FROM agent_stats_by_interval_and_user
+GROUP BY template_id
+`
+
+type GetTemplateInsightsByTemplateParams struct {
+	StartTime time.Time `db:"start_time" json:"start_time"`
+	EndTime   time.Time `db:"end_time" json:"end_time"`
+}
+
+type GetTemplateInsightsByTemplateRow struct {
+	TemplateID                  uuid.UUID `db:"template_id" json:"template_id"`
+	ActiveUsers                 int64     `db:"active_users" json:"active_users"`
+	UsageVscodeSeconds          int64     `db:"usage_vscode_seconds" json:"usage_vscode_seconds"`
+	UsageJetbrainsSeconds       int64     `db:"usage_jetbrains_seconds" json:"usage_jetbrains_seconds"`
+	UsageReconnectingPtySeconds int64     `db:"usage_reconnecting_pty_seconds" json:"usage_reconnecting_pty_seconds"`
+	UsageSshSeconds             int64     `db:"usage_ssh_seconds" json:"usage_ssh_seconds"`
+}
+
+func (q *sqlQuerier) GetTemplateInsightsByTemplate(ctx context.Context, arg GetTemplateInsightsByTemplateParams) ([]GetTemplateInsightsByTemplateRow, error) {
+	rows, err := q.db.QueryContext(ctx, getTemplateInsightsByTemplate, arg.StartTime, arg.EndTime)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetTemplateInsightsByTemplateRow
+	for rows.Next() {
+		var i GetTemplateInsightsByTemplateRow
+		if err := rows.Scan(
+			&i.TemplateID,
+			&i.ActiveUsers,
+			&i.UsageVscodeSeconds,
+			&i.UsageJetbrainsSeconds,
+			&i.UsageReconnectingPtySeconds,
+			&i.UsageSshSeconds,
 		); err != nil {
 			return nil, err
 		}
@@ -4716,7 +4797,7 @@ func (q *sqlQuerier) GetTemplateAverageBuildTime(ctx context.Context, arg GetTem
 
 const getTemplateByID = `-- name: GetTemplateByID :one
 SELECT
-	id, created_at, updated_at, organization_id, deleted, name, provisioner, active_version_id, description, default_ttl, created_by, icon, user_acl, group_acl, display_name, allow_user_cancel_workspace_jobs, max_ttl, allow_user_autostart, allow_user_autostop, failure_ttl, time_til_dormant, time_til_dormant_autodelete, autostop_requirement_days_of_week, autostop_requirement_weeks, created_by_avatar_url, created_by_username
+	id, created_at, updated_at, organization_id, deleted, name, provisioner, active_version_id, description, default_ttl, created_by, icon, user_acl, group_acl, display_name, allow_user_cancel_workspace_jobs, max_ttl, allow_user_autostart, allow_user_autostop, failure_ttl, time_til_dormant, time_til_dormant_autodelete, autostop_requirement_days_of_week, autostop_requirement_weeks, autostart_block_days_of_week, require_active_version, created_by_avatar_url, created_by_username
 FROM
 	template_with_users
 WHERE
@@ -4753,6 +4834,8 @@ func (q *sqlQuerier) GetTemplateByID(ctx context.Context, id uuid.UUID) (Templat
 		&i.TimeTilDormantAutoDelete,
 		&i.AutostopRequirementDaysOfWeek,
 		&i.AutostopRequirementWeeks,
+		&i.AutostartBlockDaysOfWeek,
+		&i.RequireActiveVersion,
 		&i.CreatedByAvatarURL,
 		&i.CreatedByUsername,
 	)
@@ -4761,7 +4844,7 @@ func (q *sqlQuerier) GetTemplateByID(ctx context.Context, id uuid.UUID) (Templat
 
 const getTemplateByOrganizationAndName = `-- name: GetTemplateByOrganizationAndName :one
 SELECT
-	id, created_at, updated_at, organization_id, deleted, name, provisioner, active_version_id, description, default_ttl, created_by, icon, user_acl, group_acl, display_name, allow_user_cancel_workspace_jobs, max_ttl, allow_user_autostart, allow_user_autostop, failure_ttl, time_til_dormant, time_til_dormant_autodelete, autostop_requirement_days_of_week, autostop_requirement_weeks, created_by_avatar_url, created_by_username
+	id, created_at, updated_at, organization_id, deleted, name, provisioner, active_version_id, description, default_ttl, created_by, icon, user_acl, group_acl, display_name, allow_user_cancel_workspace_jobs, max_ttl, allow_user_autostart, allow_user_autostop, failure_ttl, time_til_dormant, time_til_dormant_autodelete, autostop_requirement_days_of_week, autostop_requirement_weeks, autostart_block_days_of_week, require_active_version, created_by_avatar_url, created_by_username
 FROM
 	template_with_users AS templates
 WHERE
@@ -4806,6 +4889,8 @@ func (q *sqlQuerier) GetTemplateByOrganizationAndName(ctx context.Context, arg G
 		&i.TimeTilDormantAutoDelete,
 		&i.AutostopRequirementDaysOfWeek,
 		&i.AutostopRequirementWeeks,
+		&i.AutostartBlockDaysOfWeek,
+		&i.RequireActiveVersion,
 		&i.CreatedByAvatarURL,
 		&i.CreatedByUsername,
 	)
@@ -4813,7 +4898,7 @@ func (q *sqlQuerier) GetTemplateByOrganizationAndName(ctx context.Context, arg G
 }
 
 const getTemplates = `-- name: GetTemplates :many
-SELECT id, created_at, updated_at, organization_id, deleted, name, provisioner, active_version_id, description, default_ttl, created_by, icon, user_acl, group_acl, display_name, allow_user_cancel_workspace_jobs, max_ttl, allow_user_autostart, allow_user_autostop, failure_ttl, time_til_dormant, time_til_dormant_autodelete, autostop_requirement_days_of_week, autostop_requirement_weeks, created_by_avatar_url, created_by_username FROM template_with_users AS templates
+SELECT id, created_at, updated_at, organization_id, deleted, name, provisioner, active_version_id, description, default_ttl, created_by, icon, user_acl, group_acl, display_name, allow_user_cancel_workspace_jobs, max_ttl, allow_user_autostart, allow_user_autostop, failure_ttl, time_til_dormant, time_til_dormant_autodelete, autostop_requirement_days_of_week, autostop_requirement_weeks, autostart_block_days_of_week, require_active_version, created_by_avatar_url, created_by_username FROM template_with_users AS templates
 ORDER BY (name, id) ASC
 `
 
@@ -4851,6 +4936,8 @@ func (q *sqlQuerier) GetTemplates(ctx context.Context) ([]Template, error) {
 			&i.TimeTilDormantAutoDelete,
 			&i.AutostopRequirementDaysOfWeek,
 			&i.AutostopRequirementWeeks,
+			&i.AutostartBlockDaysOfWeek,
+			&i.RequireActiveVersion,
 			&i.CreatedByAvatarURL,
 			&i.CreatedByUsername,
 		); err != nil {
@@ -4869,7 +4956,7 @@ func (q *sqlQuerier) GetTemplates(ctx context.Context) ([]Template, error) {
 
 const getTemplatesWithFilter = `-- name: GetTemplatesWithFilter :many
 SELECT
-	id, created_at, updated_at, organization_id, deleted, name, provisioner, active_version_id, description, default_ttl, created_by, icon, user_acl, group_acl, display_name, allow_user_cancel_workspace_jobs, max_ttl, allow_user_autostart, allow_user_autostop, failure_ttl, time_til_dormant, time_til_dormant_autodelete, autostop_requirement_days_of_week, autostop_requirement_weeks, created_by_avatar_url, created_by_username
+	id, created_at, updated_at, organization_id, deleted, name, provisioner, active_version_id, description, default_ttl, created_by, icon, user_acl, group_acl, display_name, allow_user_cancel_workspace_jobs, max_ttl, allow_user_autostart, allow_user_autostop, failure_ttl, time_til_dormant, time_til_dormant_autodelete, autostop_requirement_days_of_week, autostop_requirement_weeks, autostart_block_days_of_week, require_active_version, created_by_avatar_url, created_by_username
 FROM
 	template_with_users AS templates
 WHERE
@@ -4944,6 +5031,8 @@ func (q *sqlQuerier) GetTemplatesWithFilter(ctx context.Context, arg GetTemplate
 			&i.TimeTilDormantAutoDelete,
 			&i.AutostopRequirementDaysOfWeek,
 			&i.AutostopRequirementWeeks,
+			&i.AutostartBlockDaysOfWeek,
+			&i.RequireActiveVersion,
 			&i.CreatedByAvatarURL,
 			&i.CreatedByUsername,
 		); err != nil {
@@ -5040,6 +5129,25 @@ func (q *sqlQuerier) UpdateTemplateACLByID(ctx context.Context, arg UpdateTempla
 	return err
 }
 
+const updateTemplateAccessControlByID = `-- name: UpdateTemplateAccessControlByID :exec
+UPDATE
+	templates
+SET
+	require_active_version = $2
+WHERE
+	id = $1
+`
+
+type UpdateTemplateAccessControlByIDParams struct {
+	ID                   uuid.UUID `db:"id" json:"id"`
+	RequireActiveVersion bool      `db:"require_active_version" json:"require_active_version"`
+}
+
+func (q *sqlQuerier) UpdateTemplateAccessControlByID(ctx context.Context, arg UpdateTemplateAccessControlByIDParams) error {
+	_, err := q.db.ExecContext(ctx, updateTemplateAccessControlByID, arg.ID, arg.RequireActiveVersion)
+	return err
+}
+
 const updateTemplateActiveVersionByID = `-- name: UpdateTemplateActiveVersionByID :exec
 UPDATE
 	templates
@@ -5130,9 +5238,10 @@ SET
 	max_ttl = $6,
 	autostop_requirement_days_of_week = $7,
 	autostop_requirement_weeks = $8,
-	failure_ttl = $9,
-	time_til_dormant = $10,
-	time_til_dormant_autodelete = $11
+	autostart_block_days_of_week = $9,
+	failure_ttl = $10,
+	time_til_dormant = $11,
+	time_til_dormant_autodelete = $12
 WHERE
 	id = $1
 `
@@ -5146,6 +5255,7 @@ type UpdateTemplateScheduleByIDParams struct {
 	MaxTTL                        int64     `db:"max_ttl" json:"max_ttl"`
 	AutostopRequirementDaysOfWeek int16     `db:"autostop_requirement_days_of_week" json:"autostop_requirement_days_of_week"`
 	AutostopRequirementWeeks      int64     `db:"autostop_requirement_weeks" json:"autostop_requirement_weeks"`
+	AutostartBlockDaysOfWeek      int16     `db:"autostart_block_days_of_week" json:"autostart_block_days_of_week"`
 	FailureTTL                    int64     `db:"failure_ttl" json:"failure_ttl"`
 	TimeTilDormant                int64     `db:"time_til_dormant" json:"time_til_dormant"`
 	TimeTilDormantAutoDelete      int64     `db:"time_til_dormant_autodelete" json:"time_til_dormant_autodelete"`
@@ -5161,6 +5271,7 @@ func (q *sqlQuerier) UpdateTemplateScheduleByID(ctx context.Context, arg UpdateT
 		arg.MaxTTL,
 		arg.AutostopRequirementDaysOfWeek,
 		arg.AutostopRequirementWeeks,
+		arg.AutostartBlockDaysOfWeek,
 		arg.FailureTTL,
 		arg.TimeTilDormant,
 		arg.TimeTilDormantAutoDelete,
@@ -7308,10 +7419,16 @@ FROM
 	workspace_agent_metadata
 WHERE
 	workspace_agent_id = $1
+	AND CASE WHEN COALESCE(array_length($2::text[], 1), 0) > 0 THEN key = ANY($2::text[]) ELSE TRUE END
 `
 
-func (q *sqlQuerier) GetWorkspaceAgentMetadata(ctx context.Context, workspaceAgentID uuid.UUID) ([]WorkspaceAgentMetadatum, error) {
-	rows, err := q.db.QueryContext(ctx, getWorkspaceAgentMetadata, workspaceAgentID)
+type GetWorkspaceAgentMetadataParams struct {
+	WorkspaceAgentID uuid.UUID `db:"workspace_agent_id" json:"workspace_agent_id"`
+	Keys             []string  `db:"keys" json:"keys"`
+}
+
+func (q *sqlQuerier) GetWorkspaceAgentMetadata(ctx context.Context, arg GetWorkspaceAgentMetadataParams) ([]WorkspaceAgentMetadatum, error) {
+	rows, err := q.db.QueryContext(ctx, getWorkspaceAgentMetadata, arg.WorkspaceAgentID, pq.Array(arg.Keys))
 	if err != nil {
 		return nil, err
 	}
@@ -7870,32 +7987,41 @@ func (q *sqlQuerier) UpdateWorkspaceAgentLogOverflowByID(ctx context.Context, ar
 }
 
 const updateWorkspaceAgentMetadata = `-- name: UpdateWorkspaceAgentMetadata :exec
+WITH metadata AS (
+	SELECT
+		unnest($2::text[]) AS key,
+		unnest($3::text[]) AS value,
+		unnest($4::text[]) AS error,
+		unnest($5::timestamptz[]) AS collected_at
+)
 UPDATE
-	workspace_agent_metadata
+	workspace_agent_metadata wam
 SET
-	value = $3,
-	error = $4,
-	collected_at = $5
+	value = m.value,
+	error = m.error,
+	collected_at = m.collected_at
+FROM
+	metadata m
 WHERE
-	workspace_agent_id = $1
-	AND key = $2
+	wam.workspace_agent_id = $1
+	AND wam.key = m.key
 `
 
 type UpdateWorkspaceAgentMetadataParams struct {
-	WorkspaceAgentID uuid.UUID `db:"workspace_agent_id" json:"workspace_agent_id"`
-	Key              string    `db:"key" json:"key"`
-	Value            string    `db:"value" json:"value"`
-	Error            string    `db:"error" json:"error"`
-	CollectedAt      time.Time `db:"collected_at" json:"collected_at"`
+	WorkspaceAgentID uuid.UUID   `db:"workspace_agent_id" json:"workspace_agent_id"`
+	Key              []string    `db:"key" json:"key"`
+	Value            []string    `db:"value" json:"value"`
+	Error            []string    `db:"error" json:"error"`
+	CollectedAt      []time.Time `db:"collected_at" json:"collected_at"`
 }
 
 func (q *sqlQuerier) UpdateWorkspaceAgentMetadata(ctx context.Context, arg UpdateWorkspaceAgentMetadataParams) error {
 	_, err := q.db.ExecContext(ctx, updateWorkspaceAgentMetadata,
 		arg.WorkspaceAgentID,
-		arg.Key,
-		arg.Value,
-		arg.Error,
-		arg.CollectedAt,
+		pq.Array(arg.Key),
+		pq.Array(arg.Value),
+		pq.Array(arg.Error),
+		pq.Array(arg.CollectedAt),
 	)
 	return err
 }

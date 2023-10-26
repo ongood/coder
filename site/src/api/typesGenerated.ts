@@ -152,6 +152,11 @@ export interface AuthorizationRequest {
 export type AuthorizationResponse = Record<string, boolean>;
 
 // From codersdk/deployment.go
+export interface AvailableExperiments {
+  readonly safe: Experiment[];
+}
+
+// From codersdk/deployment.go
 export interface BuildInfoResponse {
   readonly external_url: string;
   readonly version: string;
@@ -208,6 +213,7 @@ export interface CreateTemplateRequest {
   readonly default_ttl_ms?: number;
   readonly max_ttl_ms?: number;
   readonly autostop_requirement?: TemplateAutostopRequirement;
+  readonly autostart_requirement?: TemplateAutostartRequirement;
   readonly allow_user_cancel_workspace_jobs?: boolean;
   readonly allow_user_autostart?: boolean;
   readonly allow_user_autostop?: boolean;
@@ -215,6 +221,7 @@ export interface CreateTemplateRequest {
   readonly dormant_ttl_ms?: number;
   readonly delete_ttl_ms?: number;
   readonly disable_everyone_group_access: boolean;
+  readonly require_active_version: boolean;
 }
 
 // From codersdk/templateversions.go
@@ -901,6 +908,7 @@ export interface Template {
   readonly default_ttl_ms: number;
   readonly max_ttl_ms: number;
   readonly autostop_requirement: TemplateAutostopRequirement;
+  readonly autostart_requirement: TemplateAutostartRequirement;
   readonly created_by_id: string;
   readonly created_by_name: string;
   readonly allow_user_autostart: boolean;
@@ -909,6 +917,7 @@ export interface Template {
   readonly failure_ttl_ms: number;
   readonly time_til_dormant_ms: number;
   readonly time_til_dormant_autodelete_ms: number;
+  readonly require_active_version: boolean;
 }
 
 // From codersdk/templates.go
@@ -925,6 +934,11 @@ export interface TemplateAppUsage {
   readonly slug: string;
   readonly icon: string;
   readonly seconds: number;
+}
+
+// From codersdk/templates.go
+export interface TemplateAutostartRequirement {
+  readonly days_of_week: string[];
 }
 
 // From codersdk/templates.go
@@ -1145,6 +1159,7 @@ export interface UpdateTemplateMeta {
   readonly default_ttl_ms?: number;
   readonly max_ttl_ms?: number;
   readonly autostop_requirement?: TemplateAutostopRequirement;
+  readonly autostart_requirement?: TemplateAutostartRequirement;
   readonly allow_user_autostart?: boolean;
   readonly allow_user_autostop?: boolean;
   readonly allow_user_cancel_workspace_jobs?: boolean;
@@ -1153,6 +1168,7 @@ export interface UpdateTemplateMeta {
   readonly time_til_dormant_autodelete_ms?: number;
   readonly update_workspace_last_used_at: boolean;
   readonly update_workspace_dormant_at: boolean;
+  readonly require_active_version: boolean;
 }
 
 // From codersdk/users.go
@@ -1335,6 +1351,7 @@ export interface Workspace {
   readonly template_icon: string;
   readonly template_allow_user_cancel_workspace_jobs: boolean;
   readonly template_active_version_id: string;
+  readonly template_require_active_version: boolean;
   readonly latest_build: WorkspaceBuild;
   readonly outdated: boolean;
   readonly name: string;
@@ -1690,7 +1707,9 @@ export type Experiment =
   | "moons"
   | "single_tailnet"
   | "tailnet_pg_coordinator"
-  | "template_autostop_requirement";
+  | "template_autostop_requirement"
+  | "template_update_policies"
+  | "workspace_actions";
 export const Experiments: Experiment[] = [
   "dashboard_theme",
   "deployment_health_page",
@@ -1698,10 +1717,13 @@ export const Experiments: Experiment[] = [
   "single_tailnet",
   "tailnet_pg_coordinator",
   "template_autostop_requirement",
+  "template_update_policies",
+  "workspace_actions",
 ];
 
 // From codersdk/deployment.go
 export type FeatureName =
+  | "access_control"
   | "advanced_template_scheduling"
   | "appearance"
   | "audit_log"
@@ -1718,6 +1740,7 @@ export type FeatureName =
   | "workspace_batch_actions"
   | "workspace_proxy";
 export const FeatureNames: FeatureName[] = [
+  "access_control",
   "advanced_template_scheduling",
   "appearance",
   "audit_log",
