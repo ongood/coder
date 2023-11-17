@@ -10,7 +10,7 @@ import (
 	"os/signal"
 	"strings"
 	"testing"
-	"unicode"
+	// "unicode"
 
 	"cdr.dev/slog"
 
