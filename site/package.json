@@ -43,7 +43,7 @@
     "@mui/styles": "5.14.0",
     "@mui/system": "5.14.0",
     "@mui/utils": "5.14.11",
-    "@vitejs/plugin-react": "4.1.0",
+    "@vitejs/plugin-react": "4.2.0",
     "ansi-to-html": "0.7.2",
     "axios": "1.6.0",
     "canvas": "2.11.0",
