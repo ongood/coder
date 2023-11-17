@@ -1,8 +1,14 @@
-import { makeStyles } from "@mui/styles";
+import { css } from "@emotion/css";
+import {
+  useTheme,
+  type CSSObject,
+  type Interpolation,
+  type Theme,
+} from "@emotion/react";
 import ScheduleIcon from "@mui/icons-material/TimerOutlined";
-import { Workspace } from "api/typesGenerated";
+import type { Workspace } from "api/typesGenerated";
 import { Stack } from "components/Stack/Stack";
-import { FC, ElementType, PropsWithChildren, ReactNode } from "react";
+import { type FC, type PropsWithChildren, type ReactNode } from "react";
 import { Link, NavLink } from "react-router-dom";
 import { combineClasses } from "utils/combineClasses";
 import GeneralIcon from "@mui/icons-material/SettingsOutlined";
@@ -12,88 +18,15 @@ import { Avatar } from "components/Avatar/Avatar";
 const SidebarNavItem: FC<
   PropsWithChildren<{ href: string; icon: ReactNode }>
 > = ({ children, href, icon }) => {
-  const styles = useStyles();
-  return (
-    <NavLink
-      end
-      to={href}
-      className={({ isActive }) =>
-        combineClasses([
-          styles.sidebarNavItem,
-          isActive ? styles.sidebarNavItemActive : undefined,
-        ])
-      }
-    >
-      <Stack alignItems="center" spacing={1.5} direction="row">
-        {icon}
-        {children}
-      </Stack>
-    </NavLink>
-  );
-};
+  const theme = useTheme();
 
-const SidebarNavItemIcon: React.FC<{ icon: ElementType }> = ({
-  icon: Icon,
-}) => {
-  const styles = useStyles();
-  return <Icon className={styles.sidebarNavItemIcon} />;
-};
-
-export const Sidebar: React.FC<{ username: string; workspace: Workspace }> = ({
-  username,
-  workspace,
-}) => {
-  const styles = useStyles();
-
-  return (
-    <nav className={styles.sidebar}>
-      <Stack
-        direction="row"
-        alignItems="center"
-        className={styles.workspaceInfo}
-      >
-        <Avatar src={workspace.template_icon} variant="square" fitImage />
-        <Stack spacing={0} className={styles.workspaceData}>
-          <Link className={styles.name} to={`/@${username}/${workspace.name}`}>
-            {workspace.name}
-          </Link>
-          <span className={styles.secondary}>
-            {workspace.template_display_name ?? workspace.template_name}
-          </span>
-        </Stack>
-      </Stack>
-
-      <SidebarNavItem href="" icon={<SidebarNavItemIcon icon={GeneralIcon} />}>
-        常规
-      </SidebarNavItem>
-      <SidebarNavItem
-        href="parameters"
-        icon={<SidebarNavItemIcon icon={ParameterIcon} />}
-      >
-        参数
-      </SidebarNavItem>
-      <SidebarNavItem
-        href="schedule"
-        icon={<SidebarNavItemIcon icon={ScheduleIcon} />}
-      >
-        日程
-      </SidebarNavItem>
-    </nav>
-  );
-};
-
-const useStyles = makeStyles((theme) => ({
-  sidebar: {
-    width: 245,
-    flexShrink: 0,
-  },
-  sidebarNavItem: {
+  const linkStyles = css({
     color: "inherit",
     display: "block",
     fontSize: 14,
     textDecoration: "none",
-    padding: theme.spacing(1.5, 1.5, 1.5, 2),
-    borderRadius: theme.shape.borderRadius / 2,
+    padding: "12px 12px 12px 16px",
+    borderRadius: 4,
     transition: "background-color 0.15s ease-in-out",
     marginBottom: 1,
     position: "relative",
@@ -101,8 +34,9 @@ const useStyles = makeStyles((theme) => ({
     "&:hover": {
       backgroundColor: theme.palette.action.hover,
     },
-  },
-  sidebarNavItemActive: {
+  });
+
+  const activeLinkStyles = css({
     backgroundColor: theme.palette.action.hover,
 
     "&:before": {
@@ -114,33 +48,95 @@ const useStyles = makeStyles((theme) => ({
       left: 0,
       top: 0,
       backgroundColor: theme.palette.secondary.dark,
-      borderTopLeftRadius: theme.shape.borderRadius,
-      borderBottomLeftRadius: theme.shape.borderRadius,
+      borderTopLeftRadius: 8,
+      borderBottomLeftRadius: 8,
     },
+  });
+
+  return (
+    <NavLink
+      end
+      to={href}
+      className={({ isActive }) =>
+        combineClasses([linkStyles, isActive ? activeLinkStyles : undefined])
+      }
+    >
+      <Stack alignItems="center" spacing={1.5} direction="row">
+        {icon}
+        {children}
+      </Stack>
+    </NavLink>
+  );
+};
+
+export const Sidebar: FC<{ username: string; workspace: Workspace }> = ({
+  username,
+  workspace,
+}) => {
+  return (
+    <nav css={styles.sidebar}>
+      <Stack direction="row" alignItems="center" css={styles.workspaceInfo}>
+        <Avatar src={workspace.template_icon} variant="square" fitImage />
+        <Stack spacing={0} css={styles.workspaceData}>
+          <Link css={styles.name} to={`/@${username}/${workspace.name}`}>
+            {workspace.name}
+          </Link>
+          <span css={styles.secondary}>
+            {workspace.template_display_name ?? workspace.template_name}
+          </span>
+        </Stack>
+      </Stack>
+
+      <SidebarNavItem
+        href=""
+        icon={<GeneralIcon css={styles.sidebarItemIcon} />}
+      >
+        General
+      </SidebarNavItem>
+      <SidebarNavItem
+        href="parameters"
+        icon={<ParameterIcon css={styles.sidebarItemIcon} />}
+      >
+        Parameters
+      </SidebarNavItem>
+      <SidebarNavItem
+        href="schedule"
+        icon={<ScheduleIcon css={styles.sidebarItemIcon} />}
+      >
+        Schedule
+      </SidebarNavItem>
+    </nav>
+  );
+};
+
+const styles = {
+  sidebar: {
+    width: 245,
+    flexShrink: 0,
   },
-  sidebarNavItemIcon: {
-    width: theme.spacing(2),
-    height: theme.spacing(2),
+  sidebarItemIcon: {
+    width: 16,
+    height: 16,
   },
-  workspaceInfo: {
-    ...theme.typography.body2,
-    marginBottom: theme.spacing(2),
-  },
+  workspaceInfo: (theme) => ({
+    ...(theme.typography.body2 as CSSObject),
+    marginBottom: 16,
+  }),
   workspaceData: {
     overflow: "hidden",
   },
-  name: {
+  name: (theme) => ({
     fontWeight: 600,
     overflow: "hidden",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
     color: theme.palette.text.primary,
     textDecoration: "none",
-  },
-  secondary: {
+  }),
+  secondary: (theme) => ({
     color: theme.palette.text.secondary,
     fontSize: 12,
     overflow: "hidden",
     textOverflow: "ellipsis",
-  },
-}));
+  }),
+} satisfies Record<string, Interpolation<Theme>>;

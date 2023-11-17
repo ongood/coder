@@ -115,11 +115,20 @@ function OverflowRolePill({ roles }: OverflowRolePillProps) {
           ".MuiPaper-root": {
             display: "flex",
             flexFlow: "row wrap",
-            columnGap: theme.spacing(1),
-            rowGap: theme.spacing(1.5),
-            padding: theme.spacing(1.5, 2),
+            columnGap: 8,
+            rowGap: 12,
+            padding: "12px 16px",
             alignContent: "space-around",
+            minWidth: "auto",
           },
+        }}
+        anchorOrigin={{
+          vertical: -4,
+          horizontal: "center",
+        }}
+        transformOrigin={{
+          vertical: "bottom",
+          horizontal: "center",
         }}
       >
         {roles.map((role) => (

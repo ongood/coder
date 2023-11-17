@@ -39,9 +39,9 @@ export const getStatus = (
       };
     case "pending":
       return {
-        text: "待处理",
-        icon: <LoadingIcon />,
         type: "info",
+        text: "Pending",
+        icon: <LoadingIcon />,
       };
     case "canceling":
       return {

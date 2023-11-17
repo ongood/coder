@@ -1,12 +1,11 @@
 import Badge from "@mui/material/Badge";
-import { FC, PropsWithChildren } from "react";
+import { type FC, type PropsWithChildren } from "react";
 import { colors } from "theme/colors";
-import * as TypesGen from "api/typesGenerated";
-import { navHeight } from "theme/constants";
+import type * as TypesGen from "api/typesGenerated";
+import { BUTTON_SM_HEIGHT, navHeight } from "theme/constants";
 import { DropdownArrow } from "components/DropdownArrow/DropdownArrow";
 import { UserAvatar } from "components/UserAvatar/UserAvatar";
 import { UserDropdownContent } from "./UserDropdownContent";
-import { BUTTON_SM_HEIGHT } from "theme/theme";
 import { css } from "@emotion/react";
 import {
   Popover,
@@ -35,12 +34,12 @@ export const UserDropdown: FC<PropsWithChildren<UserDropdownProps>> = ({
         <>
           <PopoverTrigger>
             <button
-              css={(theme) => css`
+              css={css`
                 background: none;
                 border: 0;
                 cursor: pointer;
                 height: ${navHeight}px;
-                padding: ${theme.spacing(1.5, 0)};
+                padding: 12px 0;
 
                 &:hover {
                   background-color: transparent;
@@ -76,6 +75,7 @@ export const UserDropdown: FC<PropsWithChildren<UserDropdownProps>> = ({
             horizontal="right"
             css={(theme) => ({
               ".MuiPaper-root": {
+                minWidth: "auto",
                 width: 260,
                 boxShadow: theme.shadows[6],
               },

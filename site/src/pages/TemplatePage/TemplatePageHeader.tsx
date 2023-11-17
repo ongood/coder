@@ -1,4 +1,4 @@
-import { type FC, useRef, useState } from "react";
+import { type FC } from "react";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import { useDeletionDialogState } from "./useDeletionDialogState";
 
@@ -20,17 +20,20 @@ import {
   PageHeaderTitle,
   PageHeaderSubtitle,
 } from "components/PageHeader/PageHeader";
-
 import Button from "@mui/material/Button";
-import MoreVertOutlined from "@mui/icons-material/MoreVertOutlined";
-import Menu from "@mui/material/Menu";
-import MenuItem from "@mui/material/MenuItem";
-import IconButton from "@mui/material/IconButton";
 import AddIcon from "@mui/icons-material/AddOutlined";
 import SettingsIcon from "@mui/icons-material/SettingsOutlined";
 import DeleteIcon from "@mui/icons-material/DeleteOutlined";
 import EditIcon from "@mui/icons-material/EditOutlined";
 import CopyIcon from "@mui/icons-material/FileCopyOutlined";
+import {
+  MoreMenu,
+  MoreMenuContent,
+  MoreMenuItem,
+  MoreMenuTrigger,
+  ThreeDotsButton,
+} from "components/MoreMenu/MoreMenu";
+import Divider from "@mui/material/Divider";
 
 type TemplateMenuProps = {
   templateName: string;
@@ -46,80 +49,56 @@ const TemplateMenu: FC<TemplateMenuProps> = ({
   onDelete,
 }) => {
   const dialogState = useDeletionDialogState(templateId, onDelete);
-  const menuTriggerRef = useRef<HTMLButtonElement>(null);
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const navigate = useNavigate();
-
   const queryText = `template:${templateName}`;
   const workspaceCountQuery = useQuery({
     ...workspaces({ q: queryText }),
     select: (res) => res.count,
   });
-
-  // Returns a function that will execute the action and close the menu
-  const onMenuItemClick = (actionFn: () => void) => () => {
-    setIsMenuOpen(false);
-    actionFn();
-  };
-
   const safeToDeleteTemplate = workspaceCountQuery.data === 0;
 
   return (
     <>
-      <div>
-        <IconButton
-          aria-controls="template-options"
-          aria-haspopup="true"
-          onClick={() => setIsMenuOpen(true)}
-          ref={menuTriggerRef}
-          arial-label="More options"
-        >
-          <MoreVertOutlined />
-        </IconButton>
-
-        <Menu
-          id="template-options"
-          anchorEl={menuTriggerRef.current}
-          open={isMenuOpen}
-          onClose={() => setIsMenuOpen(false)}
-        >
-          <MenuItem
-            onClick={onMenuItemClick(() =>
-              navigate(`/templates/${templateName}/settings`),
-            )}
+      <MoreMenu>
+        <MoreMenuTrigger>
+          <ThreeDotsButton />
+        </MoreMenuTrigger>
+        <MoreMenuContent>
+          <MoreMenuItem
+            onClick={() => {
+              navigate(`/templates/${templateName}/settings`);
+            }}
           >
             <SettingsIcon />
-            设置
-          </MenuItem>
+            Settings
+          </MoreMenuItem>
 
-          <MenuItem
-            onClick={onMenuItemClick(() =>
+          <MoreMenuItem
+            onClick={() => {
               navigate(
                 `/templates/${templateName}/versions/${templateVersion}/edit`,
-              ),
-            )}
+              );
+            }}
           >
             <EditIcon />
-            编辑
-          </MenuItem>
+            Edit files
+          </MoreMenuItem>
 
-          <MenuItem
-            onClick={onMenuItemClick(() =>
-              navigate(`/templates/new?fromTemplate=${templateName}`),
-            )}
+          <MoreMenuItem
+            onClick={() => {
+              navigate(`/templates/new?fromTemplate=${templateName}`);
+            }}
           >
             <CopyIcon />
-            复制&hellip;
-          </MenuItem>
-
-          <MenuItem
-            onClick={onMenuItemClick(dialogState.openDeleteConfirmation)}
-          >
+            Duplicate&hellip;
+          </MoreMenuItem>
+          <Divider />
+          <MoreMenuItem onClick={dialogState.openDeleteConfirmation} danger>
             <DeleteIcon />
-            删除&hellip;
-          </MenuItem>
-        </Menu>
-      </div>
+            Delete&hellip;
+          </MoreMenuItem>
+        </MoreMenuContent>
+      </MoreMenu>
 
       {safeToDeleteTemplate ? (
         <DeleteDialog

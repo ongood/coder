@@ -64,11 +64,7 @@ export const AgentLatency: FC<{ agent: WorkspaceAgent }> = ({ agent }) => {
         这是非点对点连接的延迟开销。第一行是首选中继。
         </HelpTooltipText>
         <HelpTooltipText>
-          <Stack
-            direction="column"
-            spacing={1}
-            css={{ marginTop: theme.spacing(2) }}
-          >
+          <Stack direction="column" spacing={1} css={{ marginTop: 16 }}>
             {Object.entries(agent.latency)
               .sort(([, a], [, b]) => a.latency_ms - b.latency_ms)
               .map(([regionName, region]) => (

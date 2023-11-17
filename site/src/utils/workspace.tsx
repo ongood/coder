@@ -147,44 +147,6 @@ export const defaultWorkspaceExtension = (
   };
 };
 
-// You can see the favicon designs here: https://www.figma.com/file/YIGBkXUcnRGz2ZKNmLaJQf/Coder-v2-Design?node-id=560%3A620
-
-type FaviconType =
-  | "favicon"
-  | "favicon-success"
-  | "favicon-error"
-  | "favicon-warning"
-  | "favicon-running";
-
-export const getFaviconByStatus = (
-  build: TypesGen.WorkspaceBuild,
-): FaviconType => {
-  switch (build.status) {
-    case undefined:
-      return "favicon";
-    case "running":
-      return "favicon-success";
-    case "starting":
-      return "favicon-running";
-    case "stopping":
-      return "favicon-running";
-    case "stopped":
-      return "favicon";
-    case "deleting":
-      return "favicon";
-    case "deleted":
-      return "favicon";
-    case "canceling":
-      return "favicon-warning";
-    case "canceled":
-      return "favicon";
-    case "failed":
-      return "favicon-error";
-    case "pending":
-      return "favicon";
-  }
-};
-
 export const getDisplayWorkspaceTemplateName = (
   workspace: TypesGen.Workspace,
 ): string => {
@@ -211,43 +173,43 @@ export const getDisplayWorkspaceStatus = (
       } as const;
     case "starting":
       return {
-        type: "success",
+        type: "active",
         text: "Starting",
         icon: <LoadingIcon />,
       } as const;
     case "stopping":
       return {
-        type: "warning",
+        type: "notice",
         text: "Stopping",
         icon: <LoadingIcon />,
       } as const;
     case "stopped":
       return {
-        type: "warning",
+        type: "notice",
         text: "Stopped",
         icon: <StopIcon />,
       } as const;
     case "deleting":
       return {
-        type: "warning",
+        type: "danger",
         text: "Deleting",
         icon: <LoadingIcon />,
       } as const;
     case "deleted":
       return {
-        type: "error",
+        type: "danger",
         text: "Deleted",
         icon: <ErrorIcon />,
       } as const;
     case "canceling":
       return {
-        type: "warning",
+        type: "notice",
         text: "Canceling",
         icon: <LoadingIcon />,
       } as const;
     case "canceled":
       return {
-        type: "warning",
+        type: "notice",
         text: "Canceled",
         icon: <ErrorIcon />,
       } as const;
@@ -259,7 +221,7 @@ export const getDisplayWorkspaceStatus = (
       } as const;
     case "pending":
       return {
-        type: "info",
+        type: undefined,
         text: getPendingWorkspaceStatusText(provisionerJob),
         icon: <QueuedIcon />,
       } as const;
@@ -302,4 +264,16 @@ export const getMatchingAgentOrFirst = (
       return resource.agents.find((agent) => agent.name === agentName);
     })
     .filter((a) => a)[0];
+};
+
+export const workspaceUpdatePolicy = (
+  workspace: TypesGen.Workspace,
+  canChangeVersions: boolean,
+): TypesGen.AutomaticUpdates => {
+  // If a template requires the active version and you cannot change versions
+  // (restricted to template admins), then your policy must be "Always".
+  if (workspace.template_require_active_version && !canChangeVersions) {
+    return "always";
+  }
+  return workspace.automatic_updates;
 };

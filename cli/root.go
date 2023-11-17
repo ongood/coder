@@ -30,7 +30,6 @@ import (
 
 	"github.com/coder/pretty"
 
-	"cdr.dev/slog"
 	"github.com/coder/coder/v2/buildinfo"
 	"github.com/coder/coder/v2/cli/clibase"
 	"github.com/coder/coder/v2/cli/cliui"
@@ -97,6 +96,7 @@ func (r *RootCmd) Core() []*clibase.Cmd {
 		r.version(defaultVersionInfo),
 
 		// Workspace Commands
+		r.autoupdate(),
 		r.configSSH(),
 		r.create(),
 		r.deleteWorkspace(),
@@ -439,21 +439,6 @@ func (r *RootCmd) Command(subcommands []*clibase.Cmd) (*clibase.Cmd, error) {
 	}
 
 	return cmd, nil
-}
-
-type contextKey int
-
-const (
-	contextKeyLogger contextKey = iota
-)
-
-func ContextWithLogger(ctx context.Context, l slog.Logger) context.Context {
-	return context.WithValue(ctx, contextKeyLogger, l)
-}
-
-func LoggerFromContext(ctx context.Context) (slog.Logger, bool) {
-	l, ok := ctx.Value(contextKeyLogger).(slog.Logger)
-	return l, ok
 }
 
 // RootCmd contains parameters and helpers useful to all commands.

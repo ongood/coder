@@ -1,7 +1,8 @@
+import { type Interpolation, type Theme } from "@emotion/react";
 import TextField from "@mui/material/TextField";
-import { Template, UpdateTemplateMeta } from "api/typesGenerated";
-import { FormikContextType, FormikTouched, useFormik } from "formik";
-import { FC } from "react";
+import type { Template, UpdateTemplateMeta } from "api/typesGenerated";
+import { type FormikContextType, type FormikTouched, useFormik } from "formik";
+import { type FC } from "react";
 import {
   getFormHelpers,
   nameValidator,
@@ -23,7 +24,6 @@ import {
   HelpTooltip,
   HelpTooltipText,
 } from "components/HelpTooltip/HelpTooltip";
-import { makeStyles } from "@mui/styles";
 
 const MAX_DESCRIPTION_CHAR_LIMIT = 128;
 
@@ -79,7 +79,6 @@ export const TemplateSettingsForm: FC<TemplateSettingsForm> = ({
       initialTouched,
     });
   const getFieldHelpers = getFormHelpers(form, error);
-  const styles = useStyles();
 
   return (
     <HorizontalForm
@@ -154,7 +153,7 @@ export const TemplateSettingsForm: FC<TemplateSettingsForm> = ({
                   direction="row"
                   alignItems="center"
                   spacing={0.5}
-                  className={styles.optionText}
+                  css={styles.optionText}
                 >
                   Allow users to cancel in-progress workspace jobs.
                   <HelpTooltip>
@@ -163,7 +162,7 @@ export const TemplateSettingsForm: FC<TemplateSettingsForm> = ({
                     </HelpTooltipText>
                   </HelpTooltip>
                 </Stack>
-                <span className={styles.optionHelperText}>
+                <span css={styles.optionHelperText}>
                   Depending on your template, canceling builds may leave
                   workspaces in an unhealthy state. This option isn&apos;t
                   recommended for most use cases.
@@ -186,18 +185,18 @@ export const TemplateSettingsForm: FC<TemplateSettingsForm> = ({
                     direction="row"
                     alignItems="center"
                     spacing={0.5}
-                    className={styles.optionText}
+                    css={styles.optionText}
                   >
-                    Require the active template version for workspace builds.
+                    Require workspaces automatically update when started.
                     <HelpTooltip>
                       <HelpTooltipText>
                         This setting is not enforced for template admins.
                       </HelpTooltipText>
                     </HelpTooltip>
                   </Stack>
-                  <span className={styles.optionHelperText}>
+                  <span css={styles.optionHelperText}>
                     Workspaces that are manually started or auto-started will
-                    use the promoted template version.
+                    use the active template version.
                   </span>
                 </Stack>
               </Stack>
@@ -211,14 +210,14 @@ export const TemplateSettingsForm: FC<TemplateSettingsForm> = ({
   );
 };
 
-const useStyles = makeStyles((theme) => ({
-  optionText: {
-    fontSize: theme.spacing(2),
+const styles = {
+  optionText: (theme) => ({
+    fontSize: 16,
     color: theme.palette.text.primary,
-  },
+  }),
 
-  optionHelperText: {
-    fontSize: theme.spacing(1.5),
+  optionHelperText: (theme) => ({
+    fontSize: 12,
     color: theme.palette.text.secondary,
-  },
-}));
+  }),
+} satisfies Record<string, Interpolation<Theme>>;

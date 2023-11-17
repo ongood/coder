@@ -525,7 +525,7 @@ export const postWorkspaceBuild = async (
 export const startWorkspace = (
   workspaceId: string,
   templateVersionId: string,
-  logLevel?: TypesGen.CreateWorkspaceBuildRequest["log_level"],
+  logLevel?: TypesGen.ProvisionerLogLevel,
   buildParameters?: TypesGen.WorkspaceBuildParameter[],
 ) =>
   postWorkspaceBuild(workspaceId, {
@@ -536,20 +536,25 @@ export const startWorkspace = (
   });
 export const stopWorkspace = (
   workspaceId: string,
-  logLevel?: TypesGen.CreateWorkspaceBuildRequest["log_level"],
+  logLevel?: TypesGen.ProvisionerLogLevel,
 ) =>
   postWorkspaceBuild(workspaceId, {
     transition: "stop",
     log_level: logLevel,
   });
 
+export type DeleteWorkspaceOptions = Pick<
+  TypesGen.CreateWorkspaceBuildRequest,
+  "log_level" & "orphan"
+>;
+
 export const deleteWorkspace = (
   workspaceId: string,
-  logLevel?: TypesGen.CreateWorkspaceBuildRequest["log_level"],
+  options?: DeleteWorkspaceOptions,
 ) =>
   postWorkspaceBuild(workspaceId, {
     transition: "delete",
-    log_level: logLevel,
+    ...options,
   });
 
 export const cancelWorkspaceBuild = async (
@@ -572,6 +577,21 @@ export const updateWorkspaceDormancy = async (
   const response = await axios.put(
     `/api/v2/workspaces/${workspaceId}/dormant`,
     data,
+  );
+  return response.data;
+};
+
+export const updateWorkspaceAutomaticUpdates = async (
+  workspaceId: string,
+  automaticUpdates: TypesGen.AutomaticUpdates,
+): Promise<void> => {
+  const req: TypesGen.UpdateWorkspaceAutomaticUpdatesRequest = {
+    automatic_updates: automaticUpdates,
+  };
+
+  const response = await axios.put(
+    `/api/v2/workspaces/${workspaceId}/autoupdates`,
+    req,
   );
   return response.data;
 };
@@ -918,8 +938,10 @@ export const getTemplateDAUs = async (
 };
 
 export const getDeploymentDAUs = async (
-  // Default to user's local timezone
-  offset = new Date().getTimezoneOffset() / 60,
+  // Default to user's local timezone.
+  // As /api/v2/insights/daus only accepts whole-number values for tz_offset
+  // we truncate the tz offset down to the closest hour.
+  offset = Math.trunc(new Date().getTimezoneOffset() / 60),
 ): Promise<TypesGen.DAUsResponse> => {
   const response = await axios.get(`/api/v2/insights/daus?tz_offset=${offset}`);
   return response.data;
@@ -1190,10 +1212,15 @@ export const removeLicense = async (licenseId: number): Promise<void> => {
 
 export class MissingBuildParameters extends Error {
   parameters: TypesGen.TemplateVersionParameter[] = [];
+  versionId: string;
 
-  constructor(parameters: TypesGen.TemplateVersionParameter[]) {
+  constructor(
+    parameters: TypesGen.TemplateVersionParameter[],
+    versionId: string,
+  ) {
     super("Missing build parameters.");
     this.parameters = parameters;
+    this.versionId = versionId;
   }
 }
 
@@ -1222,7 +1249,7 @@ export const changeWorkspaceVersion = async (
   );
 
   if (missingParameters.length > 0) {
-    throw new MissingBuildParameters(missingParameters);
+    throw new MissingBuildParameters(missingParameters, templateVersionId);
   }
 
   return postWorkspaceBuild(workspace.id, {
@@ -1260,7 +1287,7 @@ export const updateWorkspace = async (
   );
 
   if (missingParameters.length > 0) {
-    throw new MissingBuildParameters(missingParameters);
+    throw new MissingBuildParameters(missingParameters, activeVersionId);
   }
 
   return postWorkspaceBuild(workspace.id, {
@@ -1268,6 +1295,15 @@ export const updateWorkspace = async (
     template_version_id: activeVersionId,
     rich_parameter_values: newBuildParameters,
   });
+};
+
+export const getWorkspaceResolveAutostart = async (
+  workspaceId: string,
+): Promise<TypesGen.ResolveAutostartResponse> => {
+  const response = await axios.get(
+    `/api/v2/workspaces/${workspaceId}/resolve-autostart`,
+  );
+  return response.data;
 };
 
 const getMissingParameters = (
@@ -1529,17 +1565,9 @@ export const getInsightsTemplate = async (
   return response.data;
 };
 
-export interface Health {
-  healthy: boolean;
-  time: string;
-  coder_version: string;
-  access_url: { healthy: boolean };
-  database: { healthy: boolean };
-  derp: { healthy: boolean };
-  websocket: { healthy: boolean };
-}
-
 export const getHealth = async () => {
-  const response = await axios.get<Health>("/api/v2/debug/health");
+  const response = await axios.get<TypesGen.HealthcheckReport>(
+    "/api/v2/debug/health",
+  );
   return response.data;
 };

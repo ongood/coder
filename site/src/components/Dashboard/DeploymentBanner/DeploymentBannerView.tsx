@@ -1,5 +1,8 @@
-import type { Health } from "api/api";
-import type { DeploymentStats, WorkspaceStatus } from "api/typesGenerated";
+import type {
+  DeploymentStats,
+  HealthcheckReport,
+  WorkspaceStatus,
+} from "api/typesGenerated";
 import {
   type FC,
   useMemo,
@@ -46,18 +49,18 @@ const styles = {
     align-items: center;
   `,
   category: (theme) => ({
-    marginRight: theme.spacing(2),
+    marginRight: 16,
     color: theme.palette.text.primary,
   }),
   values: (theme) => ({
     display: "flex",
-    gap: theme.spacing(1),
+    gap: 8,
     color: theme.palette.text.secondary,
   }),
-  value: (theme) => css`
+  value: css`
     display: flex;
     align-items: center;
-    gap: ${theme.spacing(0.5)};
+    gap: 4px;
 
     & svg {
       width: 12px;
@@ -67,7 +70,7 @@ const styles = {
 } satisfies Record<string, Interpolation<Theme>>;
 
 export interface DeploymentBannerViewProps {
-  health?: Health;
+  health?: HealthcheckReport;
   stats?: DeploymentStats;
   fetchStats?: () => void;
 }
@@ -75,13 +78,14 @@ export interface DeploymentBannerViewProps {
 export const DeploymentBannerView: FC<DeploymentBannerViewProps> = (props) => {
   const { health, stats, fetchStats } = props;
   const theme = useTheme();
+
   const aggregatedMinutes = useMemo(() => {
     if (!stats) {
       return;
     }
     return dayjs(stats.collected_at).diff(stats.aggregated_from, "minutes");
   }, [stats]);
-  const displayLatency = stats?.workspaces.connection_latency_ms.P50 || -1;
+
   const [timeUntilRefresh, setTimeUntilRefresh] = useState(0);
   useEffect(() => {
     if (!stats || !fetchStats) {
@@ -129,8 +133,8 @@ export const DeploymentBannerView: FC<DeploymentBannerViewProps> = (props) => {
     align-items: center;
     justify-content: center;
     background-color: ${unhealthy ? colors.red[10] : undefined};
-    padding: ${theme.spacing(0, 1.5)};
-    height: ${bannerHeight}px;
+    padding: 0 12px;
+    height: 100%;
     color: #fff;
 
     & svg {
@@ -142,29 +146,32 @@ export const DeploymentBannerView: FC<DeploymentBannerViewProps> = (props) => {
   const statusSummaryStyle = className`
     ${theme.typography.body2 as CSSObject}
 
-    margin: ${theme.spacing(0, 0, 0.5, 1.5)};
-    width: ${theme.spacing(50)};
-    padding: ${theme.spacing(2)};
+    margin: 0 0 4px 12px;
+    width: 400px;
+    padding: 16px;
     color: ${theme.palette.text.primary};
     background-color: ${theme.palette.background.paper};
     border: 1px solid ${theme.palette.divider};
     pointer-events: none;
   `;
 
+  const displayLatency = stats?.workspaces.connection_latency_ms.P50 || -1;
+
   return (
     <div
       css={{
         position: "sticky",
+        lineHeight: 1,
         height: bannerHeight,
         bottom: 0,
         zIndex: 1,
-        paddingRight: theme.spacing(2),
+        paddingRight: 16,
         backgroundColor: theme.palette.background.paper,
         display: "flex",
         alignItems: "center",
         fontFamily: MONOSPACE_FONT_FAMILY,
         fontSize: 12,
-        gap: theme.spacing(4),
+        gap: 32,
         borderTop: `1px solid ${theme.palette.divider}`,
         overflowX: "auto",
         whiteSpace: "nowrap",
@@ -179,20 +186,20 @@ export const DeploymentBannerView: FC<DeploymentBannerViewProps> = (props) => {
                 We have detected problems with your Coder deployment.
               </HelpTooltipTitle>
               <Stack spacing={1}>
-                {health.access_url && (
+                {!health.access_url.healthy && (
                   <HealthIssue>
                     Your access URL may be configured incorrectly.
                   </HealthIssue>
                 )}
-                {health.database && (
+                {!health.database.healthy && (
                   <HealthIssue>Your database is unhealthy.</HealthIssue>
                 )}
-                {health.derp && (
+                {!health.derp.healthy && (
                   <HealthIssue>
                     We&apos;re noticing DERP proxy issues.
                   </HealthIssue>
                 )}
-                {health.websocket && (
+                {!health.websocket.healthy && (
                   <HealthIssue>
                     We&apos;re noticing websocket issues.
                   </HealthIssue>
@@ -204,7 +211,7 @@ export const DeploymentBannerView: FC<DeploymentBannerViewProps> = (props) => {
           )
         }
         open={process.env.STORYBOOK === "true" ? true : undefined}
-        css={{ marginRight: theme.spacing(-2) }}
+        css={{ marginRight: -16 }}
       >
         {unhealthy ? (
           <Link component={RouterLink} to="/health" css={statusBadgeStyle}>
@@ -216,6 +223,7 @@ export const DeploymentBannerView: FC<DeploymentBannerViewProps> = (props) => {
           </div>
         )}
       </Tooltip>
+
       <div css={styles.group}>
         <div css={styles.category}>Workspaces</div>
         <div css={styles.values}>
@@ -245,6 +253,7 @@ export const DeploymentBannerView: FC<DeploymentBannerViewProps> = (props) => {
           />
         </div>
       </div>
+
       <div css={styles.group}>
         <Tooltip title={`Activity in the last ~${aggregatedMinutes} minutes`}>
           <div css={styles.category}>Transmission</div>
@@ -279,6 +288,7 @@ export const DeploymentBannerView: FC<DeploymentBannerViewProps> = (props) => {
           </Tooltip>
         </div>
       </div>
+
       <div css={styles.group}>
         <div css={styles.category}>Active Connections</div>
 
@@ -317,13 +327,14 @@ export const DeploymentBannerView: FC<DeploymentBannerViewProps> = (props) => {
           </Tooltip>
         </div>
       </div>
+
       <div
         css={{
           color: theme.palette.text.primary,
           marginLeft: "auto",
           display: "flex",
           alignItems: "center",
-          gap: theme.spacing(2),
+          gap: 16,
         }}
       >
         <Tooltip title="The last time stats were aggregated. Workspaces report statistics periodically, so it may take a bit for these to update!">
@@ -335,23 +346,24 @@ export const DeploymentBannerView: FC<DeploymentBannerViewProps> = (props) => {
 
         <Tooltip title="距离下次获取统计数据的倒计时。点击刷新！">
           <Button
-            css={css`
-              ${styles.value(theme)}
+            css={[
+              styles.value,
+              css`
+                margin: 0;
+                padding: 0 8px;
+                height: unset;
+                min-height: unset;
+                font-size: unset;
+                color: unset;
+                border: 0;
+                min-width: unset;
+                font-family: inherit;
 
-              margin: 0;
-              padding: 0 8px;
-              height: unset;
-              min-height: unset;
-              font-size: unset;
-              color: unset;
-              border: 0;
-              min-width: unset;
-              font-family: inherit;
-
-              & svg {
-                margin-right: ${theme.spacing(0.5)};
-              }
-            `}
+                & svg {
+                  margin-right: 4px;
+                }
+              `,
+            ]}
             onClick={() => {
               if (fetchStats) {
                 fetchStats();
@@ -406,8 +418,8 @@ const WorkspaceBuildValue: FC<{
 
 const HealthIssue: FC<PropsWithChildren> = ({ children }) => {
   return (
-    <Stack direction="row" spacing={1}>
-      <ErrorIcon fontSize="small" htmlColor={colors.red[10]} />
+    <Stack direction="row" spacing={1} alignItems="center">
+      <ErrorIcon css={{ width: 16, height: 16 }} htmlColor={colors.red[10]} />
       {children}
     </Stack>
   );
