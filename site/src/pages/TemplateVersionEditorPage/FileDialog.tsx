@@ -2,7 +2,6 @@ import TextField from "@mui/material/TextField";
 import { ConfirmDialog } from "components/Dialogs/ConfirmDialog/ConfirmDialog";
 import { Stack } from "components/Stack/Stack";
 import { ChangeEvent, FC, useState } from "react";
-import Typography from "@mui/material/Typography";
 import { allowedExtensions, isAllowedFile } from "utils/templateVersion";
 import { FileTree, isFolder, validatePath } from "utils/filetree";
 
@@ -59,10 +58,11 @@ export const CreateFileDialog: FC<{
       confirmText="创建"
       title="创建文件"
       description={
-        <Stack>
-          <Typography>
-            指定要创建的文件的路径，该路径可以包含斜杠。
-          </Typography>
+        <Stack spacing={4}>
+          <p>
+            Specify the path to a file to be created. This path can contain
+            slashes too.
+          </p>
           <TextField
             autoFocus
             onKeyDown={(event) => {
