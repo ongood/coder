@@ -956,6 +956,14 @@ func (*FakeQuerier) CleanTailnetCoordinators(_ context.Context) error {
 	return ErrUnimplemented
 }
 
+func (*FakeQuerier) CleanTailnetLostPeers(context.Context) error {
+	return ErrUnimplemented
+}
+
+func (*FakeQuerier) CleanTailnetTunnels(context.Context) error {
+	return ErrUnimplemented
+}
+
 func (q *FakeQuerier) DeleteAPIKeyByID(_ context.Context, id string) error {
 	q.mutex.Lock()
 	defer q.mutex.Unlock()
@@ -1104,8 +1112,27 @@ func (q *FakeQuerier) DeleteLicense(_ context.Context, id int32) (int32, error) 
 	return 0, sql.ErrNoRows
 }
 
+func (q *FakeQuerier) DeleteOldProvisionerDaemons(_ context.Context) error {
+	q.mutex.Lock()
+	defer q.mutex.Unlock()
+
+	now := dbtime.Now()
+	weekInterval := 7 * 24 * time.Hour
+	weekAgo := now.Add(-weekInterval)
+
+	var validDaemons []database.ProvisionerDaemon
+	for _, p := range q.provisionerDaemons {
+		if (p.CreatedAt.Before(weekAgo) && !p.UpdatedAt.Valid) || (p.UpdatedAt.Valid && p.UpdatedAt.Time.Before(weekAgo)) {
+			continue
+		}
+		validDaemons = append(validDaemons, p)
+	}
+	q.provisionerDaemons = validDaemons
+	return nil
+}
+
 func (*FakeQuerier) DeleteOldWorkspaceAgentLogs(_ context.Context) error {
-	// noop
+	// no-op
 	return nil
 }
 
@@ -1273,6 +1300,18 @@ func (*FakeQuerier) GetAllTailnetAgents(_ context.Context) ([]database.TailnetAg
 }
 
 func (*FakeQuerier) GetAllTailnetClients(_ context.Context) ([]database.GetAllTailnetClientsRow, error) {
+	return nil, ErrUnimplemented
+}
+
+func (*FakeQuerier) GetAllTailnetCoordinators(context.Context) ([]database.TailnetCoordinator, error) {
+	return nil, ErrUnimplemented
+}
+
+func (*FakeQuerier) GetAllTailnetPeers(context.Context) ([]database.TailnetPeer, error) {
+	return nil, ErrUnimplemented
+}
+
+func (*FakeQuerier) GetAllTailnetTunnels(context.Context) ([]database.TailnetTunnel, error) {
 	return nil, ErrUnimplemented
 }
 
@@ -4825,6 +4864,7 @@ func (q *FakeQuerier) InsertProvisionerDaemon(_ context.Context, arg database.In
 		Name:         arg.Name,
 		Provisioners: arg.Provisioners,
 		Tags:         arg.Tags,
+		UpdatedAt:    arg.UpdatedAt,
 	}
 	q.provisionerDaemons = append(q.provisionerDaemons, daemon)
 	return daemon, nil
@@ -5106,6 +5146,7 @@ func (q *FakeQuerier) InsertUserLink(_ context.Context, args database.InsertUser
 		OAuthRefreshToken:      args.OAuthRefreshToken,
 		OAuthRefreshTokenKeyID: args.OAuthRefreshTokenKeyID,
 		OAuthExpiry:            args.OAuthExpiry,
+		DebugContext:           args.DebugContext,
 	}
 
 	q.userLinks = append(q.userLinks, link)
@@ -6188,6 +6229,7 @@ func (q *FakeQuerier) UpdateUserLink(_ context.Context, params database.UpdateUs
 			link.OAuthRefreshToken = params.OAuthRefreshToken
 			link.OAuthRefreshTokenKeyID = params.OAuthRefreshTokenKeyID
 			link.OAuthExpiry = params.OAuthExpiry
+			link.DebugContext = params.DebugContext
 
 			q.userLinks[i] = link
 			return link, nil

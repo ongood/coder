@@ -68,44 +68,45 @@ export const PublishTemplateVersionDialog: FC<
       confirmText="发布"
       title="发布新版本"
       description={
-        <Stack>
-          <p>您即将发布此模板的新版本。</p>
-          <FormFields>
-            <TextField
-              {...getFieldHelpers("name")}
-              label={Language.versionNameLabel}
-              autoFocus
-              disabled={isPublishing}
-            />
+        <form id="publish-version" onSubmit={form.handleSubmit}>
+          <Stack>
+            <p>You are about to publish a new version of this template.</p>
+            <FormFields>
+              <TextField
+                {...getFieldHelpers("name")}
+                label={Language.versionNameLabel}
+                autoFocus
+                disabled={isPublishing}
+              />
 
-            <TextField
-              {...getFieldHelpers("message")}
-              label="Message"
-              placeholder={Language.messagePlaceholder}
-              autoFocus
-              disabled={isPublishing}
-              multiline
-              rows={5}
-            />
+              <TextField
+                {...getFieldHelpers("message")}
+                label="Message"
+                placeholder={Language.messagePlaceholder}
+                disabled={isPublishing}
+                multiline
+                rows={5}
+              />
 
-            <FormControlLabel
-              label={Language.defaultCheckboxLabel}
-              control={
-                <Checkbox
-                  size="small"
-                  checked={form.values.isActiveVersion}
-                  onChange={async (e) => {
-                    await form.setFieldValue(
-                      "isActiveVersion",
-                      e.target.checked,
-                    );
-                  }}
-                  name="isActiveVersion"
-                />
-              }
-            />
-          </FormFields>
-        </Stack>
+              <FormControlLabel
+                label={Language.defaultCheckboxLabel}
+                control={
+                  <Checkbox
+                    size="small"
+                    checked={form.values.isActiveVersion}
+                    onChange={async (e) => {
+                      await form.setFieldValue(
+                        "isActiveVersion",
+                        e.target.checked,
+                      );
+                    }}
+                    name="isActiveVersion"
+                  />
+                }
+              />
+            </FormFields>
+          </Stack>
+        </form>
       }
     />
   );

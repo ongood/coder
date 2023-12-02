@@ -36,6 +36,9 @@ export const ChangeVersionDialog: FC<ChangeVersionDialogProps> = ({
   const [isAutocompleteOpen, setIsAutocompleteOpen] = useState(false);
   const selectedTemplateVersion = useRef<TemplateVersion | undefined>();
   const version = selectedTemplateVersion.current;
+  const validTemplateVersions = templateVersions?.filter((version) => {
+    return version.job.status === "succeeded";
+  });
 
   return (
     <ConfirmDialog
@@ -53,13 +56,13 @@ export const ChangeVersionDialog: FC<ChangeVersionDialogProps> = ({
       title="更改版本"
       description={
         <Stack>
-          <p>您即将更改此工作区的版本。</p>
-          {templateVersions ? (
+          <p>You are about to change the version of this workspace.</p>
+          {validTemplateVersions ? (
             <>
               <FormFields>
                 <Autocomplete
                   disableClearable
-                  options={templateVersions}
+                  options={validTemplateVersions}
                   defaultValue={defaultTemplateVersion}
                   id="template-version-autocomplete"
                   open={isAutocompleteOpen}
