@@ -26,6 +26,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "components/Popover/Popover";
+import { DisplayAppNameMap } from "./AppLink/AppLink";
 
 export interface PortForwardButtonProps {
   host: string;
@@ -50,7 +51,7 @@ export const PortForwardButton: FC<PortForwardButtonProps> = (props) => {
     <Popover>
       <PopoverTrigger>
         <AgentButton disabled={!portsQuery.data}>
-          Ports
+          {DisplayAppNameMap["port_forwarding_helper"]}
           {portsQuery.data ? (
             <div css={styles.portCount}>{portsQuery.data.ports.length}</div>
           ) : (
@@ -155,13 +156,13 @@ export const PortForwardPopoverView: FC<PortForwardPopoverViewProps> = ({
           />
           <Button
             type="submit"
+            size="small"
             variant="text"
             css={{
               paddingLeft: 12,
               paddingRight: 12,
               minWidth: 0,
             }}
-            size="small"
           >
             <OpenInNewOutlined
               css={{

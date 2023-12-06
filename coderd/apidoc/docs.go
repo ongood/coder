@@ -748,6 +748,31 @@ const docTemplate = `{
                 }
             }
         },
+        "/external-auth": {
+            "get": {
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Git"
+                ],
+                "summary": "Get user external auths",
+                "operationId": "get-user-external-auths",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.ExternalAuthLink"
+                        }
+                    }
+                }
+            }
+        },
         "/external-auth/{externalauth}": {
             "get": {
                 "security": [
@@ -779,6 +804,33 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/codersdk.ExternalAuth"
                         }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ],
+                "tags": [
+                    "Git"
+                ],
+                "summary": "Delete external auth user link by ID",
+                "operationId": "delete-external-auth-user-link-by-id",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "string",
+                        "description": "Git Provider ID",
+                        "name": "externalauth",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
                     }
                 }
             }
@@ -6917,6 +6969,10 @@ const docTemplate = `{
                 "motd_file": {
                     "type": "string"
                 },
+                "owner_name": {
+                    "description": "OwnerName and WorkspaceID are used by an open-source user to identify the workspace.\nWe do not provide insurance that this will not be removed in the future,\nbut if it's easy to persist lets keep it around.",
+                    "type": "string"
+                },
                 "scripts": {
                     "type": "array",
                     "items": {
@@ -6924,6 +6980,9 @@ const docTemplate = `{
                     }
                 },
                 "vscode_port_proxy_uri": {
+                    "type": "string"
+                },
+                "workspace_id": {
                     "type": "string"
                 }
             }
@@ -8845,6 +8904,29 @@ const docTemplate = `{
                 }
             }
         },
+        "codersdk.ExternalAuthLink": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "expires": {
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "has_refresh_token": {
+                    "type": "boolean"
+                },
+                "provider_id": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string",
+                    "format": "date-time"
+                }
+            }
+        },
         "codersdk.ExternalAuthUser": {
             "type": "object",
             "properties": {
@@ -8966,13 +9048,30 @@ const docTemplate = `{
                 "GroupSourceOIDC"
             ]
         },
+        "codersdk.HealthSection": {
+            "type": "string",
+            "enum": [
+                "DERP",
+                "AccessURL",
+                "Websocket",
+                "Database",
+                "WorkspaceProxy"
+            ],
+            "x-enum-varnames": [
+                "HealthSectionDERP",
+                "HealthSectionAccessURL",
+                "HealthSectionWebsocket",
+                "HealthSectionDatabase",
+                "HealthSectionWorkspaceProxy"
+            ]
+        },
         "codersdk.HealthSettings": {
             "type": "object",
             "properties": {
                 "dismissed_healthchecks": {
                     "type": "array",
                     "items": {
-                        "type": "string"
+                        "$ref": "#/definitions/codersdk.HealthSection"
                     }
                 }
             }
@@ -9535,6 +9634,10 @@ const docTemplate = `{
                     "type": "string",
                     "format": "uuid"
                 },
+                "last_seen_at": {
+                    "type": "string",
+                    "format": "date-time"
+                },
                 "name": {
                     "type": "string"
                 },
@@ -9551,12 +9654,11 @@ const docTemplate = `{
                     }
                 },
                 "updated_at": {
-                    "format": "date-time",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/sql.NullTime"
-                        }
-                    ]
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "version": {
+                    "type": "string"
                 }
             }
         },
@@ -10852,7 +10954,7 @@ const docTemplate = `{
                 "dismissed_healthchecks": {
                     "type": "array",
                     "items": {
-                        "type": "string"
+                        "$ref": "#/definitions/codersdk.HealthSection"
                     }
                 }
             }
@@ -12540,7 +12642,7 @@ const docTemplate = `{
                     "description": "FailingSections is a list of sections that have failed their healthcheck.",
                     "type": "array",
                     "items": {
-                        "type": "string"
+                        "$ref": "#/definitions/codersdk.HealthSection"
                     }
                 },
                 "healthy": {
@@ -12724,18 +12826,6 @@ const docTemplate = `{
                 "upnP": {
                     "description": "UPnP is whether UPnP appears present on the LAN.\nEmpty means not checked.",
                     "type": "string"
-                }
-            }
-        },
-        "sql.NullTime": {
-            "type": "object",
-            "properties": {
-                "time": {
-                    "type": "string"
-                },
-                "valid": {
-                    "description": "Valid is true if Time is not NULL",
-                    "type": "boolean"
                 }
             }
         },

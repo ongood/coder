@@ -788,6 +788,20 @@ func (q *sqlQuerier) RevokeDBCryptKey(ctx context.Context, activeKeyDigest strin
 	return err
 }
 
+const deleteExternalAuthLink = `-- name: DeleteExternalAuthLink :exec
+DELETE FROM external_auth_links WHERE provider_id = $1 AND user_id = $2
+`
+
+type DeleteExternalAuthLinkParams struct {
+	ProviderID string    `db:"provider_id" json:"provider_id"`
+	UserID     uuid.UUID `db:"user_id" json:"user_id"`
+}
+
+func (q *sqlQuerier) DeleteExternalAuthLink(ctx context.Context, arg DeleteExternalAuthLinkParams) error {
+	_, err := q.db.ExecContext(ctx, deleteExternalAuthLink, arg.ProviderID, arg.UserID)
+	return err
+}
+
 const getExternalAuthLink = `-- name: GetExternalAuthLink :one
 SELECT provider_id, user_id, created_at, updated_at, oauth_access_token, oauth_refresh_token, oauth_expiry, oauth_access_token_key_id, oauth_refresh_token_key_id, oauth_extra FROM external_auth_links WHERE provider_id = $1 AND user_id = $2
 `
@@ -3004,7 +3018,7 @@ func (q *sqlQuerier) DeleteOldProvisionerDaemons(ctx context.Context) error {
 
 const getProvisionerDaemons = `-- name: GetProvisionerDaemons :many
 SELECT
-	id, created_at, updated_at, name, provisioners, replica_id, tags
+	id, created_at, updated_at, name, provisioners, replica_id, tags, last_seen_at, version
 FROM
 	provisioner_daemons
 `
@@ -3026,6 +3040,8 @@ func (q *sqlQuerier) GetProvisionerDaemons(ctx context.Context) ([]ProvisionerDa
 			pq.Array(&i.Provisioners),
 			&i.ReplicaID,
 			&i.Tags,
+			&i.LastSeenAt,
+			&i.Version,
 		); err != nil {
 			return nil, err
 		}
@@ -3051,7 +3067,7 @@ INSERT INTO
 		updated_at
 	)
 VALUES
-	($1, $2, $3, $4, $5, $6) RETURNING id, created_at, updated_at, name, provisioners, replica_id, tags
+	($1, $2, $3, $4, $5, $6) RETURNING id, created_at, updated_at, name, provisioners, replica_id, tags, last_seen_at, version
 `
 
 type InsertProvisionerDaemonParams struct {
@@ -3081,6 +3097,8 @@ func (q *sqlQuerier) InsertProvisionerDaemon(ctx context.Context, arg InsertProv
 		pq.Array(&i.Provisioners),
 		&i.ReplicaID,
 		&i.Tags,
+		&i.LastSeenAt,
+		&i.Version,
 	)
 	return i, err
 }
@@ -11300,20 +11318,30 @@ func (q *sqlQuerier) UpdateWorkspaceDeletedByID(ctx context.Context, arg UpdateW
 
 const updateWorkspaceDormantDeletingAt = `-- name: UpdateWorkspaceDormantDeletingAt :one
 UPDATE
-	workspaces
+    workspaces
 SET
-	dormant_at = $2,
-	-- When a workspace is active we want to update the last_used_at to avoid the workspace going
+    dormant_at = $2,
+    -- When a workspace is active we want to update the last_used_at to avoid the workspace going
     -- immediately dormant. If we're transition the workspace to dormant then we leave it alone.
-	last_used_at = CASE WHEN $2::timestamptz IS NULL THEN now() at time zone 'utc' ELSE last_used_at END,
-	-- If dormant_at is null (meaning active) or the template-defined time_til_dormant_autodelete is 0 we should set
-	-- deleting_at to NULL else set it to the dormant_at + time_til_dormant_autodelete duration.
-	deleting_at = CASE WHEN $2::timestamptz IS NULL OR templates.time_til_dormant_autodelete = 0 THEN NULL ELSE $2::timestamptz + INTERVAL '1 milliseconds' * templates.time_til_dormant_autodelete / 1000000 END
+    last_used_at = CASE WHEN $2::timestamptz IS NULL THEN
+        now() at time zone 'utc'
+    ELSE
+        last_used_at
+    END,
+    -- If dormant_at is null (meaning active) or the template-defined time_til_dormant_autodelete is 0 we should set
+    -- deleting_at to NULL else set it to the dormant_at + time_til_dormant_autodelete duration.
+    deleting_at = CASE WHEN $2::timestamptz IS NULL OR templates.time_til_dormant_autodelete = 0 THEN
+        NULL
+    ELSE
+        $2::timestamptz + (INTERVAL '1 millisecond' * (templates.time_til_dormant_autodelete / 1000000))
+    END
 FROM
-	templates
+    templates
 WHERE
-	workspaces.id = $1
-RETURNING workspaces.id, workspaces.created_at, workspaces.updated_at, workspaces.owner_id, workspaces.organization_id, workspaces.template_id, workspaces.deleted, workspaces.name, workspaces.autostart_schedule, workspaces.ttl, workspaces.last_used_at, workspaces.dormant_at, workspaces.deleting_at, workspaces.automatic_updates
+    workspaces.id = $1
+    AND templates.id = workspaces.template_id
+RETURNING
+    workspaces.id, workspaces.created_at, workspaces.updated_at, workspaces.owner_id, workspaces.organization_id, workspaces.template_id, workspaces.deleted, workspaces.name, workspaces.autostart_schedule, workspaces.ttl, workspaces.last_used_at, workspaces.dormant_at, workspaces.deleting_at, workspaces.automatic_updates
 `
 
 type UpdateWorkspaceDormantDeletingAtParams struct {

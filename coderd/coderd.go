@@ -413,25 +413,25 @@ func New(options *Options) *API {
 				Database: healthcheck.DatabaseReportOptions{
 					DB:        options.Database,
 					Threshold: options.DeploymentValues.Healthcheck.ThresholdDatabase.Value(),
-					Dismissed: slices.Contains(dismissedHealthchecks, healthcheck.SectionDatabase),
+					Dismissed: slices.Contains(dismissedHealthchecks, codersdk.HealthSectionDatabase),
 				},
 				Websocket: healthcheck.WebsocketReportOptions{
 					AccessURL: options.AccessURL,
 					APIKey:    apiKey,
-					Dismissed: slices.Contains(dismissedHealthchecks, healthcheck.SectionWebsocket),
+					Dismissed: slices.Contains(dismissedHealthchecks, codersdk.HealthSectionWebsocket),
 				},
 				AccessURL: healthcheck.AccessURLReportOptions{
 					AccessURL: options.AccessURL,
-					Dismissed: slices.Contains(dismissedHealthchecks, healthcheck.SectionAccessURL),
+					Dismissed: slices.Contains(dismissedHealthchecks, codersdk.HealthSectionAccessURL),
 				},
 				DerpHealth: derphealth.ReportOptions{
 					DERPMap:   api.DERPMap(),
-					Dismissed: slices.Contains(dismissedHealthchecks, healthcheck.SectionDERP),
+					Dismissed: slices.Contains(dismissedHealthchecks, codersdk.HealthSectionDERP),
 				},
 				WorkspaceProxy: healthcheck.WorkspaceProxyReportOptions{
 					CurrentVersion:               buildinfo.Version(),
 					WorkspaceProxiesFetchUpdater: *(options.WorkspaceProxiesFetchUpdater).Load(),
-					Dismissed:                    slices.Contains(dismissedHealthchecks, healthcheck.SectionWorkspaceProxy),
+					Dismissed:                    slices.Contains(dismissedHealthchecks, codersdk.HealthSectionWorkspaceProxy),
 				},
 			})
 		}
@@ -660,14 +660,21 @@ func New(options *Options) *API {
 			r.Get("/{fileID}", api.fileByID)
 			r.Post("/", api.postFile)
 		})
-		r.Route("/external-auth/{externalauth}", func(r chi.Router) {
+		r.Route("/external-auth", func(r chi.Router) {
 			r.Use(
 				apiKeyMiddleware,
-				httpmw.ExtractExternalAuthParam(options.ExternalAuthConfigs),
 			)
-			r.Get("/", api.externalAuthByID)
-			r.Post("/device", api.postExternalAuthDeviceByID)
-			r.Get("/device", api.externalAuthDeviceByID)
+			// Get without a specific external auth ID will return all external auths.
+			r.Get("/", api.listUserExternalAuths)
+			r.Route("/{externalauth}", func(r chi.Router) {
+				r.Use(
+					httpmw.ExtractExternalAuthParam(options.ExternalAuthConfigs),
+				)
+				r.Delete("/", api.deleteExternalAuthByID)
+				r.Get("/", api.externalAuthByID)
+				r.Post("/device", api.postExternalAuthDeviceByID)
+				r.Get("/device", api.externalAuthDeviceByID)
+			})
 		})
 		r.Route("/organizations", func(r chi.Router) {
 			r.Use(

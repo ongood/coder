@@ -122,13 +122,9 @@ type RenderHookWithAuthOptions<Props> = Partial<
  */
 export async function renderHookWithAuth<Result, Props>(
   render: (initialProps: Props) => Result,
-  {
-    initialProps,
-    path = "/",
-    route = "/",
-    extraRoutes = [],
-  }: RenderHookWithAuthOptions<Props> = {},
+  options: RenderHookWithAuthOptions<Props> = {},
 ) {
+  const { initialProps, path = "/", route = "/", extraRoutes = [] } = options;
   const queryClient = createTestQueryClient();
 
   // Easy to miss – there's an evil definite assignment via the !
@@ -266,6 +262,8 @@ export const waitForLoaderToBeRemoved = async (): Promise<void> => {
   );
 };
 
-export const renderComponent = (component: React.ReactNode) => {
-  return tlRender(<ThemeProviders>{component}</ThemeProviders>);
+export const renderComponent = (component: React.ReactElement) => {
+  return tlRender(component, {
+    wrapper: ({ children }) => <ThemeProviders>{children}</ThemeProviders>,
+  });
 };
