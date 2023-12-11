@@ -1430,6 +1430,7 @@ AuthorizationObject can represent a "set" of objects, such as: all workspaces in
 
 ```json
 {
+  "agent_api_version": "string",
   "dashboard_url": "string",
   "external_url": "string",
   "version": "string",
@@ -1439,12 +1440,13 @@ AuthorizationObject can represent a "set" of objects, such as: all workspaces in
 
 ### Properties
 
-| Name              | Type    | Required | Restrictions | Description                                                                                                                                                         |
-| ----------------- | ------- | -------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `dashboard_url`   | string  | false    |              | Dashboard URL is the URL to hit the deployment's dashboard. For external workspace proxies, this is the coderd they are connected to.                               |
-| `external_url`    | string  | false    |              | External URL references the current Coder version. For production builds, this will link directly to a release. For development builds, this will link to a commit. |
-| `version`         | string  | false    |              | Version returns the semantic version of the build.                                                                                                                  |
-| `workspace_proxy` | boolean | false    |              |                                                                                                                                                                     |
+| Name                | Type    | Required | Restrictions | Description                                                                                                                                                         |
+| ------------------- | ------- | -------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `agent_api_version` | string  | false    |              | Agent api version is the current version of the Agent API (back versions MAY still be supported).                                                                   |
+| `dashboard_url`     | string  | false    |              | Dashboard URL is the URL to hit the deployment's dashboard. For external workspace proxies, this is the coderd they are connected to.                               |
+| `external_url`      | string  | false    |              | External URL references the current Coder version. For production builds, this will link directly to a release. For development builds, this will link to a commit. |
+| `version`           | string  | false    |              | Version returns the semantic version of the build.                                                                                                                  |
+| `workspace_proxy`   | boolean | false    |              |                                                                                                                                                                     |
 
 ## codersdk.BuildReason
 
@@ -2196,6 +2198,7 @@ AuthorizationObject can represent a "set" of objects, such as: all workspaces in
       "client_secret": "string",
       "email_domain": ["string"],
       "email_field": "string",
+      "group_allow_list": ["string"],
       "group_auto_create": true,
       "group_mapping": {},
       "group_regex_filter": {},
@@ -2571,6 +2574,7 @@ AuthorizationObject can represent a "set" of objects, such as: all workspaces in
     "client_secret": "string",
     "email_domain": ["string"],
     "email_field": "string",
+    "group_allow_list": ["string"],
     "group_auto_create": true,
     "group_mapping": {},
     "group_regex_filter": {},
@@ -3005,11 +3009,13 @@ AuthorizationObject can represent a "set" of objects, such as: all workspaces in
 
 ```json
 {
+  "authenticated": true,
   "created_at": "2019-08-24T14:15:22Z",
   "expires": "2019-08-24T14:15:22Z",
   "has_refresh_token": true,
   "provider_id": "string",
-  "updated_at": "2019-08-24T14:15:22Z"
+  "updated_at": "2019-08-24T14:15:22Z",
+  "validate_error": "string"
 }
 ```
 
@@ -3017,11 +3023,13 @@ AuthorizationObject can represent a "set" of objects, such as: all workspaces in
 
 | Name                | Type    | Required | Restrictions | Description |
 | ------------------- | ------- | -------- | ------------ | ----------- |
+| `authenticated`     | boolean | false    |              |             |
 | `created_at`        | string  | false    |              |             |
 | `expires`           | string  | false    |              |             |
 | `has_refresh_token` | boolean | false    |              |             |
 | `provider_id`       | string  | false    |              |             |
 | `updated_at`        | string  | false    |              |             |
+| `validate_error`    | string  | false    |              |             |
 
 ## codersdk.ExternalAuthUser
 
@@ -3573,6 +3581,7 @@ AuthorizationObject can represent a "set" of objects, such as: all workspaces in
   "client_secret": "string",
   "email_domain": ["string"],
   "email_field": "string",
+  "group_allow_list": ["string"],
   "group_auto_create": true,
   "group_mapping": {},
   "group_regex_filter": {},
@@ -3614,6 +3623,7 @@ AuthorizationObject can represent a "set" of objects, such as: all workspaces in
 | `client_secret`         | string                           | false    |              |                                                                                  |
 | `email_domain`          | array of string                  | false    |              |                                                                                  |
 | `email_field`           | string                           | false    |              |                                                                                  |
+| `group_allow_list`      | array of string                  | false    |              |                                                                                  |
 | `group_auto_create`     | boolean                          | false    |              |                                                                                  |
 | `group_mapping`         | object                           | false    |              |                                                                                  |
 | `group_regex_filter`    | [clibase.Regexp](#clibaseregexp) | false    |              |                                                                                  |

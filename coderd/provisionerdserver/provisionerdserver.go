@@ -274,7 +274,8 @@ func (s *server) AcquireJobWithCancel(stream proto.DRPCProvisionerDaemon_Acquire
 		// in the database.  We need to mark this job as failed so the end user can retry if they want to.
 		now := dbtime.Now()
 		err := s.Database.UpdateProvisionerJobWithCompleteByID(
-			context.Background(),
+			//nolint:gocritic // Provisionerd has specific authz rules.
+			dbauthz.AsProvisionerd(context.Background()),
 			database.UpdateProvisionerJobWithCompleteByIDParams{
 				ID: je.job.ID,
 				CompletedAt: sql.NullTime{
@@ -914,12 +915,12 @@ func (s *server) FailJob(ctx context.Context, failJob *proto.FailedJob) (*proto.
 
 				bag := audit.BaggageFromContext(ctx)
 
-				audit.WorkspaceBuildAudit(ctx, &audit.BuildAuditParams[database.WorkspaceBuild]{
+				audit.BackgroundAudit(ctx, &audit.BackgroundAuditParams[database.WorkspaceBuild]{
 					Audit:            *auditor,
 					Log:              s.Logger,
 					UserID:           job.InitiatorID,
 					OrganizationID:   workspace.OrganizationID,
-					JobID:            job.ID,
+					RequestID:        job.ID,
 					IP:               bag.IP,
 					Action:           auditAction,
 					Old:              previousBuild,
@@ -1131,9 +1132,9 @@ func (s *server) CompleteJob(ctx context.Context, completed *proto.CompletedJob)
 
 			err = db.UpdateProvisionerJobWithCompleteByID(ctx, database.UpdateProvisionerJobWithCompleteByIDParams{
 				ID:        jobID,
-				UpdatedAt: dbtime.Now(),
+				UpdatedAt: now,
 				CompletedAt: sql.NullTime{
-					Time:  dbtime.Now(),
+					Time:  now,
 					Valid: true,
 				},
 				Error:     sql.NullString{},
@@ -1271,12 +1272,12 @@ func (s *server) CompleteJob(ctx context.Context, completed *proto.CompletedJob)
 
 			bag := audit.BaggageFromContext(ctx)
 
-			audit.WorkspaceBuildAudit(ctx, &audit.BuildAuditParams[database.WorkspaceBuild]{
+			audit.BackgroundAudit(ctx, &audit.BackgroundAuditParams[database.WorkspaceBuild]{
 				Audit:            *auditor,
 				Log:              s.Logger,
 				UserID:           job.InitiatorID,
 				OrganizationID:   workspace.OrganizationID,
-				JobID:            job.ID,
+				RequestID:        job.ID,
 				IP:               bag.IP,
 				Action:           auditAction,
 				Old:              previousBuild,

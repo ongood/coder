@@ -194,6 +194,7 @@ export const MockProxyLatencies: Record<string, ProxyLatencyReport> = {
 };
 
 export const MockBuildInfo: TypesGen.BuildInfoResponse = {
+  agent_api_version: "1.0",
   external_url: "file:///mock-url",
   version: "v99.999.9999+c9cdf14",
   dashboard_url: "https:///mock-url",
@@ -625,6 +626,31 @@ export const MockWorkspaceAgentOutdated: TypesGen.WorkspaceAgent = {
   id: "test-workspace-agent-3",
   name: "an-outdated-workspace-agent",
   version: "v99.999.9998+abcdef",
+  operating_system: "Windows",
+  latency: {
+    ...MockWorkspaceAgent.latency,
+    Chicago: {
+      preferred: false,
+      latency_ms: 95.11,
+    },
+    "San Francisco": {
+      preferred: false,
+      latency_ms: 111.55,
+    },
+    Paris: {
+      preferred: false,
+      latency_ms: 221.66,
+    },
+  },
+  lifecycle_state: "ready",
+};
+
+export const MockWorkspaceAgentDeprecated: TypesGen.WorkspaceAgent = {
+  ...MockWorkspaceAgent,
+  id: "test-workspace-agent-3",
+  name: "an-outdated-workspace-agent",
+  version: "v99.999.9998+abcdef",
+  api_version: "1.99",
   operating_system: "Windows",
   latency: {
     ...MockWorkspaceAgent.latency,
@@ -3147,4 +3173,28 @@ export const DeploymentHealthUnhealthy: TypesGen.HealthcheckReport = {
       ],
     },
   },
+};
+
+export const MockHealthSettings: TypesGen.HealthSettings = {
+  dismissed_healthchecks: [],
+};
+
+export const MockGithubExternalProvider: TypesGen.ExternalAuthLinkProvider = {
+  id: "github",
+  type: "github",
+  device: false,
+  display_icon: "/icon/github.svg",
+  display_name: "GitHub",
+  allow_refresh: true,
+  allow_validate: true,
+};
+
+export const MockGithubAuthLink: TypesGen.ExternalAuthLink = {
+  provider_id: "github",
+  created_at: "",
+  updated_at: "",
+  has_refresh_token: true,
+  expires: "",
+  authenticated: true,
+  validate_error: "",
 };

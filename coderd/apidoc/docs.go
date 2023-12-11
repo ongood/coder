@@ -7827,6 +7827,10 @@ const docTemplate = `{
         "codersdk.BuildInfoResponse": {
             "type": "object",
             "properties": {
+                "agent_api_version": {
+                    "description": "AgentAPIVersion is the current version of the Agent API (back versions\nMAY still be supported).",
+                    "type": "string"
+                },
                 "dashboard_url": {
                     "description": "DashboardURL is the URL to hit the deployment's dashboard.\nFor external workspace proxies, this is the coderd they are connected\nto.",
                     "type": "string"
@@ -8907,6 +8911,9 @@ const docTemplate = `{
         "codersdk.ExternalAuthLink": {
             "type": "object",
             "properties": {
+                "authenticated": {
+                    "type": "boolean"
+                },
                 "created_at": {
                     "type": "string",
                     "format": "date-time"
@@ -8924,6 +8931,9 @@ const docTemplate = `{
                 "updated_at": {
                     "type": "string",
                     "format": "date-time"
+                },
+                "validate_error": {
+                    "type": "string"
                 }
             }
         },
@@ -9401,6 +9411,12 @@ const docTemplate = `{
                 },
                 "email_field": {
                     "type": "string"
+                },
+                "group_allow_list": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "group_auto_create": {
                     "type": "boolean"
