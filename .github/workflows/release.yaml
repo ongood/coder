@@ -288,8 +288,8 @@ jobs:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_ID_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
-  #     - name: Setup GCloud SDK
-  #       uses: "google-github-actions/setup-gcloud@v1"
+      - name: Setup GCloud SDK
+        uses: "google-github-actions/setup-gcloud@v2"
 
   #     - name: Publish Helm Chart
   #       if: ${{ !inputs.dry_run }}

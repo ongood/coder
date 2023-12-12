@@ -2325,11 +2325,11 @@ type GetUserActivityInsightsParams struct {
 }
 
 type GetUserActivityInsightsRow struct {
-	UserID       uuid.UUID      `db:"user_id" json:"user_id"`
-	Username     string         `db:"username" json:"username"`
-	AvatarURL    sql.NullString `db:"avatar_url" json:"avatar_url"`
-	TemplateIDs  []uuid.UUID    `db:"template_ids" json:"template_ids"`
-	UsageSeconds int64          `db:"usage_seconds" json:"usage_seconds"`
+	UserID       uuid.UUID   `db:"user_id" json:"user_id"`
+	Username     string      `db:"username" json:"username"`
+	AvatarURL    string      `db:"avatar_url" json:"avatar_url"`
+	TemplateIDs  []uuid.UUID `db:"template_ids" json:"template_ids"`
+	UsageSeconds int64       `db:"usage_seconds" json:"usage_seconds"`
 }
 
 // GetUserActivityInsights returns the ranking with top active users.
@@ -2395,12 +2395,12 @@ type GetUserLatencyInsightsParams struct {
 }
 
 type GetUserLatencyInsightsRow struct {
-	UserID                       uuid.UUID      `db:"user_id" json:"user_id"`
-	Username                     string         `db:"username" json:"username"`
-	AvatarURL                    sql.NullString `db:"avatar_url" json:"avatar_url"`
-	TemplateIDs                  []uuid.UUID    `db:"template_ids" json:"template_ids"`
-	WorkspaceConnectionLatency50 float64        `db:"workspace_connection_latency_50" json:"workspace_connection_latency_50"`
-	WorkspaceConnectionLatency95 float64        `db:"workspace_connection_latency_95" json:"workspace_connection_latency_95"`
+	UserID                       uuid.UUID   `db:"user_id" json:"user_id"`
+	Username                     string      `db:"username" json:"username"`
+	AvatarURL                    string      `db:"avatar_url" json:"avatar_url"`
+	TemplateIDs                  []uuid.UUID `db:"template_ids" json:"template_ids"`
+	WorkspaceConnectionLatency50 float64     `db:"workspace_connection_latency_50" json:"workspace_connection_latency_50"`
+	WorkspaceConnectionLatency95 float64     `db:"workspace_connection_latency_95" json:"workspace_connection_latency_95"`
 }
 
 // GetUserLatencyInsights returns the median and 95th percentile connection
@@ -3003,14 +3003,14 @@ func (q *sqlQuerier) GetParameterSchemasByJobID(ctx context.Context, jobID uuid.
 
 const deleteOldProvisionerDaemons = `-- name: DeleteOldProvisionerDaemons :exec
 DELETE FROM provisioner_daemons WHERE (
-	(created_at < (NOW() - INTERVAL '7 days') AND updated_at IS NULL) OR
-	(updated_at IS NOT NULL AND updated_at < (NOW() - INTERVAL '7 days'))
+	(created_at < (NOW() - INTERVAL '7 days') AND last_seen_at IS NULL) OR
+	(last_seen_at IS NOT NULL AND last_seen_at < (NOW() - INTERVAL '7 days'))
 )
 `
 
 // Delete provisioner daemons that have been created at least a week ago
 // and have not connected to coderd since a week.
-// A provisioner daemon with "zeroed" updated_at column indicates possible
+// A provisioner daemon with "zeroed" last_seen_at column indicates possible
 // connectivity issues (no provisioner daemon activity since registration).
 func (q *sqlQuerier) DeleteOldProvisionerDaemons(ctx context.Context) error {
 	_, err := q.db.ExecContext(ctx, deleteOldProvisionerDaemons)
@@ -3019,7 +3019,7 @@ func (q *sqlQuerier) DeleteOldProvisionerDaemons(ctx context.Context) error {
 
 const getProvisionerDaemons = `-- name: GetProvisionerDaemons :many
 SELECT
-	id, created_at, updated_at, name, provisioners, replica_id, tags, last_seen_at, version
+	id, created_at, name, provisioners, replica_id, tags, last_seen_at, version
 FROM
 	provisioner_daemons
 `
@@ -3036,7 +3036,6 @@ func (q *sqlQuerier) GetProvisionerDaemons(ctx context.Context) ([]ProvisionerDa
 		if err := rows.Scan(
 			&i.ID,
 			&i.CreatedAt,
-			&i.UpdatedAt,
 			&i.Name,
 			pq.Array(&i.Provisioners),
 			&i.ReplicaID,
@@ -3065,10 +3064,10 @@ INSERT INTO
 		"name",
 		provisioners,
 		tags,
-		updated_at
+		last_seen_at
 	)
 VALUES
-	($1, $2, $3, $4, $5, $6) RETURNING id, created_at, updated_at, name, provisioners, replica_id, tags, last_seen_at, version
+	($1, $2, $3, $4, $5, $6) RETURNING id, created_at, name, provisioners, replica_id, tags, last_seen_at, version
 `
 
 type InsertProvisionerDaemonParams struct {
@@ -3077,7 +3076,7 @@ type InsertProvisionerDaemonParams struct {
 	Name         string            `db:"name" json:"name"`
 	Provisioners []ProvisionerType `db:"provisioners" json:"provisioners"`
 	Tags         StringMap         `db:"tags" json:"tags"`
-	UpdatedAt    sql.NullTime      `db:"updated_at" json:"updated_at"`
+	LastSeenAt   sql.NullTime      `db:"last_seen_at" json:"last_seen_at"`
 }
 
 func (q *sqlQuerier) InsertProvisionerDaemon(ctx context.Context, arg InsertProvisionerDaemonParams) (ProvisionerDaemon, error) {
@@ -3087,13 +3086,12 @@ func (q *sqlQuerier) InsertProvisionerDaemon(ctx context.Context, arg InsertProv
 		arg.Name,
 		pq.Array(arg.Provisioners),
 		arg.Tags,
-		arg.UpdatedAt,
+		arg.LastSeenAt,
 	)
 	var i ProvisionerDaemon
 	err := row.Scan(
 		&i.ID,
 		&i.CreatedAt,
-		&i.UpdatedAt,
 		&i.Name,
 		pq.Array(&i.Provisioners),
 		&i.ReplicaID,
@@ -4762,47 +4760,6 @@ func (q *sqlQuerier) GetAllTailnetAgents(ctx context.Context) ([]TailnetAgent, e
 			&i.CoordinatorID,
 			&i.UpdatedAt,
 			&i.Node,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const getAllTailnetClients = `-- name: GetAllTailnetClients :many
-SELECT tailnet_clients.id, tailnet_clients.coordinator_id, tailnet_clients.updated_at, tailnet_clients.node, array_agg(tailnet_client_subscriptions.agent_id)::uuid[] as agent_ids
-FROM tailnet_clients
-LEFT JOIN tailnet_client_subscriptions
-ON tailnet_clients.id = tailnet_client_subscriptions.client_id
-`
-
-type GetAllTailnetClientsRow struct {
-	TailnetClient TailnetClient `db:"tailnet_client" json:"tailnet_client"`
-	AgentIds      []uuid.UUID   `db:"agent_ids" json:"agent_ids"`
-}
-
-func (q *sqlQuerier) GetAllTailnetClients(ctx context.Context) ([]GetAllTailnetClientsRow, error) {
-	rows, err := q.db.QueryContext(ctx, getAllTailnetClients)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []GetAllTailnetClientsRow
-	for rows.Next() {
-		var i GetAllTailnetClientsRow
-		if err := rows.Scan(
-			&i.TailnetClient.ID,
-			&i.TailnetClient.CoordinatorID,
-			&i.TailnetClient.UpdatedAt,
-			&i.TailnetClient.Node,
-			pq.Array(&i.AgentIds),
 		); err != nil {
 			return nil, err
 		}
@@ -7228,7 +7185,7 @@ type GetUsersRow struct {
 	Status             UserStatus     `db:"status" json:"status"`
 	RBACRoles          pq.StringArray `db:"rbac_roles" json:"rbac_roles"`
 	LoginType          LoginType      `db:"login_type" json:"login_type"`
-	AvatarURL          sql.NullString `db:"avatar_url" json:"avatar_url"`
+	AvatarURL          string         `db:"avatar_url" json:"avatar_url"`
 	Deleted            bool           `db:"deleted" json:"deleted"`
 	LastSeenAt         time.Time      `db:"last_seen_at" json:"last_seen_at"`
 	QuietHoursSchedule string         `db:"quiet_hours_schedule" json:"quiet_hours_schedule"`
@@ -7566,11 +7523,11 @@ WHERE
 `
 
 type UpdateUserProfileParams struct {
-	ID        uuid.UUID      `db:"id" json:"id"`
-	Email     string         `db:"email" json:"email"`
-	Username  string         `db:"username" json:"username"`
-	AvatarURL sql.NullString `db:"avatar_url" json:"avatar_url"`
-	UpdatedAt time.Time      `db:"updated_at" json:"updated_at"`
+	ID        uuid.UUID `db:"id" json:"id"`
+	Email     string    `db:"email" json:"email"`
+	Username  string    `db:"username" json:"username"`
+	AvatarURL string    `db:"avatar_url" json:"avatar_url"`
+	UpdatedAt time.Time `db:"updated_at" json:"updated_at"`
 }
 
 func (q *sqlQuerier) UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) (User, error) {
