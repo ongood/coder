@@ -4,9 +4,9 @@ import {
   type DeploymentConfig,
 } from "api/api";
 import { FieldError } from "api/errors";
-import * as TypesGen from "api/typesGenerated";
+import type * as TypesGen from "api/typesGenerated";
 import range from "lodash/range";
-import { Permissions } from "components/AuthProvider/permissions";
+import { Permissions } from "contexts/AuthProvider/permissions";
 import { TemplateVersionFiles } from "utils/templateVersion";
 import { FileTree } from "utils/filetree";
 import { ProxyLatencyReport } from "contexts/useProxyLatency";
@@ -284,6 +284,7 @@ export const MockUser: TypesGen.User = {
   avatar_url: "https://avatars.githubusercontent.com/u/95932066?s=200&v=4",
   last_seen_at: "",
   login_type: "password",
+  theme_preference: "",
 };
 
 export const MockUserAdmin: TypesGen.User = {
@@ -297,6 +298,7 @@ export const MockUserAdmin: TypesGen.User = {
   avatar_url: "",
   last_seen_at: "",
   login_type: "password",
+  theme_preference: "",
 };
 
 export const MockUser2: TypesGen.User = {
@@ -310,6 +312,7 @@ export const MockUser2: TypesGen.User = {
   avatar_url: "",
   last_seen_at: "2022-09-14T19:12:21Z",
   login_type: "oidc",
+  theme_preference: "",
 };
 
 export const SuspendedMockUser: TypesGen.User = {
@@ -323,6 +326,7 @@ export const SuspendedMockUser: TypesGen.User = {
   avatar_url: "",
   last_seen_at: "",
   login_type: "password",
+  theme_preference: "",
 };
 
 export const MockProvisioner: TypesGen.ProvisionerDaemon = {
@@ -441,9 +445,10 @@ export const MockTemplate: TypesGen.Template = {
   },
   description: "This is a test description.",
   default_ttl_ms: 24 * 60 * 60 * 1000,
-  max_ttl_ms: 2 * 24 * 60 * 60 * 1000,
+  use_max_ttl: false,
+  max_ttl_ms: 0,
   autostop_requirement: {
-    days_of_week: [],
+    days_of_week: ["sunday"],
     weeks: 1,
   },
   autostart_requirement: {
@@ -1001,6 +1006,7 @@ export const MockWorkspace: TypesGen.Workspace = {
     failing_agents: [],
   },
   automatic_updates: "never",
+  allow_renames: true,
 };
 
 export const MockStoppedWorkspace: TypesGen.Workspace = {
@@ -2039,7 +2045,9 @@ export const MockEntitlementsWithUserLimit: TypesGen.Entitlements = {
   }),
 };
 
-export const MockExperiments: TypesGen.Experiment[] = ["moons"];
+export const MockExperiments: TypesGen.Experiment[] = [
+  "tailnet_pg_coordinator",
+];
 
 export const MockAuditLog: TypesGen.AuditLog = {
   id: "fbd2116a-8961-4954-87ae-e4575bd29ce0",
@@ -2925,7 +2933,7 @@ export const MockHealth: TypesGen.HealthcheckReport = {
           created_at: "2023-05-01T19:15:56.606593Z",
           updated_at: "2023-12-05T14:13:36.647535Z",
           deleted: false,
-          version: "v2.4.0-devel+5fad61102",
+          version: "v2.5.0-devel+5fad61102",
         },
         {
           id: "9d786ce0-55b1-4ace-8acc-a4672ff8d41f",
@@ -2948,7 +2956,7 @@ export const MockHealth: TypesGen.HealthcheckReport = {
           created_at: "2023-05-01T20:34:11.114005Z",
           updated_at: "2023-12-05T14:13:45.941716Z",
           deleted: false,
-          version: "v2.4.0-devel+5fad61102",
+          version: "v2.5.0-devel+5fad61102",
         },
         {
           id: "2e209786-73b1-4838-ba78-e01c9334450a",
@@ -2971,7 +2979,7 @@ export const MockHealth: TypesGen.HealthcheckReport = {
           created_at: "2023-05-01T20:41:02.76448Z",
           updated_at: "2023-12-05T14:13:41.968568Z",
           deleted: false,
-          version: "v2.4.0-devel+5fad61102",
+          version: "v2.5.0-devel+5fad61102",
         },
         {
           id: "c272e80c-0cce-49d6-9782-1b5cf90398e8",
@@ -3042,7 +3050,7 @@ export const MockHealth: TypesGen.HealthcheckReport = {
           created_at: "2023-12-01T09:21:15.996267Z",
           updated_at: "2023-12-05T14:13:59.663174Z",
           deleted: false,
-          version: "v2.4.0-devel+5fad61102",
+          version: "v2.5.0-devel+5fad61102",
         },
         {
           id: "72649dc9-03c7-46a8-bc95-96775e93ddc1",
@@ -3065,7 +3073,7 @@ export const MockHealth: TypesGen.HealthcheckReport = {
           created_at: "2023-12-01T09:23:44.505529Z",
           updated_at: "2023-12-05T14:13:55.769058Z",
           deleted: false,
-          version: "v2.4.0-devel+5fad61102",
+          version: "v2.5.0-devel+5fad61102",
         },
         {
           id: "1f78398f-e5ae-4c38-aa89-30222181d443",
@@ -3088,12 +3096,12 @@ export const MockHealth: TypesGen.HealthcheckReport = {
           created_at: "2023-12-01T09:36:00.231252Z",
           updated_at: "2023-12-05T14:13:47.015031Z",
           deleted: false,
-          version: "v2.4.0-devel+5fad61102",
+          version: "v2.5.0-devel+5fad61102",
         },
       ],
     },
   },
-  coder_version: "v0.27.1-devel+c575292",
+  coder_version: "v2.5.0-devel+5fad61102",
 };
 
 export const MockListeningPortsResponse: TypesGen.WorkspaceAgentListeningPortsResponse =
@@ -3176,7 +3184,7 @@ export const DeploymentHealthUnhealthy: TypesGen.HealthcheckReport = {
           created_at: "2023-11-23T15:37:25.513213Z",
           updated_at: "2023-11-23T18:09:19.734747Z",
           deleted: false,
-          version: "v2.4.0-devel+89bae7eff",
+          version: "v2.5.0-devel+89bae7eff",
         },
       ],
     },

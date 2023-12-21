@@ -1124,7 +1124,7 @@ func (m metricsStore) GetWorkspaceBuildsCreatedAfter(ctx context.Context, create
 	return builds, err
 }
 
-func (m metricsStore) GetWorkspaceByAgentID(ctx context.Context, agentID uuid.UUID) (database.Workspace, error) {
+func (m metricsStore) GetWorkspaceByAgentID(ctx context.Context, agentID uuid.UUID) (database.GetWorkspaceByAgentIDRow, error) {
 	start := time.Now()
 	workspace, err := m.s.GetWorkspaceByAgentID(ctx, agentID)
 	m.queryLatencies.WithLabelValues("GetWorkspaceByAgentID").Observe(time.Since(start).Seconds())
@@ -1346,13 +1346,6 @@ func (m metricsStore) InsertOrganizationMember(ctx context.Context, arg database
 	member, err := m.s.InsertOrganizationMember(ctx, arg)
 	m.queryLatencies.WithLabelValues("InsertOrganizationMember").Observe(time.Since(start).Seconds())
 	return member, err
-}
-
-func (m metricsStore) InsertProvisionerDaemon(ctx context.Context, arg database.InsertProvisionerDaemonParams) (database.ProvisionerDaemon, error) {
-	start := time.Now()
-	daemon, err := m.s.InsertProvisionerDaemon(ctx, arg)
-	m.queryLatencies.WithLabelValues("InsertProvisionerDaemon").Observe(time.Since(start).Seconds())
-	return daemon, err
 }
 
 func (m metricsStore) InsertProvisionerJob(ctx context.Context, arg database.InsertProvisionerJobParams) (database.ProvisionerJob, error) {
@@ -1600,6 +1593,13 @@ func (m metricsStore) UpdateMemberRoles(ctx context.Context, arg database.Update
 	return member, err
 }
 
+func (m metricsStore) UpdateProvisionerDaemonLastSeenAt(ctx context.Context, arg database.UpdateProvisionerDaemonLastSeenAtParams) error {
+	start := time.Now()
+	r0 := m.s.UpdateProvisionerDaemonLastSeenAt(ctx, arg)
+	m.queryLatencies.WithLabelValues("UpdateProvisionerDaemonLastSeenAt").Observe(time.Since(start).Seconds())
+	return r0
+}
+
 func (m metricsStore) UpdateProvisionerJobByID(ctx context.Context, arg database.UpdateProvisionerJobByIDParams) error {
 	start := time.Now()
 	err := m.s.UpdateProvisionerJobByID(ctx, arg)
@@ -1696,6 +1696,13 @@ func (m metricsStore) UpdateTemplateWorkspacesLastUsedAt(ctx context.Context, ar
 	r0 := m.s.UpdateTemplateWorkspacesLastUsedAt(ctx, arg)
 	m.queryLatencies.WithLabelValues("UpdateTemplateWorkspacesLastUsedAt").Observe(time.Since(start).Seconds())
 	return r0
+}
+
+func (m metricsStore) UpdateUserAppearanceSettings(ctx context.Context, arg database.UpdateUserAppearanceSettingsParams) (database.User, error) {
+	start := time.Now()
+	r0, r1 := m.s.UpdateUserAppearanceSettings(ctx, arg)
+	m.queryLatencies.WithLabelValues("UpdateUserAppearanceSettings").Observe(time.Since(start).Seconds())
+	return r0, r1
 }
 
 func (m metricsStore) UpdateUserDeletedByID(ctx context.Context, arg database.UpdateUserDeletedByIDParams) error {
@@ -1948,6 +1955,13 @@ func (m metricsStore) UpsertOAuthSigningKey(ctx context.Context, value string) e
 	r0 := m.s.UpsertOAuthSigningKey(ctx, value)
 	m.queryLatencies.WithLabelValues("UpsertOAuthSigningKey").Observe(time.Since(start).Seconds())
 	return r0
+}
+
+func (m metricsStore) UpsertProvisionerDaemon(ctx context.Context, arg database.UpsertProvisionerDaemonParams) (database.ProvisionerDaemon, error) {
+	start := time.Now()
+	r0, r1 := m.s.UpsertProvisionerDaemon(ctx, arg)
+	m.queryLatencies.WithLabelValues("UpsertProvisionerDaemon").Observe(time.Since(start).Seconds())
+	return r0, r1
 }
 
 func (m metricsStore) UpsertServiceBanner(ctx context.Context, value string) error {

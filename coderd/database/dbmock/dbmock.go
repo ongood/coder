@@ -2344,10 +2344,10 @@ func (mr *MockStoreMockRecorder) GetWorkspaceBuildsCreatedAfter(arg0, arg1 inter
 }
 
 // GetWorkspaceByAgentID mocks base method.
-func (m *MockStore) GetWorkspaceByAgentID(arg0 context.Context, arg1 uuid.UUID) (database.Workspace, error) {
+func (m *MockStore) GetWorkspaceByAgentID(arg0 context.Context, arg1 uuid.UUID) (database.GetWorkspaceByAgentIDRow, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetWorkspaceByAgentID", arg0, arg1)
-	ret0, _ := ret[0].(database.Workspace)
+	ret0, _ := ret[0].(database.GetWorkspaceByAgentIDRow)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -2831,21 +2831,6 @@ func (m *MockStore) InsertOrganizationMember(arg0 context.Context, arg1 database
 func (mr *MockStoreMockRecorder) InsertOrganizationMember(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertOrganizationMember", reflect.TypeOf((*MockStore)(nil).InsertOrganizationMember), arg0, arg1)
-}
-
-// InsertProvisionerDaemon mocks base method.
-func (m *MockStore) InsertProvisionerDaemon(arg0 context.Context, arg1 database.InsertProvisionerDaemonParams) (database.ProvisionerDaemon, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "InsertProvisionerDaemon", arg0, arg1)
-	ret0, _ := ret[0].(database.ProvisionerDaemon)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// InsertProvisionerDaemon indicates an expected call of InsertProvisionerDaemon.
-func (mr *MockStoreMockRecorder) InsertProvisionerDaemon(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertProvisionerDaemon", reflect.TypeOf((*MockStore)(nil).InsertProvisionerDaemon), arg0, arg1)
 }
 
 // InsertProvisionerJob mocks base method.
@@ -3377,6 +3362,20 @@ func (mr *MockStoreMockRecorder) UpdateMemberRoles(arg0, arg1 interface{}) *gomo
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateMemberRoles", reflect.TypeOf((*MockStore)(nil).UpdateMemberRoles), arg0, arg1)
 }
 
+// UpdateProvisionerDaemonLastSeenAt mocks base method.
+func (m *MockStore) UpdateProvisionerDaemonLastSeenAt(arg0 context.Context, arg1 database.UpdateProvisionerDaemonLastSeenAtParams) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateProvisionerDaemonLastSeenAt", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateProvisionerDaemonLastSeenAt indicates an expected call of UpdateProvisionerDaemonLastSeenAt.
+func (mr *MockStoreMockRecorder) UpdateProvisionerDaemonLastSeenAt(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateProvisionerDaemonLastSeenAt", reflect.TypeOf((*MockStore)(nil).UpdateProvisionerDaemonLastSeenAt), arg0, arg1)
+}
+
 // UpdateProvisionerJobByID mocks base method.
 func (m *MockStore) UpdateProvisionerJobByID(arg0 context.Context, arg1 database.UpdateProvisionerJobByIDParams) error {
 	m.ctrl.T.Helper()
@@ -3572,6 +3571,21 @@ func (m *MockStore) UpdateTemplateWorkspacesLastUsedAt(arg0 context.Context, arg
 func (mr *MockStoreMockRecorder) UpdateTemplateWorkspacesLastUsedAt(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateTemplateWorkspacesLastUsedAt", reflect.TypeOf((*MockStore)(nil).UpdateTemplateWorkspacesLastUsedAt), arg0, arg1)
+}
+
+// UpdateUserAppearanceSettings mocks base method.
+func (m *MockStore) UpdateUserAppearanceSettings(arg0 context.Context, arg1 database.UpdateUserAppearanceSettingsParams) (database.User, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateUserAppearanceSettings", arg0, arg1)
+	ret0, _ := ret[0].(database.User)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UpdateUserAppearanceSettings indicates an expected call of UpdateUserAppearanceSettings.
+func (mr *MockStoreMockRecorder) UpdateUserAppearanceSettings(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateUserAppearanceSettings", reflect.TypeOf((*MockStore)(nil).UpdateUserAppearanceSettings), arg0, arg1)
 }
 
 // UpdateUserDeletedByID mocks base method.
@@ -4087,6 +4101,21 @@ func (m *MockStore) UpsertOAuthSigningKey(arg0 context.Context, arg1 string) err
 func (mr *MockStoreMockRecorder) UpsertOAuthSigningKey(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpsertOAuthSigningKey", reflect.TypeOf((*MockStore)(nil).UpsertOAuthSigningKey), arg0, arg1)
+}
+
+// UpsertProvisionerDaemon mocks base method.
+func (m *MockStore) UpsertProvisionerDaemon(arg0 context.Context, arg1 database.UpsertProvisionerDaemonParams) (database.ProvisionerDaemon, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpsertProvisionerDaemon", arg0, arg1)
+	ret0, _ := ret[0].(database.ProvisionerDaemon)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UpsertProvisionerDaemon indicates an expected call of UpsertProvisionerDaemon.
+func (mr *MockStoreMockRecorder) UpsertProvisionerDaemon(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpsertProvisionerDaemon", reflect.TypeOf((*MockStore)(nil).UpsertProvisionerDaemon), arg0, arg1)
 }
 
 // UpsertServiceBanner mocks base method.

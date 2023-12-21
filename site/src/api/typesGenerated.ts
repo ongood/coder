@@ -424,6 +424,7 @@ export interface DeploymentValues {
   readonly enable_terraform_debug_mode?: boolean;
   readonly user_quiet_hours_schedule?: UserQuietHoursScheduleConfig;
   readonly web_terminal_renderer?: string;
+  readonly allow_workspace_renames?: boolean;
   readonly healthcheck?: HealthcheckConfig;
   readonly config?: string;
   readonly write_config?: boolean;
@@ -958,6 +959,7 @@ export interface Template {
   readonly deprecation_message: string;
   readonly icon: string;
   readonly default_ttl_ms: number;
+  readonly use_max_ttl: boolean;
   readonly max_ttl_ms: number;
   readonly autostop_requirement: TemplateAutostopRequirement;
   readonly autostart_requirement: TemplateAutostartRequirement;
@@ -1230,6 +1232,11 @@ export interface UpdateTemplateMeta {
 }
 
 // From codersdk/users.go
+export interface UpdateUserAppearanceSettingsRequest {
+  readonly theme_preference: string;
+}
+
+// From codersdk/users.go
 export interface UpdateUserPasswordRequest {
   readonly old_password: string;
   readonly password: string;
@@ -1293,6 +1300,7 @@ export interface User {
   readonly roles: Role[];
   readonly avatar_url: string;
   readonly login_type: LoginType;
+  readonly theme_preference: string;
 }
 
 // From codersdk/insights.go
@@ -1361,12 +1369,14 @@ export interface UserLoginType {
 // From codersdk/deployment.go
 export interface UserQuietHoursScheduleConfig {
   readonly default_schedule: string;
+  readonly allow_user_custom: boolean;
 }
 
 // From codersdk/users.go
 export interface UserQuietHoursScheduleResponse {
   readonly raw_schedule: string;
   readonly user_set: boolean;
+  readonly user_can_set: boolean;
   readonly time: string;
   readonly timezone: string;
   readonly next: string;
@@ -1420,6 +1430,7 @@ export interface Workspace {
   readonly dormant_at?: string;
   readonly health: WorkspaceHealth;
   readonly automatic_updates: AutomaticUpdates;
+  readonly allow_renames: boolean;
 }
 
 // From codersdk/workspaceagents.go
@@ -1767,18 +1778,14 @@ export const Entitlements: Entitlement[] = [
 // From codersdk/deployment.go
 export type Experiment =
   | "deployment_health_page"
-  | "moons"
   | "single_tailnet"
   | "tailnet_pg_coordinator"
-  | "template_autostop_requirement"
   | "template_update_policies"
   | "workspace_actions";
 export const Experiments: Experiment[] = [
   "deployment_health_page",
-  "moons",
   "single_tailnet",
   "tailnet_pg_coordinator",
-  "template_autostop_requirement",
   "template_update_policies",
   "workspace_actions",
 ];
@@ -1795,7 +1802,6 @@ export type FeatureName =
   | "high_availability"
   | "multiple_external_auth"
   | "scim"
-  | "template_autostop_requirement"
   | "template_rbac"
   | "user_limit"
   | "user_role_management"
@@ -1812,7 +1818,6 @@ export const FeatureNames: FeatureName[] = [
   "high_availability",
   "multiple_external_auth",
   "scim",
-  "template_autostop_requirement",
   "template_rbac",
   "user_limit",
   "user_role_management",

@@ -514,8 +514,11 @@ CREATE TABLE provisioner_daemons (
     replica_id uuid,
     tags jsonb DEFAULT '{}'::jsonb NOT NULL,
     last_seen_at timestamp with time zone,
-    version text DEFAULT ''::text NOT NULL
+    version text DEFAULT ''::text NOT NULL,
+    api_version text DEFAULT '1.0'::text NOT NULL
 );
+
+COMMENT ON COLUMN provisioner_daemons.api_version IS 'The API version of the provisioner daemon';
 
 CREATE TABLE provisioner_job_logs (
     job_id uuid NOT NULL,
@@ -811,7 +814,8 @@ CREATE TABLE templates (
     autostop_requirement_weeks bigint DEFAULT 0 NOT NULL,
     autostart_block_days_of_week smallint DEFAULT 0 NOT NULL,
     require_active_version boolean DEFAULT false NOT NULL,
-    deprecated text DEFAULT ''::text NOT NULL
+    deprecated text DEFAULT ''::text NOT NULL,
+    use_max_ttl boolean DEFAULT false NOT NULL
 );
 
 COMMENT ON COLUMN templates.default_ttl IS 'The default duration for autostop for workspaces created from this template.';
@@ -860,6 +864,7 @@ CREATE VIEW template_with_users AS
     templates.autostart_block_days_of_week,
     templates.require_active_version,
     templates.deprecated,
+    templates.use_max_ttl,
     COALESCE(visible_users.avatar_url, ''::text) AS created_by_avatar_url,
     COALESCE(visible_users.username, ''::text) AS created_by_username
    FROM (public.templates
@@ -1284,9 +1289,6 @@ ALTER TABLE ONLY parameter_values
     ADD CONSTRAINT parameter_values_scope_id_name_key UNIQUE (scope_id, name);
 
 ALTER TABLE ONLY provisioner_daemons
-    ADD CONSTRAINT provisioner_daemons_name_key UNIQUE (name);
-
-ALTER TABLE ONLY provisioner_daemons
     ADD CONSTRAINT provisioner_daemons_pkey PRIMARY KEY (id);
 
 ALTER TABLE ONLY provisioner_job_logs
@@ -1414,6 +1416,10 @@ CREATE INDEX idx_organization_member_user_id_uuid ON organization_members USING 
 CREATE UNIQUE INDEX idx_organization_name ON organizations USING btree (name);
 
 CREATE UNIQUE INDEX idx_organization_name_lower ON organizations USING btree (lower(name));
+
+CREATE UNIQUE INDEX idx_provisioner_daemons_name_owner_key ON provisioner_daemons USING btree (name, lower(COALESCE((tags ->> 'owner'::text), ''::text)));
+
+COMMENT ON INDEX idx_provisioner_daemons_name_owner_key IS 'Allow unique provisioner daemon names by user';
 
 CREATE INDEX idx_tailnet_agents_coordinator ON tailnet_agents USING btree (coordinator_id);
 

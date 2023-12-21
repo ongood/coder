@@ -35,22 +35,21 @@ const (
 type FeatureName string
 
 const (
-	FeatureUserLimit                   FeatureName = "user_limit"
-	FeatureAuditLog                    FeatureName = "audit_log"
-	FeatureBrowserOnly                 FeatureName = "browser_only"
-	FeatureSCIM                        FeatureName = "scim"
-	FeatureTemplateRBAC                FeatureName = "template_rbac"
-	FeatureUserRoleManagement          FeatureName = "user_role_management"
-	FeatureHighAvailability            FeatureName = "high_availability"
-	FeatureMultipleExternalAuth        FeatureName = "multiple_external_auth"
-	FeatureExternalProvisionerDaemons  FeatureName = "external_provisioner_daemons"
-	FeatureAppearance                  FeatureName = "appearance"
-	FeatureAdvancedTemplateScheduling  FeatureName = "advanced_template_scheduling"
-	FeatureWorkspaceProxy              FeatureName = "workspace_proxy"
-	FeatureExternalTokenEncryption     FeatureName = "external_token_encryption"
-	FeatureTemplateAutostopRequirement FeatureName = "template_autostop_requirement"
-	FeatureWorkspaceBatchActions       FeatureName = "workspace_batch_actions"
-	FeatureAccessControl               FeatureName = "access_control"
+	FeatureUserLimit                  FeatureName = "user_limit"
+	FeatureAuditLog                   FeatureName = "audit_log"
+	FeatureBrowserOnly                FeatureName = "browser_only"
+	FeatureSCIM                       FeatureName = "scim"
+	FeatureTemplateRBAC               FeatureName = "template_rbac"
+	FeatureUserRoleManagement         FeatureName = "user_role_management"
+	FeatureHighAvailability           FeatureName = "high_availability"
+	FeatureMultipleExternalAuth       FeatureName = "multiple_external_auth"
+	FeatureExternalProvisionerDaemons FeatureName = "external_provisioner_daemons"
+	FeatureAppearance                 FeatureName = "appearance"
+	FeatureAdvancedTemplateScheduling FeatureName = "advanced_template_scheduling"
+	FeatureWorkspaceProxy             FeatureName = "workspace_proxy"
+	FeatureExternalTokenEncryption    FeatureName = "external_token_encryption"
+	FeatureWorkspaceBatchActions      FeatureName = "workspace_batch_actions"
+	FeatureAccessControl              FeatureName = "access_control"
 )
 
 // FeatureNames must be kept in-sync with the Feature enum above.
@@ -65,11 +64,9 @@ var FeatureNames = []FeatureName{
 	FeatureExternalProvisionerDaemons,
 	FeatureAppearance,
 	FeatureAdvancedTemplateScheduling,
-	FeatureTemplateAutostopRequirement,
 	FeatureWorkspaceProxy,
 	FeatureUserRoleManagement,
 	FeatureExternalTokenEncryption,
-	FeatureTemplateAutostopRequirement,
 	FeatureWorkspaceBatchActions,
 	FeatureAccessControl,
 }
@@ -184,6 +181,7 @@ type DeploymentValues struct {
 	EnableTerraformDebugMode        clibase.Bool                         `json:"enable_terraform_debug_mode,omitempty" typescript:",notnull"`
 	UserQuietHoursSchedule          UserQuietHoursScheduleConfig         `json:"user_quiet_hours_schedule,omitempty" typescript:",notnull"`
 	WebTerminalRenderer             clibase.String                       `json:"web_terminal_renderer,omitempty" typescript:",notnull"`
+	AllowWorkspaceRenames           clibase.Bool                         `json:"allow_workspace_renames,omitempty" typescript:",notnull"`
 	Healthcheck                     HealthcheckConfig                    `json:"healthcheck,omitempty" typescript:",notnull"`
 
 	Config      clibase.YAMLConfigPath `json:"config,omitempty" typescript:",notnull"`
@@ -331,33 +329,33 @@ type TraceConfig struct {
 
 type ExternalAuthConfig struct {
 	// Type is the type of external auth config.
-	Type         string `json:"type"`
-	ClientID     string `json:"client_id"`
+	Type         string `json:"type" yaml:"type"`
+	ClientID     string `json:"client_id" yaml:"client_id"`
 	ClientSecret string `json:"-" yaml:"client_secret"`
 	// ID is a unique identifier for the auth config.
 	// It defaults to `type` when not provided.
-	ID                  string   `json:"id"`
-	AuthURL             string   `json:"auth_url"`
-	TokenURL            string   `json:"token_url"`
-	ValidateURL         string   `json:"validate_url"`
-	AppInstallURL       string   `json:"app_install_url"`
-	AppInstallationsURL string   `json:"app_installations_url"`
-	NoRefresh           bool     `json:"no_refresh"`
-	Scopes              []string `json:"scopes"`
-	ExtraTokenKeys      []string `json:"extra_token_keys"`
-	DeviceFlow          bool     `json:"device_flow"`
-	DeviceCodeURL       string   `json:"device_code_url"`
+	ID                  string   `json:"id" yaml:"id"`
+	AuthURL             string   `json:"auth_url" yaml:"auth_url"`
+	TokenURL            string   `json:"token_url" yaml:"token_url"`
+	ValidateURL         string   `json:"validate_url" yaml:"validate_url"`
+	AppInstallURL       string   `json:"app_install_url" yaml:"app_install_url"`
+	AppInstallationsURL string   `json:"app_installations_url" yaml:"app_installations_url"`
+	NoRefresh           bool     `json:"no_refresh" yaml:"no_refresh"`
+	Scopes              []string `json:"scopes" yaml:"scopes"`
+	ExtraTokenKeys      []string `json:"extra_token_keys" yaml:"extra_token_keys"`
+	DeviceFlow          bool     `json:"device_flow" yaml:"device_flow"`
+	DeviceCodeURL       string   `json:"device_code_url" yaml:"device_code_url"`
 	// Regex allows API requesters to match an auth config by
 	// a string (e.g. coder.com) instead of by it's type.
 	//
 	// Git clone makes use of this by parsing the URL from:
 	// 'Username for "https://github.com":'
 	// And sending it to the Coder server to match against the Regex.
-	Regex string `json:"regex"`
+	Regex string `json:"regex" yaml:"regex"`
 	// DisplayName is shown in the UI to identify the auth config.
-	DisplayName string `json:"display_name"`
+	DisplayName string `json:"display_name" yaml:"display_name"`
 	// DisplayIcon is a URL to an icon to display in the UI.
-	DisplayIcon string `json:"display_icon"`
+	DisplayIcon string `json:"display_icon" yaml:"display_icon"`
 }
 
 type ProvisionerConfig struct {
@@ -393,6 +391,7 @@ type DangerousConfig struct {
 
 type UserQuietHoursScheduleConfig struct {
 	DefaultSchedule clibase.String `json:"default_schedule" typescript:",notnull"`
+	AllowUserCustom clibase.Bool   `json:"allow_user_custom" typescript:",notnull"`
 	// TODO: add WindowDuration and the ability to postpone max_deadline by this
 	// amount
 	// WindowDuration  clibase.Duration `json:"window_duration" typescript:",notnull"`
@@ -1619,7 +1618,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 			Flag:        "metrics-cache-refresh-interval",
 			Env:         "CODER_METRICS_CACHE_REFRESH_INTERVAL",
 			Hidden:      true,
-			Default:     time.Hour.String(),
+			Default:     (4 * time.Hour).String(),
 			Value:       &c.MetricsCacheRefreshInterval,
 			Annotations: clibase.Annotations{}.Mark(annotationFormatDuration, "true"),
 		},
@@ -1775,7 +1774,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 			Description: "External Authentication providers.",
 			// We need extra scrutiny to ensure this works, is documented, and
 			// tested before enabling.
-			// YAML:        "gitAuthProviders",
+			YAML:   "externalAuthProviders",
 			Value:  &c.ExternalAuthConfigs,
 			Hidden: true,
 		},
@@ -1802,13 +1801,23 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "Default Quiet Hours Schedule",
-			Description: "The default daily cron schedule applied to users that haven't set a custom quiet hours schedule themselves. The quiet hours schedule determines when workspaces will be force stopped due to the template's max TTL, and will round the max TTL up to be within the user's quiet hours window (or default). The format is the same as the standard cron format, but the day-of-month, month and day-of-week must be *. Only one hour and minute can be specified (ranges or comma separated values are not supported).",
+			Description: "The default daily cron schedule applied to users that haven't set a custom quiet hours schedule themselves. The quiet hours schedule determines when workspaces will be force stopped due to the template's autostop requirement, and will round the max deadline up to be within the user's quiet hours window (or default). The format is the same as the standard cron format, but the day-of-month, month and day-of-week must be *. Only one hour and minute can be specified (ranges or comma separated values are not supported).",
 			Flag:        "default-quiet-hours-schedule",
 			Env:         "CODER_QUIET_HOURS_DEFAULT_SCHEDULE",
-			Default:     "",
+			Default:     "CRON_TZ=UTC 0 0 * * *",
 			Value:       &c.UserQuietHoursSchedule.DefaultSchedule,
 			Group:       &deploymentGroupUserQuietHoursSchedule,
 			YAML:        "defaultQuietHoursSchedule",
+		},
+		{
+			Name:        "Allow Custom Quiet Hours",
+			Description: "Allow users to set their own quiet hours schedule for workspaces to stop in (depending on template autostop requirement settings). If false, users can't change their quiet hours schedule and the site default is always used.",
+			Flag:        "allow-custom-quiet-hours",
+			Env:         "CODER_ALLOW_CUSTOM_QUIET_HOURS",
+			Default:     "true",
+			Value:       &c.UserQuietHoursSchedule.AllowUserCustom,
+			Group:       &deploymentGroupUserQuietHoursSchedule,
+			YAML:        "allowCustomQuietHours",
 		},
 		{
 			Name:        "Web Terminal Renderer",
@@ -1819,6 +1828,15 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 			Value:       &c.WebTerminalRenderer,
 			Group:       &deploymentGroupClient,
 			YAML:        "webTerminalRenderer",
+		},
+		{
+			Name:        "Allow Workspace Renames",
+			Description: "DEPRECATED: Allow users to rename their workspaces. Use only for temporary compatibility reasons, this will be removed in a future release.",
+			Flag:        "allow-workspace-renames",
+			Env:         "CODER_ALLOW_WORKSPACE_RENAMES",
+			Default:     "false",
+			Value:       &c.AllowWorkspaceRenames,
+			YAML:        "allowWorkspaceRenames",
 		},
 		// Healthcheck Options
 		{
@@ -2041,10 +2059,6 @@ func (c *Client) BuildInfo(ctx context.Context) (BuildInfoResponse, error) {
 type Experiment string
 
 const (
-	// ExperimentMoons enabled the workspace proxy endpoints and CRUD. This
-	// feature is not yet complete in functionality.
-	ExperimentMoons Experiment = "moons"
-
 	// https://github.com/coder/coder/milestone/19
 	ExperimentWorkspaceActions Experiment = "workspace_actions"
 
@@ -2056,20 +2070,6 @@ const (
 	// all use a single tailnet, instead of the previous behavior of creating a
 	// single tailnet for each agent.
 	ExperimentSingleTailnet Experiment = "single_tailnet"
-
-	// ExperimentTemplateAutostopRequirement allows template admins to have more
-	// control over when workspaces created on a template are required to
-	// stop, and allows users to ensure these restarts never happen during their
-	// business hours.
-	//
-	// This will replace the MaxTTL setting on templates.
-	//
-	// Enables:
-	// - User quiet hours schedule settings
-	// - Template autostop requirement settings
-	// - Changes the max_deadline algorithm to use autostop requirement and user
-	//   quiet hours instead of max_ttl.
-	ExperimentTemplateAutostopRequirement Experiment = "template_autostop_requirement"
 
 	// Deployment health page
 	ExperimentDeploymentHealthPage Experiment = "deployment_health_page"

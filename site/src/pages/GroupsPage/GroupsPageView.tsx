@@ -59,6 +59,7 @@ export const GroupsPageView: FC<GroupsPageViewProps> = ({
                   rel="noreferrer"
                   startIcon={<ArrowRightAltOutlined />}
                   variant="contained"
+                  color="primary"
                 >
                   了解企业版
                 </Button>
@@ -68,7 +69,7 @@ export const GroupsPageView: FC<GroupsPageViewProps> = ({
                   target="_blank"
                   rel="noreferrer"
                 >
-                  阅读文档
+                阅读文档
                 </Link>
               </Stack>
             }

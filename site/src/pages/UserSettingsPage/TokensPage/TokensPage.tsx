@@ -1,26 +1,18 @@
-import { FC, PropsWithChildren, useState } from "react";
-import { Section } from "components/SettingsLayout/Section";
-import { TokensPageView } from "./TokensPageView";
-import { useTokensData } from "./hooks";
-import { ConfirmDeleteDialog } from "./ConfirmDeleteDialog";
-import { Stack } from "components/Stack/Stack";
-import Button from "@mui/material/Button";
+import { css, type Interpolation, type Theme } from "@emotion/react";
+import { type FC, useState } from "react";
 import { Link as RouterLink } from "react-router-dom";
+import Button from "@mui/material/Button";
 import AddIcon from "@mui/icons-material/AddOutlined";
-import { APIKeyWithOwner } from "api/typesGenerated";
-import { css } from "@emotion/react";
+import type { APIKeyWithOwner } from "api/typesGenerated";
+import { Stack } from "components/Stack/Stack";
+import { Section } from "../Section";
+import { useTokensData } from "./hooks";
+import { TokensPageView } from "./TokensPageView";
+import { ConfirmDeleteDialog } from "./ConfirmDeleteDialog";
 
-export const TokensPage: FC<PropsWithChildren<unknown>> = () => {
-  const cliCreateCommand = "coder tokens create";
+const cliCreateCommand = "coder tokens create";
 
-  const TokenActions = () => (
-    <Stack direction="row" justifyContent="end" css={{ marginBottom: 8 }}>
-      <Button startIcon={<AddIcon />} component={RouterLink} to="new">
-        添加令牌
-      </Button>
-    </Stack>
-  );
-
+export const TokensPage: FC = () => {
   const [tokenToDelete, setTokenToDelete] = useState<
     APIKeyWithOwner | undefined
   >(undefined);
@@ -41,15 +33,7 @@ export const TokensPage: FC<PropsWithChildren<unknown>> = () => {
     <>
       <Section
         title="Tokens"
-        css={(theme) => css`
-          & code {
-            background: ${theme.palette.divider};
-            font-size: 12px;
-            padding: 2px 4px;
-            color: ${theme.palette.text.primary};
-            border-radius: 2px;
-          }
-        `}
+        css={styles.section}
         description={
           <>
             使用令牌与 Coder API 进行身份验证。您可以使用 Coder CLI 的<code>{cliCreateCommand}</code>{" "}命令创建一个令牌。
@@ -76,5 +60,25 @@ export const TokensPage: FC<PropsWithChildren<unknown>> = () => {
     </>
   );
 };
+
+const TokenActions: FC = () => (
+  <Stack direction="row" justifyContent="end" css={{ marginBottom: 8 }}>
+    <Button startIcon={<AddIcon />} component={RouterLink} to="new">
+      Add token
+    </Button>
+  </Stack>
+);
+
+const styles = {
+  section: (theme) => css`
+    & code {
+      background: ${theme.palette.divider};
+      font-size: 12px;
+      padding: 2px 4px;
+      color: ${theme.palette.text.primary};
+      border-radius: 2px;
+    }
+  `,
+} satisfies Record<string, Interpolation<Theme>>;
 
 export default TokensPage;

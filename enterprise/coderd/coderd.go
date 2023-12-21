@@ -109,6 +109,13 @@ func New(ctx context.Context, options *Options) (_ *API, err error) {
 		}
 	}()
 
+	api.AGPL.Options.ParseLicenseClaims = func(rawJWT string) (email string, trial bool, err error) {
+		c, err := license.ParseClaims(rawJWT, Keys)
+		if err != nil {
+			return "", false, err
+		}
+		return c.Subject, c.Trial, nil
+	}
 	api.AGPL.Options.SetUserGroups = api.setUserGroups
 	api.AGPL.Options.SetUserSiteRoles = api.setUserSiteRoles
 	api.AGPL.SiteHandler.AppearanceFetcher = api.fetchAppearanceConfig
@@ -355,34 +362,33 @@ func New(ctx context.Context, options *Options) (_ *API, err error) {
 	}
 	api.derpMesh = derpmesh.New(options.Logger.Named("derpmesh"), api.DERPServer, meshTLSConfig)
 
-	if api.AGPL.Experiments.Enabled(codersdk.ExperimentMoons) {
-		// Proxy health is a moon feature.
-		api.ProxyHealth, err = proxyhealth.New(&proxyhealth.Options{
-			Interval:   options.ProxyHealthInterval,
-			DB:         api.Database,
-			Logger:     options.Logger.Named("proxyhealth"),
-			Client:     api.HTTPClient,
-			Prometheus: api.PrometheusRegistry,
-		})
-		if err != nil {
-			return nil, xerrors.Errorf("initialize proxy health: %w", err)
-		}
-		go api.ProxyHealth.Run(ctx)
-		// Force the initial loading of the cache. Do this in a go routine in case
-		// the calls to the workspace proxies hang and this takes some time.
-		go api.forceWorkspaceProxyHealthUpdate(ctx)
-
-		// Use proxy health to return the healthy workspace proxy hostnames.
-		f := api.ProxyHealth.ProxyHosts
-		api.AGPL.WorkspaceProxyHostsFn.Store(&f)
-
-		// Wire this up to healthcheck.
-		var fetchUpdater healthcheck.WorkspaceProxiesFetchUpdater = &workspaceProxiesFetchUpdater{
-			fetchFunc:  api.fetchWorkspaceProxies,
-			updateFunc: api.ProxyHealth.ForceUpdate,
-		}
-		api.AGPL.WorkspaceProxiesFetchUpdater.Store(&fetchUpdater)
+	// Moon feature init. Proxyhealh is a go routine to periodically check
+	// the health of all workspace proxies.
+	api.ProxyHealth, err = proxyhealth.New(&proxyhealth.Options{
+		Interval:   options.ProxyHealthInterval,
+		DB:         api.Database,
+		Logger:     options.Logger.Named("proxyhealth"),
+		Client:     api.HTTPClient,
+		Prometheus: api.PrometheusRegistry,
+	})
+	if err != nil {
+		return nil, xerrors.Errorf("initialize proxy health: %w", err)
 	}
+	go api.ProxyHealth.Run(ctx)
+	// Force the initial loading of the cache. Do this in a go routine in case
+	// the calls to the workspace proxies hang and this takes some time.
+	go api.forceWorkspaceProxyHealthUpdate(ctx)
+
+	// Use proxy health to return the healthy workspace proxy hostnames.
+	f := api.ProxyHealth.ProxyHosts
+	api.AGPL.WorkspaceProxyHostsFn.Store(&f)
+
+	// Wire this up to healthcheck.
+	var fetchUpdater healthcheck.WorkspaceProxiesFetchUpdater = &workspaceProxiesFetchUpdater{
+		fetchFunc:  api.fetchWorkspaceProxies,
+		updateFunc: api.ProxyHealth.ForceUpdate,
+	}
+	api.AGPL.WorkspaceProxiesFetchUpdater.Store(&fetchUpdater)
 
 	err = api.PrometheusRegistry.Register(&api.licenseMetricsCollector)
 	if err != nil {
@@ -485,12 +491,9 @@ func (api *API) updateEntitlements(ctx context.Context) error {
 			codersdk.FeatureExternalTokenEncryption:    len(api.ExternalTokenEncryption) > 0,
 			codersdk.FeatureExternalProvisionerDaemons: true,
 			codersdk.FeatureAdvancedTemplateScheduling: true,
-			// FeatureTemplateAutostopRequirement depends on
-			// FeatureAdvancedTemplateScheduling.
-			codersdk.FeatureTemplateAutostopRequirement: api.AGPL.Experiments.Enabled(codersdk.ExperimentTemplateAutostopRequirement) && api.DefaultQuietHoursSchedule != "",
-			codersdk.FeatureWorkspaceProxy:              true,
-			codersdk.FeatureUserRoleManagement:          true,
-			codersdk.FeatureAccessControl:               true,
+			codersdk.FeatureWorkspaceProxy:             true,
+			codersdk.FeatureUserRoleManagement:         true,
+			codersdk.FeatureAccessControl:              true,
 		})
 	if err != nil {
 		return err
@@ -506,18 +509,6 @@ func (api *API) updateEntitlements(ctx context.Context) error {
 			"License requires telemetry but telemetry is disabled",
 		}
 		api.Logger.Error(ctx, "license requires telemetry enabled")
-		return nil
-	}
-
-	if entitlements.Features[codersdk.FeatureTemplateAutostopRequirement].Enabled && !entitlements.Features[codersdk.FeatureAdvancedTemplateScheduling].Enabled {
-		api.entitlements.Errors = []string{
-			`Your license is entitled to the feature "template autostop ` +
-				`requirement" (and you have it enabled by setting the ` +
-				"default quiet hours schedule), but you are not entitled to " +
-				`the dependency feature "advanced template scheduling". ` +
-				"Please contact support for a new license.",
-		}
-		api.Logger.Error(ctx, "license is entitled to template autostop requirement but not advanced template scheduling")
 		return nil
 	}
 
@@ -572,38 +563,20 @@ func (api *API) updateEntitlements(ctx context.Context) error {
 			templateStore := schedule.NewEnterpriseTemplateScheduleStore(api.AGPL.UserQuietHoursScheduleStore)
 			templateStoreInterface := agplschedule.TemplateScheduleStore(templateStore)
 			api.AGPL.TemplateScheduleStore.Store(&templateStoreInterface)
-		} else {
-			templateStore := agplschedule.NewAGPLTemplateScheduleStore()
-			api.AGPL.TemplateScheduleStore.Store(&templateStore)
-		}
-	}
 
-	if initial, changed, enabled := featureChanged(codersdk.FeatureTemplateAutostopRequirement); shouldUpdate(initial, changed, enabled) {
-		if enabled {
-			templateStore := *(api.AGPL.TemplateScheduleStore.Load())
-			enterpriseTemplateStore, ok := templateStore.(*schedule.EnterpriseTemplateScheduleStore)
-			if !ok {
-				api.Logger.Error(ctx, "unable to set up enterprise template schedule store, template autostop requirements will not be applied to workspace builds")
+			if api.DefaultQuietHoursSchedule == "" {
+				api.Logger.Warn(ctx, "template autostop requirement will default to UTC midnight as the default user quiet hours schedule. Set a custom default quiet hours schedule using CODER_QUIET_HOURS_DEFAULT_SCHEDULE to avoid this warning")
+				api.DefaultQuietHoursSchedule = "CRON_TZ=UTC 0 0 * * *"
 			}
-			enterpriseTemplateStore.UseAutostopRequirement.Store(true)
-
-			quietHoursStore, err := schedule.NewEnterpriseUserQuietHoursScheduleStore(api.DefaultQuietHoursSchedule)
+			quietHoursStore, err := schedule.NewEnterpriseUserQuietHoursScheduleStore(api.DefaultQuietHoursSchedule, api.DeploymentValues.UserQuietHoursSchedule.AllowUserCustom.Value())
 			if err != nil {
 				api.Logger.Error(ctx, "unable to set up enterprise user quiet hours schedule store, template autostop requirements will not be applied to workspace builds", slog.Error(err))
 			} else {
 				api.AGPL.UserQuietHoursScheduleStore.Store(&quietHoursStore)
 			}
 		} else {
-			if api.DefaultQuietHoursSchedule != "" {
-				api.Logger.Warn(ctx, "template autostop requirements are not enabled (due to setting default quiet hours schedule) as your license is not entitled to this feature")
-			}
-
-			templateStore := *(api.AGPL.TemplateScheduleStore.Load())
-			enterpriseTemplateStore, ok := templateStore.(*schedule.EnterpriseTemplateScheduleStore)
-			if ok {
-				enterpriseTemplateStore.UseAutostopRequirement.Store(false)
-			}
-
+			templateStore := agplschedule.NewAGPLTemplateScheduleStore()
+			api.AGPL.TemplateScheduleStore.Store(&templateStore)
 			quietHoursStore := agplschedule.NewAGPLUserQuietHoursScheduleStore()
 			api.AGPL.UserQuietHoursScheduleStore.Store(&quietHoursStore)
 		}
