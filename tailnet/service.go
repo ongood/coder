@@ -4,16 +4,17 @@ import (
 	"context"
 	"io"
 	"net"
-	"strconv"
-	"strings"
 	"sync/atomic"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/hashicorp/yamux"
 	"storj.io/drpc/drpcmux"
 	"storj.io/drpc/drpcserver"
+	"tailscale.com/tailcfg"
 
 	"cdr.dev/slog"
+	"github.com/coder/coder/v2/coderd/util/apiversion"
 	"github.com/coder/coder/v2/tailnet/proto"
 
 	"golang.org/x/xerrors"
@@ -24,47 +25,7 @@ const (
 	CurrentMinor = 0
 )
 
-var SupportedMajors = []int{2, 1}
-
-func ValidateVersion(version string) error {
-	major, minor, err := parseVersion(version)
-	if err != nil {
-		return err
-	}
-	if major > CurrentMajor {
-		return xerrors.Errorf("server is at version %d.%d, behind requested version %s",
-			CurrentMajor, CurrentMinor, version)
-	}
-	if major == CurrentMajor {
-		if minor > CurrentMinor {
-			return xerrors.Errorf("server is at version %d.%d, behind requested version %s",
-				CurrentMajor, CurrentMinor, version)
-		}
-		return nil
-	}
-	for _, mjr := range SupportedMajors {
-		if major == mjr {
-			return nil
-		}
-	}
-	return xerrors.Errorf("version %s is no longer supported", version)
-}
-
-func parseVersion(version string) (major int, minor int, err error) {
-	parts := strings.Split(version, ".")
-	if len(parts) != 2 {
-		return 0, 0, xerrors.Errorf("invalid version string: %s", version)
-	}
-	major, err = strconv.Atoi(parts[0])
-	if err != nil {
-		return 0, 0, xerrors.Errorf("invalid major version: %s", version)
-	}
-	minor, err = strconv.Atoi(parts[1])
-	if err != nil {
-		return 0, 0, xerrors.Errorf("invalid minor version: %s", version)
-	}
-	return major, minor, nil
-}
+var CurrentVersion = apiversion.New(CurrentMajor, CurrentMinor).WithBackwardCompat(1)
 
 type streamIDContextKey struct{}
 
@@ -92,11 +53,23 @@ type ClientService struct {
 
 // NewClientService returns a ClientService based on the given Coordinator pointer.  The pointer is
 // loaded on each processed connection.
-func NewClientService(logger slog.Logger, coordPtr *atomic.Pointer[Coordinator]) (*ClientService, error) {
+func NewClientService(
+	logger slog.Logger,
+	coordPtr *atomic.Pointer[Coordinator],
+	derpMapUpdateFrequency time.Duration,
+	derpMapFn func() *tailcfg.DERPMap,
+) (
+	*ClientService, error,
+) {
 	s := &ClientService{logger: logger, coordPtr: coordPtr}
 	mux := drpcmux.New()
-	drpcService := NewDRPCService(logger, coordPtr)
-	err := proto.DRPCRegisterClient(mux, drpcService)
+	drpcService := &DRPCService{
+		CoordPtr:               coordPtr,
+		Logger:                 logger,
+		DerpMapUpdateFrequency: derpMapUpdateFrequency,
+		DerpMapFn:              derpMapFn,
+	}
+	err := proto.DRPCRegisterTailnet(mux, drpcService)
 	if err != nil {
 		return nil, xerrors.Errorf("register DRPC service: %w", err)
 	}
@@ -113,7 +86,7 @@ func NewClientService(logger slog.Logger, coordPtr *atomic.Pointer[Coordinator])
 }
 
 func (s *ClientService) ServeClient(ctx context.Context, version string, conn net.Conn, id uuid.UUID, agent uuid.UUID) error {
-	major, _, err := parseVersion(version)
+	major, _, err := apiversion.Parse(version)
 	if err != nil {
 		s.logger.Warn(ctx, "serve client called with unparsable version", slog.Error(err))
 		return err
@@ -145,32 +118,49 @@ func (s *ClientService) ServeClient(ctx context.Context, version string, conn ne
 
 // DRPCService is the dRPC-based, version 2.x of the tailnet API and implements proto.DRPCClientServer
 type DRPCService struct {
-	coordPtr *atomic.Pointer[Coordinator]
-	logger   slog.Logger
+	CoordPtr               *atomic.Pointer[Coordinator]
+	Logger                 slog.Logger
+	DerpMapUpdateFrequency time.Duration
+	DerpMapFn              func() *tailcfg.DERPMap
 }
 
-func NewDRPCService(logger slog.Logger, coordPtr *atomic.Pointer[Coordinator]) *DRPCService {
-	return &DRPCService{
-		coordPtr: coordPtr,
-		logger:   logger,
+func (s *DRPCService) StreamDERPMaps(_ *proto.StreamDERPMapsRequest, stream proto.DRPCTailnet_StreamDERPMapsStream) error {
+	defer stream.Close()
+
+	ticker := time.NewTicker(s.DerpMapUpdateFrequency)
+	defer ticker.Stop()
+
+	var lastDERPMap *tailcfg.DERPMap
+	for {
+		derpMap := s.DerpMapFn()
+		if lastDERPMap == nil || !CompareDERPMaps(lastDERPMap, derpMap) {
+			protoDERPMap := DERPMapToProto(derpMap)
+			err := stream.Send(protoDERPMap)
+			if err != nil {
+				return xerrors.Errorf("send derp map: %w", err)
+			}
+			lastDERPMap = derpMap
+		}
+
+		ticker.Reset(s.DerpMapUpdateFrequency)
+		select {
+		case <-stream.Context().Done():
+			return nil
+		case <-ticker.C:
+		}
 	}
 }
 
-func (*DRPCService) StreamDERPMaps(*proto.StreamDERPMapsRequest, proto.DRPCClient_StreamDERPMapsStream) error {
-	// TODO integrate with Dean's PR implementation
-	return xerrors.New("unimplemented")
-}
-
-func (s *DRPCService) CoordinateTailnet(stream proto.DRPCClient_CoordinateTailnetStream) error {
+func (s *DRPCService) Coordinate(stream proto.DRPCTailnet_CoordinateStream) error {
 	ctx := stream.Context()
 	streamID, ok := ctx.Value(streamIDContextKey{}).(StreamID)
 	if !ok {
 		_ = stream.Close()
 		return xerrors.New("no Stream ID")
 	}
-	logger := s.logger.With(slog.F("peer_id", streamID), slog.F("name", streamID.Name))
+	logger := s.Logger.With(slog.F("peer_id", streamID), slog.F("name", streamID.Name))
 	logger.Debug(ctx, "starting tailnet Coordinate")
-	coord := *(s.coordPtr.Load())
+	coord := *(s.CoordPtr.Load())
 	reqs, resps := coord.Coordinate(ctx, streamID.ID, streamID.Name, streamID.Auth)
 	c := communicator{
 		logger: logger,
@@ -184,7 +174,7 @@ func (s *DRPCService) CoordinateTailnet(stream proto.DRPCClient_CoordinateTailne
 
 type communicator struct {
 	logger slog.Logger
-	stream proto.DRPCClient_CoordinateTailnetStream
+	stream proto.DRPCTailnet_CoordinateStream
 	reqs   chan<- *proto.CoordinateRequest
 	resps  <-chan *proto.CoordinateResponse
 }
