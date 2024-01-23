@@ -18,6 +18,7 @@ import (
 
 	"github.com/coder/coder/v2/buildinfo"
 	"github.com/coder/coder/v2/cli/clibase"
+	"github.com/coder/coder/v2/coderd/workspaceapps/appurl"
 )
 
 // Entitlement represents whether a feature is licensed.
@@ -132,11 +133,11 @@ func (c *Client) Entitlements(ctx context.Context) (Entitlements, error) {
 
 // DeploymentValues is the central configuration values the coder server.
 type DeploymentValues struct {
-	Verbose             clibase.Bool `json:"verbose,omitempty"`
-	AccessURL           clibase.URL  `json:"access_url,omitempty"`
-	WildcardAccessURL   clibase.URL  `json:"wildcard_access_url,omitempty"`
-	DocsURL             clibase.URL  `json:"docs_url,omitempty"`
-	RedirectToAccessURL clibase.Bool `json:"redirect_to_access_url,omitempty"`
+	Verbose             clibase.Bool   `json:"verbose,omitempty"`
+	AccessURL           clibase.URL    `json:"access_url,omitempty"`
+	WildcardAccessURL   clibase.String `json:"wildcard_access_url,omitempty"`
+	DocsURL             clibase.URL    `json:"docs_url,omitempty"`
+	RedirectToAccessURL clibase.Bool   `json:"redirect_to_access_url,omitempty"`
 	// HTTPAddress is a string because it may be set to zero to disable.
 	HTTPAddress                     clibase.String                       `json:"http_address,omitempty" typescript:",notnull"`
 	AutobuildPollInterval           clibase.Duration                     `json:"autobuild_poll_interval,omitempty"`
@@ -603,7 +604,19 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 			Description: "指定工作区应用程序使用的通配符主机名，格式为\"*.example.com\"。",
 			Flag:        "wildcard-access-url",
 			Env:         "CODER_WILDCARD_ACCESS_URL",
-			Value:       &c.WildcardAccessURL,
+			// Do not use a clibase.URL here. We are intentionally omitting the
+			// scheme part of the url (https://), so the standard url parsing
+			// will yield unexpected results.
+			//
+			// We have a validation function to ensure the wildcard url is correct,
+			// so use that instead.
+			Value: clibase.Validate(&c.WildcardAccessURL, func(value *clibase.String) error {
+				if value.Value() == "" {
+					return nil
+				}
+				_, err := appurl.CompileHostnamePattern(value.Value())
+				return err
+			}),
 			Group:       &deploymentGroupNetworking,
 			YAML:        "wildcardAccessURL",
 			Annotations: clibase.Annotations{}.Mark(annotationExternalProxies, "true"),
@@ -1765,22 +1778,21 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "Support Links",
-			Description: "在右上角下拉菜单中显示的支持链接。",
+			Description: "Support links to display in the top right drop down menu.",
+			Env:         "CODER_SUPPORT_LINKS",
+			Flag:        "support-links",
 			YAML:        "supportLinks",
 			Value:       &c.Support.Links,
-			// The support links are hidden until they are defined in the
-			// YAML.
-			Hidden: true,
+			Hidden:      false,
 		},
 		{
 			// Env handling is done in cli.ReadGitAuthFromEnvironment
 			Name:        "External Auth Providers",
 			Description: "External Authentication providers.",
-			// We need extra scrutiny to ensure this works, is documented, and
-			// tested before enabling.
-			YAML:   "externalAuthProviders",
-			Value:  &c.ExternalAuthConfigs,
-			Hidden: true,
+			YAML:        "externalAuthProviders",
+			Flag:        "external-auth-providers",
+			Value:       &c.ExternalAuthConfigs,
+			Hidden:      true,
 		},
 		{
 			Name:        "Custom wgtunnel Host",
@@ -1877,7 +1889,7 @@ type SupportConfig struct {
 type LinkConfig struct {
 	Name   string `json:"name" yaml:"name"`
 	Target string `json:"target" yaml:"target"`
-	Icon   string `json:"icon" yaml:"icon"`
+	Icon   string `json:"icon" yaml:"icon" enums:"bug,chat,docs"`
 }
 
 // DeploymentOptionsWithoutSecrets returns a copy of the OptionSet with secret values omitted.
@@ -2052,7 +2064,7 @@ func (c *Client) BuildInfo(ctx context.Context) (BuildInfoResponse, error) {
 	}
 	defer res.Body.Close()
 
-	if res.StatusCode != http.StatusOK {
+	if res.StatusCode != http.StatusOK || ExpectJSONMime(res) != nil {
 		return BuildInfoResponse{}, ReadBodyAsError(res)
 	}
 
@@ -2063,23 +2075,15 @@ func (c *Client) BuildInfo(ctx context.Context) (BuildInfoResponse, error) {
 type Experiment string
 
 const (
-	// https://github.com/coder/coder/milestone/19
-	ExperimentWorkspaceActions Experiment = "workspace_actions"
-
-	// Deployment health page
-	ExperimentDeploymentHealthPage Experiment = "deployment_health_page"
-
 	// Add new experiments here!
-	// ExperimentExample Experiment = "example"
+	ExperimentExample Experiment = "example" // This isn't used for anything.
 )
 
 // ExperimentsAll should include all experiments that are safe for
 // users to opt-in to via --experimental='*'.
 // Experiments that are not ready for consumption by all users should
 // not be included here and will be essentially hidden.
-var ExperimentsAll = Experiments{
-	ExperimentDeploymentHealthPage,
-}
+var ExperimentsAll = Experiments{}
 
 // Experiments is a list of experiments.
 // Multiple experiments may be enabled at the same time.
@@ -2189,10 +2193,10 @@ type AppHostResponse struct {
 	Host string `json:"host"`
 }
 
-// AppHost returns the site-wide application wildcard hostname without the
-// leading "*.", e.g. "apps.coder.com". Apps are accessible at:
-// "<app-name>--<agent-name>--<workspace-name>--<username>.<app-host>", e.g.
-// "my-app--agent--workspace--username.apps.coder.com".
+// AppHost returns the site-wide application wildcard hostname
+// e.g. "*--apps.coder.com". Apps are accessible at:
+// "<app-name>--<agent-name>--<workspace-name>--<username><app-host>", e.g.
+// "my-app--agent--workspace--username--apps.coder.com".
 //
 // If the app host is not set, the response will contain an empty string.
 func (c *Client) AppHost(ctx context.Context) (AppHostResponse, error) {

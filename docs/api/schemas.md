@@ -717,7 +717,7 @@ _None_
 {
   "value": [
     {
-      "icon": "string",
+      "icon": "bug",
       "name": "string",
       "target": "string"
     }
@@ -861,6 +861,7 @@ _None_
           "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
           "last_seen_at": "2019-08-24T14:15:22Z",
           "login_type": "",
+          "name": "string",
           "organization_ids": ["497f6eca-6276-4993-bfeb-53cbbbba6f08"],
           "roles": [
             {
@@ -887,6 +888,7 @@ _None_
       "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
       "last_seen_at": "2019-08-24T14:15:22Z",
       "login_type": "",
+      "name": "string",
       "organization_ids": ["497f6eca-6276-4993-bfeb-53cbbbba6f08"],
       "roles": [
         {
@@ -1024,7 +1026,7 @@ _None_
   },
   "support_links": [
     {
-      "icon": "string",
+      "icon": "bug",
       "name": "string",
       "target": "string"
     }
@@ -1173,6 +1175,7 @@ _None_
     "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
     "last_seen_at": "2019-08-24T14:15:22Z",
     "login_type": "",
+    "name": "string",
     "organization_ids": ["497f6eca-6276-4993-bfeb-53cbbbba6f08"],
     "roles": [
       {
@@ -1251,6 +1254,7 @@ _None_
         "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
         "last_seen_at": "2019-08-24T14:15:22Z",
         "login_type": "",
+        "name": "string",
         "organization_ids": ["497f6eca-6276-4993-bfeb-53cbbbba6f08"],
         "roles": [
           {
@@ -1511,18 +1515,28 @@ AuthorizationObject can represent a "set" of objects, such as: all workspaces in
   "email": "string",
   "password": "string",
   "trial": true,
+  "trial_info": {
+    "company_name": "string",
+    "country": "string",
+    "developers": "string",
+    "first_name": "string",
+    "job_title": "string",
+    "last_name": "string",
+    "phone_number": "string"
+  },
   "username": "string"
 }
 ```
 
 ### Properties
 
-| Name       | Type    | Required | Restrictions | Description |
-| ---------- | ------- | -------- | ------------ | ----------- |
-| `email`    | string  | true     |              |             |
-| `password` | string  | true     |              |             |
-| `trial`    | boolean | false    |              |             |
-| `username` | string  | true     |              |             |
+| Name         | Type                                                                   | Required | Restrictions | Description |
+| ------------ | ---------------------------------------------------------------------- | -------- | ------------ | ----------- |
+| `email`      | string                                                                 | true     |              |             |
+| `password`   | string                                                                 | true     |              |             |
+| `trial`      | boolean                                                                | false    |              |             |
+| `trial_info` | [codersdk.CreateFirstUserTrialInfo](#codersdkcreatefirstusertrialinfo) | false    |              |             |
+| `username`   | string                                                                 | true     |              |             |
 
 ## codersdk.CreateFirstUserResponse
 
@@ -1539,6 +1553,32 @@ AuthorizationObject can represent a "set" of objects, such as: all workspaces in
 | ----------------- | ------ | -------- | ------------ | ----------- |
 | `organization_id` | string | false    |              |             |
 | `user_id`         | string | false    |              |             |
+
+## codersdk.CreateFirstUserTrialInfo
+
+```json
+{
+  "company_name": "string",
+  "country": "string",
+  "developers": "string",
+  "first_name": "string",
+  "job_title": "string",
+  "last_name": "string",
+  "phone_number": "string"
+}
+```
+
+### Properties
+
+| Name           | Type   | Required | Restrictions | Description |
+| -------------- | ------ | -------- | ------------ | ----------- |
+| `company_name` | string | false    |              |             |
+| `country`      | string | false    |              |             |
+| `developers`   | string | false    |              |             |
+| `first_name`   | string | false    |              |             |
+| `job_title`    | string | false    |              |             |
+| `last_name`    | string | false    |              |             |
+| `phone_number` | string | false    |              |             |
 
 ## codersdk.CreateGroupRequest
 
@@ -2277,7 +2317,7 @@ AuthorizationObject can represent a "set" of objects, such as: all workspaces in
       "links": {
         "value": [
           {
-            "icon": "string",
+            "icon": "bug",
             "name": "string",
             "target": "string"
           }
@@ -2335,19 +2375,7 @@ AuthorizationObject can represent a "set" of objects, such as: all workspaces in
     "verbose": true,
     "web_terminal_renderer": "string",
     "wgtunnel_host": "string",
-    "wildcard_access_url": {
-      "forceQuery": true,
-      "fragment": "string",
-      "host": "string",
-      "omitHost": true,
-      "opaque": "string",
-      "path": "string",
-      "rawFragment": "string",
-      "rawPath": "string",
-      "rawQuery": "string",
-      "scheme": "string",
-      "user": {}
-    },
+    "wildcard_access_url": "string",
     "write_config": true
   },
   "options": [
@@ -2655,7 +2683,7 @@ AuthorizationObject can represent a "set" of objects, such as: all workspaces in
     "links": {
       "value": [
         {
-          "icon": "string",
+          "icon": "bug",
           "name": "string",
           "target": "string"
         }
@@ -2713,19 +2741,7 @@ AuthorizationObject can represent a "set" of objects, such as: all workspaces in
   "verbose": true,
   "web_terminal_renderer": "string",
   "wgtunnel_host": "string",
-  "wildcard_access_url": {
-    "forceQuery": true,
-    "fragment": "string",
-    "host": "string",
-    "omitHost": true,
-    "opaque": "string",
-    "path": "string",
-    "rawFragment": "string",
-    "rawPath": "string",
-    "rawQuery": "string",
-    "scheme": "string",
-    "user": {}
-  },
+  "wildcard_access_url": "string",
   "write_config": true
 }
 ```
@@ -2789,7 +2805,7 @@ AuthorizationObject can represent a "set" of objects, such as: all workspaces in
 | `verbose`                            | boolean                                                                                              | false    |              |                                                                    |
 | `web_terminal_renderer`              | string                                                                                               | false    |              |                                                                    |
 | `wgtunnel_host`                      | string                                                                                               | false    |              |                                                                    |
-| `wildcard_access_url`                | [clibase.URL](#clibaseurl)                                                                           | false    |              |                                                                    |
+| `wildcard_access_url`                | string                                                                                               | false    |              |                                                                    |
 | `write_config`                       | boolean                                                                                              | false    |              |                                                                    |
 
 ## codersdk.DisplayApp
@@ -2869,17 +2885,16 @@ AuthorizationObject can represent a "set" of objects, such as: all workspaces in
 ## codersdk.Experiment
 
 ```json
-"workspace_actions"
+"example"
 ```
 
 ### Properties
 
 #### Enumerated Values
 
-| Value                    |
-| ------------------------ |
-| `workspace_actions`      |
-| `deployment_health_page` |
+| Value     |
+| --------- |
+| `example` |
 
 ## codersdk.ExternalAuth
 
@@ -3106,6 +3121,7 @@ AuthorizationObject can represent a "set" of objects, such as: all workspaces in
       "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
       "last_seen_at": "2019-08-24T14:15:22Z",
       "login_type": "",
+      "name": "string",
       "organization_ids": ["497f6eca-6276-4993-bfeb-53cbbbba6f08"],
       "roles": [
         {
@@ -3163,6 +3179,7 @@ AuthorizationObject can represent a "set" of objects, such as: all workspaces in
       "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
       "last_seen_at": "2019-08-24T14:15:22Z",
       "login_type": "",
+      "name": "string",
       "organization_ids": ["497f6eca-6276-4993-bfeb-53cbbbba6f08"],
       "roles": [
         {
@@ -3220,13 +3237,14 @@ AuthorizationObject can represent a "set" of objects, such as: all workspaces in
 
 #### Enumerated Values
 
-| Value            |
-| ---------------- |
-| `DERP`           |
-| `AccessURL`      |
-| `Websocket`      |
-| `Database`       |
-| `WorkspaceProxy` |
+| Value                |
+| -------------------- |
+| `DERP`               |
+| `AccessURL`          |
+| `Websocket`          |
+| `Database`           |
+| `WorkspaceProxy`     |
+| `ProvisionerDaemons` |
 
 ## codersdk.HealthSettings
 
@@ -3359,7 +3377,7 @@ AuthorizationObject can represent a "set" of objects, such as: all workspaces in
 
 ```json
 {
-  "icon": "string",
+  "icon": "bug",
   "name": "string",
   "target": "string"
 }
@@ -3372,6 +3390,14 @@ AuthorizationObject can represent a "set" of objects, such as: all workspaces in
 | `icon`   | string | false    |              |             |
 | `name`   | string | false    |              |             |
 | `target` | string | false    |              |             |
+
+#### Enumerated Values
+
+| Property | Value  |
+| -------- | ------ |
+| `icon`   | `bug`  |
+| `icon`   | `chat` |
+| `icon`   | `docs` |
 
 ## codersdk.LogLevel
 
@@ -3493,6 +3519,24 @@ AuthorizationObject can represent a "set" of objects, such as: all workspaces in
 | `id`         | string | true     |              |             |
 | `username`   | string | true     |              |             |
 
+## codersdk.OAuth2AppEndpoints
+
+```json
+{
+  "authorization": "string",
+  "device_authorization": "string",
+  "token": "string"
+}
+```
+
+### Properties
+
+| Name                   | Type   | Required | Restrictions | Description                       |
+| ---------------------- | ------ | -------- | ------------ | --------------------------------- |
+| `authorization`        | string | false    |              |                                   |
+| `device_authorization` | string | false    |              | Device authorization is optional. |
+| `token`                | string | false    |              |                                   |
+
 ## codersdk.OAuth2Config
 
 ```json
@@ -3546,6 +3590,11 @@ AuthorizationObject can represent a "set" of objects, such as: all workspaces in
 ```json
 {
   "callback_url": "string",
+  "endpoints": {
+    "authorization": "string",
+    "device_authorization": "string",
+    "token": "string"
+  },
   "icon": "string",
   "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
   "name": "string"
@@ -3554,12 +3603,13 @@ AuthorizationObject can represent a "set" of objects, such as: all workspaces in
 
 ### Properties
 
-| Name           | Type   | Required | Restrictions | Description |
-| -------------- | ------ | -------- | ------------ | ----------- |
-| `callback_url` | string | false    |              |             |
-| `icon`         | string | false    |              |             |
-| `id`           | string | false    |              |             |
-| `name`         | string | false    |              |             |
+| Name           | Type                                                       | Required | Restrictions | Description                                                                                                                                                                                             |
+| -------------- | ---------------------------------------------------------- | -------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `callback_url` | string                                                     | false    |              |                                                                                                                                                                                                         |
+| `endpoints`    | [codersdk.OAuth2AppEndpoints](#codersdkoauth2appendpoints) | false    |              | Endpoints are included in the app response for easier discovery. The OAuth2 spec does not have a defined place to find these (for comparison, OIDC has a '/.well-known/openid-configuration' endpoint). |
+| `icon`         | string                                                     | false    |              |                                                                                                                                                                                                         |
+| `id`           | string                                                     | false    |              |                                                                                                                                                                                                         |
+| `name`         | string                                                     | false    |              |                                                                                                                                                                                                         |
 
 ## codersdk.OAuth2ProviderAppSecret
 
@@ -4455,7 +4505,7 @@ AuthorizationObject can represent a "set" of objects, such as: all workspaces in
   "links": {
     "value": [
       {
-        "icon": "string",
+        "icon": "bug",
         "name": "string",
         "target": "string"
       }
@@ -4977,6 +5027,7 @@ AuthorizationObject can represent a "set" of objects, such as: all workspaces in
   "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
   "last_seen_at": "2019-08-24T14:15:22Z",
   "login_type": "",
+  "name": "string",
   "organization_ids": ["497f6eca-6276-4993-bfeb-53cbbbba6f08"],
   "role": "admin",
   "roles": [
@@ -5001,6 +5052,7 @@ AuthorizationObject can represent a "set" of objects, such as: all workspaces in
 | `id`               | string                                         | true     |              |             |
 | `last_seen_at`     | string                                         | false    |              |             |
 | `login_type`       | [codersdk.LoginType](#codersdklogintype)       | false    |              |             |
+| `name`             | string                                         | false    |              |             |
 | `organization_ids` | array of string                                | false    |              |             |
 | `role`             | [codersdk.TemplateRole](#codersdktemplaterole) | false    |              |             |
 | `roles`            | array of [codersdk.Role](#codersdkrole)        | false    |              |             |
@@ -5418,6 +5470,7 @@ AuthorizationObject can represent a "set" of objects, such as: all workspaces in
 
 ```json
 {
+  "name": "string",
   "username": "string"
 }
 ```
@@ -5426,6 +5479,7 @@ AuthorizationObject can represent a "set" of objects, such as: all workspaces in
 
 | Name       | Type   | Required | Restrictions | Description |
 | ---------- | ------ | -------- | ------------ | ----------- |
+| `name`     | string | false    |              |             |
 | `username` | string | true     |              |             |
 
 ## codersdk.UpdateUserQuietHoursScheduleRequest
@@ -5539,6 +5593,7 @@ If the schedule is empty, the user will be updated to use the default schedule.|
   "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
   "last_seen_at": "2019-08-24T14:15:22Z",
   "login_type": "",
+  "name": "string",
   "organization_ids": ["497f6eca-6276-4993-bfeb-53cbbbba6f08"],
   "roles": [
     {
@@ -5562,6 +5617,7 @@ If the schedule is empty, the user will be updated to use the default schedule.|
 | `id`               | string                                     | true     |              |             |
 | `last_seen_at`     | string                                     | false    |              |             |
 | `login_type`       | [codersdk.LoginType](#codersdklogintype)   | false    |              |             |
+| `name`             | string                                     | false    |              |             |
 | `organization_ids` | array of string                            | false    |              |             |
 | `roles`            | array of [codersdk.Role](#codersdkrole)    | false    |              |             |
 | `status`           | [codersdk.UserStatus](#codersdkuserstatus) | false    |              |             |
@@ -7771,6 +7827,9 @@ If the schedule is empty, the user will be updated to use the default schedule.|
 | `EACS04`   |
 | `EDERP01`  |
 | `EDERP02`  |
+| `EPD01`    |
+| `EPD02`    |
+| `EPD03`    |
 
 ## health.Message
 
@@ -7889,6 +7948,88 @@ If the schedule is empty, the user will be updated to use the default schedule.|
 | `severity` | `ok`      |
 | `severity` | `warning` |
 | `severity` | `error`   |
+
+## healthcheck.ProvisionerDaemonsReport
+
+```json
+{
+  "dismissed": true,
+  "error": "string",
+  "items": [
+    {
+      "provisioner_daemon": {
+        "api_version": "string",
+        "created_at": "2019-08-24T14:15:22Z",
+        "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+        "last_seen_at": "2019-08-24T14:15:22Z",
+        "name": "string",
+        "provisioners": ["string"],
+        "tags": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "version": "string"
+      },
+      "warnings": [
+        {
+          "code": "EUNKNOWN",
+          "message": "string"
+        }
+      ]
+    }
+  ],
+  "severity": "ok",
+  "warnings": [
+    {
+      "code": "EUNKNOWN",
+      "message": "string"
+    }
+  ]
+}
+```
+
+### Properties
+
+| Name        | Type                                                                                          | Required | Restrictions | Description |
+| ----------- | --------------------------------------------------------------------------------------------- | -------- | ------------ | ----------- |
+| `dismissed` | boolean                                                                                       | false    |              |             |
+| `error`     | string                                                                                        | false    |              |             |
+| `items`     | array of [healthcheck.ProvisionerDaemonsReportItem](#healthcheckprovisionerdaemonsreportitem) | false    |              |             |
+| `severity`  | [health.Severity](#healthseverity)                                                            | false    |              |             |
+| `warnings`  | array of [health.Message](#healthmessage)                                                     | false    |              |             |
+
+## healthcheck.ProvisionerDaemonsReportItem
+
+```json
+{
+  "provisioner_daemon": {
+    "api_version": "string",
+    "created_at": "2019-08-24T14:15:22Z",
+    "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+    "last_seen_at": "2019-08-24T14:15:22Z",
+    "name": "string",
+    "provisioners": ["string"],
+    "tags": {
+      "property1": "string",
+      "property2": "string"
+    },
+    "version": "string"
+  },
+  "warnings": [
+    {
+      "code": "EUNKNOWN",
+      "message": "string"
+    }
+  ]
+}
+```
+
+### Properties
+
+| Name                 | Type                                                     | Required | Restrictions | Description |
+| -------------------- | -------------------------------------------------------- | -------- | ------------ | ----------- |
+| `provisioner_daemon` | [codersdk.ProvisionerDaemon](#codersdkprovisionerdaemon) | false    |              |             |
+| `warnings`           | array of [health.Message](#healthmessage)                | false    |              |             |
 
 ## healthcheck.Report
 
@@ -8131,6 +8272,40 @@ If the schedule is empty, the user will be updated to use the default schedule.|
   },
   "failing_sections": ["DERP"],
   "healthy": true,
+  "provisioner_daemons": {
+    "dismissed": true,
+    "error": "string",
+    "items": [
+      {
+        "provisioner_daemon": {
+          "api_version": "string",
+          "created_at": "2019-08-24T14:15:22Z",
+          "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+          "last_seen_at": "2019-08-24T14:15:22Z",
+          "name": "string",
+          "provisioners": ["string"],
+          "tags": {
+            "property1": "string",
+            "property2": "string"
+          },
+          "version": "string"
+        },
+        "warnings": [
+          {
+            "code": "EUNKNOWN",
+            "message": "string"
+          }
+        ]
+      }
+    ],
+    "severity": "ok",
+    "warnings": [
+      {
+        "code": "EUNKNOWN",
+        "message": "string"
+      }
+    ]
+  },
   "severity": "ok",
   "time": "string",
   "websocket": {
@@ -8186,18 +8361,19 @@ If the schedule is empty, the user will be updated to use the default schedule.|
 
 ### Properties
 
-| Name               | Type                                                                 | Required | Restrictions | Description                                                                         |
-| ------------------ | -------------------------------------------------------------------- | -------- | ------------ | ----------------------------------------------------------------------------------- |
-| `access_url`       | [healthcheck.AccessURLReport](#healthcheckaccessurlreport)           | false    |              |                                                                                     |
-| `coder_version`    | string                                                               | false    |              | The Coder version of the server that the report was generated on.                   |
-| `database`         | [healthcheck.DatabaseReport](#healthcheckdatabasereport)             | false    |              |                                                                                     |
-| `derp`             | [derphealth.Report](#derphealthreport)                               | false    |              |                                                                                     |
-| `failing_sections` | array of [codersdk.HealthSection](#codersdkhealthsection)            | false    |              | Failing sections is a list of sections that have failed their healthcheck.          |
-| `healthy`          | boolean                                                              | false    |              | Healthy is true if the report returns no errors. Deprecated: use `Severity` instead |
-| `severity`         | [health.Severity](#healthseverity)                                   | false    |              | Severity indicates the status of Coder health.                                      |
-| `time`             | string                                                               | false    |              | Time is the time the report was generated at.                                       |
-| `websocket`        | [healthcheck.WebsocketReport](#healthcheckwebsocketreport)           | false    |              |                                                                                     |
-| `workspace_proxy`  | [healthcheck.WorkspaceProxyReport](#healthcheckworkspaceproxyreport) | false    |              |                                                                                     |
+| Name                  | Type                                                                         | Required | Restrictions | Description                                                                         |
+| --------------------- | ---------------------------------------------------------------------------- | -------- | ------------ | ----------------------------------------------------------------------------------- |
+| `access_url`          | [healthcheck.AccessURLReport](#healthcheckaccessurlreport)                   | false    |              |                                                                                     |
+| `coder_version`       | string                                                                       | false    |              | The Coder version of the server that the report was generated on.                   |
+| `database`            | [healthcheck.DatabaseReport](#healthcheckdatabasereport)                     | false    |              |                                                                                     |
+| `derp`                | [derphealth.Report](#derphealthreport)                                       | false    |              |                                                                                     |
+| `failing_sections`    | array of [codersdk.HealthSection](#codersdkhealthsection)                    | false    |              | Failing sections is a list of sections that have failed their healthcheck.          |
+| `healthy`             | boolean                                                                      | false    |              | Healthy is true if the report returns no errors. Deprecated: use `Severity` instead |
+| `provisioner_daemons` | [healthcheck.ProvisionerDaemonsReport](#healthcheckprovisionerdaemonsreport) | false    |              |                                                                                     |
+| `severity`            | [health.Severity](#healthseverity)                                           | false    |              | Severity indicates the status of Coder health.                                      |
+| `time`                | string                                                                       | false    |              | Time is the time the report was generated at.                                       |
+| `websocket`           | [healthcheck.WebsocketReport](#healthcheckwebsocketreport)                   | false    |              |                                                                                     |
+| `workspace_proxy`     | [healthcheck.WorkspaceProxyReport](#healthcheckworkspaceproxyreport)         | false    |              |                                                                                     |
 
 #### Enumerated Values
 

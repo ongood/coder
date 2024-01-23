@@ -15,8 +15,9 @@ import LoadingButton from "@mui/lab/LoadingButton";
 export const Language = {
   usernameLabel: "用户名",
   emailLabel: "Email",
-  updateSettings: "更新账号",
-}
+  nameLabel: "Name",
+  updateSettings: "Update account",
+};
 
 const validationSchema = Yup.object({
   username: nameValidator(Language.usernameLabel),
@@ -71,6 +72,18 @@ export const AccountForm: FC<AccountFormProps> = ({
           disabled={!editable}
           fullWidth
           label={Language.usernameLabel}
+        />
+        <TextField
+          {...getFieldHelpers("name")}
+          onBlur={(e) => {
+            e.target.value = e.target.value.trim();
+            form.handleChange(e);
+          }}
+          aria-disabled={!editable}
+          disabled={!editable}
+          fullWidth
+          label={Language.nameLabel}
+          helperText='The human-readable name is optional and can be accessed in a template via the "data.coder_workspace.me.owner_name" property.'
         />
 
         <div>

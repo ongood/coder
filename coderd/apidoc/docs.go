@@ -174,7 +174,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Applications Enterprise"
+                    "Enterprise"
                 ],
                 "summary": "Issue signed app token for reconnecting PTY",
                 "operationId": "issue-signed-app-token-for-reconnecting-pty",
@@ -8261,6 +8261,9 @@ const docTemplate = `{
                 "trial": {
                     "type": "boolean"
                 },
+                "trial_info": {
+                    "$ref": "#/definitions/codersdk.CreateFirstUserTrialInfo"
+                },
                 "username": {
                     "type": "string"
                 }
@@ -8276,6 +8279,32 @@ const docTemplate = `{
                 "user_id": {
                     "type": "string",
                     "format": "uuid"
+                }
+            }
+        },
+        "codersdk.CreateFirstUserTrialInfo": {
+            "type": "object",
+            "properties": {
+                "company_name": {
+                    "type": "string"
+                },
+                "country": {
+                    "type": "string"
+                },
+                "developers": {
+                    "type": "string"
+                },
+                "first_name": {
+                    "type": "string"
+                },
+                "job_title": {
+                    "type": "string"
+                },
+                "last_name": {
+                    "type": "string"
+                },
+                "phone_number": {
+                    "type": "string"
                 }
             }
         },
@@ -9032,7 +9061,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "wildcard_access_url": {
-                    "$ref": "#/definitions/clibase.URL"
+                    "type": "string"
                 },
                 "write_config": {
                     "type": "boolean"
@@ -9108,12 +9137,13 @@ const docTemplate = `{
         "codersdk.Experiment": {
             "type": "string",
             "enum": [
-                "workspace_actions",
-                "deployment_health_page"
+                "example"
             ],
+            "x-enum-comments": {
+                "ExperimentExample": "This isn't used for anything."
+            },
             "x-enum-varnames": [
-                "ExperimentWorkspaceActions",
-                "ExperimentDeploymentHealthPage"
+                "ExperimentExample"
             ]
         },
         "codersdk.ExternalAuth": {
@@ -9408,14 +9438,16 @@ const docTemplate = `{
                 "AccessURL",
                 "Websocket",
                 "Database",
-                "WorkspaceProxy"
+                "WorkspaceProxy",
+                "ProvisionerDaemons"
             ],
             "x-enum-varnames": [
                 "HealthSectionDERP",
                 "HealthSectionAccessURL",
                 "HealthSectionWebsocket",
                 "HealthSectionDatabase",
-                "HealthSectionWorkspaceProxy"
+                "HealthSectionWorkspaceProxy",
+                "HealthSectionProvisionerDaemons"
             ]
         },
         "codersdk.HealthSettings": {
@@ -9527,7 +9559,12 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "icon": {
-                    "type": "string"
+                    "type": "string",
+                    "enum": [
+                        "bug",
+                        "chat",
+                        "docs"
+                    ]
                 },
                 "name": {
                     "type": "string"
@@ -9651,6 +9688,21 @@ const docTemplate = `{
                 }
             }
         },
+        "codersdk.OAuth2AppEndpoints": {
+            "type": "object",
+            "properties": {
+                "authorization": {
+                    "type": "string"
+                },
+                "device_authorization": {
+                    "description": "DeviceAuth is optional.",
+                    "type": "string"
+                },
+                "token": {
+                    "type": "string"
+                }
+            }
+        },
         "codersdk.OAuth2Config": {
             "type": "object",
             "properties": {
@@ -9696,6 +9748,14 @@ const docTemplate = `{
             "properties": {
                 "callback_url": {
                     "type": "string"
+                },
+                "endpoints": {
+                    "description": "Endpoints are included in the app response for easier discovery. The OAuth2\nspec does not have a defined place to find these (for comparison, OIDC has\na '/.well-known/openid-configuration' endpoint).",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/codersdk.OAuth2AppEndpoints"
+                        }
+                    ]
                 },
                 "icon": {
                     "type": "string"
@@ -11068,6 +11128,9 @@ const docTemplate = `{
                 "login_type": {
                     "$ref": "#/definitions/codersdk.LoginType"
                 },
+                "name": {
+                    "type": "string"
+                },
                 "organization_ids": {
                     "type": "array",
                     "items": {
@@ -11474,6 +11537,9 @@ const docTemplate = `{
                 "username"
             ],
             "properties": {
+                "name": {
+                    "type": "string"
+                },
                 "username": {
                     "type": "string"
                 }
@@ -11571,6 +11637,9 @@ const docTemplate = `{
                 },
                 "login_type": {
                     "$ref": "#/definitions/codersdk.LoginType"
+                },
+                "name": {
+                    "type": "string"
                 },
                 "organization_ids": {
                     "type": "array",
@@ -12957,7 +13026,10 @@ const docTemplate = `{
                 "EACS03",
                 "EACS04",
                 "EDERP01",
-                "EDERP02"
+                "EDERP02",
+                "EPD01",
+                "EPD02",
+                "EPD03"
             ],
             "x-enum-varnames": [
                 "CodeUnknown",
@@ -12975,7 +13047,10 @@ const docTemplate = `{
                 "CodeAccessURLFetch",
                 "CodeAccessURLNotOK",
                 "CodeDERPNodeUsesWebsocket",
-                "CodeDERPOneNodeUnhealthy"
+                "CodeDERPOneNodeUnhealthy",
+                "CodeProvisionerDaemonsNoProvisionerDaemons",
+                "CodeProvisionerDaemonVersionMismatch",
+                "CodeProvisionerDaemonAPIMajorVersionDeprecated"
             ]
         },
         "health.Message": {
@@ -13092,6 +13167,46 @@ const docTemplate = `{
                 }
             }
         },
+        "healthcheck.ProvisionerDaemonsReport": {
+            "type": "object",
+            "properties": {
+                "dismissed": {
+                    "type": "boolean"
+                },
+                "error": {
+                    "type": "string"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/healthcheck.ProvisionerDaemonsReportItem"
+                    }
+                },
+                "severity": {
+                    "$ref": "#/definitions/health.Severity"
+                },
+                "warnings": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/health.Message"
+                    }
+                }
+            }
+        },
+        "healthcheck.ProvisionerDaemonsReportItem": {
+            "type": "object",
+            "properties": {
+                "provisioner_daemon": {
+                    "$ref": "#/definitions/codersdk.ProvisionerDaemon"
+                },
+                "warnings": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/health.Message"
+                    }
+                }
+            }
+        },
         "healthcheck.Report": {
             "type": "object",
             "properties": {
@@ -13118,6 +13233,9 @@ const docTemplate = `{
                 "healthy": {
                     "description": "Healthy is true if the report returns no errors.\nDeprecated: use ` + "`" + `Severity` + "`" + ` instead",
                     "type": "boolean"
+                },
+                "provisioner_daemons": {
+                    "$ref": "#/definitions/healthcheck.ProvisionerDaemonsReport"
                 },
                 "severity": {
                     "description": "Severity indicates the status of Coder health.",

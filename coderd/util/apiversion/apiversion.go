@@ -1,6 +1,7 @@
 package apiversion
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -27,6 +28,10 @@ type APIVersion struct {
 func (v *APIVersion) WithBackwardCompat(majs ...int) *APIVersion {
 	v.additionalMajors = append(v.additionalMajors, majs[:]...)
 	return v
+}
+
+func (v *APIVersion) String() string {
+	return fmt.Sprintf("%d.%d", v.supportedMajor, v.supportedMinor)
 }
 
 // Validate validates the given version against the given constraints:

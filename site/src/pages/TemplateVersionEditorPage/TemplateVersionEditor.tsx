@@ -53,6 +53,8 @@ import {
   TopbarIconButton,
 } from "components/FullPageLayout/Topbar";
 import { Sidebar } from "components/FullPageLayout/Sidebar";
+import ButtonGroup from "@mui/material/ButtonGroup";
+import { ProvisionerTagsPopover } from "./ProvisionerTagsPopover";
 
 type Tab = "logs" | "resources" | undefined; // Undefined is to hide the tab
 
@@ -62,13 +64,13 @@ export interface TemplateVersionEditorProps {
   defaultFileTree: FileTree;
   buildLogs?: ProvisionerJobLog[];
   resources?: WorkspaceResource[];
-  disablePreview: boolean;
-  disableUpdate: boolean;
+  disablePreview?: boolean;
+  disableUpdate?: boolean;
   onPreview: (files: FileTree) => void;
   onPublish: () => void;
   onConfirmPublish: (data: PublishVersionData) => void;
   onCancelPublish: () => void;
-  publishingError: unknown;
+  publishingError?: unknown;
   publishedVersion?: TemplateVersion;
   onCreateWorkspace: () => void;
   isAskingPublishParameters: boolean;
@@ -78,6 +80,8 @@ export interface TemplateVersionEditorProps {
   onSubmitMissingVariableValues: (values: VariableValue[]) => void;
   onCancelSubmitMissingVariableValues: () => void;
   defaultTab?: Tab;
+  provisionerTags: Record<string, string>;
+  onUpdateProvisionerTags: (tags: Record<string, string>) => void;
 }
 
 const findInitialFile = (fileTree: FileTree): string | undefined => {
@@ -114,6 +118,8 @@ export const TemplateVersionEditor: FC<TemplateVersionEditorProps> = ({
   onSubmitMissingVariableValues,
   onCancelSubmitMissingVariableValues,
   defaultTab,
+  provisionerTags,
+  onUpdateProvisionerTags,
 }) => {
   const theme = useTheme();
   const [selectedTab, setSelectedTab] = useState<Tab>(defaultTab);
@@ -236,20 +242,45 @@ export const TemplateVersionEditor: FC<TemplateVersionEditorProps> = ({
               <TemplateVersionStatusBadge version={templateVersion} />
             )}
 
-            <TopbarButton
-              startIcon={
-                <PlayArrowOutlined
-                  css={{ color: theme.palette.success.light }}
-                />
-              }
-              title="Build template (Ctrl + Enter)"
-              disabled={disablePreview}
-              onClick={() => {
-                triggerPreview();
+            <ButtonGroup
+              variant="outlined"
+              css={{
+                // Workaround to make the border transitions smoothly on button groups
+                "& > button:hover + button": {
+                  borderLeft: "1px solid #FFF",
+                },
               }}
+              disabled={disablePreview}
             >
-              Build
-            </TopbarButton>
+              <TopbarButton
+                startIcon={
+                  <PlayArrowOutlined
+                    css={{ color: theme.palette.success.light }}
+                  />
+                }
+                title="Build template (Ctrl + Enter)"
+                disabled={disablePreview}
+                onClick={() => {
+                  triggerPreview();
+                }}
+              >
+                Build
+              </TopbarButton>
+              <ProvisionerTagsPopover
+                tags={provisionerTags}
+                onSubmit={({ key, value }) => {
+                  onUpdateProvisionerTags({
+                    ...provisionerTags,
+                    [key]: value,
+                  });
+                }}
+                onDelete={(key) => {
+                  const newTags = { ...provisionerTags };
+                  delete newTags[key];
+                  onUpdateProvisionerTags(newTags);
+                }}
+              />
+            </ButtonGroup>
 
             <TopbarButton
               variant="contained"
@@ -508,9 +539,9 @@ export const TemplateVersionEditor: FC<TemplateVersionEditorProps> = ({
                 ref={buildLogsRef}
                 css={{
                   display: selectedTab !== "logs" ? "none" : "flex",
+                  height: selectedTab ? 280 : 0,
                   flexDirection: "column",
                   overflowY: "auto",
-                  height: selectedTab ? 280 : 0,
                 }}
               >
                 {templateVersion.job.error && (
@@ -536,33 +567,7 @@ export const TemplateVersionEditor: FC<TemplateVersionEditorProps> = ({
 
                 {buildLogs && buildLogs.length > 0 && (
                   <WorkspaceBuildLogs
-                    css={{
-                      borderRadius: 0,
-                      border: 0,
-
-                      // Hack to update logs header and lines
-                      "& .logs-header": {
-                        border: 0,
-                        padding: "0 16px",
-                        fontFamily: MONOSPACE_FONT_FAMILY,
-
-                        "&:first-child": {
-                          paddingTop: 16,
-                        },
-
-                        "&:last-child": {
-                          paddingBottom: 16,
-                        },
-                      },
-
-                      "& .logs-line": {
-                        paddingLeft: 16,
-                      },
-
-                      "& .logs-container": {
-                        border: "0 !important",
-                      },
-                    }}
+                    css={styles.buildLogs}
                     hideTimestamps
                     logs={buildLogs}
                   />
@@ -570,25 +575,13 @@ export const TemplateVersionEditor: FC<TemplateVersionEditorProps> = ({
               </div>
 
               <div
-                css={{
-                  display: selectedTab !== "resources" ? "none" : undefined,
-                  overflowY: "auto",
-                  height: selectedTab ? 280 : 0,
-
-                  // Hack to access customize resource-card from here
-                  "& .resource-card": {
-                    borderLeft: 0,
-                    borderRight: 0,
-
-                    "&:first-child": {
-                      borderTop: 0,
-                    },
-
-                    "&:last-child": {
-                      borderBottom: 0,
-                    },
+                css={[
+                  {
+                    display: selectedTab !== "resources" ? "none" : undefined,
+                    height: selectedTab ? 280 : 0,
                   },
-                }}
+                  styles.resources,
+                ]}
               >
                 {resources && (
                   <TemplateResourcesTable
@@ -670,6 +663,7 @@ const styles = {
       color: theme.palette.text.disabled,
     },
   }),
+
   tabBar: (theme) => ({
     padding: "8px 16px",
     position: "sticky",
@@ -684,4 +678,50 @@ const styles = {
       borderTop: `1px solid ${theme.palette.divider}`,
     },
   }),
+
+  buildLogs: {
+    borderRadius: 0,
+    border: 0,
+
+    // Hack to update logs header and lines
+    "& .logs-header": {
+      border: 0,
+      padding: "0 16px",
+      fontFamily: MONOSPACE_FONT_FAMILY,
+
+      "&:first-child": {
+        paddingTop: 16,
+      },
+
+      "&:last-child": {
+        paddingBottom: 16,
+      },
+    },
+
+    "& .logs-line": {
+      paddingLeft: 16,
+    },
+
+    "& .logs-container": {
+      border: "0 !important",
+    },
+  },
+
+  resources: {
+    overflowY: "auto",
+
+    // Hack to access customize resource-card from here
+    "& .resource-card": {
+      borderLeft: 0,
+      borderRight: 0,
+
+      "&:first-child": {
+        borderTop: 0,
+      },
+
+      "&:last-child": {
+        borderBottom: 0,
+      },
+    },
+  },
 } satisfies Record<string, Interpolation<Theme>>;

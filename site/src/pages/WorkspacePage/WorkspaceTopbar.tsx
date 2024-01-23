@@ -1,6 +1,15 @@
+import Tooltip from "@mui/material/Tooltip";
+import Link from "@mui/material/Link";
+import MonetizationOnOutlined from "@mui/icons-material/MonetizationOnOutlined";
+import DeleteOutline from "@mui/icons-material/DeleteOutline";
+import PersonOutline from "@mui/icons-material/PersonOutline";
+import ArrowBackOutlined from "@mui/icons-material/ArrowBackOutlined";
+import ScheduleOutlined from "@mui/icons-material/ScheduleOutlined";
+import { useTheme } from "@emotion/react";
+import { type FC } from "react";
+import { useQuery } from "react-query";
 import { Link as RouterLink } from "react-router-dom";
 import type * as TypesGen from "api/typesGenerated";
-import { WorkspaceActions } from "pages/WorkspacePage/WorkspaceActions/WorkspaceActions";
 import {
   Topbar,
   TopbarAvatar,
@@ -9,27 +18,21 @@ import {
   TopbarIcon,
   TopbarIconButton,
 } from "components/FullPageLayout/Topbar";
-import Tooltip from "@mui/material/Tooltip";
-import ArrowBackOutlined from "@mui/icons-material/ArrowBackOutlined";
-import ScheduleOutlined from "@mui/icons-material/ScheduleOutlined";
 import { WorkspaceStatusBadge } from "components/WorkspaceStatusBadge/WorkspaceStatusBadge";
 import {
   WorkspaceScheduleControls,
   shouldDisplayScheduleControls,
 } from "./WorkspaceScheduleControls";
 import { workspaceQuota } from "api/queries/workspaceQuota";
-import { useQuery } from "react-query";
-import MonetizationOnOutlined from "@mui/icons-material/MonetizationOnOutlined";
-import { useTheme } from "@mui/material/styles";
-import Link from "@mui/material/Link";
-import { useDashboard } from "components/Dashboard/DashboardProvider";
+import { useDashboard } from "modules/dashboard/useDashboard";
 import { displayDormantDeletion } from "utils/dormant";
-import DeleteOutline from "@mui/icons-material/DeleteOutline";
-import PersonOutline from "@mui/icons-material/PersonOutline";
 import { Popover, PopoverTrigger } from "components/Popover/Popover";
 import { HelpTooltipContent } from "components/HelpTooltip/HelpTooltip";
 import { AvatarData } from "components/AvatarData/AvatarData";
-import { Avatar } from "components/Avatar/Avatar";
+import { ExternalAvatar } from "components/Avatar/Avatar";
+import { WorkspaceActions } from "./WorkspaceActions/WorkspaceActions";
+import { WorkspaceNotifications } from "./WorkspaceNotifications/WorkspaceNotifications";
+import { WorkspacePermissions } from "./permissions";
 
 export type WorkspaceError =
   | "getBuildsError"
@@ -56,28 +59,35 @@ export interface WorkspaceProps {
   canRetryDebugMode: boolean;
   handleBuildRetry: () => void;
   handleBuildRetryDebug: () => void;
+  isOwner: boolean;
+  template: TypesGen.Template;
+  permissions: WorkspacePermissions;
+  latestVersion?: TypesGen.TemplateVersion;
 }
 
-export const WorkspaceTopbar = (props: WorkspaceProps) => {
-  const {
-    handleStart,
-    handleStop,
-    handleRestart,
-    handleDelete,
-    handleUpdate,
-    handleCancel,
-    handleSettings,
-    handleChangeVersion,
-    handleDormantActivate,
-    workspace,
-    isUpdating,
-    isRestarting,
-    canUpdateWorkspace,
-    canChangeVersions,
-    canRetryDebugMode,
-    handleBuildRetry,
-    handleBuildRetryDebug,
-  } = props;
+export const WorkspaceTopbar: FC<WorkspaceProps> = ({
+  handleStart,
+  handleStop,
+  handleRestart,
+  handleDelete,
+  handleUpdate,
+  handleCancel,
+  handleSettings,
+  handleChangeVersion,
+  handleDormantActivate,
+  workspace,
+  isUpdating,
+  isRestarting,
+  canUpdateWorkspace,
+  canChangeVersions,
+  canRetryDebugMode,
+  handleBuildRetry,
+  handleBuildRetryDebug,
+  isOwner,
+  template,
+  latestVersion,
+  permissions,
+}) => {
   const theme = useTheme();
 
   // Quota
@@ -88,16 +98,14 @@ export const WorkspaceTopbar = (props: WorkspaceProps) => {
   });
 
   // Dormant
-  const { entitlements, experiments } = useDashboard();
+  const { entitlements } = useDashboard();
   const allowAdvancedScheduling =
     entitlements.features["advanced_template_scheduling"].enabled;
   // This check can be removed when https://github.com/coder/coder/milestone/19
   // is merged up
-  const allowWorkspaceActions = experiments.includes("workspace_actions");
   const shouldDisplayDormantData = displayDormantDeletion(
     workspace,
     allowAdvancedScheduling,
-    allowWorkspaceActions,
   );
 
   return (
@@ -176,7 +184,7 @@ export const WorkspaceTopbar = (props: WorkspaceProps) => {
                 }
                 avatar={
                   workspace.template_icon !== "" && (
-                    <Avatar
+                    <ExternalAvatar
                       src={workspace.template_icon}
                       variant="square"
                       fitImage
@@ -247,6 +255,15 @@ export const WorkspaceTopbar = (props: WorkspaceProps) => {
           gap: 12,
         }}
       >
+        <WorkspaceNotifications
+          workspace={workspace}
+          template={template}
+          latestVersion={latestVersion}
+          permissions={permissions}
+          onRestartWorkspace={handleRestart}
+          onUpdateWorkspace={handleUpdate}
+          onActivateWorkspace={handleDormantActivate}
+        />
         <WorkspaceStatusBadge workspace={workspace} />
         <WorkspaceActions
           workspace={workspace}
@@ -265,6 +282,7 @@ export const WorkspaceTopbar = (props: WorkspaceProps) => {
           canChangeVersions={canChangeVersions}
           isUpdating={isUpdating}
           isRestarting={isRestarting}
+          isOwner={isOwner}
         />
       </div>
     </Topbar>

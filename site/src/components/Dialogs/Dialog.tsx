@@ -1,8 +1,8 @@
 import MuiDialog, { DialogProps as MuiDialogProps } from "@mui/material/Dialog";
+import LoadingButton, { LoadingButtonProps } from "@mui/lab/LoadingButton";
+import { type Interpolation, type Theme } from "@emotion/react";
 import { type FC, type ReactNode } from "react";
 import { ConfirmDialogType } from "./types";
-import { type Interpolation, type Theme } from "@emotion/react";
-import LoadingButton, { LoadingButtonProps } from "@mui/lab/LoadingButton";
 
 export interface DialogActionButtonsProps {
   /** Text to display in the cancel button */
@@ -80,8 +80,8 @@ const styles = {
       },
 
       "&:hover:not(:disabled)": {
-        backgroundColor: theme.experimental.roles.danger.disabled.fill,
-        borderColor: theme.experimental.roles.danger.disabled.outline,
+        backgroundColor: theme.experimental.roles.danger.hover.fill,
+        borderColor: theme.experimental.roles.danger.hover.outline,
       },
 
       "&.Mui-disabled": {

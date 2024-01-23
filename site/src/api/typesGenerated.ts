@@ -183,12 +183,24 @@ export interface CreateFirstUserRequest {
   readonly username: string;
   readonly password: string;
   readonly trial: boolean;
+  readonly trial_info: CreateFirstUserTrialInfo;
 }
 
 // From codersdk/users.go
 export interface CreateFirstUserResponse {
   readonly user_id: string;
   readonly organization_id: string;
+}
+
+// From codersdk/users.go
+export interface CreateFirstUserTrialInfo {
+  readonly first_name: string;
+  readonly last_name: string;
+  readonly phone_number: string;
+  readonly job_title: string;
+  readonly company_name: string;
+  readonly country: string;
+  readonly developers: string;
 }
 
 // From codersdk/groups.go
@@ -644,6 +656,13 @@ export interface MinimalUser {
   readonly avatar_url: string;
 }
 
+// From codersdk/oauth2.go
+export interface OAuth2AppEndpoints {
+  readonly authorization: string;
+  readonly token: string;
+  readonly device_authorization: string;
+}
+
 // From codersdk/deployment.go
 export interface OAuth2Config {
   readonly github: OAuth2GithubConfig;
@@ -666,6 +685,7 @@ export interface OAuth2ProviderApp {
   readonly name: string;
   readonly callback_url: string;
   readonly icon: string;
+  readonly endpoints: OAuth2AppEndpoints;
 }
 
 // From codersdk/oauth2.go
@@ -1282,6 +1302,7 @@ export interface UpdateUserPasswordRequest {
 // From codersdk/users.go
 export interface UpdateUserProfileRequest {
   readonly username: string;
+  readonly name: string;
 }
 
 // From codersdk/users.go
@@ -1329,6 +1350,7 @@ export interface UploadResponse {
 export interface User {
   readonly id: string;
   readonly username: string;
+  readonly name: string;
   readonly email: string;
   readonly created_at: string;
   readonly last_seen_at: string;
@@ -1813,11 +1835,8 @@ export const Entitlements: Entitlement[] = [
 ];
 
 // From codersdk/deployment.go
-export type Experiment = "deployment_health_page" | "workspace_actions";
-export const Experiments: Experiment[] = [
-  "deployment_health_page",
-  "workspace_actions",
-];
+export type Experiment = "example";
+export const Experiments: Experiment[] = ["example"];
 
 // From codersdk/deployment.go
 export type FeatureName =
@@ -1865,12 +1884,14 @@ export type HealthSection =
   | "AccessURL"
   | "DERP"
   | "Database"
+  | "ProvisionerDaemons"
   | "Websocket"
   | "WorkspaceProxy";
 export const HealthSections: HealthSection[] = [
   "AccessURL",
   "DERP",
   "Database",
+  "ProvisionerDaemons",
   "Websocket",
   "WorkspaceProxy",
 ];
@@ -2203,6 +2224,21 @@ export interface HealthcheckDatabaseReport {
   readonly error?: string;
 }
 
+// From healthcheck/provisioner.go
+export interface HealthcheckProvisionerDaemonsReport {
+  readonly severity: HealthSeverity;
+  readonly warnings: HealthMessage[];
+  readonly dismissed: boolean;
+  readonly error?: string;
+  readonly items: HealthcheckProvisionerDaemonsReportItem[];
+}
+
+// From healthcheck/provisioner.go
+export interface HealthcheckProvisionerDaemonsReportItem {
+  readonly provisioner_daemon: ProvisionerDaemon;
+  readonly warnings: HealthMessage[];
+}
+
 // From healthcheck/healthcheck.go
 export interface HealthcheckReport {
   readonly time: string;
@@ -2214,6 +2250,7 @@ export interface HealthcheckReport {
   readonly websocket: HealthcheckWebsocketReport;
   readonly database: HealthcheckDatabaseReport;
   readonly workspace_proxy: HealthcheckWorkspaceProxyReport;
+  readonly provisioner_daemons: HealthcheckProvisionerDaemonsReport;
   readonly coder_version: string;
 }
 
@@ -2301,6 +2338,9 @@ export type HealthCode =
   | "EDB02"
   | "EDERP01"
   | "EDERP02"
+  | "EPD01"
+  | "EPD02"
+  | "EPD03"
   | "EUNKNOWN"
   | "EWP01"
   | "EWP02"
@@ -2318,6 +2358,9 @@ export const HealthCodes: HealthCode[] = [
   "EDB02",
   "EDERP01",
   "EDERP02",
+  "EPD01",
+  "EPD02",
+  "EPD03",
   "EUNKNOWN",
   "EWP01",
   "EWP02",
