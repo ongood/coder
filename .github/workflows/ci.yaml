@@ -651,7 +651,7 @@ jobs:
           echo "Required checks have passed"
 
   build:
-    # This builds and publishes ghcr.io/coder/coder-preview:main for each commit
+    # This builds and publishes ghcr.io/ongood/coder-preview:main for each commit
     # to main branch. We are only building this for amd64 platform. (>95% pulls
     # are for amd64)
     needs: changes
@@ -660,7 +660,7 @@ jobs:
     env:
       DOCKER_CLI_EXPERIMENTAL: "enabled"
     outputs:
-      IMAGE: ghcr.io/coder/coder-preview:${{ steps.build-docker.outputs.tag }}
+      IMAGE: ghcr.io/ongood/coder-preview:${{ steps.build-docker.outputs.tag }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -704,7 +704,7 @@ jobs:
       - name: Build Linux Docker images
         id: build-docker
         env:
-          CODER_IMAGE_BASE: ghcr.io/coder/coder-preview
+          CODER_IMAGE_BASE: ghcr.io/ongood/coder-preview
           CODER_IMAGE_TAG_PREFIX: main
           DOCKER_CLI_EXPERIMENTAL: "enabled"
         run: |
@@ -726,14 +726,14 @@ jobs:
 
             # Define specific tags
             tags=("$tag" "main" "latest")
-            
+
             # Create and push a multi-arch manifest for each tag
             # we are adding `latest` tag and keeping `main` for backward
             # compatibality
             for t in "${tags[@]}"; do
                 ./scripts/build_docker_multiarch.sh \
                     --push \
-                    --target "ghcr.io/coder/coder-preview:$t" \
+                    --target "ghcr.io/ongood/coder-preview:$t" \
                     --version $version \
                     $(cat build/coder_"$version"_linux_{amd64,arm64,armv7}.tag)
             done

@@ -26,7 +26,7 @@ on:
         default: false
 
 env:
-  REPO: ghcr.io/coder/coder-preview
+  REPO: ghcr.io/ongood/coder-preview
 
 permissions:
   contents: read
@@ -94,8 +94,8 @@ jobs:
           echo "CODER_BASE_IMAGE_TAG=$CODER_BASE_IMAGE_TAG" >> $GITHUB_OUTPUT
           echo "CODER_IMAGE_TAG=$CODER_IMAGE_TAG" >> $GITHUB_OUTPUT
         env:
-          CODER_BASE_IMAGE_TAG: ghcr.io/coder/coder-preview-base:pr${{ steps.pr_info.outputs.PR_NUMBER }}
-          CODER_IMAGE_TAG: ghcr.io/coder/coder-preview:pr${{ steps.pr_info.outputs.PR_NUMBER }}
+          CODER_BASE_IMAGE_TAG: ghcr.io/ongood/coder-preview-base:pr${{ steps.pr_info.outputs.PR_NUMBER }}
+          CODER_IMAGE_TAG: ghcr.io/ongood/coder-preview:pr${{ steps.pr_info.outputs.PR_NUMBER }}
 
       - name: Set up kubeconfig
         run: |
@@ -268,11 +268,11 @@ jobs:
           )
           if [ -z "$foundTag" ]; then
             echo "Image not found"
-            echo "${{ env.CODER_IMAGE_TAG }} not found in ghcr.io/coder/coder-preview"
+            echo "${{ env.CODER_IMAGE_TAG }} not found in ghcr.io/ongood/coder-preview"
             exit 1
           else
             echo "Image found"
-            echo "$foundTag tag found in ghcr.io/coder/coder-preview"
+            echo "$foundTag tag found in ghcr.io/ongood/coder-preview"
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

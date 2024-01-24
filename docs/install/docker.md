@@ -22,7 +22,7 @@ docker run --rm -it \
   -v $CODER_DATA:/home/coder/.config \
   -v /var/run/docker.sock:/var/run/docker.sock \
   --group-add $DOCKER_GROUP \
-  ghcr.io/coder/coder:latest
+  ghcr.io/ongood/coder:latest
 ```
 
 **<sup>Note:</sup>** <sup>Coder runs as a non-root user, we use `--group-add` to
@@ -46,7 +46,7 @@ docker run --rm -it \
   -e CODER_ACCESS_URL="https://coder.example.com" \
   -e CODER_PG_CONNECTION_URL="postgresql://username:password@database/coder" \
   -v /var/run/docker.sock:/var/run/docker.sock \
-  ghcr.io/coder/coder:latest
+  ghcr.io/ongood/coder:latest
 ```
 
 Coder configuration is defined via environment variables. Learn more about

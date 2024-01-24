@@ -49,7 +49,7 @@ if [[ "$version" == "" ]]; then
 	version="$(execrelative ./version.sh)"
 fi
 
-image="${CODER_IMAGE_BASE:-ghcr.io/coder/coder}"
+image="${CODER_IMAGE_BASE:-ghcr.io/ongood/coder}"
 
 # use CODER_IMAGE_TAG_PREFIX if set as a prefix for the tag
 tag_prefix="${CODER_IMAGE_TAG_PREFIX:-}"
