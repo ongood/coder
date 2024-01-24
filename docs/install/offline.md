@@ -39,7 +39,7 @@ following:
 Here's an example Dockerfile:
 
 ```Dockerfile
-FROM ghcr.io/coder/coder:latest
+FROM ghcr.io/ongood/coder:latest
 
 USER root
 

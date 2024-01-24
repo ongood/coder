@@ -223,7 +223,7 @@ data "coder_parameter" "docker_image" {
   mutable      = true
   type         = "string"
   description  = "Docker image for the development container"
-  default      = "ghcr.io/coder/coder-preview:main"
+  default      = "ghcr.io/ongood/coder-preview:main"
 
   order = 3
 }

@@ -159,20 +159,20 @@ Change the provided
 file to include a custom entrypoint:
 
 ```diff
-  image: ghcr.io/coder/coder:${CODER_VERSION:-latest}
+  image: ghcr.io/ongood/coder:${CODER_VERSION:-latest}
 + entrypoint: /opt/coder wsproxy server
 ```
 
 #### Docker run
 
 ```bash
-docker run --rm -it --entrypoint /opt/coder ghcr.io/coder/coder:latest wsproxy server
+docker run --rm -it --entrypoint /opt/coder ghcr.io/ongood/coder:latest wsproxy server
 ```
 
 #### Custom Dockerfile
 
 ```Dockerfile
-FROM ghcr.io/coder/coder:latest
+FROM ghcr.io/ongood/coder:latest
 ENTRYPOINT ["/opt/coder", "wsproxy", "server"]
 ```
 

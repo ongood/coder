@@ -6,7 +6,7 @@ primary_region = "gru"
   auto_rollback = true
 
 [build]
-  image = "ghcr.io/coder/coder-preview:main"
+  image = "ghcr.io/ongood/coder-preview:main"
 
 [env]
   CODER_ACCESS_URL = "https://sao-paulo.fly.dev.coder.com"

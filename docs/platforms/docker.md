@@ -35,7 +35,7 @@ Sysbox ahead of time will reduce disruption to your Coder instance.
        -v $CODER_DATA:/home/coder/.config \
        -v /var/run/docker.sock:/var/run/docker.sock \
        --group-add $DOCKER_GROUP \
-       ghcr.io/coder/coder:latest
+       ghcr.io/ongood/coder:latest
    ```
 
    > This will use Coder's tunnel and built-in database. See our
