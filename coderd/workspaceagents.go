@@ -43,6 +43,7 @@ import (
 	"github.com/coder/coder/v2/codersdk"
 	"github.com/coder/coder/v2/codersdk/agentsdk"
 	"github.com/coder/coder/v2/tailnet"
+	"github.com/coder/coder/v2/tailnet/proto"
 )
 
 // @Summary Get workspace agent by ID
@@ -153,18 +154,24 @@ func (api *API) workspaceAgentManifest(rw http.ResponseWriter, r *http.Request) 
 	// As this API becomes deprecated, use the new protobuf API and convert the
 	// types back to the SDK types.
 	manifestAPI := &agentapi.ManifestAPI{
-		AccessURL:                       api.AccessURL,
-		AppHostname:                     api.AppHostname,
-		AgentInactiveDisconnectTimeout:  api.AgentInactiveDisconnectTimeout,
-		AgentFallbackTroubleshootingURL: api.DeploymentValues.AgentFallbackTroubleshootingURL.String(),
-		ExternalAuthConfigs:             api.ExternalAuthConfigs,
-		DisableDirectConnections:        api.DeploymentValues.DERP.Config.BlockDirect.Value(),
-		DerpForceWebSockets:             api.DeploymentValues.DERP.Config.ForceWebSockets.Value(),
+		AccessURL:                api.AccessURL,
+		AppHostname:              api.AppHostname,
+		ExternalAuthConfigs:      api.ExternalAuthConfigs,
+		DisableDirectConnections: api.DeploymentValues.DERP.Config.BlockDirect.Value(),
+		DerpForceWebSockets:      api.DeploymentValues.DERP.Config.ForceWebSockets.Value(),
 
-		AgentFn:            func(_ context.Context) (database.WorkspaceAgent, error) { return workspaceAgent, nil },
-		Database:           api.Database,
-		DerpMapFn:          api.DERPMap,
-		TailnetCoordinator: &api.TailnetCoordinator,
+		AgentFn: func(_ context.Context) (database.WorkspaceAgent, error) { return workspaceAgent, nil },
+		WorkspaceIDFn: func(ctx context.Context, wa *database.WorkspaceAgent) (uuid.UUID, error) {
+			// Sadly this results in a double query, but it's only temporary for
+			// now.
+			ws, err := api.Database.GetWorkspaceByAgentID(ctx, wa.ID)
+			if err != nil {
+				return uuid.Nil, err
+			}
+			return ws.Workspace.ID, nil
+		},
+		Database:  api.Database,
+		DerpMapFn: api.DERPMap,
 	}
 	manifest, err := manifestAPI.GetManifest(ctx, &agentproto.GetManifestRequest{})
 	if err != nil {
@@ -903,7 +910,7 @@ func (api *API) _dialWorkspaceAgentTailnet(agentID uuid.UUID) (*codersdk.Workspa
 				}
 
 				derpMap := api.DERPMap()
-				if lastDERPMap == nil || tailnet.CompareDERPMaps(lastDERPMap, derpMap) {
+				if lastDERPMap == nil || !tailnet.CompareDERPMaps(lastDERPMap, derpMap) {
 					conn.SetDERPMap(derpMap)
 					lastDERPMap = derpMap
 				}
@@ -1162,7 +1169,7 @@ func (api *API) workspaceAgentClientCoordinate(rw http.ResponseWriter, r *http.R
 	if qv != "" {
 		version = qv
 	}
-	if err := tailnet.CurrentVersion.Validate(version); err != nil {
+	if err := proto.CurrentVersion.Validate(version); err != nil {
 		httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
 			Message: "Unknown or unsupported API version",
 			Validations: []codersdk.ValidationError{

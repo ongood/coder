@@ -22,9 +22,14 @@ export const Language = {
   confirmText: "重置密码",
 }
 
-export const ResetPasswordDialog: FC<
-  React.PropsWithChildren<ResetPasswordDialogProps>
-> = ({ open, onClose, onConfirm, user, newPassword, loading }) => {
+export const ResetPasswordDialog: FC<ResetPasswordDialogProps> = ({
+  open,
+  onClose,
+  onConfirm,
+  user,
+  newPassword,
+  loading,
+}) => {
   const description = (
     <>
       <p>{Language.message(user?.username)}</p>
