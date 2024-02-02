@@ -135,35 +135,13 @@ type Script struct {
 	Script string `json:"script"`
 }
 
-// Manifest fetches manifest for the currently authenticated workspace agent.
-func (c *Client) Manifest(ctx context.Context) (Manifest, error) {
-	res, err := c.SDK.Request(ctx, http.MethodGet, "/api/v2/workspaceagents/me/manifest", nil)
-	if err != nil {
-		return Manifest{}, err
-	}
-	defer res.Body.Close()
-	if res.StatusCode != http.StatusOK {
-		return Manifest{}, codersdk.ReadBodyAsError(res)
-	}
-	var agentMeta Manifest
-	err = json.NewDecoder(res.Body).Decode(&agentMeta)
-	if err != nil {
-		return Manifest{}, err
-	}
-	err = c.rewriteDerpMap(agentMeta.DERPMap)
-	if err != nil {
-		return Manifest{}, err
-	}
-	return agentMeta, nil
-}
-
-// rewriteDerpMap rewrites the DERP map to use the access URL of the SDK as the
+// RewriteDERPMap rewrites the DERP map to use the access URL of the SDK as the
 // "embedded relay" access URL. The passed derp map is modified in place.
 //
 // Agents can provide an arbitrary access URL that may be different that the
 // globally configured one. This breaks the built-in DERP, which would continue
 // to reference the global access URL.
-func (c *Client) rewriteDerpMap(derpMap *tailcfg.DERPMap) error {
+func (c *Client) RewriteDERPMap(derpMap *tailcfg.DERPMap) {
 	accessingPort := c.SDK.URL.Port()
 	if accessingPort == "" {
 		accessingPort = "80"
@@ -173,7 +151,9 @@ func (c *Client) rewriteDerpMap(derpMap *tailcfg.DERPMap) error {
 	}
 	accessPort, err := strconv.Atoi(accessingPort)
 	if err != nil {
-		return xerrors.Errorf("convert accessing port %q: %w", accessingPort, err)
+		// this should never happen because URL.Port() returns the empty string if the port is not
+		// valid.
+		c.SDK.Logger().Critical(context.Background(), "failed to parse URL port", slog.F("port", accessingPort))
 	}
 	for _, region := range derpMap.Regions {
 		if !region.EmbeddedRelay {
@@ -189,12 +169,10 @@ func (c *Client) rewriteDerpMap(derpMap *tailcfg.DERPMap) error {
 			node.ForceHTTP = c.SDK.URL.Scheme == "http"
 		}
 	}
-	return nil
 }
 
-// Listen connects to the workspace agent API WebSocket
-// that handles connection negotiation.
-func (c *Client) Listen(ctx context.Context) (drpc.Conn, error) {
+// ConnectRPC connects to the workspace agent API and tailnet API
+func (c *Client) ConnectRPC(ctx context.Context) (drpc.Conn, error) {
 	rpcURL, err := c.SDK.URL.Parse("/api/v2/workspaceagents/me/rpc")
 	if err != nil {
 		return nil, xerrors.Errorf("parse url: %w", err)
@@ -226,20 +204,17 @@ func (c *Client) Listen(ctx context.Context) (drpc.Conn, error) {
 		return nil, codersdk.ReadBodyAsError(res)
 	}
 
-	ctx, cancelFunc := context.WithCancel(ctx)
-	ctx, wsNetConn := websocketNetConn(ctx, conn, websocket.MessageBinary)
-	pingClosed := pingWebSocket(ctx, c.SDK.Logger(), conn, "coordinate")
+	_, wsNetConn := websocketNetConn(ctx, conn, websocket.MessageBinary)
 
 	netConn := &closeNetConn{
 		Conn: wsNetConn,
 		closeFunc: func() {
-			cancelFunc()
-			_ = conn.Close(websocket.StatusGoingAway, "Listen closed")
-			<-pingClosed
+			_ = conn.Close(websocket.StatusGoingAway, "ConnectRPC closed")
 		},
 	}
 	config := yamux.DefaultConfig()
-	config.LogOutput = io.Discard
+	config.LogOutput = nil
+	config.Logger = slog.Stdlib(ctx, c.SDK.Logger(), slog.LevelInfo)
 	session, err := yamux.Client(netConn, config)
 	if err != nil {
 		return nil, xerrors.Errorf("multiplex client: %w", err)
@@ -252,18 +227,18 @@ type PostAppHealthsRequest struct {
 	Healths map[uuid.UUID]codersdk.WorkspaceAppHealth
 }
 
-// PostAppHealth updates the workspace agent app health status.
-func (c *Client) PostAppHealth(ctx context.Context, req PostAppHealthsRequest) error {
-	res, err := c.SDK.Request(ctx, http.MethodPost, "/api/v2/workspaceagents/me/app-health", req)
-	if err != nil {
-		return err
+func AppHealthPoster(aAPI proto.DRPCAgentClient) func(ctx context.Context, req PostAppHealthsRequest) error {
+	return func(ctx context.Context, req PostAppHealthsRequest) error {
+		pReq, err := ProtoFromAppHealthsRequest(req)
+		if err != nil {
+			return xerrors.Errorf("convert AppHealthsRequest: %w", err)
+		}
+		_, err = aAPI.BatchUpdateAppHealths(ctx, pReq)
+		if err != nil {
+			return xerrors.Errorf("batch update app healths: %w", err)
+		}
+		return nil
 	}
-	defer res.Body.Close()
-	if res.StatusCode != http.StatusOK {
-		return codersdk.ReadBodyAsError(res)
-	}
-
-	return nil
 }
 
 // AuthenticateResponse is returned when an instance ID
@@ -577,18 +552,6 @@ type PostStartupRequest struct {
 	Subsystems        []codersdk.AgentSubsystem `json:"subsystems"`
 }
 
-func (c *Client) PostStartup(ctx context.Context, req PostStartupRequest) error {
-	res, err := c.SDK.Request(ctx, http.MethodPost, "/api/v2/workspaceagents/me/startup", req)
-	if err != nil {
-		return err
-	}
-	defer res.Body.Close()
-	if res.StatusCode != http.StatusOK {
-		return codersdk.ReadBodyAsError(res)
-	}
-	return nil
-}
-
 type Log struct {
 	CreatedAt time.Time         `json:"created_at"`
 	Output    string            `json:"output"`
@@ -635,24 +598,6 @@ func (c *Client) PostLogSource(ctx context.Context, req PostLogSource) (codersdk
 	}
 	var logSource codersdk.WorkspaceAgentLogSource
 	return logSource, json.NewDecoder(res.Body).Decode(&logSource)
-}
-
-// GetServiceBanner relays the service banner config.
-func (c *Client) GetServiceBanner(ctx context.Context) (codersdk.ServiceBannerConfig, error) {
-	res, err := c.SDK.Request(ctx, http.MethodGet, "/api/v2/appearance", nil)
-	if err != nil {
-		return codersdk.ServiceBannerConfig{}, err
-	}
-	defer res.Body.Close()
-	// If the route does not exist then Enterprise code is not enabled.
-	if res.StatusCode == http.StatusNotFound {
-		return codersdk.ServiceBannerConfig{}, nil
-	}
-	if res.StatusCode != http.StatusOK {
-		return codersdk.ServiceBannerConfig{}, codersdk.ReadBodyAsError(res)
-	}
-	var cfg codersdk.AppearanceConfig
-	return cfg.ServiceBanner, json.NewDecoder(res.Body).Decode(&cfg)
 }
 
 type ExternalAuthResponse struct {
@@ -769,46 +714,4 @@ type closeNetConn struct {
 func (c *closeNetConn) Close() error {
 	c.closeFunc()
 	return c.Conn.Close()
-}
-
-func pingWebSocket(ctx context.Context, logger slog.Logger, conn *websocket.Conn, name string) <-chan struct{} {
-	// Ping once every 30 seconds to ensure that the websocket is alive. If we
-	// don't get a response within 30s we kill the websocket and reconnect.
-	// See: https://github.com/coder/coder/pull/5824
-	closed := make(chan struct{})
-	go func() {
-		defer close(closed)
-		tick := 30 * time.Second
-		ticker := time.NewTicker(tick)
-		defer ticker.Stop()
-		defer func() {
-			logger.Debug(ctx, fmt.Sprintf("%s pinger exited", name))
-		}()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case start := <-ticker.C:
-				ctx, cancel := context.WithTimeout(ctx, tick)
-
-				err := conn.Ping(ctx)
-				if err != nil {
-					logger.Error(ctx, fmt.Sprintf("workspace agent %s ping", name), slog.Error(err))
-
-					err := conn.Close(websocket.StatusGoingAway, "Ping failed")
-					if err != nil {
-						logger.Error(ctx, fmt.Sprintf("close workspace agent %s websocket", name), slog.Error(err))
-					}
-
-					cancel()
-					return
-				}
-
-				logger.Debug(ctx, fmt.Sprintf("got %s ping", name), slog.F("took", time.Since(start)))
-				cancel()
-			}
-		}
-	}()
-
-	return closed
 }

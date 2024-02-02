@@ -1,20 +1,18 @@
 import { type Interpolation, type Theme } from "@emotion/react";
 import Button from "@mui/material/Button";
-import Link from "@mui/material/Link";
 import Table from "@mui/material/Table";
 import TableBody from "@mui/material/TableBody";
 import TableCell from "@mui/material/TableCell";
 import TableContainer from "@mui/material/TableContainer";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
-import ArrowRightAltOutlined from "@mui/icons-material/ArrowRightAltOutlined";
+import Skeleton from "@mui/material/Skeleton";
 import AddOutlined from "@mui/icons-material/AddOutlined";
 import KeyboardArrowRight from "@mui/icons-material/KeyboardArrowRight";
 import AvatarGroup from "@mui/material/AvatarGroup";
 import { AvatarData } from "components/AvatarData/AvatarData";
 import { ChooseOne, Cond } from "components/Conditionals/ChooseOne";
 import { EmptyState } from "components/EmptyState/EmptyState";
-import { Stack } from "components/Stack/Stack";
 import {
   TableLoaderSkeleton,
   TableRowSkeleton,
@@ -26,7 +24,6 @@ import { Paywall } from "components/Paywall/Paywall";
 import type { Group } from "api/typesGenerated";
 import { GroupAvatar } from "components/GroupAvatar/GroupAvatar";
 import { docs } from "utils/docs";
-import Skeleton from "@mui/material/Skeleton";
 import { AvatarDataSkeleton } from "components/AvatarData/AvatarDataSkeleton";
 
 export type GroupsPageViewProps = {
@@ -49,30 +46,9 @@ export const GroupsPageView: FC<GroupsPageViewProps> = ({
       <ChooseOne>
         <Cond condition={!isTemplateRBACEnabled}>
           <Paywall
-            message="用户组"
-            description="将用户组织成组，限制对模板的访问。 您需要企业许可证才能使用此功能。"
-            cta={
-              <Stack direction="row" alignItems="center">
-                <Button
-                  href={docs("/enterprise")}
-                  target="_blank"
-                  rel="noreferrer"
-                  startIcon={<ArrowRightAltOutlined />}
-                  variant="contained"
-                  color="primary"
-                >
-                  了解企业版
-                </Button>
-
-                <Link
-                  href={docs("/admin/groups")}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                阅读文档
-                </Link>
-              </Stack>
-            }
+            message="Groups"
+            description="Organize users into groups with restricted access to templates. You need an Enterprise license to use this feature."
+            documentationLink={docs("/admin/groups")}
           />
         </Cond>
         <Cond>
