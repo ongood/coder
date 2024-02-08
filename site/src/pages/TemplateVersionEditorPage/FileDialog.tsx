@@ -2,7 +2,6 @@ import TextField from "@mui/material/TextField";
 import { ConfirmDialog } from "components/Dialogs/ConfirmDialog/ConfirmDialog";
 import { Stack } from "components/Stack/Stack";
 import { type ChangeEvent, type FC, useState } from "react";
-import { allowedExtensions, isAllowedFile } from "utils/templateVersion";
 import { type FileTree, isFolder, validatePath } from "utils/filetree";
 
 interface CreateFileDialogProps {
@@ -32,13 +31,6 @@ export const CreateFileDialog: FC<CreateFileDialogProps> = ({
     }
     if (checkExists(pathValue)) {
       setError("文件已存在");
-      return
-    }
-    if (!isAllowedFile(pathValue)) {
-      const extensions = allowedExtensions.join(", ");
-      setError(
-        `不允许使用此扩展名。您只能创建具有以下扩展名的文件：${extensions}。`,
-      )
       return
     }
     const pathError = validatePath(pathValue, fileTree);
@@ -152,13 +144,6 @@ export const RenameFileDialog: FC<RenameFileDialogProps> = ({
     }
     if (checkExists(pathValue)) {
       setError("文件已存在");
-      return
-    }
-    if (!isAllowedFile(pathValue)) {
-      const extensions = allowedExtensions.join(", ");
-      setError(
-        `不允许使用此扩展名。您只能使用以下扩展名重命名文件：${extensions}。`,
-      )
       return
     }
     //Check if a folder is renamed to a file
