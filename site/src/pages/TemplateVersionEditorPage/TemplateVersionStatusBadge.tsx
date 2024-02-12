@@ -14,7 +14,7 @@ export const TemplateVersionStatusBadge: FC<
 > = ({ version }) => {
   const { text, icon, type } = getStatus(version);
   return (
-    <Pill icon={icon} type={type} title={`Build status is ${text}`}>
+    <Pill icon={icon} type={type} title={`构建状态为 ${text}`}>
       {text}
     </Pill>
   );
@@ -31,19 +31,19 @@ export const getStatus = (
     case "running":
       return {
         type: "info",
-        text: "Running",
+        text: "运行中",
         icon: <PillSpinner />,
       };
     case "pending":
       return {
         type: "info",
-        text: "Pending",
+        text: "等待中",
         icon: <PillSpinner />,
       };
     case "canceling":
       return {
         type: "warning",
-        text: "Canceling",
+        text: "取消中",
         icon: <PillSpinner />,
       };
     case "canceled":

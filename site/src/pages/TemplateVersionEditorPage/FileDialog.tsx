@@ -60,8 +60,7 @@ export const CreateFileDialog: FC<CreateFileDialogProps> = ({
       description={
         <Stack spacing={4}>
           <p>
-            Specify the path to a file to be created. This path can contain
-            slashes too.
+            指定要创建的文件路径。该路径也可以包含斜杠。
           </p>
           <TextField
             autoFocus

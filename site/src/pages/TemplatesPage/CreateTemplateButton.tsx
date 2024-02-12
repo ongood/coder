@@ -22,7 +22,7 @@ export const CreateTemplateButton: FC<CreateTemplateButtonProps> = ({
     <MoreMenu>
       <MoreMenuTrigger>
         <Button startIcon={<AddIcon />} variant="contained">
-          Create Template
+          创建模板
         </Button>
       </MoreMenuTrigger>
       <MoreMenuContent>
@@ -32,7 +32,7 @@ export const CreateTemplateButton: FC<CreateTemplateButtonProps> = ({
           }}
         >
           <NoteAddOutlined />
-          From scratch
+           从头开始
         </MoreMenuItem>
         <MoreMenuItem
           onClick={() => {
@@ -40,7 +40,7 @@ export const CreateTemplateButton: FC<CreateTemplateButtonProps> = ({
           }}
         >
           <UploadOutlined />
-          Upload template
+           上传模板
         </MoreMenuItem>
         <MoreMenuItem
           onClick={() => {
@@ -48,7 +48,7 @@ export const CreateTemplateButton: FC<CreateTemplateButtonProps> = ({
           }}
         >
           <Inventory2 />
-          Choose a starter template
+            选择一个入门模板
         </MoreMenuItem>
       </MoreMenuContent>
     </MoreMenu>

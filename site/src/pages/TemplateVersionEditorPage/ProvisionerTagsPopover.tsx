@@ -89,17 +89,16 @@ export const ProvisionerTagsPopover: FC<ProvisionerTagsPopoverProps> = ({
           <VerticalForm onSubmit={form.handleSubmit}>
             <Stack>
               <FormSection
-                title="Provisioner Tags"
+                title="配置标签"
                 description={
                   <>
-                    Tags are a way to control which provisioner daemons complete
-                    which build jobs.&nbsp;
+                    标签是控制哪些配置守护进程完成哪些构建作业的一种方式。&nbsp;
                     <Link
                       href={docs("/admin/provisioners")}
                       target="_blank"
                       rel="noreferrer"
                     >
-                      Learn more...
+                      了解更多...
                     </Link>
                   </>
                 }

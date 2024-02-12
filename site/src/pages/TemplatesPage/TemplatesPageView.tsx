@@ -58,8 +58,8 @@ export const Language = {
   lastUpdatedLabel: "最近更新",
   templateTooltipTitle: "什么是模板?",
   templateTooltipText:
-    "With templates you can create a common configuration for your workspaces using Terraform.",
-  templateTooltipLink: "Manage templates",
+    "使用模板，您可以使用 Terraform 为您的工作区创建通用配置。",
+  templateTooltipLink: "管理模板",
 };
 
 const TemplateHelpTooltip: FC = () => {
@@ -142,7 +142,7 @@ const TemplateRow: FC<TemplateRowProps> = ({ template }) => {
               navigate(`/templates/${template.name}/workspace`);
             }}
           >
-            Create Workspace
+            创建工作区
           </Button>
         )}
       </TableCell>

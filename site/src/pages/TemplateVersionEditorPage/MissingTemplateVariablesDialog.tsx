@@ -56,7 +56,7 @@ export const MissingTemplateVariablesDialog: FC<
       </DialogTitle>
       <DialogContent css={styles.content}>
         <DialogContentText css={styles.info}>
-          There are a few missing template variable values. Please fill them in.
+          有一些缺少的模板变量值，请填写它们。
         </DialogContentText>
         <VerticalForm
           css={styles.form}

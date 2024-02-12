@@ -26,13 +26,13 @@ export const WithTemplates: Story = {
       {
         ...MockTemplate,
         active_user_count: -1,
-        description: "🚀 Some new template that has no activity data",
+        description: "🚀 一些没有活动数据的新模板",
         icon: "/icon/goland.svg",
       },
       {
         ...MockTemplate,
         active_user_count: 150,
-        description: "😮 Wow, this one has a bunch of usage!",
+        description: "😮 哇，这个模板使用率很高！",
         icon: "",
       },
       {

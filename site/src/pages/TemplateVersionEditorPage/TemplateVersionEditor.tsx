@@ -256,7 +256,7 @@ export const TemplateVersionEditor: FC<TemplateVersionEditorProps> = ({
                   triggerPreview();
                 }}
               >
-                Build
+                构建
               </TopbarButton>
               <ProvisionerTagsPopover
                 tags={provisionerTags}
@@ -279,7 +279,7 @@ export const TemplateVersionEditor: FC<TemplateVersionEditorProps> = ({
               disabled={dirty || disableUpdate}
               onClick={onPublish}
             >
-              Publish
+              发布
             </TopbarButton>
           </div>
         </Topbar>
@@ -316,11 +316,11 @@ export const TemplateVersionEditor: FC<TemplateVersionEditorProps> = ({
                     size="small"
                     onClick={onCreateWorkspace}
                   >
-                    Create a workspace
+                    创建工作区
                   </Button>
                 }
               >
-                Successfully published {publishedVersion.name}!
+                {publishedVersion.name} 成功发布！
               </Alert>
             </div>
           )}
@@ -340,7 +340,7 @@ export const TemplateVersionEditor: FC<TemplateVersionEditorProps> = ({
                   fontSize: 13,
                 }}
               >
-                Files
+                文件
               </span>
 
               <div
@@ -474,8 +474,7 @@ export const TemplateVersionEditor: FC<TemplateVersionEditorProps> = ({
                           marginTop: 24,
                         }}
                       >
-                        The file is not displayed in the text editor because it
-                        is either binary or uses an unsupported text encoding.
+                        这个文件在文本编辑器中没有显示，因为它要么是二进制文件，要么使用了不支持的文本编码。
                       </p>
                     </div>
                   </div>
@@ -536,7 +535,7 @@ export const TemplateVersionEditor: FC<TemplateVersionEditorProps> = ({
                       setSelectedTab("logs");
                     }}
                   >
-                    Output
+                    输出
                   </button>
 
                   <button
@@ -547,7 +546,7 @@ export const TemplateVersionEditor: FC<TemplateVersionEditorProps> = ({
                       setSelectedTab("resources");
                     }}
                   >
-                    Resources
+                    资源
                   </button>
                 </div>
 
@@ -588,7 +587,7 @@ export const TemplateVersionEditor: FC<TemplateVersionEditorProps> = ({
                         borderLeft: `2px solid ${theme.palette.error.main}`,
                       }}
                     >
-                      <AlertTitle>Error during the build</AlertTitle>
+                      <AlertTitle>构建期间出现错误</AlertTitle>
                       <AlertDetail>{templateVersion.job.error}</AlertDetail>
                     </Alert>
                   </div>

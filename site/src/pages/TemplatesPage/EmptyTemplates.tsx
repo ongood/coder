@@ -49,17 +49,16 @@ export const EmptyTemplates: FC<EmptyTemplatesProps> = ({
   if (canCreateTemplates) {
     return (
       <TableEmpty
-        message="Create your first template"
+        message="创建您的第一个模板"
         description={
           <>
-            Templates are written in Terraform and describe the infrastructure
-            for workspaces. You can start using a starter template below or{" "}
+             模板是用 Terraform 编写的，描述工作区的基础架构。您可以从下面开始使用一个入门模板，或者{" "}
             <Link
               href={docs("/templates/tutorial")}
               target="_blank"
               rel="noreferrer"
             >
-              create your own
+              创建您自己的
             </Link>
             .
           </>
