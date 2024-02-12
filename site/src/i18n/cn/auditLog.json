@@ -5,8 +5,8 @@
     "delete": "删除了"
   },
   "table": {
-    "emptyPage": "此页面上没有可用的审计日志",
-    "noLogs": "没有可用的审计日志",
+    "emptyPage": "此页面上没有可用的操作日志",
+    "noLogs": "没有可用的操作日志",
     "logRow": {
       "description": {
         "linkedWorkspaceBuild": "{{user}} <1>{{action}}</1> 工作区 <strong>{{workspaceName}}</strong>",
@@ -21,8 +21,8 @@
     }
   },
   "paywall": {
-    "title": "审计日志",
-    "description": "审计日志允许审计员监控部署中的用户操作。要使用此功能，您必须升级您的帐户。",
+    "title": "日志",
+    "description": "日志允许审计员监控部署中的用户操作。要使用此功能，您必须升级您的帐户。",
     "actions": {
       "upgrade": "了解如何升级",
       "readDocs": "阅读文档"

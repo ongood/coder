@@ -27,8 +27,8 @@ import { AuditFilter } from "./AuditFilter";
 import { AuditLogRow } from "./AuditLogRow/AuditLogRow";
 
 export const Language = {
-  title: "审计",
-  subtitle: "查看审计日志中的事件。",
+  title: "日志",
+  subtitle: "查看操作日志中的事件。",
 }
 
 export interface AuditPageViewProps {

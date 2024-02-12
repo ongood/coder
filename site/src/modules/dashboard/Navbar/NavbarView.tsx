@@ -42,7 +42,7 @@ export const Language = {
   workspaces: "空间",
   templates: "模板",
   users: "用户",
-  audit: "审计",
+  audit: "日志",
   deployment: "部署",
 }
 
@@ -99,7 +99,7 @@ const NavItems: FC<NavItemsProps> = ({
       )}
       {canViewHealth && (
         <NavLink css={styles.link} to="/health">
-          Health
+          健康
         </NavLink>
       )}
     </nav>
