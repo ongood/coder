@@ -21,7 +21,7 @@ export const NotFoundPage: FC = () => {
       >
         <h4>404</h4>
       </div>
-      <p>This page could not be found.</p>
+      <p>该页面不存在。</p>
     </div>
   );
 };

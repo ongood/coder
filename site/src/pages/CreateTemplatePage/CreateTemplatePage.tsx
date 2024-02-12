@@ -23,10 +23,10 @@ const CreateTemplatePage: FC = () => {
   return (
     <>
       <Helmet>
-        <title>{pageTitle("Create Template")}</title>
+        <title>{pageTitle("创建模板")}</title>
       </Helmet>
 
-      <FullPageHorizontalForm title="Create Template" onCancel={onCancel}>
+      <FullPageHorizontalForm title="创建模板" onCancel={onCancel}>
         {searchParams.has("fromTemplate") ? (
           <DuplicateTemplateView onSuccess={onSuccess} />
         ) : searchParams.has("exampleId") ? (

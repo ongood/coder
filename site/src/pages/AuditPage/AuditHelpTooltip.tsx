@@ -11,9 +11,9 @@ import {
 import { docs } from "utils/docs";
 
 export const Language = {
-  title: "What is an audit log?",
-  body: "An audit log is a record of events and changes made throughout a system.",
-  docs: "Events we track",
+  title: "什么是日志？",
+  body: "日志是系统中发生的事件和更改的记录。",
+  docs: "我们跟踪的事件",
 };
 
 export const AuditHelpTooltip: FC = () => {

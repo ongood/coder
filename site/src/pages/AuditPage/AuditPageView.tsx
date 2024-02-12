@@ -82,7 +82,7 @@ export const AuditPageView: FC<AuditPageViewProps> = ({
                     <Cond condition={Boolean(error)}>
                       <TableRow>
                         <TableCell colSpan={999}>
-                          <EmptyState message="An error occurred while loading audit logs" />
+                          <EmptyState message="加载日志时发生了错误" />
                         </TableCell>
                       </TableRow>
                     </Cond>

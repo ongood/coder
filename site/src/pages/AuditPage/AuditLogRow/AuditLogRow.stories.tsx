@@ -24,7 +24,7 @@ const meta: Meta<typeof AuditLogRow> = {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell style={{ paddingLeft: 32 }}>Logs</TableCell>
+              <TableCell style={{ paddingLeft: 32 }}>日志</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>

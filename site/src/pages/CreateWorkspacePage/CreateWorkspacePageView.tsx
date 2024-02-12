@@ -47,7 +47,7 @@ import { CreateWSPermissions } from "./permissions";
 
 export const Language = {
   duplicationWarning:
-    "Duplicating a workspace only copies its parameters. No state from the old workspace is copied over.",
+    "复制工作区只会复制其参数。不会复制旧工作区的状态。",
 } as const;
 
 export interface CreateWorkspacePageViewProps {
@@ -113,7 +113,7 @@ export const CreateWorkspacePageView: FC<CreateWorkspacePageViewProps> = ({
         ),
       },
       validationSchema: Yup.object({
-        name: nameValidator("Workspace Name"),
+        name: nameValidator("工作区名称"),
         rich_parameter_values: useValidationSchemaForRichParameters(parameters),
       }),
       enableReinitialize: true,
@@ -164,10 +164,10 @@ export const CreateWorkspacePageView: FC<CreateWorkspacePageViewProps> = ({
                 : template.name}
             </PageHeaderTitle>
 
-            <PageHeaderSubtitle condensed>New workspace</PageHeaderSubtitle>
+            <PageHeaderSubtitle condensed>新工作区</PageHeaderSubtitle>
           </div>
 
-          {template.deprecated && <Pill type="warning">Deprecated</Pill>}
+          {template.deprecated && <Pill type="warning">已废弃</Pill>}
         </Stack>
       </PageHeader>
 
@@ -193,11 +193,11 @@ export const CreateWorkspacePageView: FC<CreateWorkspacePageViewProps> = ({
 
           {/* General info */}
           <FormSection
-            title="General"
+            title="常规"
             description={
               permissions.createWorkspaceForUser
-                ? "The name of the workspace and its owner. Only admins can create workspace for other users."
-                : "The name of your new workspace."
+                ? "工作区的名称及其所有者。只有管理员可以为其他用户创建工作区。"
+                : "您的新工作区的名称"
             }
           >
             <FormFields>
@@ -207,10 +207,10 @@ export const CreateWorkspacePageView: FC<CreateWorkspacePageViewProps> = ({
                     disabled
                     fullWidth
                     value={versionId}
-                    label="Version ID"
+                    label="版本 ID"
                   />
                   <span css={styles.description}>
-                    This parameter has been preset, and cannot be modified.
+                    这个参数已经预设，无法修改。
                   </span>
                 </Stack>
               )}
@@ -221,10 +221,10 @@ export const CreateWorkspacePageView: FC<CreateWorkspacePageViewProps> = ({
                   // resetMutation facilitates the clearing of validation errors
                   onChange={onChangeTrimmed(form, resetMutation)}
                   fullWidth
-                  label="Workspace Name"
+                  label="工作区名称"
                 />
                 <FormHelperText data-chromatic="ignore">
-                  Need a suggestion?{" "}
+                  需要建议吗？{" "}
                   <Button
                     variant="text"
                     css={styles.nameSuggestion}
@@ -244,7 +244,7 @@ export const CreateWorkspacePageView: FC<CreateWorkspacePageViewProps> = ({
                   onChange={(user) => {
                     setOwner(user ?? defaultOwner);
                   }}
-                  label="Owner"
+                  label="拥有者"
                   size="medium"
                 />
               )}
@@ -253,8 +253,8 @@ export const CreateWorkspacePageView: FC<CreateWorkspacePageViewProps> = ({
 
           {parameters.length > 0 && (
             <FormSection
-              title="Parameters"
-              description="These are the settings used by your template. Please note that immutable parameters cannot be modified once the workspace is created."
+              title="参数"
+              description="这些是模板使用的设置。请注意，一旦工作区创建后，不可更改的参数无法修改。"
             >
               {/*
                 Opted not to use FormFields in order to increase spacing.
@@ -292,7 +292,7 @@ export const CreateWorkspacePageView: FC<CreateWorkspacePageViewProps> = ({
           <FormFooter
             onCancel={onCancel}
             isLoading={creatingWorkspace}
-            submitLabel="Create Workspace"
+            submitLabel="创建工作区"
           />
         </HorizontalForm>
       )}

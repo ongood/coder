@@ -87,8 +87,8 @@ const CreateWorkspacePage: FC = () => {
     templateQuery.error ?? permissionsQuery.error ?? richParametersQuery.error;
 
   const title = autoCreateWorkspaceMutation.isLoading
-    ? "Creating workspace..."
-    : "Create workspace";
+    ? "正在创建工作区..."
+    : "创建工作区";
 
   const onCreateWorkspace = useCallback(
     (workspace: Workspace) => {

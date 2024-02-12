@@ -20,24 +20,24 @@ export const CliAuthPageView: FC<CliAuthPageViewProps> = ({ sessionToken }) => {
 
   return (
     <SignInLayout>
-      <Welcome>Session token</Welcome>
+      <Welcome>会话令牌</Welcome>
 
       <p css={styles.instructions}>
-        Copy the session token below and
+        复制下方的会话令牌并
         {/*
          * This looks silly, but it's a case where you want to hide the space
          * visually because it messes up the centering, but you want the space
          * to still be available to screen readers
          */}
         <span css={{ ...visuallyHidden }}>{VISUALLY_HIDDEN_SPACE}</span>
-        <strong css={{ display: "block" }}>paste it in your terminal.</strong>
+        <strong css={{ display: "block" }}>粘贴到您的终端中。</strong>
       </p>
 
       <CodeExample code={sessionToken} secret />
 
       <div css={{ paddingTop: 16 }}>
         <RouterLink to="/workspaces" css={styles.backLink}>
-          Go to workspaces
+          返回工作区
         </RouterLink>
       </div>
     </SignInLayout>

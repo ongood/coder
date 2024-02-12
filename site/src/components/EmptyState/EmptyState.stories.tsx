@@ -16,7 +16,7 @@ type Story = StoryObj<typeof EmptyState>;
 const Example: Story = {
   args: {
     description: "It is easy, just click the button below",
-    cta: <Button>Create workspace</Button>,
+    cta: <Button>创建工作区</Button>,
   },
 };
 
