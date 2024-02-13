@@ -58,3 +58,4 @@ export const Sidebar: FC<SidebarProps> = ({ user }) => {
     </SidebarNavItem>
   </BaseSidebar>
 );
+};
