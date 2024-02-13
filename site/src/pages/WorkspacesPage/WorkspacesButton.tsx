@@ -175,7 +175,7 @@ const WorkspaceResultsRow: FC<WorkspaceResultsRowProps> = ({ template }) => {
            */}
           {template.active_user_count <= 0 ? "No" : template.active_user_count}{" "}
            开发者
-          {template.active_user_count === 1 ? "" : "s"}
+          {template.active_user_count === 1 ? "" : ""}
         </span>
       </div>
     </PopoverLink>

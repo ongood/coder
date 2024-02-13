@@ -22,10 +22,10 @@ import { Language } from "./CreateWorkspacePageView";
 import { server } from "testHelpers/server";
 import { rest } from "msw";
 
-const nameLabelText = "Workspace Name";
-const createWorkspaceText = "Create Workspace";
-const validationNumberNotInRangeText = "Value must be between 1 and 3.";
-const validationPatternNotMatched = `${MockTemplateVersionParameter3.validation_error} (value does not match the pattern ^[a-z]{3}$)`;
+const nameLabelText = "工作区名称";
+const createWorkspaceText = "创建工作区";
+const validationNumberNotInRangeText = "值必须介于1和3之间。";
+const validationPatternNotMatched = `${MockTemplateVersionParameter3.validation_error} (值不匹配模式 ^[a-z]{3}$)`;
 
 const renderCreateWorkspacePage = () => {
   return renderWithAuth(<CreateWorkspacePage />, {
@@ -99,7 +99,7 @@ describe("CreateWorkspacePage", () => {
     renderCreateWorkspacePage();
     await waitForLoaderToBeRemoved();
 
-    const element = await screen.findByText("Create Workspace");
+    const element = await screen.findByText("创建工作区");
     expect(element).toBeDefined();
     const secondParameter = await screen.findByText(
       MockTemplateVersionParameter2.description,
