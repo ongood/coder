@@ -72,7 +72,7 @@ export const SecurityPageView: FC<SecurityPageViewProps> = ({
 }) => {
   return (
     <Stack spacing={6}>
-      <Section title="Security" description="Update your account password">
+      <Section title="安全" description="更新您的账户密码">
         <SecurityForm {...security.form} />
       </Section>
       {oidc && <SingleSignOnSection {...oidc.section} />}

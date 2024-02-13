@@ -17,9 +17,9 @@ export interface BuildRowProps {
 }
 
 const transitionMessages = {
-  start: "started",
-  stop: "stopped",
-  delete: "deleted",
+  start: "启动了",
+  stop: "停止了",
+  delete: "删除了",
 };
 
 export const BuildRow: FC<BuildRowProps> = ({ build }) => {
@@ -50,8 +50,7 @@ export const BuildRow: FC<BuildRowProps> = ({ build }) => {
                 <span>
                   <strong>{initiatedBy}</strong>{" "}
                   {build.reason !== "initiator" ? "automatically " : ""}
-                  <strong>{transitionMessages[build.transition]}</strong> the
-                  workspace
+                  <strong>{transitionMessages[build.transition]}</strong> 工作区
                 </span>
 
                 <span css={styles.buildTime}>
@@ -65,16 +64,16 @@ export const BuildRow: FC<BuildRowProps> = ({ build }) => {
                 css={{ "& strong": { fontWeight: 600 } }}
               >
                 <span css={styles.buildInfo}>
-                  Reason: <strong>{build.reason}</strong>
+                  原因: <strong>{build.reason}</strong>
                 </span>
 
                 <span css={styles.buildInfo}>
-                  Duration:{" "}
+                  持续时间:{" "}
                   <strong>{displayWorkspaceBuildDuration(build)}</strong>
                 </span>
 
                 <span css={styles.buildInfo}>
-                  Version: <strong>{build.template_version_name}</strong>
+                  版本: <strong>{build.template_version_name}</strong>
                 </span>
               </Stack>
             </Stack>

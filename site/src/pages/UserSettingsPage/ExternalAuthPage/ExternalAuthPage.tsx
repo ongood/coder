@@ -23,7 +23,7 @@ const ExternalAuthPage: FC = () => {
   const validateAppMutation = useMutation(validateExternalAuth(queryClient));
 
   return (
-    <Section title="External Authentication" layout="fluid">
+    <Section title="外部认证" layout="fluid">
       <ExternalAuthPageView
         isLoading={externalAuthsQuery.isLoading}
         getAuthsError={externalAuthsQuery.error}

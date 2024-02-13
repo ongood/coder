@@ -60,10 +60,10 @@ export const ExternalAuthPageView: FC<ExternalAuthPageViewProps> = ({
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>Application</TableCell>
+              <TableCell>应用程序</TableCell>
               <TableCell>
                 <span aria-hidden css={{ ...visuallyHidden }}>
-                  Link to connect
+                  连接
                 </span>
               </TableCell>
               <TableCell width="1%" />
@@ -74,7 +74,7 @@ export const ExternalAuthPageView: FC<ExternalAuthPageViewProps> = ({
               <TableRow>
                 <TableCell colSpan={999}>
                   <div css={{ textAlign: "center" }}>
-                    No providers have been configured!
+                    没有配置任何提供商！
                   </div>
                 </TableCell>
               </TableRow>
@@ -177,7 +177,7 @@ const ExternalAuthRow: FC<ExternalAuthRowProps> = ({
                 await refetch();
               }}
             >
-              Test Validate&hellip;
+              测试验证&hellip;
             </MoreMenuItem>
             <Divider />
             <MoreMenuItem

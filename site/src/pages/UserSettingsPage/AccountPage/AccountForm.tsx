@@ -83,7 +83,7 @@ export const AccountForm: FC<AccountFormProps> = ({
           disabled={!editable}
           fullWidth
           label={Language.nameLabel}
-          helperText='The human-readable name is optional and can be accessed in a template via the "data.coder_workspace.me.owner_name" property.'
+          helperText='人类可读名称是可选的，可以通过模板中的 "data.coder_workspace.me.owner_name" 属性访问。'
         />
 
         <div>

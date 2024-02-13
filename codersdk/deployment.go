@@ -829,7 +829,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "DERP Server Region Name",
-			Description: "Region name that for the embedded DERP server.",
+			Description: "为嵌入式 DERP 服务器设置的区域名称。",
 			Flag:        "derp-server-region-name",
 			Env:         "CODER_DERP_SERVER_REGION_NAME",
 			Default:     "Coder Embedded Relay",
@@ -933,7 +933,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "Prometheus Collect Database Metrics",
-			Description: "Collect database metrics (may increase charges for metrics storage).",
+			Description: "收集数据库指标（可能会增加指标存储的费用）。",
 			Flag:        "prometheus-collect-db-metrics",
 			Env:         "CODER_PROMETHEUS_COLLECT_DB_METRICS",
 			Value:       &c.Prometheus.CollectDBMetrics,
@@ -1058,8 +1058,8 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name: "OIDC Client Key File",
-			Description: "Pem encoded RSA private key to use for oauth2 PKI/JWT authorization. " +
-				"This can be used instead of oidc-client-secret if your IDP supports it.",
+			Description: "用于 OAuth2 PKI/JWT 授权的 PEM 编码的 RSA 私钥。 " +
+				"如果您的 IDP 支持，可以使用此密钥代替 oidc-client-secret。",
 			Flag:  "oidc-client-key-file",
 			Env:   "CODER_OIDC_CLIENT_KEY_FILE",
 			YAML:  "oidcClientKeyFile",
@@ -1068,8 +1068,8 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name: "OIDC Client Cert File",
-			Description: "Pem encoded certificate file to use for oauth2 PKI/JWT authorization. " +
-				"The public certificate that accompanies oidc-client-key-file. A standard x509 certificate is expected.",
+			Description: "用于 OAuth2 PKI/JWT 授权的 PEM 编码的证书文件。 " +
+				"与 oidc-client-key-file 配套的公共证书。预期是标准的 x509 证书。",
 			Flag:  "oidc-client-cert-file",
 			Env:   "CODER_OIDC_CLIENT_CERT_FILE",
 			YAML:  "oidcClientCertFile",
@@ -1180,7 +1180,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "Enable OIDC Group Auto Create",
-			Description: "Automatically creates missing groups from a user's groups claim.",
+			Description: "自动创建用户组声明中缺失的组。",
 			Flag:        "oidc-group-auto-create",
 			Env:         "CODER_OIDC_GROUP_AUTO_CREATE",
 			Default:     "false",
@@ -1190,7 +1190,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "OIDC Regex Group Filter",
-			Description: "If provided any group name not matching the regex is ignored. This allows for filtering out groups that are not needed. This filter is applied after the group mapping.",
+			Description: "如果提供的任何组名与正则表达式不匹配，则会被忽略。这允许过滤掉不需要的组。此过滤器在组映射之后应用。",
 			Flag:        "oidc-group-regex-filter",
 			Env:         "CODER_OIDC_GROUP_REGEX_FILTER",
 			Default:     ".*",
@@ -1200,7 +1200,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "OIDC Allowed Groups",
-			Description: "If provided any group name not in the list will not be allowed to authenticate. This allows for restricting access to a specific set of groups. This filter is applied after the group mapping and before the regex filter.",
+			Description: "如果提供的任何组名不在列表中，将不允许进行身份验证。这允许限制对特定组的访问。此过滤器在组映射之后和正则表达式过滤器之前应用。",
 			Flag:        "oidc-allowed-groups",
 			Env:         "CODER_OIDC_ALLOWED_GROUPS",
 			Default:     "",
@@ -1210,7 +1210,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "OIDC User Role Field",
-			Description: "This field must be set if using the user roles sync feature. Set this to the name of the claim used to store the user's role. The roles should be sent as an array of strings.",
+			Description: "如果使用用户角色同步功能，则必须设置此字段。将其设置为用于存储用户角色的声明名称。角色应作为字符串数组发送。",
 			Flag:        "oidc-user-role-field",
 			Env:         "CODER_OIDC_USER_ROLE_FIELD",
 			// This value is intentionally blank. If this is empty, then OIDC user role
@@ -1222,7 +1222,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "OIDC User Role Mapping",
-			Description: "A map of the OIDC passed in user roles and the groups in Coder it should map to. This is useful if the group names do not match. If mapped to the empty string, the role will ignored.",
+			Description: "一个 OIDC 传递的用户角色与 Coder 中应映射到的组的映射表。如果映射到空字符串，则该角色将被忽略。",
 			Flag:        "oidc-user-role-mapping",
 			Env:         "CODER_OIDC_USER_ROLE_MAPPING",
 			Default:     "{}",
@@ -1232,7 +1232,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "OIDC User Role Default",
-			Description: "If user role sync is enabled, these roles are always included for all authenticated users. The 'member' role is always assigned.",
+			Description: "如果用户角色同步已启用，这些角色将始终包含在所有经过身份验证的用户中。始终分配 'member' 角色。",
 			Flag:        "oidc-user-role-default",
 			Env:         "CODER_OIDC_USER_ROLE_DEFAULT",
 			Default:     "",
@@ -1261,7 +1261,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "Signups disabled text",
-			Description: "The custom text to show on the error page informing about disabled OIDC signups. Markdown format is supported.",
+			Description: "自定义文本，显示在禁用 OIDC 注册的错误页面上。支持 Markdown 格式。",
 			Flag:        "oidc-signups-disabled-text",
 			Env:         "CODER_OIDC_SIGNUPS_DISABLED_TEXT",
 			Value:       &c.OIDC.SignupsDisabledText,
@@ -1312,7 +1312,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "Capture Logs in Traces",
-			Description: "Enables capturing of logs as events in traces. This is useful for debugging, but may result in a very large amount of events being sent to the tracing backend which may incur significant costs.",
+			Description: "启用将日志作为事件捕获到跟踪中。这对于调试很有用，但可能会导致发送到跟踪后端的事件数量非常大，这可能会产生显著的成本。",
 			Flag:        "trace-logs",
 			Env:         "CODER_TRACE_LOGS",
 			Value:       &c.Trace.CaptureLogs,
@@ -1322,7 +1322,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "Send Go runtime traces to DataDog",
-			Description: "Enables sending Go runtime traces to the local DataDog agent.",
+			Description: "启用将 Go runtime 跟踪发送到本地 DataDog 代理。",
 			Flag:        "trace-datadog",
 			Env:         "CODER_TRACE_DATADOG",
 			Value:       &c.Trace.DataDog,
@@ -1349,7 +1349,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "Echo Provisioner",
-			Description: "Whether to use echo provisioner daemons instead of Terraform. This is for E2E tests.",
+			Description: "是否使用回声供应程序守护程序而不是 Terraform。这是为了端到端测试。",
 			Flag:        "provisioner-daemons-echo",
 			Env:         "CODER_PROVISIONER_DAEMONS_ECHO",
 			Hidden:      true,
@@ -1360,7 +1360,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "Poll Interval",
-			Description: "Deprecated and ignored.",
+			Description: "已弃用且被忽略。",
 			Flag:        "provisioner-daemon-poll-interval",
 			Env:         "CODER_PROVISIONER_DAEMON_POLL_INTERVAL",
 			Default:     time.Second.String(),
@@ -1371,7 +1371,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "Poll Jitter",
-			Description: "Deprecated and ignored.",
+			Description: "已弃用且被忽略。",
 			Flag:        "provisioner-daemon-poll-jitter",
 			Env:         "CODER_PROVISIONER_DAEMON_POLL_JITTER",
 			Default:     (100 * time.Millisecond).String(),
@@ -1393,7 +1393,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "Provisioner Daemon Pre-shared Key (PSK)",
-			Description: "Pre-shared key to authenticate external provisioner daemons to Coder server.",
+			Description: "用于将外部供应商守护进程验证到 Coder 服务器的预共享密钥",
 			Flag:        "provisioner-daemon-psk",
 			Env:         "CODER_PROVISIONER_DAEMON_PSK",
 			Value:       &c.Provisioner.DaemonPSK,
@@ -1473,7 +1473,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "Enable Terraform debug mode",
-			Description: "Allow administrators to enable Terraform debug output.",
+			Description: "允许管理员启用 Terraform 调试输出。",
 			Flag:        "enable-terraform-debug-mode",
 			Env:         "CODER_ENABLE_TERRAFORM_DEBUG_MODE",
 			Default:     "false",
@@ -1484,7 +1484,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		// ☢️ Dangerous settings
 		{
 			Name:        "DANGEROUS: Allow all CORS requests",
-			Description: "For security reasons, CORS requests are blocked except between workspace apps owned by the same user. If external requests are required, setting this to true will set all cors headers as '*'. This should never be used in production.",
+			Description: "出于安全原因，除了由同一用户拥有的工作区应用之间的请求之外，CORS 请求会被阻止。如果需要外部请求，则将此设置为 true 将设置所有 CORS 标头为 '*'。这在生产环境中绝不应该使用。",
 			Flag:        "dangerous-allow-cors-requests",
 			Env:         "CODER_DANGEROUS_ALLOW_CORS_REQUESTS",
 			Hidden:      true, // Hidden, should only be used by yarn dev server
@@ -1690,7 +1690,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "External Token Encryption Keys",
-			Description: "Encrypt OIDC and Git authentication tokens with AES-256-GCM in the database. The value must be a comma-separated list of base64-encoded keys. Each key, when base64-decoded, must be exactly 32 bytes in length. The first key will be used to encrypt new values. Subsequent keys will be used as a fallback when decrypting. During normal operation it is recommended to only set one key unless you are in the process of rotating keys with the `coder server dbcrypt rotate` command.",
+			Description: "在数据库中使用 AES-256-GCM 加密 OIDC 和 Git 认证令牌。该值必须是一个以逗号分隔的 base64 编码密钥列表。每个密钥在进行 base64 解码时必须恰好为 32 字节长度。第一个密钥将用于加密新值。在解密时，后续的密钥将用作备用。在正常操作期间，建议只设置一个密钥，除非您正在使用 coder server dbcrypt rotate 命令进行密钥轮换。",
 			Flag:        "external-token-encryption-keys",
 			Env:         "CODER_EXTERNAL_TOKEN_ENCRYPTION_KEYS",
 			Annotations: clibase.Annotations{}.Mark(annotationEnterpriseKey, "true").Mark(annotationSecretKey, "true"),
@@ -1780,7 +1780,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "CLI Upgrade Message",
-			Description: "The upgrade message to display to users when a client/server mismatch is detected. By default it instructs users to update using 'curl -L https://coder.com/install.sh | sh'.",
+			Description: "检测到客户端/服务器不匹配时向用户显示的升级消息。默认情况下，它指示用户使用 'curl -L https://coder.com/install.sh | sh' 进行更新。",
 			Flag:        "cli-upgrade-message",
 			Env:         "CODER_CLI_UPGRADE_MESSAGE",
 			YAML:        "cliUpgradeMessage",
@@ -1799,7 +1799,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "Support Links",
-			Description: "Support links to display in the top right drop down menu.",
+			Description: "支持链接显示在右上角下拉菜单中。",
 			Env:         "CODER_SUPPORT_LINKS",
 			Flag:        "support-links",
 			YAML:        "supportLinks",
@@ -1809,7 +1809,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		{
 			// Env handling is done in cli.ReadGitAuthFromEnvironment
 			Name:        "External Auth Providers",
-			Description: "External Authentication providers.",
+			Description: "外部认证提供程序。",
 			YAML:        "externalAuthProviders",
 			Flag:        "external-auth-providers",
 			Value:       &c.ExternalAuthConfigs,
@@ -1838,7 +1838,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "Default Quiet Hours Schedule",
-			Description: "The default daily cron schedule applied to users that haven't set a custom quiet hours schedule themselves. The quiet hours schedule determines when workspaces will be force stopped due to the template's autostop requirement, and will round the max deadline up to be within the user's quiet hours window (or default). The format is the same as the standard cron format, but the day-of-month, month and day-of-week must be *. Only one hour and minute can be specified (ranges or comma separated values are not supported).",
+			Description: "默认的每日定期任务计划适用于没有自定义静默时段计划的用户。静默时段计划确定了由于模板的自动停止要求而将工作区强制停止的时间，并将最大截止时间向上舍入为用户的静默时段窗口（或默认）。格式与标准的 cron 格式相同，但日期、月份和星期几必须是*。只能指定一个小时和分钟（不支持范围或逗号分隔的值）。",
 			Flag:        "default-quiet-hours-schedule",
 			Env:         "CODER_QUIET_HOURS_DEFAULT_SCHEDULE",
 			Default:     "CRON_TZ=UTC 0 0 * * *",
@@ -1848,7 +1848,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "Allow Custom Quiet Hours",
-			Description: "Allow users to set their own quiet hours schedule for workspaces to stop in (depending on template autostop requirement settings). If false, users can't change their quiet hours schedule and the site default is always used.",
+			Description: "允许用户设置自己的静默时段计划，以便停止工作区（根据模板自动停止要求设置）。如果设置为 false，则用户无法更改其静默时段计划，始终使用站点默认值。",
 			Flag:        "allow-custom-quiet-hours",
 			Env:         "CODER_ALLOW_CUSTOM_QUIET_HOURS",
 			Default:     "true",
@@ -1858,7 +1858,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "Web Terminal Renderer",
-			Description: "The renderer to use when opening a web terminal. Valid values are 'canvas', 'webgl', or 'dom'.",
+			Description: "打开Web终端时要使用的渲染器。有效值为'canvas'、'webgl'或'dom'。",
 			Flag:        "web-terminal-renderer",
 			Env:         "CODER_WEB_TERMINAL_RENDERER",
 			Default:     "canvas",
@@ -1868,7 +1868,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "Allow Workspace Renames",
-			Description: "DEPRECATED: Allow users to rename their workspaces. Use only for temporary compatibility reasons, this will be removed in a future release.",
+			Description: "已弃用：允许用户重命名其工作区。仅用于临时兼容性原因，此功能将在将来的版本中移除。",
 			Flag:        "allow-workspace-renames",
 			Env:         "CODER_ALLOW_WORKSPACE_RENAMES",
 			Default:     "false",
@@ -1878,7 +1878,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		// Healthcheck Options
 		{
 			Name:        "Health Check Refresh",
-			Description: "Refresh interval for healthchecks.",
+			Description: "健康检查的刷新间隔。",
 			Flag:        "health-check-refresh",
 			Env:         "CODER_HEALTH_CHECK_REFRESH",
 			Default:     (10 * time.Minute).String(),
@@ -1889,7 +1889,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "Health Check Threshold: Database",
-			Description: "The threshold for the database health check. If the median latency of the database exceeds this threshold over 5 attempts, the database is considered unhealthy. The default value is 15ms.",
+			Description: "数据库健康检查的阈值。如果数据库的中位延迟在5次尝试中超过此阈值，则认为数据库不健康。默认值为15毫秒。",
 			Flag:        "health-check-threshold-database",
 			Env:         "CODER_HEALTH_CHECK_THRESHOLD_DATABASE",
 			Default:     (15 * time.Millisecond).String(),

@@ -14,8 +14,7 @@ const meta: Meta<typeof NetworkSettingsPageView> = {
     options: [
       {
         name: "DERP Server Enable",
-        description:
-          "Whether to enable or disable the embedded DERP relay server.",
+        description:"是否启用或禁用嵌入式DERP中继服务器。",
         value: true,
         group,
         flag: "derp",
@@ -24,7 +23,7 @@ const meta: Meta<typeof NetworkSettingsPageView> = {
       },
       {
         name: "DERP Server Region Name",
-        description: "Region name that for the embedded DERP server.",
+        description: "嵌入式DERP服务器的区域名称",
         value: "aws-east",
         group,
         flag: "derp",
@@ -33,8 +32,7 @@ const meta: Meta<typeof NetworkSettingsPageView> = {
       },
       {
         name: "DERP Server STUN Addresses",
-        description:
-          "Addresses for STUN servers to establish P2P connections. Set empty to disable P2P connections.",
+        description:"用于建立点对点连接的STUN服务器地址。将其设置为空以禁用点对点连接。",
         value: ["stun.l.google.com:19302", "stun.l.google.com:19301"],
         group,
         flag: "derp",
@@ -43,8 +41,7 @@ const meta: Meta<typeof NetworkSettingsPageView> = {
       },
       {
         name: "DERP Config URL",
-        description:
-          "URL to fetch a DERP mapping on startup. See: https://tailscale.com/kb/1118/custom-derp-servers/",
+        description:"启动时获取DERP映射的URL。参见：https://tailscale.com/kb/1118/custom-derp-servers/",
         value: "https://coder.com",
         group,
         flag: "derp",
