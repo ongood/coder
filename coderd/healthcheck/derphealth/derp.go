@@ -28,9 +28,9 @@ import (
 )
 
 const (
-	warningNodeUsesWebsocket = `Node uses WebSockets because the "Upgrade: DERP" header may be blocked on the load balancer.`
-	oneNodeUnhealthy         = "Region is operational, but performance might be degraded as one node is unhealthy."
-	missingNodeReport        = "Missing node health report, probably a developer error."
+	warningNodeUsesWebsocket = `节点使用 WebSockets，因为负载均衡器可能阻止了 "Upgrade: DERP" 头。`
+	oneNodeUnhealthy         = "区域运行正常，但性能可能会下降，因为一个节点不健康。"
+	missingNodeReport        = "缺少节点健康报告，可能是开发者错误。"
 )
 
 // @typescript-generate Report

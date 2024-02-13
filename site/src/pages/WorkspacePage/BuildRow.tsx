@@ -49,7 +49,7 @@ export const BuildRow: FC<BuildRowProps> = ({ build }) => {
               >
                 <span>
                   <strong>{initiatedBy}</strong>{" "}
-                  {build.reason !== "initiator" ? "automatically " : ""}
+                  {build.reason !== "initiator" ? "自动 " : ""}
                   <strong>{transitionMessages[build.transition]}</strong> 工作区
                 </span>
 
