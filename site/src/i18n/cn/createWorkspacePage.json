@@ -1,9 +1,0 @@
-{
-  "templateLabel": "模板",
-  "nameLabel": "工作区名称",
-  "ownerLabel": "所有者",
-  "createWorkspace": "创建工作区",
-  "validationRequiredParameter": "必填项。",
-  "validationNumberNotInRange": "值必须介于{{min}}和{{max}}之间。",
-  "validationPatternNotMatched": "{{error}} (值不匹配{{pattern}}模式)。"
-}

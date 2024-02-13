@@ -33,7 +33,7 @@ export const BuildAuditDescription: FC<BuildAuditDescriptionProps> = ({
 
   return (
     <span>
-      {user} <strong>{action}</strong> workspace{" "}
+      {user} <strong>{action}</strong> 工作区{" "}
       {auditLog.resource_link ? (
         <Link component={RouterLink} to={auditLog.resource_link}>
           <strong>{workspaceName}</strong>
