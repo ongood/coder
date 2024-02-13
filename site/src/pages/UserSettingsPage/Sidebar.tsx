@@ -26,36 +26,35 @@ export const Sidebar: FC<SidebarProps> = ({ user }) => {
 
   return (
     <BaseSidebar>
-      <SidebarHeader
-        avatar={
-          <UserAvatar username={user.username} avatarURL={user.avatar_url} />
-        }
-        title={user.username}
-        subtitle={user.email}
-      />
-      <SidebarNavItem href="account" icon={AccountIcon}>
-        Account
+    <SidebarHeader
+      avatar={
+        <UserAvatar username={user.username} avatarURL={user.avatar_url} />
+      }
+      title={user.username}
+      subtitle={user.email}
+    />
+    <SidebarNavItem href="account" icon={AccountIcon}>
+      账户
+    </SidebarNavItem>
+    <SidebarNavItem href="appearance" icon={AppearanceIcon}>
+      外观
+    </SidebarNavItem>
+    <SidebarNavItem href="external-auth" icon={GitIcon}>
+      外部认证
+    </SidebarNavItem>
+    {showSchedulePage && (
+      <SidebarNavItem href="schedule" icon={ScheduleIcon}>
+        日程安排
       </SidebarNavItem>
-      <SidebarNavItem href="appearance" icon={AppearanceIcon}>
-        Appearance
-      </SidebarNavItem>
-      <SidebarNavItem href="external-auth" icon={GitIcon}>
-        External Authentication
-      </SidebarNavItem>
-      {showSchedulePage && (
-        <SidebarNavItem href="schedule" icon={ScheduleIcon}>
-          Schedule
-        </SidebarNavItem>
-      )}
-      <SidebarNavItem href="security" icon={SecurityIcon}>
-        Security
-      </SidebarNavItem>
-      <SidebarNavItem href="ssh-keys" icon={FingerprintOutlinedIcon}>
-        SSH Keys
-      </SidebarNavItem>
-      <SidebarNavItem href="tokens" icon={VpnKeyOutlined}>
-        Tokens
-      </SidebarNavItem>
-    </BaseSidebar>
-  );
-};
+    )}
+    <SidebarNavItem href="security" icon={SecurityIcon}>
+      安全
+    </SidebarNavItem>
+    <SidebarNavItem href="ssh-keys" icon={FingerprintOutlinedIcon}>
+      SSH密钥
+    </SidebarNavItem>
+    <SidebarNavItem href="tokens" icon={VpnKeyOutlined}>
+      令牌
+    </SidebarNavItem>
+  </BaseSidebar>
+);

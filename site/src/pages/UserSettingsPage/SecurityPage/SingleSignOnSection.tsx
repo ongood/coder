@@ -112,7 +112,7 @@ const SSOEmptyState: FC = () => {
       description="No SSO providers are configured with this Coder deployment."
       cta={
         <Link href={docs("/admin/auth")} target="_blank" rel="noreferrer">
-          Learn how to add a provider
+          学习如何添加提供商
         </Link>
       }
     />
@@ -145,8 +145,8 @@ export const SingleSignOnSection: FC<SingleSignOnSectionProps> = ({
     <>
       <Section
         id="sso-section"
-        title="Single Sign On"
-        description="Authenticate in Coder using one-click"
+        title="单点登录"
+        description="使用一键登录在 Coder 中进行身份验证"
       >
         <div css={{ display: "grid", gap: "16px" }}>
           {userLoginType.login_type === "password" ? (
@@ -197,7 +197,7 @@ export const SingleSignOnSection: FC<SingleSignOnSectionProps> = ({
                 }}
               />
               <span>
-                Authenticated with{" "}
+                已验证为{" "}
                 <strong>
                   {userLoginType.login_type === "github"
                     ? "GitHub"
@@ -285,8 +285,7 @@ const ConfirmLoginTypeChangeModal: FC<ConfirmLoginTypeChangeModalProps> = ({
       description={
         <Stack spacing={4}>
           <p>
-            After changing your login type, you will not be able to change it
-            again. Are you sure you want to proceed and change your login type?
+            更改登录类型后，您将无法再次更改。您确定要继续并更改登录类型吗？
           </p>
           <TextField
             autoFocus

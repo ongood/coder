@@ -26,7 +26,7 @@ export const AccountPage: FC = () => {
 
   return (
     <Stack spacing={6}>
-      <Section title="Account" description="Update your account info">
+      <Section title="账号" description="更新您的账号信息">
         <AccountForm
           editable={permissions?.updateUsers ?? false}
           email={me.email}

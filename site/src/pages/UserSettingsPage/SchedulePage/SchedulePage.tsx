@@ -38,9 +38,9 @@ export const SchedulePage: FC = () => {
 
   return (
     <Section
-      title="Quiet hours"
+      title="静默时间"
       layout="fluid"
-      description="Workspaces may be automatically updated during your quiet hours, as configured by your administrators."
+      description="工作区可能会在您的静默时间内自动更新，由管理员配置。"
     >
       <ScheduleForm
         isLoading={mutationLoading}
@@ -49,7 +49,7 @@ export const SchedulePage: FC = () => {
         onSubmit={(values) => {
           onSubmit(values, {
             onSuccess: () => {
-              displaySuccess("Schedule updated successfully");
+              displaySuccess("日程已成功更新");
             },
           });
         }}

@@ -87,16 +87,13 @@ export const ScheduleForm: FC<ScheduleFormProps> = ({
 
         {!initialValues.user_set && (
           <Alert severity="info">
-            You are currently using the default quiet hours schedule, which
-            starts every day at <code>{initialValues.time}</code> in{" "}
-            <code>{initialValues.timezone}</code>.
+            您当前正在使用默认的静默时间日程，每天在 <code>{initialValues.time}</code> 开始，时区为 <code>{initialValues.timezone}</code>。
           </Alert>
         )}
 
         {!initialValues.user_can_set && (
           <Alert severity="error">
-            Your administrator has disabled the ability to set a custom quiet
-            hours schedule.
+            您的管理员已禁用设置自定义静默时间日程的权限。
           </Alert>
         )}
 
@@ -104,14 +101,14 @@ export const ScheduleForm: FC<ScheduleFormProps> = ({
           <TextField
             {...getFieldHelpers("time")}
             disabled={isLoading || !initialValues.user_can_set}
-            label="Start time"
+            label="开始时间"
             type="time"
             fullWidth
           />
           <TextField
             {...getFieldHelpers("timezone")}
             disabled={isLoading || !initialValues.user_can_set}
-            label="Timezone"
+            label="时区"
             select
             fullWidth
           >
@@ -126,7 +123,7 @@ export const ScheduleForm: FC<ScheduleFormProps> = ({
         <TextField
           disabled
           fullWidth
-          label="Next occurrence"
+          label="下一次出现"
           value={quietHoursDisplay(form.values.time, form.values.timezone, now)}
         />
 
@@ -137,7 +134,7 @@ export const ScheduleForm: FC<ScheduleFormProps> = ({
             type="submit"
             variant="contained"
           >
-            Update schedule
+            更新日程
           </LoadingButton>
         </div>
       </FormFields>

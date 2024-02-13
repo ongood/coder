@@ -23,7 +23,7 @@ export const AccountUserGroups: FC<AccountGroupsProps> = ({
 
   return (
     <Section
-      title="Your groups"
+      title="您的群组"
       layout="fluid"
       description={
         groups && (
