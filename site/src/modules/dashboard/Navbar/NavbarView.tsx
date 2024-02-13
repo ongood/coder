@@ -399,7 +399,9 @@ const ProxyMenu: FC<ProxyMenuProps> = ({ proxyContextValue }) => {
             onClick={() => {
               navigate("/deployment/workspace-proxies");
             }}
+          >
             代理设置
+          </MenuItem>
         )}
 
         <MenuItem
