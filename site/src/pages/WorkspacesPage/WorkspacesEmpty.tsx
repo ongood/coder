@@ -50,7 +50,7 @@ export const WorkspacesEmpty = (props: {
             variant="contained"
             startIcon={<ArrowForwardOutlined />}
           >
-            Go to templates
+            返回到模板
           </Button>
         }
         css={{
@@ -145,7 +145,7 @@ export const WorkspacesEmpty = (props: {
               variant="contained"
               startIcon={<ArrowForwardOutlined />}
             >
-              See all templates
+              查看所有模板
             </Button>
           )}
         </div>

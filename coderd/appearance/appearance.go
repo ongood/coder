@@ -12,17 +12,17 @@ type Fetcher interface {
 
 var DefaultSupportLinks = []codersdk.LinkConfig{
 	{
-		Name:   "Documentation",
+		Name:   "文档",
 		Target: "https://coder.com/docs/coder-oss",
 		Icon:   "docs",
 	},
 	{
-		Name:   "Report a bug",
+		Name:   "报告 BUG",
 		Target: "https://github.com/coder/coder/issues/new?labels=needs+grooming&body={CODER_BUILD_INFO}",
 		Icon:   "bug",
 	},
 	{
-		Name:   "Join the Coder Discord",
+		Name:   "加入讨论组",
 		Target: "https://coder.com/chat?utm_source=coder&utm_medium=coder&utm_campaign=server-footer",
 		Icon:   "chat",
 	},

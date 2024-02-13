@@ -44,14 +44,14 @@ export const WorkspacesButton: FC<WorkspacesButtonProps> = ({
   if (templates?.length === 0) {
     emptyState = (
       <SearchEmpty>
-        No templates yet.{" "}
+        还没有任何模板。{" "}
         <Link to="/templates" component={RouterLink}>
-          Create one now.
+          新建一个。
         </Link>
       </SearchEmpty>
     );
   } else if (processed.length === 0) {
-    emptyState = <SearchEmpty>No templates found</SearchEmpty>;
+    emptyState = <SearchEmpty>没有模板找到</SearchEmpty>;
   }
 
   return (
@@ -113,7 +113,7 @@ export const WorkspacesButton: FC<WorkspacesButtonProps> = ({
             })}
           >
             <OpenIcon css={{ width: 14, height: 14 }} />
-            <span>See all templates</span>
+            <span>查看所有模板</span>
           </PopoverLink>
         </div>
       </PopoverContent>
@@ -174,7 +174,7 @@ const WorkspaceResultsRow: FC<WorkspaceResultsRowProps> = ({ template }) => {
            * treat them as if they were 0.
            */}
           {template.active_user_count <= 0 ? "No" : template.active_user_count}{" "}
-          developer
+           开发者
           {template.active_user_count === 1 ? "" : "s"}
         </span>
       </div>

@@ -329,11 +329,11 @@ const ProxyMenu: FC<ProxyMenuProps> = ({ proxyContextValue }) => {
               marginTop: 0.5,
             }}
           >
-            工作区代理改善了对工作区的终端和 Web 应用程序连接。这不适用于{" "}
+            工作区代理改善了对工作区的终端和 Web 应用程序连接，但它不适用于{" "}
             <Abbr title="Command-Line Interface" pronunciation="initialism">
               CLI
             </Abbr>{" "}
-            连接。必须手动选择一个地区，否则将使用默认的主要地区。
+            连接。您必须手动选择一个地区，否则将使用默认的主要地区。
           </p>
         </div>
 
