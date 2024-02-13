@@ -862,7 +862,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "Block Direct Connections",
-			Description: "Block peer-to-peer (aka. direct) workspace connections. All workspace connections from the CLI will be proxied through Coder (or custom configured DERP servers) and will never be peer-to-peer when enabled. Workspaces may still reach out to STUN servers to get their address until they are restarted after this change has been made, but new connections will still be proxied regardless.",
+			Description: "阻止点对点 (即直接) 工作区连接。启用后，来自 CLI 的所有工作区连接都将通过 Coder (或自定义配置的 DERP 服务器) 进行代理，并且永远不会是点对点。在此更改生效后，工作区仍然可以与 STUN 服务器联系以获取其地址，但新连接仍然会被代理。",
 			// This cannot be called `disable-direct-connections` because that's
 			// already a global CLI flag for CLI connections. This is a
 			// deployment-wide flag.
@@ -874,7 +874,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "DERP Force WebSockets",
-			Description: "Force clients and agents to always use WebSocket to connect to DERP relay servers. By default, DERP uses `Upgrade: derp`, which may cause issues with some reverse proxies. Clients may automatically fallback to WebSocket if they detect an issue with `Upgrade: derp`, but this does not work in all situations.",
+			Description: "强制客户端和代理始终使用 WebSocket 连接到 DERP 中继服务器。默认情况下，DERP 使用 Upgrade: derp，这可能会导致某些反向代理出现问题。如果客户端检测到 Upgrade: derp 存在问题，它们可能会自动回退到 WebSocket，但这并不适用于所有情况。",
 			Flag:        "derp-force-websockets",
 			Env:         "CODER_DERP_FORCE_WEBSOCKETS",
 			Value:       &c.DERP.Config.ForceWebSockets,

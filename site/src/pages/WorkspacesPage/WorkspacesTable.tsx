@@ -90,12 +90,12 @@ export const WorkspacesTable: FC<WorkspacesTableProps> = ({
                     }}
                   />
                 )}
-                Name
+                名称
               </div>
             </TableCell>
-            <TableCell width="25%">Template</TableCell>
-            <TableCell width="20%">Last used</TableCell>
-            <TableCell width="15%">Status</TableCell>
+            <TableCell width="25%">模板</TableCell>
+            <TableCell width="20%">最近使用</TableCell>
+            <TableCell width="15%">状态</TableCell>
             <TableCell width="1%" />
           </TableRow>
         </TableHead>
@@ -209,8 +209,8 @@ export const WorkspacesTable: FC<WorkspacesTableProps> = ({
                         !workspace.health.healthy && (
                           <InfoTooltip
                             type="notice"
-                            title="Workspace is unhealthy"
-                            message="Your workspace is running but some agents are unhealthy."
+                            title="工作区不健康"
+                            message="您的工作区正在运行，但一些代理处于不健康状态。"
                           />
                         )}
                       {workspace.dormant_at && (

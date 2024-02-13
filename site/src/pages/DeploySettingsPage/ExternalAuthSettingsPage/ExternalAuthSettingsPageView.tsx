@@ -22,8 +22,8 @@ export const ExternalAuthSettingsPageView: FC<
   return (
     <>
       <Header
-        title="External Authentication"
-        description="Coder integrates with GitHub, GitLab, BitBucket, Azure Repos, and OpenID Connect to authenticate developers with external services."
+        title="外部认证"
+        description="Coder 与 GitHub、GitLab、BitBucket、Azure Repos 和 OpenID Connect 集成，可与外部服务对开发者进行身份验证。"
         docsHref={docs("/admin/external-auth")}
       />
 
@@ -46,8 +46,7 @@ export const ExternalAuthSettingsPageView: FC<
         }}
       >
         <Alert severity="info" actions={<EnterpriseBadge key="enterprise" />}>
-          Integrating with multiple External authentication providers is an
-          Enterprise feature.
+          与多个外部身份验证提供商集成是企业版功能。
         </Alert>
       </div>
 
@@ -78,7 +77,7 @@ export const ExternalAuthSettingsPageView: FC<
               <TableRow>
                 <TableCell colSpan={999}>
                   <div css={{ textAlign: "center" }}>
-                    No providers have been configured!
+                    尚未配置任何提供商！
                   </div>
                 </TableCell>
               </TableRow>

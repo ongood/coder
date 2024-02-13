@@ -114,7 +114,7 @@ export const DormantStatusBadge: FC<DormantStatusBadgeProps> = ({
         icon={<AutoDeleteIcon />}
         type="error"
       >
-        Deletion Pending
+        等待删除
       </Pill>
     </Tooltip>
   ) : (
@@ -134,7 +134,7 @@ export const DormantStatusBadge: FC<DormantStatusBadgeProps> = ({
         icon={<RecyclingIcon />}
         type="warning"
       >
-        Dormant
+        休眠
       </Pill>
     </Tooltip>
   );

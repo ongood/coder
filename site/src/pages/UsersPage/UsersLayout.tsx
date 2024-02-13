@@ -36,7 +36,7 @@ export const UsersLayout: FC = () => {
               )}
               {canCreateGroup && isTemplateRBACEnabled && (
                 <Link component={RouterLink} to="/groups/create">
-                  <Button startIcon={<GroupAdd />}>创建用户组</Button>
+                  <Button startIcon={<GroupAdd />}>创建组</Button>
                 </Link>
               )}
             </>
@@ -47,8 +47,8 @@ export const UsersLayout: FC = () => {
       </Margins>
 
       <Tabs>
-        <TabLink to={USERS_LINK}>Users</TabLink>
-        <TabLink to="/groups">Groups</TabLink>
+        <TabLink to={USERS_LINK}>用户</TabLink>
+        <TabLink to="/groups">组</TabLink>
       </Tabs>
 
       <Margins>

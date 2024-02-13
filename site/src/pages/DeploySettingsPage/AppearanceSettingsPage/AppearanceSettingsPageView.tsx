@@ -93,25 +93,24 @@ export const AppearanceSettingsPageView: FC<
       </Badges>
 
       <Fieldset
-        title="Application name"
-        subtitle="Specify a custom application name to be displayed on the login page."
-        validation={!isEntitled ? "This is an Enterprise only feature." : ""}
+        title="应用名称"
+        subtitle="在登录页面上指定自定义应用程序名称。"
+        validation={!isEntitled ? "此功能仅适用于企业版。" : ""}
         onSubmit={applicationNameForm.handleSubmit}
-        button={!isEntitled && <Button disabled>Submit</Button>}
+        button={!isEntitled && <Button disabled>提交</Button>}
       >
         <TextField
           {...applicationNameFieldHelpers("application_name")}
           defaultValue={appearance.application_name}
           fullWidth
-          placeholder='Leave empty to display "Coder".'
+          placeholder='留空显示 "Coder"。'
           disabled={!isEntitled}
         />
       </Fieldset>
 
       <Fieldset
         title="Logo URL"
-        subtitle="Specify a custom URL for your logo to be displayed on the sign in page and in the top left
-          corner of the dashboard."
+        subtitle="指定您的标志的自定义 URL，以在登录页面和仪表板左上角显示。"
         validation={
           isEntitled
             ? "我们建议使用长宽比为3:1的透明图像。"
@@ -174,7 +173,7 @@ export const AppearanceSettingsPageView: FC<
                 );
               }}
             >
-              Show Preview
+              显示预览
             </Button>
           )
         }
@@ -214,7 +213,7 @@ export const AppearanceSettingsPageView: FC<
               <TextField
                 {...serviceBannerFieldHelpers("message", {
                   helperText:
-                    "Markdown bold, italics, and links are supported.",
+                  "支持 Markdown 的加粗、斜体和链接。",
                 })}
                 fullWidth
                 label="消息"

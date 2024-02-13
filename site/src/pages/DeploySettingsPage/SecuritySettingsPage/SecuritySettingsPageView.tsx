@@ -32,8 +32,8 @@ export const SecuritySettingsPageView: FC<SecuritySettingsPageViewProps> = ({
     <Stack direction="column" spacing={6}>
       <div>
         <Header
-          title="Security"
-          description="Ensure your Coder deployment is secure."
+          title="安全"
+          description="确保您的 Coder 部署是安全的。"
         />
 
         <OptionsTable
@@ -47,12 +47,12 @@ export const SecuritySettingsPageView: FC<SecuritySettingsPageViewProps> = ({
       </div>
 
       <div>
-        <Header
-          title="Browser Only Connections"
-          secondary
-          description="Block all workspace access via SSH, port forward, and other non-browser connections."
-          docsHref={docs("/networking#browser-only-connections-enterprise")}
-        />
+      <Header
+        title="仅浏览器连接"
+        secondary
+        description="阻止通过 SSH、端口转发和其他非浏览器连接访问所有工作区。"
+        docsHref={docs("/networking#browser-only-connections-enterprise")}
+      />
 
         <Badges>
           {featureBrowserOnlyEnabled ? <EnabledBadge /> : <DisabledBadge />}

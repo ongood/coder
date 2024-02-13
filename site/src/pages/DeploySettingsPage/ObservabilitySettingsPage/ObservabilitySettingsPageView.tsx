@@ -24,11 +24,11 @@ export const ObservabilitySettingsPageView: FC<
     <>
       <Stack direction="column" spacing={6}>
         <div>
-          <Header title="Observability" />
+          <Header title="可观察性" />
           <Header
-            title="Audit Logging"
+            title="审计日志"
             secondary
-            description="Allow auditors to monitor user operations in your deployment."
+            description="允许审计人员监视您部署中的用户操作。"
             docsHref={docs("/admin/audit-logs")}
           />
 
@@ -40,9 +40,9 @@ export const ObservabilitySettingsPageView: FC<
 
         <div>
           <Header
-            title="Monitoring"
+            title="监控"
             secondary
-            description="Monitoring your Coder application with logs and metrics."
+            description="使用日志和指标监视您的 Coder 应用程序。"
           />
 
           <OptionsTable

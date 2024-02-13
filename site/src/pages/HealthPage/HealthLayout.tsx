@@ -84,7 +84,7 @@ export const HealthLayout: FC = () => {
                   >
                     <HealthIcon size={32} severity={healthStatus.severity} />
 
-                    <Tooltip title="Refresh health checks">
+                    <Tooltip title="刷新健康检查">
                       <IconButton
                         size="small"
                         disabled={isRefreshing}
@@ -102,7 +102,7 @@ export const HealthLayout: FC = () => {
                     </Tooltip>
                   </div>
                   <div css={{ fontWeight: 500, marginTop: 16 }}>
-                    {healthStatus.healthy ? "Healthy" : "Unhealthy"}
+                    {healthStatus.healthy ? "健康" : "不健康"}
                   </div>
                   <div
                     css={{
@@ -118,14 +118,14 @@ export const HealthLayout: FC = () => {
                             section.warnings && section.warnings.length > 0
                           );
                         })
-                        ? "All systems operational, but performance might be degraded"
-                        : "All systems operational"
-                      : "Some issues have been detected"}
+                        ? "所有系统均正常运行，但性能可能会有所降低"
+                        : "所有系统均正常运行"
+                      : "检测到一些问题"}
                   </div>
                 </div>
 
                 <div css={{ display: "flex", flexDirection: "column" }}>
-                  <span css={{ fontWeight: 500 }}>Last check</span>
+                  <span css={{ fontWeight: 500 }}>上次检查</span>
                   <span
                     data-chromatic="ignore"
                     css={{
@@ -138,7 +138,7 @@ export const HealthLayout: FC = () => {
                 </div>
 
                 <div css={{ display: "flex", flexDirection: "column" }}>
-                  <span css={{ fontWeight: 500 }}>Version</span>
+                  <span css={{ fontWeight: 500 }}>版本</span>
                   <span
                     data-chromatic="ignore"
                     css={{

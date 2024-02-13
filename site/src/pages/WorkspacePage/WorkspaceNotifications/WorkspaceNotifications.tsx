@@ -55,7 +55,7 @@ export const WorkspaceNotifications: FC<WorkspaceNotificationsProps> = ({
   if (workspace.outdated && latestVersion) {
     const actions = (
       <NotificationActionButton onClick={onUpdateWorkspace}>
-        Update
+        升级
       </NotificationActionButton>
     );
     if (requiresManualUpdate) {
@@ -87,16 +87,16 @@ export const WorkspaceNotifications: FC<WorkspaceNotificationsProps> = ({
       severity: "warning",
       detail: (
         <>
-          Your workspace is running but{" "}
+          您的工作区已运行，但是{" "}
           {workspace.health.failing_agents.length > 1
-            ? `${workspace.health.failing_agents.length} agents are unhealthy`
-            : `1 agent is unhealthy`}
+            ? `${workspace.health.failing_agents.length}个代理不健康`
+            : `1个代理不健康`}
           .
         </>
       ),
       actions: permissions.updateWorkspace ? (
         <NotificationActionButton onClick={onRestartWorkspace}>
-          Restart
+          重启
         </NotificationActionButton>
       ) : undefined,
     });
@@ -118,12 +118,12 @@ export const WorkspaceNotifications: FC<WorkspaceNotificationsProps> = ({
     };
     const actions = (
       <NotificationActionButton onClick={onActivateWorkspace}>
-        Activate
+        激活
       </NotificationActionButton>
     );
     notifications.push({
       actions,
-      title: "Workspace is dormant",
+      title: "工作区处于休眠状态",
       severity: "warning",
       detail: workspace.deleting_at ? (
         <>
