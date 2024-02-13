@@ -15,8 +15,8 @@ import LoadingButton from "@mui/lab/LoadingButton";
 export const Language = {
   usernameLabel: "用户名",
   emailLabel: "Email",
-  nameLabel: "Name",
-  updateSettings: "Update account",
+  nameLabel: "名称",
+  updateSettings: "更新账号",
 };
 
 const validationSchema = Yup.object({

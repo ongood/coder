@@ -32,7 +32,7 @@ export const CreateTemplateButton: FC<CreateTemplateButtonProps> = ({
           }}
         >
           <NoteAddOutlined />
-           从头开始
+           从零开始
         </MoreMenuItem>
         <MoreMenuItem
           onClick={() => {

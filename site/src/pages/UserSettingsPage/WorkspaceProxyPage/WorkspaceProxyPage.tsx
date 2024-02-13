@@ -5,7 +5,7 @@ import { WorkspaceProxyView } from "./WorkspaceProxyView";
 
 export const WorkspaceProxyPage: FC = () => {
   const description =
-    "Workspace proxies improve terminal and web app connections to workspaces.";
+    "工作区代理改善了对工作区的终端和 Web 应用程序连接。";
 
   const {
     proxyLatencies,
@@ -18,7 +18,7 @@ export const WorkspaceProxyPage: FC = () => {
 
   return (
     <Section
-      title="Workspace Proxies"
+      title="工作区代理"
       css={(theme) => ({
         "& code": {
           background: theme.palette.divider,

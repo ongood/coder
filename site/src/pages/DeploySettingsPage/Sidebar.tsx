@@ -19,38 +19,38 @@ export const Sidebar: FC = () => {
   return (
     <BaseSidebar>
       <SidebarNavItem href="general" icon={LaunchOutlined}>
-        General
+        常规
       </SidebarNavItem>
       <SidebarNavItem href="licenses" icon={ApprovalIcon}>
-        Licenses
+        许可证
       </SidebarNavItem>
       <SidebarNavItem href="appearance" icon={Brush}>
-        Appearance
+        外观
       </SidebarNavItem>
       <SidebarNavItem href="userauth" icon={VpnKeyOutlined}>
-        User Authentication
+        用户认证
       </SidebarNavItem>
       <SidebarNavItem href="external-auth" icon={GitIcon}>
-        External Authentication
+        外部认证
       </SidebarNavItem>
       {/* Not exposing this yet since token exchange is not finished yet.
       <SidebarNavItem href="oauth2-provider/apps" icon={Token}>
         OAuth2 Applications
       </SidebarNavItem>*/}
       <SidebarNavItem href="network" icon={Globe}>
-        Network
+        网络
       </SidebarNavItem>
       <SidebarNavItem href="workspace-proxies" icon={HubOutlinedIcon}>
-        Workspace Proxies
+        工作区代理
       </SidebarNavItem>
       <SidebarNavItem href="security" icon={LockRounded}>
-        Security
+        安全性
       </SidebarNavItem>
       <SidebarNavItem href="observability" icon={InsertChartIcon}>
-        Observability
+        可观察性
       </SidebarNavItem>
       <SidebarNavItem href="/health" icon={MonitorHeartOutlined}>
-        Health
+        健康状态
       </SidebarNavItem>
     </BaseSidebar>
   );

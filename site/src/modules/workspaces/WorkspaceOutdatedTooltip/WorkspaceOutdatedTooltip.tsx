@@ -18,10 +18,10 @@ import {
 import { usePopover } from "components/Popover/Popover";
 
 export const Language = {
-  outdatedLabel: "Outdated",
+  outdatedLabel: "已过时",
   versionTooltipText:
-    "This workspace version is outdated and a newer version is available.",
-  updateVersionLabel: "Update",
+    "此工作区版本已过时，有新版本可用。",
+  updateVersionLabel: "升级",
 };
 
 interface TooltipProps {

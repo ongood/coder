@@ -133,13 +133,13 @@ export const CreateUserForm: FC<
           />
           <TextField
             {...getFieldHelpers("login_type", {
-              helperText: "Authentication method for this user",
+              helperText: "此用户的身份验证方式",
             })}
             select
             id="login_type"
             data-testid="login-type-input"
             value={form.values.login_type}
-            label="Login Type"
+            label="登录类型"
             onChange={async (e) => {
               if (e.target.value !== "password") {
                 await form.setFieldValue("password", "");
@@ -182,7 +182,7 @@ export const CreateUserForm: FC<
             {...getFieldHelpers("password", {
               helperText:
                 form.values.login_type !== "password" &&
-                "No password required for this login type",
+                "此登录类型无需密码",
             })}
             autoComplete="current-password"
             fullWidth

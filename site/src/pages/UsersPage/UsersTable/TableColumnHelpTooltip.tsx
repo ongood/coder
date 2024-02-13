@@ -20,19 +20,19 @@ type TooltipData = {
 
 export const Language = {
   roles: {
-    title: "What is a role?",
+    title: "角色是什么？",
     text:
-      "Coder role-based access control (RBAC) provides fine-grained access management. " +
-      "View our docs on how to use the available roles.",
-    links: [{ text: "User Roles", href: docs("/admin/users#roles") }],
+      "Coder基于角色的访问控制（RBAC）提供了细粒度的访问管理。 " +
+      "查看我们的文档以了解如何使用可用的角色。",
+    links: [{ text: "用户角色", href: docs("/admin/users#roles") }],
   },
 
   groups: {
-    title: "What is a group?",
+    title: "组是什么？",
     text:
-      "Groups can be used with template RBAC to give groups of users access " +
-      "to specific templates. View our docs on how to use groups.",
-    links: [{ text: "User Groups", href: docs("/admin/groups") }],
+      "组可以与模板 RBAC 结合使用，以便给用户组提供对特定模板的访问权限 " +
+      "查看我们的文档以了解如何使用组。",
+    links: [{ text: "用户组", href: docs("/admin/groups") }],
   },
 } as const satisfies Record<ColumnHeader, TooltipData>;
 

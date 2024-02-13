@@ -12,9 +12,9 @@ import FormControlLabel from "@mui/material/FormControlLabel";
 import { Stack } from "components/Stack/Stack";
 
 export const Language = {
-  versionNameLabel: "Version name",
-  messagePlaceholder: "Write a short message about the changes you made...",
-  defaultCheckboxLabel: "Promote to default version",
+  versionNameLabel: "版本名称",
+  messagePlaceholder: "写下您所做更改的简短说明...",
+  defaultCheckboxLabel: "升级为默认版本",
 };
 
 export type PublishTemplateVersionDialogProps = DialogProps & {

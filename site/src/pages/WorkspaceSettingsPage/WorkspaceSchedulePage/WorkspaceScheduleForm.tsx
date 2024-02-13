@@ -43,31 +43,28 @@ dayjs.extend(relativeTime);
 dayjs.extend(timezone);
 
 export const Language = {
-  errorNoDayOfWeek:
-    "Must set at least one day of week if autostart is enabled.",
-  errorNoTime: "Start time is required when autostart is enabled.",
-  errorTime: "Time must be in HH:mm format.",
-  errorTimezone: "Invalid timezone.",
-  errorNoStop:
-    "Time until shutdown must be greater than zero when autostop is enabled.",
-  errorTtlMax:
-    "Please enter a limit that is less than or equal to 720 hours (30 days).",
-  daysOfWeekLabel: "Days of Week",
-  daySundayLabel: "Sun",
-  dayMondayLabel: "Mon",
-  dayTuesdayLabel: "Tue",
-  dayWednesdayLabel: "Wed",
-  dayThursdayLabel: "Thu",
-  dayFridayLabel: "Fri",
-  daySaturdayLabel: "Sat",
-  startTimeLabel: "Start time",
-  timezoneLabel: "Timezone",
-  ttlLabel: "Time until shutdown (hours)",
-  formTitle: "Workspace schedule",
-  startSection: "Start",
-  startSwitch: "Enable Autostart",
-  stopSection: "Stop",
-  stopSwitch: "Enable Autostop",
+  errorNoDayOfWeek: "如果自动启动已启用，必须至少设置一天。",
+  errorNoTime: "当自动启动已启用时，开始时间是必需的。",
+  errorTime: "时间必须以 HH:mm 格式。",
+  errorTimezone: "无效的时区。",
+  errorNoStop: "当自动停止已启用时，关闭时间必须大于零。",
+  errorTtlMax: "请输入小于或等于720小时（30天）的限制。",
+  daysOfWeekLabel: "星期几",
+  daySundayLabel: "星期日",
+  dayMondayLabel: "星期一",
+  dayTuesdayLabel: "星期二",
+  dayWednesdayLabel: "星期三",
+  dayThursdayLabel: "星期四",
+  dayFridayLabel: "星期五",
+  daySaturdayLabel: "星期六",
+  startTimeLabel: "开始时间",
+  timezoneLabel: "时区",
+  ttlLabel: "自动关闭时间（小时）",
+  formTitle: "工作区计划",
+  startSection: "启动",
+  startSwitch: "启用自动启动",
+  stopSection: "停止",
+  stopSwitch: "启用自动停止",
 };
 
 export interface WorkspaceScheduleFormProps {

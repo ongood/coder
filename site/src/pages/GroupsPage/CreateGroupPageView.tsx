@@ -63,16 +63,16 @@ export const CreateGroupPageView: FC<CreateGroupPageViewProps> = ({
             />
             <TextField
               {...getFieldHelpers("display_name", {
-                helperText: "Optional: keep empty to default to the name.",
+                helperText: "可选：保留为空将默认使用该名称。",
               })}
               fullWidth
-              label="Display Name"
+              label="显示名称"
             />
             <IconField
               {...getFieldHelpers("avatar_url")}
               onChange={onChangeTrimmed(form)}
               fullWidth
-              label="Avatar URL"
+              label="头像 URL"
               onPickEmoji={(value) => form.setFieldValue("avatar_url", value)}
             />
           </Stack>

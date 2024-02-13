@@ -12,12 +12,12 @@ import { TableColumnHelpTooltip } from "./TableColumnHelpTooltip";
 import { UsersTableBody } from "./UsersTableBody";
 
 export const Language = {
-  usernameLabel: "User",
-  rolesLabel: "Roles",
-  groupsLabel: "Groups",
-  statusLabel: "Status",
-  lastSeenLabel: "Last Seen",
-  loginTypeLabel: "Login Type",
+  usernameLabel: "用户名",
+  rolesLabel: "角色",
+  groupsLabel: "组",
+  statusLabel: "状态",
+  lastSeenLabel: "上次活动时间",
+  loginTypeLabel: "登录类型",
 } as const;
 
 export interface UsersTableProps {

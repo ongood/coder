@@ -318,7 +318,7 @@ const ProxyMenu: FC<ProxyMenuProps> = ({ proxyContextValue }) => {
               marginBottom: 4,
             }}
           >
-            Select a region nearest to you
+            选择离您最近的地区
           </h4>
 
           <p
@@ -329,13 +329,11 @@ const ProxyMenu: FC<ProxyMenuProps> = ({ proxyContextValue }) => {
               marginTop: 0.5,
             }}
           >
-            Workspace proxies improve terminal and web app connections to
-            workspaces. This does not apply to{" "}
+            工作区代理改善了对工作区的终端和 Web 应用程序连接。这不适用于{" "}
             <Abbr title="Command-Line Interface" pronunciation="initialism">
               CLI
             </Abbr>{" "}
-            connections. A region must be manually selected, otherwise the
-            default primary region will be used.
+            连接。必须手动选择一个地区，否则将使用默认的主要地区。
           </p>
         </div>
 
@@ -401,9 +399,7 @@ const ProxyMenu: FC<ProxyMenuProps> = ({ proxyContextValue }) => {
             onClick={() => {
               navigate("/deployment/workspace-proxies");
             }}
-          >
-            Proxy settings
-          </MenuItem>
+            代理设置
         )}
 
         <MenuItem
@@ -416,7 +412,7 @@ const ProxyMenu: FC<ProxyMenuProps> = ({ proxyContextValue }) => {
             setRefetchDate(refetchDate);
           }}
         >
-          Refresh Latencies
+          刷新延迟
         </MenuItem>
       </Menu>
     </>

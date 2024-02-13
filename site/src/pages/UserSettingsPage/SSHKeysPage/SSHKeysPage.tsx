@@ -8,10 +8,10 @@ import { useMutation, useQuery, useQueryClient } from "react-query";
 import { getErrorMessage } from "api/errors";
 
 export const Language = {
-  title: "SSH keys",
-  regenerateDialogTitle: "Regenerate SSH key?",
-  regenerationError: "Failed to regenerate SSH key",
-  regenerationSuccess: "SSH Key regenerated successfully.",
+  title: "SSH 密钥",
+  regenerateDialogTitle: "重新生成 SSH 密钥？",
+  regenerationError: "重新生成 SSH 密钥失败",
+  regenerationSuccess: "SSH 密钥重新生成成功。",
   regenerateDialogMessage:
     "您将需要替换与它一起使用的Git服务器上的公共 SSH 密钥，并且您需要重建现有工作区。",
   confirmLabel: "确认",

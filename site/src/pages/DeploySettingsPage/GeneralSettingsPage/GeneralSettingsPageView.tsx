@@ -36,7 +36,7 @@ export const GeneralSettingsPageView: FC<GeneralSettingsPageViewProps> = ({
     <>
       <Header
         title="常规"
-        description="Information about your Coder deployment."
+        description="关于您的 Coder 部署的信息。"
         docsHref={docs("/admin/configure")}
       />
       <Stack spacing={4}>

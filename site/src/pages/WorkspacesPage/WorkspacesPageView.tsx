@@ -29,13 +29,13 @@ import { PaginationHeader } from "components/PaginationWidget/PaginationHeader";
 import { mustUpdateWorkspace } from "utils/workspace";
 
 export const Language = {
-  pageTitle: "Workspaces",
-  yourWorkspacesButton: "Your workspaces",
-  allWorkspacesButton: "All workspaces",
-  runningWorkspacesButton: "Running workspaces",
-  createWorkspace: <>Create Workspace&hellip;</>,
-  seeAllTemplates: "See all templates",
-  template: "Template",
+  pageTitle: "工作区",
+  yourWorkspacesButton: "你的工作区",
+  allWorkspacesButton: "所有工作区",
+  runningWorkspacesButton: "运行中的工作区",
+  createWorkspace: <>创建工作区&hellip;</>,
+  seeAllTemplates: "查看所有模板",
+  template: "模板",
 };
 
 type TemplateQuery = UseQueryResult<Template[]>;
@@ -116,7 +116,7 @@ export const WorkspacesPageView = ({
         {checkedWorkspaces.length > 0 ? (
           <>
             <div>
-              Selected <strong>{checkedWorkspaces.length}</strong> of{" "}
+              已选中 <strong>{checkedWorkspaces.length}</strong> of{" "}
               <strong>{workspaces?.length}</strong>{" "}
               {workspaces?.length === 1 ? "workspace" : "workspaces"}
             </div>
@@ -131,7 +131,7 @@ export const WorkspacesPageView = ({
                   css={{ borderRadius: 9999, marginLeft: "auto" }}
                   endIcon={<KeyboardArrowDownOutlined />}
                 >
-                  Actions
+                  动作
                 </LoadingButton>
               </MoreMenuTrigger>
               <MoreMenuContent>
@@ -145,7 +145,7 @@ export const WorkspacesPageView = ({
                     )
                   }
                 >
-                  <PlayArrowOutlined /> Start
+                  <PlayArrowOutlined /> 开始
                 </MoreMenuItem>
                 <MoreMenuItem
                   onClick={onStopAll}
@@ -155,21 +155,21 @@ export const WorkspacesPageView = ({
                     )
                   }
                 >
-                  <StopOutlined /> Stop
+                  <StopOutlined /> 停止
                 </MoreMenuItem>
                 <Divider />
                 <MoreMenuItem onClick={onUpdateAll}>
-                  <CloudQueue /> Update&hellip;
+                  <CloudQueue /> 升级&hellip;
                 </MoreMenuItem>
                 <MoreMenuItem danger onClick={onDeleteAll}>
-                  <DeleteOutlined /> Delete&hellip;
+                  <DeleteOutlined /> 删除&hellip;
                 </MoreMenuItem>
               </MoreMenuContent>
             </MoreMenu>
           </>
         ) : (
           <PaginationHeader
-            paginationUnitLabel="workspaces"
+            paginationUnitLabel="工作区"
             limit={limit}
             totalRecords={count}
             currentOffsetStart={(page - 1) * limit + 1}
