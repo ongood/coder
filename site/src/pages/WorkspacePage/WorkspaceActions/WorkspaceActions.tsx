@@ -126,10 +126,10 @@ export const WorkspaceActions: FC<WorkspaceActionsProps> = ({
         tooltipText={tooltipText}
       />
     ),
-    deleting: <DisabledButton label="Deleting" />,
-    canceling: <DisabledButton label="Canceling..." />,
-    deleted: <DisabledButton label="Deleted" />,
-    pending: <DisabledButton label="Pending..." />,
+    deleting: <DisabledButton label="删除中" />,
+    canceling: <DisabledButton label="取消中..." />,
+    deleted: <DisabledButton label="已删除" />,
+    pending: <DisabledButton label="等待中..." />,
     activate: <ActivateButton handleAction={handleDormantActivate} />,
     activating: <ActivateButton loading handleAction={handleDormantActivate} />,
     retry: <RetryButton handleAction={handleRetry} />,
@@ -177,13 +177,13 @@ export const WorkspaceActions: FC<WorkspaceActionsProps> = ({
         <MoreMenuContent id="workspace-options">
           <MoreMenuItem onClick={handleSettings}>
             <SettingsIcon />
-            Settings
+            设置
           </MoreMenuItem>
 
           {canChangeVersions && (
             <MoreMenuItem onClick={handleChangeVersion}>
               <HistoryIcon />
-              Change version&hellip;
+              更改版本&hellip;
             </MoreMenuItem>
           )}
 
@@ -192,7 +192,7 @@ export const WorkspaceActions: FC<WorkspaceActionsProps> = ({
             disabled={!isDuplicationReady}
           >
             <DuplicateIcon />
-            Duplicate&hellip;
+            复制&hellip;
           </MoreMenuItem>
 
           <Divider />
@@ -203,7 +203,7 @@ export const WorkspaceActions: FC<WorkspaceActionsProps> = ({
             data-testid="delete-button"
           >
             <DeleteIcon />
-            Delete&hellip;
+            删除&hellip;
           </MoreMenuItem>
         </MoreMenuContent>
       </MoreMenu>
@@ -221,15 +221,15 @@ function getTooltipText(
   }
 
   if (!mustUpdate && canChangeVersions) {
-    return "This template requires automatic updates on workspace startup, but template administrators can ignore this policy.";
+    return "此模板要求在工作区启动时自动更新，但模板管理员可以忽略此策略。";
   }
 
   if (workspace.template_require_active_version) {
-    return "This template requires automatic updates on workspace startup. Contact your administrator if you want to preserve the template version.";
+    return "此模板要求在工作区启动时自动更新。如果要保留模板版本，请联系您的管理员。";
   }
 
   if (workspace.automatic_updates === "always") {
-    return "Automatic updates are enabled for this workspace. Modify the update policy in workspace settings if you want to preserve the template version.";
+    return "此工作区已启用自动更新。如果要保留模板版本，请在工作区设置中修改更新策略。";
   }
 
   return "";

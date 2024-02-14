@@ -21,7 +21,7 @@ const DisplayWorkspaceBuildStatusLanguage = {
   running: "运行中",
   canceling: "取消中",
   canceled: "已取消",
-  failed: "失败",
+  failed: "失败的",
 };
 
 const DisplayAgentVersionLanguage = {
@@ -174,61 +174,61 @@ export const getDisplayWorkspaceStatus = (
   switch (workspaceStatus) {
     case undefined:
       return {
-        text: "Loading",
+        text: "加载中",
         icon: <PillSpinner />,
       } as const;
     case "running":
       return {
         type: "success",
-        text: "Running",
+        text: "运行中",
         icon: <PlayIcon />,
       } as const;
     case "starting":
       return {
         type: "active",
-        text: "Starting",
+        text: "启动中",
         icon: <PillSpinner />,
       } as const;
     case "stopping":
       return {
         type: "inactive",
-        text: "Stopping",
+        text: "停止中",
         icon: <PillSpinner />,
       } as const;
     case "stopped":
       return {
         type: "inactive",
-        text: "Stopped",
+        text: "已停止",
         icon: <StopIcon />,
       } as const;
     case "deleting":
       return {
         type: "danger",
-        text: "Deleting",
+        text: "删除中",
         icon: <PillSpinner />,
       } as const;
     case "deleted":
       return {
         type: "danger",
-        text: "Deleted",
+        text: "已删除",
         icon: <ErrorIcon />,
       } as const;
     case "canceling":
       return {
         type: "inactive",
-        text: "Canceling",
+        text: "取消中",
         icon: <PillSpinner />,
       } as const;
     case "canceled":
       return {
         type: "inactive",
-        text: "Canceled",
+        text: "已取消",
         icon: <ErrorIcon />,
       } as const;
     case "failed":
       return {
         type: "error",
-        text: "Failed",
+        text: "失败的",
         icon: <ErrorIcon />,
       } as const;
     case "pending":
@@ -244,9 +244,9 @@ const getPendingWorkspaceStatusText = (
   provisionerJob?: TypesGen.ProvisionerJob,
 ): string => {
   if (!provisionerJob || provisionerJob.queue_size === 0) {
-    return "Pending";
+    return "等待中";
   }
-  return "Position in queue: " + provisionerJob.queue_position;
+  return "排队位置：" + provisionerJob.queue_position;
 };
 
 export const hasJobError = (workspace: TypesGen.Workspace) => {

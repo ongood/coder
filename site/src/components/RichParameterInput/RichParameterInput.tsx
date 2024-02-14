@@ -192,11 +192,11 @@ export const RichParameterInput: FC<RichParameterInputProps> = ({
         <RichParameterField {...fieldProps} size={size} parameter={parameter} />
         {autofillSource && autofillSource !== "active_build" && (
           <div css={{ marginTop: 4, fontSize: 12 }}>
-            🪄 Autofilled:{" "}
+            🪄 自动填充:{" "}
             {
               {
                 ["url"]: "value supplied by URL.",
-                ["user_history"]: "recently used value.",
+                ["user_history"]: "最近使用的值。",
               }[autofillSource]
             }
           </div>

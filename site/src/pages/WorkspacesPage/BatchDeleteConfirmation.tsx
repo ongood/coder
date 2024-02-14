@@ -45,24 +45,20 @@ export const BatchDeleteConfirmation: FC<BatchDeleteConfirmationProps> = ({
     }
   };
 
-  const workspaceCount = `${checkedWorkspaces.length} ${
-    checkedWorkspaces.length === 1 ? "workspace" : "workspaces"
-  }`;
+  const workspaceCount = `${checkedWorkspaces.length} 工作区`;
 
-  let confirmText: ReactNode = <>Review selected workspaces&hellip;</>;
+  let confirmText: ReactNode = <>审查所选工作区&hellip;</>;
   if (stage === "workspaces") {
-    confirmText = <>Confirm {workspaceCount}&hellip;</>;
+    confirmText = <>确认 {workspaceCount}&hellip;</>;
   }
   if (stage === "resources") {
     const resources = checkedWorkspaces
       .map((workspace) => workspace.latest_build.resources.length)
       .reduce((a, b) => a + b, 0);
-    const resourceCount = `${resources} ${
-      resources === 1 ? "resource" : "resources"
-    }`;
+    const resourceCount = `${resources} 资源`;
     confirmText = (
       <>
-        Delete {workspaceCount} and {resourceCount}
+        删除 {workspaceCount} 与 {resourceCount}
       </>
     );
   }
@@ -89,7 +85,7 @@ export const BatchDeleteConfirmation: FC<BatchDeleteConfirmationProps> = ({
         setStage("consequences");
         onClose();
       }}
-      title={`Delete ${workspaceCount}`}
+      title={`删除 ${workspaceCount}`}
       hideCancel
       confirmLoading={isLoading}
       confirmText={confirmText}
@@ -117,12 +113,12 @@ interface StageProps {
 const Consequences: FC = () => {
   return (
     <>
-      <p>Deleting workspaces is irreversible!</p>
+      <p>删除工作区是不可逆的！</p>
       <ul css={styles.consequences}>
         <li>
-          Terraform resources belonging to deleted workspaces will be destroyed.
+          将销毁属于已删除工作区的 Terraform 资源。
         </li>
-        <li>Any data stored in the workspace will be permanently deleted.</li>
+        <li>工作区中存储的任何数据都将被永久删除。</li>
       </ul>
     </>
   );
@@ -209,7 +205,7 @@ const Workspaces: FC<StageProps> = ({ workspaces }) => {
         {mostRecent && (
           <Stack direction="row" alignItems="center" spacing={1}>
             <ScheduleIcon css={styles.summaryIcon} />
-            <span>Last used {dayjs(mostRecent.last_used_at).fromNow()}</span>
+            <span>上次使用 {dayjs(mostRecent.last_used_at).fromNow()}</span>
           </Stack>
         )}
       </Stack>
@@ -235,9 +231,8 @@ const Resources: FC<StageProps> = ({ workspaces }) => {
   return (
     <Stack>
       <p>
-        Deleting{" "}
-        {workspaces.length === 1 ? "this workspace" : "these workspaces"} will
-        also permanently destroy&hellip;
+        删除{" "}
+        {workspaces.length === 1 ? "此工作区" : "这些工作区"} 也将永久销毁&hellip;
       </p>
       <Stack
         direction="row"

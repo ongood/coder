@@ -135,7 +135,7 @@ export const DeploymentBannerView: FC<DeploymentBannerViewProps> = ({
           healthErrors.length > 0 ? (
             <>
               <HelpTooltipTitle>
-                We have detected problems with your Coder deployment.
+                我们已检测到您的 Coder 部署存在问题。
               </HelpTooltipTitle>
               <Stack spacing={1}>
                 {healthErrors.map((error) => (
@@ -144,7 +144,7 @@ export const DeploymentBannerView: FC<DeploymentBannerViewProps> = ({
               </Stack>
             </>
           ) : (
-            <>Status of your Coder deployment. Only visible for admins!</>
+            <>您的 Coder 部署状态。仅对管理员可见！</>
           )
         }
         open={process.env.STORYBOOK === "true" ? true : undefined}
@@ -166,7 +166,7 @@ export const DeploymentBannerView: FC<DeploymentBannerViewProps> = ({
       </Tooltip>
 
       <div css={styles.group}>
-        <div css={styles.category}>Workspaces</div>
+        <div css={styles.category}>工作区</div>
         <div css={styles.values}>
           <WorkspaceBuildValue
             status="pending"
@@ -196,19 +196,19 @@ export const DeploymentBannerView: FC<DeploymentBannerViewProps> = ({
       </div>
 
       <div css={styles.group}>
-        <Tooltip title={`Activity in the last ~${aggregatedMinutes} minutes`}>
-          <div css={styles.category}>Transmission</div>
+        <Tooltip title={`过去约 ${aggregatedMinutes} 分钟内`}>
+          <div css={styles.category}>的活动</div>
         </Tooltip>
 
         <div css={styles.values}>
-          <Tooltip title="Data sent to workspaces">
+          <Tooltip title="发送到工作区的数据">
             <div css={styles.value}>
               <DownloadIcon />
               {stats ? prettyBytes(stats.workspaces.rx_bytes) : "-"}
             </div>
           </Tooltip>
           <ValueSeparator />
-          <Tooltip title="Data sent from workspaces">
+          <Tooltip title="从工作区发送的数据">
             <div css={styles.value}>
               <UploadIcon />
               {stats ? prettyBytes(stats.workspaces.tx_bytes) : "-"}
@@ -231,10 +231,10 @@ export const DeploymentBannerView: FC<DeploymentBannerViewProps> = ({
       </div>
 
       <div css={styles.group}>
-        <div css={styles.category}>Active Connections</div>
+        <div css={styles.category}>活跃连接</div>
 
         <div css={styles.values}>
-          <Tooltip title="VS Code Editors with the Coder Remote Extension">
+          <Tooltip title="带有Coder远程扩展的VS Code编辑器">
             <div css={styles.value}>
               <VSCodeIcon
                 css={css`
@@ -249,7 +249,7 @@ export const DeploymentBannerView: FC<DeploymentBannerViewProps> = ({
             </div>
           </Tooltip>
           <ValueSeparator />
-          <Tooltip title="JetBrains Editors">
+          <Tooltip title="JetBrains 编辑器">
             <div css={styles.value}>
               <JetBrainsIcon
                 css={css`
@@ -293,7 +293,7 @@ export const DeploymentBannerView: FC<DeploymentBannerViewProps> = ({
           gap: 16,
         }}
       >
-        <Tooltip title="The last time stats were aggregated. Workspaces report statistics periodically, so it may take a bit for these to update!">
+        <Tooltip title="上次统计数据聚合时间。工作空间定期报告统计数据，因此更新可能需要一段时间！">
           <div css={styles.value}>
             <CollectedIcon />
             {lastAggregated}

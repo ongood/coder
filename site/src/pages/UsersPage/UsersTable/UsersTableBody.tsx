@@ -192,28 +192,28 @@ export const UsersTableBody: FC<UsersTableBodyProps> = ({
                           onSuspendUser(user);
                         }}
                       >
-                        Suspend&hellip;
+                        暂停&hellip;
                       </MoreMenuItem>
                     ) : (
                       <MoreMenuItem onClick={() => onActivateUser(user)}>
-                        Activate&hellip;
+                        激活&hellip;
                       </MoreMenuItem>
                     )}
                     <MoreMenuItem onClick={() => onListWorkspaces(user)}>
-                      View workspaces
+                      查看工作区
                     </MoreMenuItem>
                     <MoreMenuItem
                       onClick={() => onViewActivity(user)}
                       disabled={!canViewActivity}
                     >
-                      View activity
+                      查看活动
                       {!canViewActivity && <EnterpriseBadge />}
                     </MoreMenuItem>
                     <MoreMenuItem
                       onClick={() => onResetUserPassword(user)}
                       disabled={user.login_type !== "password"}
                     >
-                      Reset password&hellip;
+                      重置密码&hellip;
                     </MoreMenuItem>
                     <Divider />
                     <MoreMenuItem
@@ -221,7 +221,7 @@ export const UsersTableBody: FC<UsersTableBodyProps> = ({
                       disabled={user.id === actorID}
                       danger
                     >
-                      Delete&hellip;
+                      删除&hellip;
                     </MoreMenuItem>
                   </MoreMenuContent>
                 </MoreMenu>

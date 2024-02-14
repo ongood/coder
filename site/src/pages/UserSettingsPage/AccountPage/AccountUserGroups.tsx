@@ -23,12 +23,12 @@ export const AccountUserGroups: FC<AccountGroupsProps> = ({
 
   return (
     <Section
-      title="您的群组"
+      title="用户组"
       layout="fluid"
       description={
         groups && (
           <span>
-            You are in{" "}
+            您归属{" "}
             <em
               css={{
                 fontStyle: "normal",
@@ -36,8 +36,7 @@ export const AccountUserGroups: FC<AccountGroupsProps> = ({
                 fontWeight: 600,
               }}
             >
-              {groups.length} group
-              {groups.length !== 1 && "s"}
+              {groups.length} 用户组
             </em>
           </span>
         )
@@ -57,8 +56,7 @@ export const AccountUserGroups: FC<AccountGroupsProps> = ({
                   header={group.display_name || group.name}
                   subtitle={
                     <>
-                      {group.members.length} member
-                      {group.members.length !== 1 && "s"}
+                      {group.members.length} 成员
                     </>
                   }
                 />

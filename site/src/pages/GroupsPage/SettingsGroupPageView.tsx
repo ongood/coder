@@ -94,8 +94,7 @@ const UpdateGroupForm: FC<UpdateGroupFormProps> = ({
           )}
           <TextField
             {...getFieldHelpers("quota_allowance", {
-              helperText: `This group gives ${form.values.quota_allowance} quota credits to each
-            of its members.`,
+              helperText: `该群组向每个成员提供 ${form.values.quota_allowance} 配额积分。`,
             })}
             onChange={onChangeTrimmed(form)}
             autoFocus

@@ -54,7 +54,7 @@ export const DeleteDialog: FC<DeleteDialogProps> = ({
       type="delete"
       hideCancel={false}
       open={isOpen}
-      title={title ?? `Delete ${entity}`}
+      title={title ?? `删除 ${entity}`}
       onConfirm={onConfirm}
       onClose={onCancel}
       confirmLoading={confirmLoading}
@@ -64,13 +64,13 @@ export const DeleteDialog: FC<DeleteDialogProps> = ({
         <>
           <Stack spacing={1.5}>
             <p>
-              {verb ?? "Deleting"} this {entity} is irreversible!
+              {verb ?? "删除"} {entity} 是不可逆的！
             </p>
 
             {Boolean(info) && <div css={styles.callout}>{info}</div>}
 
             <p>
-              Type <strong>{name}</strong> below to confirm.
+              输入 <strong>{name}</strong> 以确认。
             </p>
           </Stack>
 

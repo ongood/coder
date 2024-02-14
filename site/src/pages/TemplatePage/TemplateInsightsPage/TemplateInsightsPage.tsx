@@ -282,13 +282,13 @@ const UsersLatencyPanel: FC<UsersLatencyPanelProps> = ({
     <Panel {...panelProps} css={{ overflowY: "auto" }}>
       <PanelHeader>
         <PanelTitle css={{ display: "flex", alignItems: "center", gap: 8 }}>
-          Latency by user
+          用户的延迟
           <HelpTooltip>
             <HelpTooltipTrigger size="small" />
             <HelpTooltipContent>
-              <HelpTooltipTitle>How is latency calculated?</HelpTooltipTitle>
+              <HelpTooltipTitle>延迟是如何计算的？</HelpTooltipTitle>
               <HelpTooltipText>
-                The median round trip time of user connections to workspaces.
+                用户连接到工作区的往返时间的中位数。
               </HelpTooltipText>
             </HelpTooltipContent>
           </HelpTooltip>
@@ -353,14 +353,13 @@ const UsersActivityPanel: FC<UsersActivityPanelProps> = ({
     <Panel {...panelProps} css={{ overflowY: "auto" }}>
       <PanelHeader>
         <PanelTitle css={{ display: "flex", alignItems: "center", gap: 8 }}>
-          Activity by user
+          用户的活动
           <HelpTooltip>
             <HelpTooltipTrigger size="small" />
             <HelpTooltipContent>
-              <HelpTooltipTitle>How is activity calculated?</HelpTooltipTitle>
+              <HelpTooltipTitle>活动如何计算？</HelpTooltipTitle>
               <HelpTooltipText>
-                When a connection is initiated to a user&apos;s workspace they
-                are considered an active user. e.g. apps, web terminal, SSH
+                当连接被建立到用户的工作区时，他们被视为活跃用户。例如：应用程序、Web 终端、SSH
               </HelpTooltipText>
             </HelpTooltipContent>
           </HelpTooltip>
@@ -429,7 +428,7 @@ const TemplateUsagePanel: FC<TemplateUsagePanelProps> = ({
   return (
     <Panel {...panelProps} css={{ overflowY: "auto" }}>
       <PanelHeader>
-        <PanelTitle>App & IDE Usage</PanelTitle>
+        <PanelTitle>App & IDE 使用</PanelTitle>
       </PanelHeader>
       <PanelContent>
         {!data && <Loader css={{ height: "100%" }} />}
@@ -523,7 +522,7 @@ const TemplateParametersUsagePanel: FC<TemplateParametersUsagePanelProps> = ({
   return (
     <Panel {...panelProps}>
       <PanelHeader>
-        <PanelTitle>Parameters usage</PanelTitle>
+        <PanelTitle>参数使用</PanelTitle>
       </PanelHeader>
       <PanelContent>
         {!data && <Loader css={{ height: 200 }} />}
@@ -574,12 +573,12 @@ const TemplateParametersUsagePanel: FC<TemplateParametersUsagePanelProps> = ({
                       cursor: "default",
                     }}
                   >
-                    <div>Value</div>
+                    <div>值</div>
                     <Tooltip
-                      title="The number of workspaces using this value"
+                      title="使用此值的工作区数量"
                       placement="top"
                     >
-                      <div>Count</div>
+                      <div>计数</div>
                     </Tooltip>
                   </ParameterUsageRow>
                   {parameter.values
@@ -833,7 +832,7 @@ const NoDataAvailable = (props: HTMLAttributes<HTMLDivElement>) => {
         justifyContent: "center",
       }}
     >
-      No data available
+      暂无数据
     </div>
   );
 };

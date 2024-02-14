@@ -32,7 +32,7 @@ export const TokensPage: FC = () => {
   return (
     <>
       <Section
-        title="Tokens"
+        title="令牌"
         css={styles.section}
         description={
           <>
@@ -64,7 +64,7 @@ export const TokensPage: FC = () => {
 const TokenActions: FC = () => (
   <Stack direction="row" justifyContent="end" css={{ marginBottom: 8 }}>
     <Button startIcon={<AddIcon />} component={RouterLink} to="new">
-      Add token
+      添加令牌
     </Button>
   </Stack>
 );

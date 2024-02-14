@@ -47,7 +47,7 @@ export const WorkspaceDeleteDialog: FC<WorkspaceDeleteDialogProps> = ({
       type="delete"
       hideCancel={false}
       open={isOpen}
-      title="Delete Workspace"
+      title="删除工作区"
       onConfirm={() => onConfirm(orphanWorkspace)}
       onClose={onCancel}
       disabled={!deletionConfirmed}
@@ -56,18 +56,17 @@ export const WorkspaceDeleteDialog: FC<WorkspaceDeleteDialogProps> = ({
           <div css={styles.workspaceInfo}>
             <div>
               <p className="name">{workspace.name}</p>
-              <p className="label">workspace</p>
+              <p className="label">工作区</p>
             </div>
             <div css={{ textAlign: "right" }}>
               <p className="info">{workspaceBuildDateStr}</p>
-              <p className="label">created</p>
+              <p className="label">创建</p>
             </div>
           </div>
 
-          <p>Deleting this workspace is irreversible!</p>
+          <p>删除此工作区不可逆！</p>
           <p>
-            Type &ldquo;<strong>{workspace.name}</strong>&ldquo; below to
-            confirm:
+            输入 &ldquo;<strong>{workspace.name}</strong>&ldquo; 以确认:
           </p>
 
           <form onSubmit={onSubmit}>
@@ -83,12 +82,12 @@ export const WorkspaceDeleteDialog: FC<WorkspaceDeleteDialogProps> = ({
               onChange={(event) => setUserConfirmationText(event.target.value)}
               onFocus={() => setIsFocused(true)}
               onBlur={() => setIsFocused(false)}
-              label="Workspace name"
+              label="工作区名称"
               color={inputColor}
               error={displayErrorMessage}
               helperText={
                 displayErrorMessage &&
-                `${userConfirmationText} does not match the name of this workspace`
+                `${userConfirmationText} 与此工作区的名称不匹配。`
               }
               InputProps={{ color: inputColor }}
               inputProps={{
@@ -121,15 +120,13 @@ export const WorkspaceDeleteDialog: FC<WorkspaceDeleteDialogProps> = ({
                       <span
                         css={{ fontSize: 12, marginTop: 4, display: "block" }}
                       >
-                        As a Template Admin, you may skip resource cleanup to
-                        delete a failed workspace. Resources such as volumes and
-                        virtual machines will not be destroyed.&nbsp;
+                        作为模板管理员，您可以跳过资源清理以删除失败的工作区。诸如卷和虚拟机之类的资源将不会被销毁。&nbsp;
                         <Link
                           href={docs("/workspaces#workspace-resources")}
                           target="_blank"
                           rel="noreferrer"
                         >
-                          Learn more...
+                          了解更多...
                         </Link>
                       </span>
                     </div>

@@ -30,29 +30,29 @@ export const Language = {
 export const authMethodLanguage = {
   password: {
     displayName: "Password",
-    description: "Use an email address and password to login",
+    description: "使用电子邮件地址和密码登录",
   },
   oidc: {
     displayName: "OpenID Connect",
-    description: "Use an OpenID Connect provider for authentication",
+    description: "使用 OpenID Connect 提供程序进行身份验证",
   },
   github: {
     displayName: "Github",
-    description: "Use Github OAuth for authentication",
+    description: "使用 GitHub OAuth 进行身份验证",
   },
   none: {
     displayName: "None",
     description: (
       <>
-        Disable authentication for this user (See the{" "}
+        禁用此用户的身份验证 (请参阅{" "}
         <Link
           target="_blank"
           rel="noopener"
           href="https://coder.com/docs/v2/latest/admin/auth#disable-built-in-authentication"
         >
-          documentation
+          文档
         </Link>{" "}
-        for more details)
+        以获取更多详细信息)
       </>
     ),
   },

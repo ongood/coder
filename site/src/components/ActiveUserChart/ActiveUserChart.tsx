@@ -141,14 +141,13 @@ export const ActiveUserChart: FC<ActiveUserChartProps> = ({
 export const ActiveUsersTitle: FC = () => {
   return (
     <div css={{ display: "flex", alignItems: "center", gap: 8 }}>
-      Active Users
+      活跃用户
       <HelpTooltip>
         <HelpTooltipTrigger size="small" />
         <HelpTooltipContent>
-          <HelpTooltipTitle>How do we calculate active users?</HelpTooltipTitle>
+          <HelpTooltipTitle>我们如何计算活跃用户呢？</HelpTooltipTitle>
           <HelpTooltipText>
-            When a connection is initiated to a user&apos;s workspace they are
-            considered an active user. e.g. apps, web terminal, SSH
+            当连接到用户的工作区时，他们被视为活跃用户。例如，应用程序、Web 终端、SSH。
           </HelpTooltipText>
         </HelpTooltipContent>
       </HelpTooltip>
