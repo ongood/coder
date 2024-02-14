@@ -41,11 +41,11 @@ const styles = {
 } satisfies Record<string, Interpolation<Theme>>;
 
 export const EnabledBadge: FC = () => {
-  return <span css={[styles.badge, styles.enabledBadge]}>Enabled</span>;
+  return <span css={[styles.badge, styles.enabledBadge]}>已启用</span>;
 };
 
 export const EntitledBadge: FC = () => {
-  return <span css={[styles.badge, styles.enabledBadge]}>Entitled</span>;
+  return <span css={[styles.badge, styles.enabledBadge]}>已授权</span>;
 };
 
 interface HealthyBadge {
@@ -54,7 +54,7 @@ interface HealthyBadge {
 export const HealthyBadge: FC<HealthyBadge> = ({ derpOnly }) => {
   return (
     <span css={[styles.badge, styles.enabledBadge]}>
-      {derpOnly ? "Healthy (DERP only)" : "Healthy"}
+      {derpOnly ? "健康 (DERP only)" : "健康"}
     </span>
   );
 };
@@ -65,7 +65,7 @@ export const NotHealthyBadge: FC = () => {
 
 export const NotRegisteredBadge: FC = () => {
   return (
-    <Tooltip title="Workspace Proxy has never come online and needs to be started.">
+    <Tooltip title="工作区代理从未上线，需要启动。">
       <span css={[styles.badge, styles.warnBadge]}>从未见过</span>
     </Tooltip>
   );
@@ -73,7 +73,7 @@ export const NotRegisteredBadge: FC = () => {
 
 export const NotReachableBadge: FC = () => {
   return (
-    <Tooltip title="Workspace Proxy not responding to http(s) requests.">
+    <Tooltip title="工作区代理不响应 http(s) 请求。">
       <span css={[styles.badge, styles.warnBadge]}>不可访问</span>
     </Tooltip>
   );

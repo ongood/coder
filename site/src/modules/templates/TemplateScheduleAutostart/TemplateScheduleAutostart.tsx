@@ -101,32 +101,31 @@ const AutostartHelperText: FC<AutostartHelperTextProps> = ({
   days: unsortedDays,
 }) => {
   if (!allowed) {
-    return <span>Workspaces are not allowed to auto start.</span>;
+    return <span>不允许工作区自动启动。</span>;
   }
 
   const days = new Set(unsortedDays);
 
   if (days.size === 7) {
     // If every day is allowed, no more explaining is needed.
-    return <span>Workspaces are allowed to auto start on any day.</span>;
+    return <span>工作区可以在任何一天自动启动。</span>;
   }
   if (days.size === 0) {
     return (
       <span>
-        Workspaces will never auto start. This is effectively the same as
-        disabling autostart.
+        工作区永远不会自动启动。这与禁用自动启动效果相同。
       </span>
     );
   }
 
-  let daymsg = "Workspaces will never auto start on the weekends.";
+  let daymsg = "工作区永远不会在周末自动启动。";
   if (days.size !== 5 || days.has("saturday") || days.has("sunday")) {
-    daymsg = `Workspaces can autostart on ${sortedDays
+    daymsg = `工作区可以在${sortedDays
       .filter((day) => days.has(day))
-      .join(", ")}.`;
+      .join(", ")}自动启动。`;
   }
 
   return (
-    <span>{daymsg} These days are relative to the user&apos;s timezone.</span>
+    <span>{daymsg}这些日期是相对于用户的时区而言的。</span>
   );
 };

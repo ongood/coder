@@ -60,7 +60,7 @@ export const TemplateVariablesPage: FC = () => {
   const publishVersion = useCallback(
     async (versionId: string) => {
       await sendUpdateActiveTemplateVersion(versionId);
-      displaySuccess("Template updated successfully");
+      displaySuccess("模板已成功更新");
     },
     [sendUpdateActiveTemplateVersion],
   );

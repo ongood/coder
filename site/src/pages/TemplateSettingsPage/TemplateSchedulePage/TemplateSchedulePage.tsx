@@ -33,7 +33,7 @@ const TemplateSchedulePage: FC = () => {
         await queryClient.invalidateQueries(
           templateByNameKey(orgId, templateName),
         );
-        displaySuccess("Template updated successfully");
+        displaySuccess("模板已成功更新");
         // clear browser storage of workspaces impending deletion
         localStorage.removeItem("dismissedWorkspaceList"); // workspaces page
         localStorage.removeItem("dismissedWorkspace"); // workspace page

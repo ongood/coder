@@ -136,7 +136,7 @@ const RoleSelect: FC<SelectProps> = (props) => {
         <div>
           <div>Use</div>
           <div css={styles.menuItemSecondary}>
-            Can read and use this template to create workspaces.
+            可以读取并使用此模板创建工作区。
           </div>
         </div>
       </MenuItem>
@@ -144,8 +144,7 @@ const RoleSelect: FC<SelectProps> = (props) => {
         <div>
           <div>Admin</div>
           <div css={styles.menuItemSecondary}>
-            Can modify all aspects of this template including permissions,
-            metadata, and template versions.
+            可以修改此模板的所有方面，包括权限、元数据和模板版本。
           </div>
         </div>
       </MenuItem>
@@ -209,7 +208,7 @@ export const TemplatePermissionsPageView: FC<
   return (
     <>
       <PageHeader css={styles.pageHeader}>
-        <PageHeaderTitle>Permissions</PageHeaderTitle>
+        <PageHeaderTitle>权限</PageHeaderTitle>
       </PageHeader>
 
       <Stack spacing={2.5}>
@@ -296,7 +295,7 @@ export const TemplatePermissionsPageView: FC<
                                 danger
                                 onClick={() => onRemoveGroup(group)}
                               >
-                                Remove
+                                移除
                               </MoreMenuItem>
                             </MoreMenuContent>
                           </MoreMenu>
@@ -345,7 +344,7 @@ export const TemplatePermissionsPageView: FC<
                                 danger
                                 onClick={() => onRemoveUser(user)}
                               >
-                                Remove
+                                移除
                               </MoreMenuItem>
                             </MoreMenuContent>
                           </MoreMenu>

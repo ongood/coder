@@ -98,7 +98,7 @@ export const GroupPage: FC = () => {
                   to="settings"
                   component={RouterLink}
                 >
-                  Settings
+                  设置
                 </Button>
                 <Button
                   disabled={groupData?.id === groupData?.organization_id}
@@ -108,7 +108,7 @@ export const GroupPage: FC = () => {
                   startIcon={<DeleteOutline />}
                   css={styles.removeButton}
                 >
-                  Delete&hellip;
+                  删除&hellip;
                 </Button>
               </>
             )
@@ -315,7 +315,7 @@ const GroupMemberRow: FC<GroupMemberRowProps> = ({
                 }}
                 disabled={group.id === group.organization_id}
               >
-                Remove
+                移除
               </MoreMenuItem>
             </MoreMenuContent>
           </MoreMenu>
