@@ -225,6 +225,7 @@ export interface CreateTemplateRequest {
   readonly icon?: string;
   readonly template_version_id: string;
   readonly default_ttl_ms?: number;
+  readonly activity_bump_ms?: number;
   readonly max_ttl_ms?: number;
   readonly autostop_requirement?: TemplateAutostopRequirement;
   readonly autostart_requirement?: TemplateAutostartRequirement;
@@ -366,6 +367,12 @@ export interface DangerousConfig {
   readonly allow_path_app_sharing: boolean;
   readonly allow_path_app_site_owner_access: boolean;
   readonly allow_all_cors: boolean;
+}
+
+// From codersdk/workspaceagentportshare.go
+export interface DeleteWorkspaceAgentPortShareRequest {
+  readonly agent_name: string;
+  readonly port: number;
 }
 
 // From codersdk/deployment.go
@@ -1028,6 +1035,7 @@ export interface Template {
   readonly deprecation_message: string;
   readonly icon: string;
   readonly default_ttl_ms: number;
+  readonly activity_bump_ms: number;
   readonly use_max_ttl: boolean;
   readonly max_ttl_ms: number;
   readonly autostop_requirement: TemplateAutostopRequirement;
@@ -1041,6 +1049,7 @@ export interface Template {
   readonly time_til_dormant_ms: number;
   readonly time_til_dormant_autodelete_ms: number;
   readonly require_active_version: boolean;
+  readonly max_port_share_level: WorkspaceAgentPortShareLevel;
 }
 
 // From codersdk/templates.go
@@ -1285,6 +1294,7 @@ export interface UpdateTemplateMeta {
   readonly description?: string;
   readonly icon?: string;
   readonly default_ttl_ms?: number;
+  readonly activity_bump_ms?: number;
   readonly max_ttl_ms?: number;
   readonly autostop_requirement?: TemplateAutostopRequirement;
   readonly autostart_requirement?: TemplateAutostartRequirement;
@@ -1299,6 +1309,7 @@ export interface UpdateTemplateMeta {
   readonly require_active_version: boolean;
   readonly deprecation_message?: string;
   readonly disable_everyone_group_access: boolean;
+  readonly max_port_share_level?: WorkspaceAgentPortShareLevel;
 }
 
 // From codersdk/users.go
@@ -1357,6 +1368,13 @@ export interface UpdateWorkspaceTTLRequest {
 // From codersdk/files.go
 export interface UploadResponse {
   readonly hash: string;
+}
+
+// From codersdk/workspaceagentportshare.go
+export interface UpsertWorkspaceAgentPortShareRequest {
+  readonly agent_name: string;
+  readonly port: number;
+  readonly share_level: WorkspaceAgentPortShareLevel;
 }
 
 // From codersdk/users.go
@@ -1608,6 +1626,19 @@ export interface WorkspaceAgentMetadataResult {
   readonly error: string;
 }
 
+// From codersdk/workspaceagentportshare.go
+export interface WorkspaceAgentPortShare {
+  readonly workspace_id: string;
+  readonly agent_name: string;
+  readonly port: number;
+  readonly share_level: WorkspaceAgentPortShareLevel;
+}
+
+// From codersdk/workspaceagentportshare.go
+export interface WorkspaceAgentPortShares {
+  readonly shares: WorkspaceAgentPortShare[];
+}
+
 // From codersdk/workspaceagents.go
 export interface WorkspaceAgentScript {
   readonly log_source_id: string;
@@ -1857,8 +1888,8 @@ export const Entitlements: Entitlement[] = [
 ];
 
 // From codersdk/deployment.go
-export type Experiment = "example";
-export const Experiments: Experiment[] = ["example"];
+export type Experiment = "example" | "shared-ports";
+export const Experiments: Experiment[] = ["example", "shared-ports"];
 
 // From codersdk/deployment.go
 export type FeatureName =
@@ -1867,6 +1898,7 @@ export type FeatureName =
   | "appearance"
   | "audit_log"
   | "browser_only"
+  | "control_shared_ports"
   | "external_provisioner_daemons"
   | "external_token_encryption"
   | "high_availability"
@@ -1884,6 +1916,7 @@ export const FeatureNames: FeatureName[] = [
   "appearance",
   "audit_log",
   "browser_only",
+  "control_shared_ports",
   "external_provisioner_daemons",
   "external_token_encryption",
   "high_availability",
@@ -2083,10 +2116,11 @@ export const ResourceTypes: ResourceType[] = [
 ];
 
 // From codersdk/serversentevents.go
-export type ServerSentEventType = "data" | "error" | "ping";
+export type ServerSentEventType = "data" | "error" | "partial" | "ping";
 export const ServerSentEventTypes: ServerSentEventType[] = [
   "data",
   "error",
+  "partial",
   "ping",
 ];
 
@@ -2143,6 +2177,14 @@ export const WorkspaceAgentLifecycles: WorkspaceAgentLifecycle[] = [
   "start_error",
   "start_timeout",
   "starting",
+];
+
+// From codersdk/workspaceagentportshare.go
+export type WorkspaceAgentPortShareLevel = "authenticated" | "owner" | "public";
+export const WorkspaceAgentPortShareLevels: WorkspaceAgentPortShareLevel[] = [
+  "authenticated",
+  "owner",
+  "public",
 ];
 
 // From codersdk/workspaceagents.go

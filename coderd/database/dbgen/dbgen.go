@@ -90,6 +90,7 @@ func Template(t testing.TB, db database.Store, seed database.Template) database.
 		GroupACL:                     seed.GroupACL,
 		DisplayName:                  takeFirst(seed.DisplayName, namesgenerator.GetRandomName(1)),
 		AllowUserCancelWorkspaceJobs: seed.AllowUserCancelWorkspaceJobs,
+		MaxPortSharingLevel:          takeFirst(seed.MaxPortSharingLevel, database.AppSharingLevelOwner),
 	})
 	require.NoError(t, err, "insert template")
 
@@ -131,6 +132,17 @@ func APIKey(t testing.TB, db database.Store, seed database.APIKey) (key database
 	})
 	require.NoError(t, err, "insert api key")
 	return key, fmt.Sprintf("%s-%s", key.ID, secret)
+}
+
+func WorkspaceAgentPortShare(t testing.TB, db database.Store, orig database.WorkspaceAgentPortShare) database.WorkspaceAgentPortShare {
+	ps, err := db.UpsertWorkspaceAgentPortShare(genCtx, database.UpsertWorkspaceAgentPortShareParams{
+		WorkspaceID: takeFirst(orig.WorkspaceID, uuid.New()),
+		AgentName:   takeFirst(orig.AgentName, namesgenerator.GetRandomName(1)),
+		Port:        takeFirst(orig.Port, 8080),
+		ShareLevel:  takeFirst(orig.ShareLevel, database.AppSharingLevelPublic),
+	})
+	require.NoError(t, err, "insert workspace agent")
+	return ps
 }
 
 func WorkspaceAgent(t testing.TB, db database.Store, orig database.WorkspaceAgent) database.WorkspaceAgent {
@@ -465,6 +477,7 @@ func WorkspaceApp(t testing.TB, db database.Store, orig database.WorkspaceApp) d
 		HealthcheckInterval:  takeFirst(orig.HealthcheckInterval, 60),
 		HealthcheckThreshold: takeFirst(orig.HealthcheckThreshold, 60),
 		Health:               takeFirst(orig.Health, database.WorkspaceAppHealthHealthy),
+		DisplayOrder:         takeFirst(orig.DisplayOrder, 1),
 	})
 	require.NoError(t, err, "insert app")
 	return resource
