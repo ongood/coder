@@ -62,8 +62,8 @@ export const WorkspaceSettingsForm: FC<WorkspaceSettingsFormProps> = ({
   return (
     <HorizontalForm onSubmit={form.handleSubmit} data-testid="form">
       <FormSection
-        title="Workspace Name"
-        description="Update the name of your workspace."
+        title="工作区名称"
+        description="更新您的工作区名称。"
       >
         <FormFields>
           <TextField
@@ -72,26 +72,26 @@ export const WorkspaceSettingsForm: FC<WorkspaceSettingsFormProps> = ({
             onChange={onChangeTrimmed(form)}
             autoFocus
             fullWidth
-            label="Name"
+            label="名称"
             css={workspace.allow_renames && styles.nameWarning}
             helperText={
               workspace.allow_renames
                 ? form.values.name !== form.initialValues.name &&
-                  "Depending on the template, renaming your workspace may be destructive"
-                : "Renaming your workspace can be destructive and has not been enabled for this deployment."
+                  "根据模板的不同，重命名您的工作区可能会导致数据丢失。"
+                : "重命名工作区可能会导致数据丢失，并且未在此部署中启用。"
             }
           />
         </FormFields>
       </FormSection>
       <FormSection
-        title="Automatic Updates"
-        description="Configure your workspace to automatically update when started."
+        title="自动更新"
+        description="在启动时配置您的工作区自动更新。"
       >
         <FormFields>
           <TextField
             {...getFieldHelpers("automatic_updates")}
             id="automatic_updates"
-            label="Update Policy"
+            label="更新策略"
             value={
               workspace.template_require_active_version
                 ? "always"
@@ -103,7 +103,7 @@ export const WorkspaceSettingsForm: FC<WorkspaceSettingsFormProps> = ({
             }
             helperText={
               workspace.template_require_active_version &&
-              "The template for this workspace requires automatic updates."
+              "此工作区的模板需要自动更新。"
             }
           >
             {AutomaticUpdateses.map((value) => (

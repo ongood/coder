@@ -315,13 +315,13 @@ export const WorkspaceReadyPage: FC<WorkspaceReadyPageProps> = ({
           setIsConfirmingUpdate(false);
         }}
         onClose={() => setIsConfirmingUpdate(false)}
-        title="Update and restart?"
-        confirmText="Update"
+        title="升级并重启?"
+        confirmText="升级"
         description={
           <Stack>
             <p>
-              Restarting your workspace will stop all running processes and{" "}
-              <strong>delete non-persistent data</strong>.
+              重新启动您的工作区将停止所有运行中的进程，并{" "}
+              <strong>删除非持久性数据</strong>.
             </p>
             {latestVersion?.message && (
               <Alert severity="info">{latestVersion.message}</Alert>
@@ -340,12 +340,12 @@ export const WorkspaceReadyPage: FC<WorkspaceReadyPageProps> = ({
           setConfirmingRestart({ open: false });
         }}
         onClose={() => setConfirmingRestart({ open: false })}
-        title="Restart your workspace?"
-        confirmText="Restart"
+        title="重启你的工作区?"
+        confirmText="重启"
         description={
           <>
-            Restarting your workspace will stop all running processes and{" "}
-            <strong>delete non-persistent data</strong>.
+            重新启动工作区将停止所有运行中的进程，并{" "}
+            <strong>删除非持久性数据</strong>.
           </>
         }
       />

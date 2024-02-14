@@ -87,7 +87,7 @@ export const DeleteDialog: FC<DeleteDialogProps> = ({
               onChange={(event) => setUserConfirmationText(event.target.value)}
               onFocus={() => setIsFocused(true)}
               onBlur={() => setIsFocused(false)}
-              label={label ?? `Name of the ${entity} to delete`}
+              label={label ?? `要删除的 ${entity} 名称`}
               color={inputColor}
               error={displayErrorMessage}
               helperText={

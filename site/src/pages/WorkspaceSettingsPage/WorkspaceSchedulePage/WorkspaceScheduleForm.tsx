@@ -49,7 +49,7 @@ export const Language = {
   errorTimezone: "无效的时区。",
   errorNoStop: "当自动停止已启用时，关闭时间必须大于零。",
   errorTtlMax: "请输入小于或等于720小时（30天）的限制。",
-  daysOfWeekLabel: "星期几",
+  daysOfWeekLabel: "工作日",
   daySundayLabel: "星期日",
   dayMondayLabel: "星期一",
   dayTuesdayLabel: "星期二",
@@ -279,15 +279,14 @@ export const WorkspaceScheduleForm: FC<WorkspaceScheduleFormProps> = ({
   return (
     <HorizontalForm onSubmit={form.handleSubmit}>
       <FormSection
-        title="Autostart"
+        title="自动启动"
         description={
           <>
             <div css={{ marginBottom: 16 }}>
-              Select the time and days of week on which you want the workspace
-              starting automatically.
+              选择您希望工作区自动启动的时间和星期。
             </div>
             {!allowTemplateAutoStart && (
-              <Tooltip title="This option can be enabled in the template settings">
+              <Tooltip title="此选项可以在模板设置中启用">
                 <DisabledBadge />
               </Tooltip>
             )}
@@ -387,17 +386,14 @@ export const WorkspaceScheduleForm: FC<WorkspaceScheduleFormProps> = ({
       </FormSection>
 
       <FormSection
-        title="Autostop"
+        title="自动停止"
         description={
           <>
             <div css={{ marginBottom: 16 }}>
-              Set how many hours should elapse after the workspace started
-              before the workspace automatically shuts down. This will be
-              extended by 1 hour after last activity in the workspace was
-              detected.
+            设置工作区启动后自动关闭前经过的小时数。在检测到工作区的最后活动后，将延长1小时。
             </div>
             {!allowTemplateAutoStop && (
-              <Tooltip title="This option can be enabled in the template settings">
+              <Tooltip title="此选项可以在模板设置中启用">
                 <DisabledBadge />
               </Tooltip>
             )}
@@ -449,11 +445,11 @@ export const WorkspaceScheduleForm: FC<WorkspaceScheduleFormProps> = ({
 export const ttlShutdownAt = (formTTL: number): string => {
   if (formTTL === 0) {
     // Passing an empty value for TTL in the form results in a number that is not zero but less than 1.
-    return "Your workspace will not automatically shut down.";
+    return "您的工作区不会自动关闭。";
   } else {
-    return `Your workspace will shut down ${formatDuration(
+    return `您的工作区将在下次启动后 ${formatDuration(
       intervalToDuration({ start: 0, end: formTTL * 60 * 60 * 1000 }),
       { delimiter: " and " },
-    )} after its next start. We delay shutdown by 1 hour whenever we detect activity.`;
+    )} 后关闭。我们在检测到活动时延迟关闭1小时。`;
   }
 };

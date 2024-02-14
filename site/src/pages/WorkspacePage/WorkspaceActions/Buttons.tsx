@@ -188,7 +188,7 @@ export const RetryButton: FC<RetryButtonProps> = ({
       startIcon={debug ? <RetryDebugIcon /> : <RetryIcon />}
       onClick={() => handleAction()}
     >
-      Retry{debug && " (Debug)"}
+      重试{debug && " (Debug)"}
     </TopbarButton>
   );
 };
@@ -209,7 +209,7 @@ export const FavoriteButton: FC<FavoriteButtonProps> = ({
       startIcon={isFavorite ? <Star /> : <StarBorder />}
       onClick={() => onToggle(workspaceID)}
     >
-      {isFavorite ? "Unfavorite" : "Favorite"}
+      {isFavorite ? "取消收藏" : "收藏"}
     </TopbarButton>
   );
 };

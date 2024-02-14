@@ -81,7 +81,7 @@ export const WorkspaceSchedulePage: FC = () => {
         <title>{pageTitle([workspaceName, "Schedule"])}</title>
       </Helmet>
       <PageHeader css={{ paddingTop: 0 }}>
-        <PageHeaderTitle>Workspace Schedule</PageHeaderTitle>
+        <PageHeaderTitle>工作区日程</PageHeaderTitle>
       </PageHeader>
 
       {error && <ErrorAlert error={error} />}
@@ -90,8 +90,7 @@ export const WorkspaceSchedulePage: FC = () => {
 
       {permissions && !permissions.updateWorkspace && (
         <Alert severity="error">
-          You don&apos;t have permissions to update the schedule for this
-          workspace.
+          您没有权限更新此工作区的日程安排。
         </Alert>
       )}
 
@@ -135,10 +134,10 @@ export const WorkspaceSchedulePage: FC = () => {
 
       <ConfirmDialog
         open={isConfirmingApply}
-        title="Restart workspace?"
-        description="Would you like to restart your workspace now to apply your new autostop setting, or let it apply after your next workspace start?"
-        confirmText="Restart"
-        cancelText="Apply later"
+        title="重启工作区?"
+        description="您是否要立即重新启动工作区以应用新的自动停止设置，还是让它在下次启动工作区后应用？"
+        confirmText="重启"
+        cancelText="稍后应用"
         hideCancel={false}
         onConfirm={() => {
           updateWorkspace();

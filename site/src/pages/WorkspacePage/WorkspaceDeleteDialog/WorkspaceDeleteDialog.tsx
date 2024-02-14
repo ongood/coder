@@ -116,7 +116,7 @@ export const WorkspaceDeleteDialog: FC<WorkspaceDeleteDialogProps> = ({
                       />
                     </div>
                     <div css={{ flexDirection: "column" }}>
-                      <p className="info">Orphan Resources</p>
+                      <p className="info">孤立资源</p>
                       <span
                         css={{ fontSize: 12, marginTop: 4, display: "block" }}
                       >

@@ -7,7 +7,7 @@ export const SignInLayout: FC<PropsWithChildren> = ({ children }) => {
       <div css={styles.content}>
         <div css={styles.signIn}>{children}</div>
         <div css={styles.copyright}>
-          {"\u00a9"} {new Date().getFullYear()} Coder Technologies, Inc.
+          {"\u00a9"} {new Date().getFullYear()} 缤企云,Coder Technologies, Inc.
         </div>
       </div>
     </div>

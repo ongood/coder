@@ -1032,8 +1032,8 @@ func (api *API) putExtendWorkspace(rw http.ResponseWriter, r *http.Request) {
 
 		if build.Deadline.IsZero() {
 			code = http.StatusConflict
-			resp.Message = "工作区关闭为手动模式。"
-			return xerrors.Errorf("工作区关闭为手动模式")
+			resp.Message = "工作区关闭是手动模式。"
+			return xerrors.Errorf("工作区关闭是手动模式")
 		}
 
 		newDeadline := req.Deadline.UTC()

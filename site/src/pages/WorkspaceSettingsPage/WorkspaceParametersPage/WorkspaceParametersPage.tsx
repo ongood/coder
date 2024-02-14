@@ -115,7 +115,7 @@ export const WorkspaceParametersPageView: FC<
   return (
     <>
       <PageHeader css={{ paddingTop: 0 }}>
-        <PageHeaderTitle>Workspace parameters</PageHeaderTitle>
+        <PageHeaderTitle>工作区参数</PageHeaderTitle>
       </PageHeader>
 
       {submitError && !isApiValidationError(submitError) && (
@@ -141,7 +141,7 @@ export const WorkspaceParametersPageView: FC<
           />
         ) : (
           <EmptyState
-            message="This workspace has no parameters"
+            message="这个工作区没有参数"
             cta={
               <Button
                 component="a"
@@ -151,7 +151,7 @@ export const WorkspaceParametersPageView: FC<
                 target="_blank"
                 rel="noreferrer"
               >
-                Learn more about parameters
+                了解更多有关参数的信息
               </Button>
             }
             css={(theme) => ({

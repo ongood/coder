@@ -30,9 +30,9 @@ export const useStatusFilterMenu = ({
   onChange,
 }: Pick<UseFilterMenuOptions<StatusOption>, "value" | "onChange">) => {
   const statusOptions: StatusOption[] = [
-    { value: "active", label: "Active", color: "success" },
-    { value: "dormant", label: "Dormant", color: "notice" },
-    { value: "suspended", label: "Suspended", color: "warning" },
+    { value: "active", label: "活跃", color: "success" },
+    { value: "dormant", label: "休眠", color: "notice" },
+    { value: "suspended", label: "已暂停", color: "warning" },
   ];
   return useFilterMenu({
     onChange,

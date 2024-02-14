@@ -139,20 +139,19 @@ export const autostopDisplay = (
       };
     } else {
       let title = (
-        <HelpTooltipTitle>Template Autostop requirement</HelpTooltipTitle>
+        <HelpTooltipTitle>模板自动停止规定</HelpTooltipTitle>
       );
-      let reason: ReactNode = ` because the ${template.display_name} template has an autostop requirement.`;
+      let reason: ReactNode = ` 因为 ${template.display_name} 模板具有自动停止规定。`;
       if (template.autostop_requirement && template.allow_user_autostop) {
-        title = <HelpTooltipTitle>Autostop schedule</HelpTooltipTitle>;
+        title = <HelpTooltipTitle>自动停止计划</HelpTooltipTitle>;
         reason = (
           <>
             {" "}
-            because this workspace has enabled autostop. You can disable
-            autostop from this workspace&apos;s{" "}
+            因为此工作区已启用自动停止。您可以从此工作区的{" "}
             <Link component={RouterLink} to="settings/schedule">
-              schedule settings
+            日程安排设置
             </Link>
-            .
+            中禁用自动停止。
           </>
         );
       }
@@ -161,9 +160,9 @@ export const autostopDisplay = (
         tooltip: (
           <>
             {title}
-            This workspace will be stopped on{" "}
+            这个工作区将在{" "}
             {deadline.format("MMMM D [at] h:mm A")}
-            {reason}
+            停止{reason}
           </>
         ),
         danger: isShutdownSoon(workspace),

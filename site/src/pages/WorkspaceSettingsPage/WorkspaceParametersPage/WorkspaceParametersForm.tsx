@@ -80,8 +80,7 @@ export const WorkspaceParametersForm: FC<WorkspaceParameterFormProps> = ({
     <>
       {disabled && (
         <Alert severity="warning" css={{ marginBottom: 48 }}>
-          The template for this workspace requires automatic updates. Update the
-          workspace to edit parameters.
+          此工作区的模板要求自动更新。请更新工作区以编辑参数。
         </Alert>
       )}
 
@@ -89,7 +88,7 @@ export const WorkspaceParametersForm: FC<WorkspaceParameterFormProps> = ({
         {hasNonEphemeralParameters && (
           <FormSection
             title="Parameters"
-            description="Settings used by your template"
+            description="模板使用的设置"
           >
             <FormFields>
               {templateVersionRichParameters.map((parameter, index) =>
@@ -120,8 +119,8 @@ export const WorkspaceParametersForm: FC<WorkspaceParameterFormProps> = ({
         )}
         {hasEphemeralParameters && (
           <FormSection
-            title="Ephemeral Parameters"
-            description="These parameters only apply for a single workspace start."
+            title="临时参数"
+            description="这些参数仅适用于单个工作区启动。"
           >
             <FormFields>
               {templateVersionRichParameters.map((parameter, index) =>

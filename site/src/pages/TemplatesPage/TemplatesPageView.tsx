@@ -48,9 +48,7 @@ import { CreateTemplateButton } from "./CreateTemplateButton";
 
 export const Language = {
   developerCount: (activeCount: number): string => {
-    return `${formatTemplateActiveDevelopers(activeCount)} 开发者${
-      activeCount !== 1 ? "s" : ""
-    }`;
+    return `${formatTemplateActiveDevelopers(activeCount)} 开发者`;
   },
   nameLabel: "名称",
   buildTimeLabel: "创建时间",

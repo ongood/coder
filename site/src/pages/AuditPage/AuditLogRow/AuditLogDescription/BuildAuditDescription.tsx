@@ -15,17 +15,17 @@ export const BuildAuditDescription: FC<BuildAuditDescriptionProps> = ({
   const user =
     auditLog.additional_fields?.build_reason &&
     auditLog.additional_fields?.build_reason !== "initiator"
-      ? "Coder automatically"
+      ? "Coder 自动"
       : auditLog.user?.username.trim();
 
   const action = useMemo(() => {
     switch (auditLog.action) {
       case "start":
-        return "started";
+        return "启动了";
       case "stop":
-        return "stopped";
+        return "停止了";
       case "delete":
-        return "deleted";
+        return "删除了";
       default:
         return auditLog.action;
     }

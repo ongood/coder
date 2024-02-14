@@ -28,13 +28,13 @@ export const Sidebar: FC<SidebarProps> = ({ username, workspace }) => {
       />
 
       <SidebarNavItem href="" icon={GeneralIcon}>
-        General
+        常规
       </SidebarNavItem>
       <SidebarNavItem href="parameters" icon={ParameterIcon}>
-        Parameters
+        参数
       </SidebarNavItem>
       <SidebarNavItem href="schedule" icon={ScheduleIcon}>
-        Schedule
+        日程
       </SidebarNavItem>
     </BaseSidebar>
   );

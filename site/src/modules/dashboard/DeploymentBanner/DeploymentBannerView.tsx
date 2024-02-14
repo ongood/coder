@@ -197,7 +197,7 @@ export const DeploymentBannerView: FC<DeploymentBannerViewProps> = ({
 
       <div css={styles.group}>
         <Tooltip title={`过去约 ${aggregatedMinutes} 分钟内`}>
-          <div css={styles.category}>的活动</div>
+          <div css={styles.category}>活动</div>
         </Tooltip>
 
         <div css={styles.values}>

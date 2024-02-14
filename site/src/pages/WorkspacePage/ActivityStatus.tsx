@@ -25,20 +25,20 @@ export const ActivityStatus: FC<ActivityStatusProps> = ({
 
   switch (status) {
     case "ready":
-      return <Pill type="active">Ready</Pill>;
+      return <Pill type="active">就绪</Pill>;
     case "connected":
-      return <Pill type="active">Connected</Pill>;
+      return <Pill type="active">已连接</Pill>;
     case "inactive":
       return (
         <Tooltip
           title={
             <>
-              This workspace was last active on{" "}
+              此工作区最后活跃于{" "}
               {usedAt.format("MMMM D [at] h:mm A")}
             </>
           }
         >
-          <Pill type="inactive">Inactive</Pill>
+          <Pill type="inactive">非活跃</Pill>
         </Tooltip>
       );
     case "notConnected":
@@ -46,12 +46,12 @@ export const ActivityStatus: FC<ActivityStatusProps> = ({
         <Tooltip
           title={
             <>
-              This workspace was last active on{" "}
+              此工作区最后活跃于{" "}
               {usedAt.format("MMMM D [at] h:mm A")}
             </>
           }
         >
-          <Pill type="inactive">Not connected</Pill>
+          <Pill type="inactive">未连接</Pill>
         </Tooltip>
       );
   }

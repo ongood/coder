@@ -11,13 +11,13 @@ export const WorkspaceDeletedBanner: FC<WorkspaceDeletedBannerProps> = ({
 }) => {
   const NewWorkspaceButton = (
     <Button onClick={handleClick} size="small" variant="text">
-      Create new workspace
+      创建新工作区
     </Button>
   );
 
   return (
     <Alert severity="warning" actions={NewWorkspaceButton}>
-      This workspace has been deleted and cannot be edited.
+      这个工作区已被删除，无法编辑。
     </Alert>
   );
 };

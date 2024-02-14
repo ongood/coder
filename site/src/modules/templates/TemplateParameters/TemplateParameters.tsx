@@ -31,7 +31,7 @@ export const TemplateParametersSection: FC<TemplateParametersSectionProps> = ({
         <FormSection
           {...formSectionProps}
           title="参数"
-          description="Settings used by your template"
+          description="模板使用的设置"
         >
           <FormFields>
             {templateParameters.map(

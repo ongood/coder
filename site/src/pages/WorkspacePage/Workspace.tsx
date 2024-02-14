@@ -218,11 +218,11 @@ export const Workspace: FC<WorkspaceProps> = ({
                   variant="text"
                   size="small"
                 >
-                  Retry{canRetryDebugMode && " in debug mode"}
+                  重试{canRetryDebugMode && " in debug mode"}
                 </Button>
               }
             >
-              <AlertTitle>Workspace build failed</AlertTitle>
+              <AlertTitle>工作区创建失败</AlertTitle>
               <AlertDetail>{workspace.latest_build.job.error}</AlertDetail>
             </Alert>
           )}
@@ -269,7 +269,7 @@ export const Workspace: FC<WorkspaceProps> = ({
                 >
                   <div>
                     <h4 css={{ fontSize: 16, fontWeight: 500 }}>
-                      No agents are currently assigned to this resource.
+                      当前没有代理分配给此资源。
                     </h4>
                   </div>
                 </div>

@@ -60,16 +60,16 @@ export const WorkspaceNotifications: FC<WorkspaceNotificationsProps> = ({
     );
     if (requiresManualUpdate) {
       notifications.push({
-        title: "Autostart has been disabled for your workspace.",
+        title: "您的工作区已禁用自动启动。",
         severity: "warning",
         detail:
-          "Autostart is unable to automatically update your workspace. Manually update your workspace to reenable Autostart.",
+          "自动启动无法自动更新您的工作区。请手动更新您的工作区以重新启用自动启动。",
 
         actions,
       });
     } else {
       notifications.push({
-        title: "An update is available for your workspace",
+        title: "你的工作区有可用更新",
         severity: "info",
         detail: latestVersion.message,
         actions,
@@ -83,7 +83,7 @@ export const WorkspaceNotifications: FC<WorkspaceNotificationsProps> = ({
     !workspace.health.healthy
   ) {
     notifications.push({
-      title: "Workspace is unhealthy",
+      title: "工作区不健康",
       severity: "warning",
       detail: (
         <>
@@ -127,20 +127,13 @@ export const WorkspaceNotifications: FC<WorkspaceNotificationsProps> = ({
       severity: "warning",
       detail: workspace.deleting_at ? (
         <>
-          This workspace has not been used for{" "}
-          {formatDistanceToNow(Date.parse(workspace.last_used_at))} and was
-          marked dormant on {formatDate(workspace.dormant_at, false)}. It is
-          scheduled to be deleted on {formatDate(workspace.deleting_at, true)}.
-          To keep it you must activate the workspace.
+          这个工作区已经有{" "}
+          {formatDistanceToNow(Date.parse(workspace.last_used_at))} 没有被使用，并且于 {formatDate(workspace.dormant_at, false)} 标记为休眠。它被安排在 {formatDate(workspace.deleting_at, true)} 被删除。要保留它，您必须激活该工作区。
         </>
       ) : (
         <>
-          This workspace has not been used for{" "}
-          {formatDistanceToNow(Date.parse(workspace.last_used_at))} and was
-          marked dormant on {formatDate(workspace.dormant_at, false)}. It is not
-          scheduled for auto-deletion but will become a candidate if
-          auto-deletion is enabled on this template. To keep it you must
-          activate the workspace.
+          这个工作区已经有{" "}
+          {formatDistanceToNow(Date.parse(workspace.last_used_at))} 没有被使用，并且于 {formatDate(workspace.dormant_at, false)} 标记为休眠。它没有被安排自动删除，但如果在此模板上启用了自动删除，它将成为候选对象。要保留它，您必须激活该工作区。
         </>
       ),
     });
@@ -189,11 +182,9 @@ export const WorkspaceNotifications: FC<WorkspaceNotificationsProps> = ({
       severity: "info",
       detail: (
         <>
-          This workspace build job is waiting for a provisioner to become
-          available. If you have been waiting for an extended period of time,
-          please contact your administrator for assistance.
+          此工作区构建作业正在等待一个配置器可用。如果您已经等待了较长时间，请联系管理员寻求帮助。
           <span css={{ display: "block", marginTop: 12 }}>
-            Position in queue:{" "}
+            队列中的位置:{" "}
             <strong>{workspace.latest_build.job.queue_position}</strong>
           </span>
         </>
