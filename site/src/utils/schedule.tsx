@@ -124,15 +124,15 @@ export const autostopDisplay = (
       deadline.isBefore(now.add(2, "hour"))
     ) {
       return {
-        message: `Required to stop soon`,
+        message: `即将停止`,
         tooltip: (
           <>
-            <HelpTooltipTitle>Upcoming stop required</HelpTooltipTitle>
-            This workspace will be required to stop by{" "}
+            <HelpTooltipTitle>即将到期的停止</HelpTooltipTitle>
+            该工作区将在{" "}
             {dayjs(workspace.latest_build.max_deadline).format(
               "MMMM D [at] h:mm A",
             )}
-            . You can restart your workspace before then to avoid interruption.
+            停止。您可以在此之前重新启动您的工作区，以避免中断。
           </>
         ),
         danger: true,
