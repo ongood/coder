@@ -42,7 +42,7 @@ export const AgentOutdatedTooltip: FC<AgentOutdatedTooltipProps> = ({
       : "此代理正在使用已弃用的 API 版本。";
   const text =
     opener +
-    " 这可能发生在您更新 Coder 时存在运行中的工作区时。" +
+    " 这可能发生在您更新 Coder 时存在运行中的工作区。" +
     "要解决此问题，您可以停止并重新启动工作区。";
 
   return (

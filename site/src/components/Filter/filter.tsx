@@ -334,7 +334,7 @@ const PresetMenu: FC<PresetMenuProps> = ({
         }}
         endIcon={<KeyboardArrowDown />}
       >
-        Filters
+        过滤
       </Button>
       <Menu
         id="filter-menu"
@@ -374,7 +374,7 @@ const PresetMenu: FC<PresetMenuProps> = ({
           }}
         >
           <OpenInNewOutlined css={{ fontSize: "14px !important" }} />
-          View advanced filtering
+          查看高级过滤
         </MenuItem>
         {learnMoreLink2 && learnMoreLabel2 && (
           <MenuItem

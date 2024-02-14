@@ -64,7 +64,7 @@ export const UsersFilter: FC<UsersFilterProps> = ({ filter, error, menus }) => {
     <Filter
       presets={PRESET_FILTERS}
       learnMoreLink={docs("/admin/users#user-filtering")}
-      learnMoreLabel2="User status"
+      learnMoreLabel2="用户状态"
       learnMoreLink2={docs("/admin/users#user-status")}
       isLoading={menus.status.isInitializing}
       filter={filter}
@@ -89,7 +89,7 @@ const StatusMenu = (menu: StatusFilterMenu) => {
         menu.selectedOption ? (
           <StatusOptionItem option={menu.selectedOption} />
         ) : (
-          "All statuses"
+          "所有状态"
         )
       }
     >
