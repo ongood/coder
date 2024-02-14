@@ -46,7 +46,7 @@ export const DismissWarningButton = (props: { healthcheck: HealthSection }) => {
           await enableMutation.mutateAsync({
             dismissed_healthchecks: updatedSettings,
           });
-          displaySuccess("警告已成功启用！");
+          displaySuccess("警告已启用！");
         }}
       >
         允许警告
@@ -65,7 +65,7 @@ export const DismissWarningButton = (props: { healthcheck: HealthSection }) => {
         await dismissMutation.mutateAsync({
           dismissed_healthchecks: updatedSettings,
         });
-        displaySuccess("警告已成功忽略！");
+        displaySuccess("警告已忽略！");
       }}
     >
       忽略警告

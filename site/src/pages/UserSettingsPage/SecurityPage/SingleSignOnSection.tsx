@@ -278,9 +278,9 @@ const ConfirmLoginTypeChangeModal: FC<ConfirmLoginTypeChangeModalProps> = ({
       }}
       onConfirm={handleConfirm}
       hideCancel={false}
-      cancelText="Cancel"
-      confirmText="Update"
-      title="Change login type"
+      cancelText="取消"
+      confirmText="更新"
+      title="更改登录类型"
       confirmLoading={loading}
       description={
         <Stack spacing={4}>

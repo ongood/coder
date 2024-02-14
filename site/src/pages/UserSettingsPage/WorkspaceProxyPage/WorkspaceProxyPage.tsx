@@ -5,7 +5,7 @@ import { WorkspaceProxyView } from "./WorkspaceProxyView";
 
 export const WorkspaceProxyPage: FC = () => {
   const description =
-    "工作区代理改善了对工作区的终端和 Web 应用程序连接。";
+    "工作区代理改善了对工作区的终端和 Web 应用程序连接的性能。";
 
   const {
     proxyLatencies,

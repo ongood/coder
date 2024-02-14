@@ -134,10 +134,10 @@ export const UsersPage: FC = () => {
               userId: user.id,
               roles,
             });
-            displaySuccess("Successfully updated the user roles.");
+            displaySuccess("成功更新了用户的角色。");
           } catch (e) {
             displayError(
-              getErrorMessage(e, "Error on updating the user roles."),
+              getErrorMessage(e, "更新用户角色出错。"),
             );
           }
         }}
@@ -166,9 +166,9 @@ export const UsersPage: FC = () => {
           try {
             await deleteUserMutation.mutateAsync(userToDelete!.id);
             setUserToDelete(undefined);
-            displaySuccess("Successfully deleted the user.");
+            displaySuccess("成功删除用户。");
           } catch (e) {
-            displayError(getErrorMessage(e, "Error deleting user."));
+            displayError(getErrorMessage(e, "删除用户出错。"));
           }
         }}
       />
@@ -178,21 +178,21 @@ export const UsersPage: FC = () => {
         hideCancel={false}
         open={userToSuspend !== undefined}
         confirmLoading={suspendUserMutation.isLoading}
-        title="Suspend user"
-        confirmText="Suspend"
+        title="暂停用户"
+        confirmText="暂停"
         onClose={() => setUserToSuspend(undefined)}
         onConfirm={async () => {
           try {
             await suspendUserMutation.mutateAsync(userToSuspend!.id);
             setUserToSuspend(undefined);
-            displaySuccess("Successfully suspended the user.");
+            displaySuccess("成功暂停用户。");
           } catch (e) {
-            displayError(getErrorMessage(e, "Error suspending user."));
+            displayError(getErrorMessage(e, "暂停用户时出错。"));
           }
         }}
         description={
           <>
-            Do you want to suspend the user{" "}
+            是否要暂停用户{" "}
             <strong>{userToSuspend?.username ?? ""}</strong>?
           </>
         }
@@ -203,21 +203,21 @@ export const UsersPage: FC = () => {
         hideCancel={false}
         open={userToActivate !== undefined}
         confirmLoading={activateUserMutation.isLoading}
-        title="Activate user"
-        confirmText="Activate"
+        title="激活用户"
+        confirmText="激活"
         onClose={() => setUserToActivate(undefined)}
         onConfirm={async () => {
           try {
             await activateUserMutation.mutateAsync(userToActivate!.id);
             setUserToActivate(undefined);
-            displaySuccess("Successfully activated the user.");
+            displaySuccess("成功激活用户。");
           } catch (e) {
-            displayError(getErrorMessage(e, "Error activating user."));
+            displayError(getErrorMessage(e, "激活用户出错。"));
           }
         }}
         description={
           <>
-            Do you want to activate{" "}
+            是否要激活用户{" "}
             <strong>{userToActivate?.username ?? ""}</strong>?
           </>
         }
@@ -240,10 +240,10 @@ export const UsersPage: FC = () => {
               old_password: "",
             });
             setConfirmResetPassword(undefined);
-            displaySuccess("Successfully updated the user password.");
+            displaySuccess("成功更新用户密码。");
           } catch (e) {
             displayError(
-              getErrorMessage(e, "Error on resetting the user password."),
+              getErrorMessage(e, "重置用户密码出错。"),
             );
           }
         }}

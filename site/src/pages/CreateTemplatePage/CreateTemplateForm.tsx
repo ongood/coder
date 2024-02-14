@@ -214,8 +214,8 @@ export const CreateTemplateForm: FC<CreateTemplateFormProps> = (props) => {
     <HorizontalForm onSubmit={form.handleSubmit}>
       {/* General info */}
       <FormSection
-        title="General"
-        description="The name is used to identify the template in URLs and the API."
+        title="常规"
+        description="该名称用于在 URL 和 API 中标识模板。"
       >
         <FormFields>
           {"starterTemplate" in props && (
@@ -241,22 +241,22 @@ export const CreateTemplateForm: FC<CreateTemplateFormProps> = (props) => {
             autoFocus
             fullWidth
             required
-            label="Name"
+            label="名称"
           />
         </FormFields>
       </FormSection>
 
       {/* Display info  */}
       <FormSection
-        title="Display"
-        description="A friendly name, description, and icon to help developers identify your template."
+        title="显示名称"
+        description="一个友好的名称、描述和图标，帮助开发人员识别您的模板。"
       >
         <FormFields>
           <TextField
             {...getFieldHelpers("display_name")}
             disabled={isSubmitting}
             fullWidth
-            label="Display name"
+            label="显示名称"
           />
 
           <TextField
@@ -267,7 +267,7 @@ export const CreateTemplateForm: FC<CreateTemplateFormProps> = (props) => {
             rows={5}
             multiline
             fullWidth
-            label="Description"
+            label="描述"
           />
 
           <IconField
@@ -308,10 +308,9 @@ export const CreateTemplateForm: FC<CreateTemplateFormProps> = (props) => {
       {jobError && (
         <Stack>
           <div css={styles.error}>
-            <h5 css={styles.errorTitle}>Error during provisioning</h5>
+            <h5 css={styles.errorTitle}>配置过程中发生错误</h5>
             <p css={styles.errorDescription}>
-              Looks like we found an error during the template provisioning. You
-              can see the logs bellow.
+              看起来在模板配置过程中发生了错误。您可以在下方查看日志。
             </p>
 
             <code css={styles.errorDetails}>{jobError}</code>

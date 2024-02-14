@@ -34,7 +34,7 @@ export const UpdateButton: FC<ActionButtonProps> = ({
       startIcon={<CloudQueueIcon />}
       onClick={() => handleAction()}
     >
-      {loading ? <>Updating&hellip;</> : <>Update&hellip;</>}
+      {loading ? <>升级中&hellip;</> : <>升级&hellip;</>}
     </TopbarButton>
   );
 };
@@ -49,7 +49,7 @@ export const ActivateButton: FC<ActionButtonProps> = ({
       startIcon={<PowerSettingsNewIcon />}
       onClick={() => handleAction()}
     >
-      {loading ? <>Activating&hellip;</> : "Activate"}
+      {loading ? <>激活中&hellip;</> : "激活"}
     </TopbarButton>
   );
 };
@@ -81,7 +81,7 @@ export const StartButton: FC<ActionButtonPropsWithWorkspace> = ({
         onClick={() => handleAction()}
         disabled={disabled || loading}
       >
-        {loading ? <>Starting&hellip;</> : "Start"}
+        {loading ? <>启动中&hellip;</> : "启动"}
       </TopbarButton>
       <BuildParametersPopover
         workspace={workspace}
@@ -109,7 +109,7 @@ export const StopButton: FC<ActionButtonProps> = ({
       onClick={() => handleAction()}
       data-testid="workspace-stop-button"
     >
-      {loading ? <>Stopping&hellip;</> : "Stop"}
+      {loading ? <>停止中&hellip;</> : "停止"}
     </TopbarButton>
   );
 };
@@ -138,7 +138,7 @@ export const RestartButton: FC<ActionButtonPropsWithWorkspace> = ({
         data-testid="workspace-restart-button"
         disabled={disabled || loading}
       >
-        {loading ? <>Restarting&hellip;</> : <>Restart&hellip;</>}
+        {loading ? <>重启中&hellip;</> : <>重启&hellip;</>}
       </TopbarButton>
       <BuildParametersPopover
         workspace={workspace}
@@ -158,7 +158,7 @@ export const RestartButton: FC<ActionButtonPropsWithWorkspace> = ({
 export const CancelButton: FC<ActionButtonProps> = ({ handleAction }) => {
   return (
     <TopbarButton startIcon={<BlockIcon />} onClick={() => handleAction()}>
-      Cancel
+      取消
     </TopbarButton>
   );
 };

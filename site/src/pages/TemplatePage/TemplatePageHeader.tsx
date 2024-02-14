@@ -72,7 +72,7 @@ const TemplateMenu: FC<TemplateMenuProps> = ({
             }}
           >
             <SettingsIcon />
-            Settings
+            设置
           </MoreMenuItem>
 
           <MoreMenuItem
@@ -83,7 +83,7 @@ const TemplateMenu: FC<TemplateMenuProps> = ({
             }}
           >
             <EditIcon />
-            Edit files
+            编辑
           </MoreMenuItem>
 
           <MoreMenuItem
@@ -92,12 +92,12 @@ const TemplateMenu: FC<TemplateMenuProps> = ({
             }}
           >
             <CopyIcon />
-            Duplicate&hellip;
+            复制&hellip;
           </MoreMenuItem>
           <Divider />
           <MoreMenuItem onClick={dialogState.openDeleteConfirmation} danger>
             <DeleteIcon />
-            Delete&hellip;
+            删除&hellip;
           </MoreMenuItem>
         </MoreMenuContent>
       </MoreMenu>
@@ -129,22 +129,20 @@ const TemplateMenu: FC<TemplateMenuProps> = ({
             <>
               {workspaceCountQuery.isSuccess && (
                 <>
-                  This template is used by{" "}
+                  此模板被{" "}
                   <strong>
-                    {workspaceCountQuery.data} workspace
-                    {workspaceCountQuery.data === 1 ? "" : "s"}
+                    {workspaceCountQuery.data} 工作区
                   </strong>
-                  . Please delete all related workspaces before deleting this
-                  template.
+                  使用。请在删除此模板之前删除所有相关工作区。
                 </>
               )}
 
               {workspaceCountQuery.isLoading && (
-                <>Loading information about workspaces used by this template.</>
+                <>正在加载使用此模板的工作区信息。</>
               )}
 
               {workspaceCountQuery.isError && (
-                <>Unable to determine workspaces used by this template.</>
+                <>无法确定使用此模板的工作区。</>
               )}
             </>
           }
@@ -181,7 +179,7 @@ export const TemplatePageHeader: FC<TemplatePageHeaderProps> = ({
                 component={RouterLink}
                 to={`/templates/${template.name}/workspace`}
               >
-                Create Workspace
+                创建工作区
               </Button>
             )}
 
@@ -210,7 +208,7 @@ export const TemplatePageHeader: FC<TemplatePageHeaderProps> = ({
                   ? template.display_name
                   : template.name}
               </PageHeaderTitle>
-              {template.deprecated && <Pill type="warning">Deprecated</Pill>}
+              {template.deprecated && <Pill type="warning">已弃用</Pill>}
             </Stack>
 
             {template.deprecation_message !== "" ? (

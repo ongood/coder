@@ -1614,7 +1614,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name: "Strict-Transport-Security",
-			Description: "控制是否在所有静态文件响应中设置\"Strict-Transport-Security\"头。此头应仅在通过HTTPS访问服务器时设置。该值表示头的最大有效时间（以秒为单位）。",
+			Description: "控制是否在所有静态文件响应中设置\"Strict-Transport-Security\"响应头。此响应头应仅在通过HTTPS访问服务器时设置。该值表示头的最大有效时间（以秒为单位）。",
 			Default:     "0",
 			Flag:        "strict-transport-security",
 			Env:         "CODER_STRICT_TRANSPORT_SECURITY",
@@ -1625,7 +1625,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name: "Strict-Transport-Security Options",
-			Description: "在Strict-Transport-Security头中可以设置两个可选字段：\"includeSubDomains\"和\"preload\"。必须将\"strict-transport-security\"标志设置为非零值才能使用这些选项。",
+			Description: "在Strict-Transport-Security响应头中可以设置两个可选字段：\"includeSubDomains\"和\"preload\"。必须将\"strict-transport-security\"标志设置为非零值才能使用这些选项。",
 			Flag:        "strict-transport-security-options",
 			Env:         "CODER_STRICT_TRANSPORT_SECURITY_OPTIONS",
 			Value:       &c.StrictTransportSecurityOptions,
