@@ -160,7 +160,7 @@ export const UsersPage: FC = () => {
         isOpen={userToDelete !== undefined}
         confirmLoading={deleteUserMutation.isLoading}
         name={userToDelete?.username ?? ""}
-        entity="user"
+        entity="用户"
         onCancel={() => setUserToDelete(undefined)}
         onConfirm={async () => {
           try {

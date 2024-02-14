@@ -149,7 +149,7 @@ export const CreateWorkspacePageView: FC<CreateWorkspacePageViewProps> = ({
 
   return (
     <Margins size="medium">
-      <PageHeader actions={<Button onClick={onCancel}>Cancel</Button>}>
+      <PageHeader actions={<Button onClick={onCancel}>取消</Button>}>
         <Stack direction="row" spacing={3} alignItems="center">
           {template.icon !== "" ? (
             <Avatar size="xl" src={template.icon} variant="square" fitImage />

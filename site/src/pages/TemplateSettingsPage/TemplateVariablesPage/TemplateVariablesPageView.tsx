@@ -45,7 +45,7 @@ export const TemplateVariablesPageView: FC<TemplateVariablesPageViewProps> = ({
   return (
     <>
       <PageHeader css={{ paddingTop: 0 }}>
-        <PageHeaderTitle>Template variables</PageHeaderTitle>
+        <PageHeaderTitle>模板变量</PageHeaderTitle>
       </PageHeader>
       {hasError && (
         <Stack css={{ marginBottom: 64 }}>
@@ -70,7 +70,7 @@ export const TemplateVariablesPageView: FC<TemplateVariablesPageViewProps> = ({
       )}
       {templateVariables && templateVariables.length === 0 && (
         <Alert severity="info">
-          This template does not use managed variables.
+          该模板不使用托管变量。
         </Alert>
       )}
     </>

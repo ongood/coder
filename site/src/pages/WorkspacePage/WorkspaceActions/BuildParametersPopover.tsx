@@ -104,9 +104,9 @@ const BuildParametersPopoverContent: FC<BuildParametersPopoverContentProps> = ({
                 borderBottom: `1px solid ${theme.palette.divider}`,
               }}
             >
-              <HelpTooltipTitle>Build Options</HelpTooltipTitle>
+              <HelpTooltipTitle>构建选项</HelpTooltipTitle>
               <HelpTooltipText>
-                These parameters only apply for a single workspace start.
+                这些参数仅适用于单个工作区启动。
               </HelpTooltipText>
             </div>
             <div css={{ padding: 20 }}>
@@ -133,15 +133,15 @@ const BuildParametersPopoverContent: FC<BuildParametersPopoverContentProps> = ({
               borderBottom: `1px solid ${theme.palette.divider}`,
             }}
           >
-            <HelpTooltipTitle>Build Options</HelpTooltipTitle>
+            <HelpTooltipTitle>构建选项</HelpTooltipTitle>
             <HelpTooltipText>
-              This template has no ephemeral build options.
+              此模板没有临时构建选项。
             </HelpTooltipText>
             <HelpTooltipLinksGroup>
               <HelpTooltipLink
                 href={docs("/templates/parameters#ephemeral-parameters")}
               >
-                Read the docs
+                阅读文档
               </HelpTooltipLink>
             </HelpTooltipLinksGroup>
           </div>
@@ -205,7 +205,7 @@ const Form: FC<FormProps> = ({
           color="primary"
           css={{ width: "100%" }}
         >
-          Build workspace
+          构建工作区
         </Button>
       </div>
     </form>

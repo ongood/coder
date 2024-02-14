@@ -67,7 +67,7 @@ export const TemplateVariablesForm: FC<TemplateVariablesForm> = ({
   return (
     <HorizontalForm
       onSubmit={form.handleSubmit}
-      aria-label="Template variables"
+      aria-label="模板变量"
     >
       {templateVariables.map((templateVariable, index) => {
         let fieldHelpers;

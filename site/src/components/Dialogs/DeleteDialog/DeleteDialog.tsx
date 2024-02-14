@@ -54,7 +54,7 @@ export const DeleteDialog: FC<DeleteDialogProps> = ({
       type="delete"
       hideCancel={false}
       open={isOpen}
-      title={title ?? `删除 ${entity}`}
+      title={title ?? `删除${entity}`}
       onConfirm={onConfirm}
       onClose={onCancel}
       confirmLoading={confirmLoading}
@@ -64,13 +64,13 @@ export const DeleteDialog: FC<DeleteDialogProps> = ({
         <>
           <Stack spacing={1.5}>
             <p>
-              {verb ?? "删除"} {entity} 是不可逆的！
+              {verb ?? "删除"}{entity}是不可逆的！
             </p>
 
             {Boolean(info) && <div css={styles.callout}>{info}</div>}
 
             <p>
-              输入 <strong>{name}</strong> 以确认。
+              输入<strong>{name}</strong>以确认。
             </p>
           </Stack>
 
@@ -87,12 +87,12 @@ export const DeleteDialog: FC<DeleteDialogProps> = ({
               onChange={(event) => setUserConfirmationText(event.target.value)}
               onFocus={() => setIsFocused(true)}
               onBlur={() => setIsFocused(false)}
-              label={label ?? `要删除的 ${entity} 名称`}
+              label={label ?? `要删除的${entity}名称`}
               color={inputColor}
               error={displayErrorMessage}
               helperText={
                 displayErrorMessage &&
-                `${userConfirmationText} does not match the name of this ${entity}`
+                `${userConfirmationText}与此${entity}的名称不匹配`
               }
               InputProps={{ color: inputColor }}
               inputProps={{

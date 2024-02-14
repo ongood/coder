@@ -17,7 +17,7 @@ const GeneralSettingsPage: FC = () => {
   return (
     <>
       <Helmet>
-        <title>{pageTitle("General Settings")}</title>
+        <title>{pageTitle("常规设置")}</title>
       </Helmet>
       <GeneralSettingsPageView
         deploymentOptions={deploymentValues.options}

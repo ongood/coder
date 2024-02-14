@@ -27,7 +27,7 @@ export const TemplateSchedulePageView: FC<TemplateSchedulePageViewProps> = ({
   return (
     <>
       <PageHeader css={{ paddingTop: 0 }}>
-        <PageHeaderTitle>Template schedule</PageHeaderTitle>
+        <PageHeaderTitle>模板日程</PageHeaderTitle>
       </PageHeader>
 
       <TemplateScheduleForm

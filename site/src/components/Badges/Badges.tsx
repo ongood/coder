@@ -60,13 +60,13 @@ export const HealthyBadge: FC<HealthyBadge> = ({ derpOnly }) => {
 };
 
 export const NotHealthyBadge: FC = () => {
-  return <span css={[styles.badge, styles.errorBadge]}>Unhealthy</span>;
+  return <span css={[styles.badge, styles.errorBadge]}>不健康</span>;
 };
 
 export const NotRegisteredBadge: FC = () => {
   return (
     <Tooltip title="Workspace Proxy has never come online and needs to be started.">
-      <span css={[styles.badge, styles.warnBadge]}>Never seen</span>
+      <span css={[styles.badge, styles.warnBadge]}>从未见过</span>
     </Tooltip>
   );
 };
@@ -74,7 +74,7 @@ export const NotRegisteredBadge: FC = () => {
 export const NotReachableBadge: FC = () => {
   return (
     <Tooltip title="Workspace Proxy not responding to http(s) requests.">
-      <span css={[styles.badge, styles.warnBadge]}>Not reachable</span>
+      <span css={[styles.badge, styles.warnBadge]}>不可访问</span>
     </Tooltip>
   );
 };
@@ -96,7 +96,7 @@ export const DisabledBadge: FC = forwardRef<
         }),
       ]}
     >
-      Disabled
+      已禁用
     </span>
   );
 });
@@ -113,7 +113,7 @@ export const EnterpriseBadge: FC = () => {
         }),
       ]}
     >
-      Enterprise
+      企业版
     </span>
   );
 };
@@ -130,7 +130,7 @@ export const PreviewBadge: FC = () => {
         }),
       ]}
     >
-      Preview
+      预览
     </span>
   );
 };
@@ -147,7 +147,7 @@ export const AlphaBadge: FC = () => {
         }),
       ]}
     >
-      Alpha
+      内测
     </span>
   );
 };
@@ -164,7 +164,7 @@ export const DeprecatedBadge: FC = () => {
         }),
       ]}
     >
-      Deprecated
+      已废弃
     </span>
   );
 };

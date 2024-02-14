@@ -28,16 +28,16 @@ export const Sidebar: FC<SidebarProps> = ({ template }) => {
       />
 
       <SidebarNavItem href="" icon={GeneralIcon}>
-        General
+        常规
       </SidebarNavItem>
       <SidebarNavItem href="permissions" icon={SecurityIcon}>
-        Permissions
+        权限
       </SidebarNavItem>
       <SidebarNavItem href="variables" icon={VariablesIcon}>
-        Variables
+        变量
       </SidebarNavItem>
       <SidebarNavItem href="schedule" icon={ScheduleIcon}>
-        Schedule
+        日程
       </SidebarNavItem>
     </BaseSidebar>
   );

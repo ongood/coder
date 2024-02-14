@@ -87,7 +87,7 @@ export const WorkspaceParametersForm: FC<WorkspaceParameterFormProps> = ({
       <HorizontalForm onSubmit={form.handleSubmit} data-testid="form">
         {hasNonEphemeralParameters && (
           <FormSection
-            title="Parameters"
+            title="参数"
             description="模板使用的设置"
           >
             <FormFields>

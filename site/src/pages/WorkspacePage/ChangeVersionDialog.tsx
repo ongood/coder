@@ -56,7 +56,7 @@ export const ChangeVersionDialog: FC<ChangeVersionDialogProps> = ({
       title="更改版本"
       description={
         <Stack>
-          <p>You are about to change the version of this workspace.</p>
+          <p>你即将更改此工作区的版本。</p>
           {validTemplateVersions ? (
             <>
               <FormFields>
@@ -106,7 +106,7 @@ export const ChangeVersionDialog: FC<ChangeVersionDialogProps> = ({
                               )}
                             </Stack>
                             {template?.active_version_id === option.id && (
-                              <Pill type="success">Active</Pill>
+                              <Pill type="success">活跃</Pill>
                             )}
                           </Stack>
                         }
@@ -140,7 +140,7 @@ export const ChangeVersionDialog: FC<ChangeVersionDialogProps> = ({
               {version && (
                 <Alert severity="info">
                   <AlertTitle>
-                    Published by {version.created_by.username}
+                    由 {version.created_by.username} 发布
                   </AlertTitle>
                   {version.message && (
                     <AlertDetail>{version.message}</AlertDetail>

@@ -22,7 +22,7 @@ import { ExternalImage } from "components/ExternalImage/ExternalImage";
 export const Language = {
   accountLabel: "账号",
   signOutLabel: "退出",
-  copyrightText: `\u00a9 ${new Date().getFullYear()} 缤企云,Coder Technologies, Inc.`,
+  copyrightText: `\u00a9 ${new Date().getFullYear()} 缤企云, Coder.`,
 };
 
 const styles = {

@@ -42,7 +42,7 @@ export const TemplateSettingsPage: FC = () => {
             templateByNameKey(orgId, data.name),
           );
         }
-        displaySuccess("Template updated successfully");
+        displaySuccess("模板更新成功");
         navigate(`/templates/${data.name}`);
       },
     },
@@ -51,7 +51,7 @@ export const TemplateSettingsPage: FC = () => {
   return (
     <>
       <Helmet>
-        <title>{pageTitle([template.name, "General Settings"])}</title>
+        <title>{pageTitle([template.name, "常规设置"])}</title>
       </Helmet>
       <TemplateSettingsPageView
         isSubmitting={isSubmitting}

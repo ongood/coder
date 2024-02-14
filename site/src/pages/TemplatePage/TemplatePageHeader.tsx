@@ -113,11 +113,11 @@ const TemplateMenu: FC<TemplateMenuProps> = ({
       ) : (
         <ConfirmDialog
           type="info"
-          title="Unable to delete"
+          title="无法删除"
           hideCancel={false}
           open={dialogState.isDeleteDialogOpen}
           onClose={dialogState.cancelDeleteConfirmation}
-          confirmText="See workspaces"
+          confirmText="查看工作区"
           confirmLoading={workspaceCountQuery.status !== "success"}
           onConfirm={() => {
             navigate({

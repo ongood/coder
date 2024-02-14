@@ -124,7 +124,7 @@ export const autostopDisplay = (
       deadline.isBefore(now.add(2, "hour"))
     ) {
       return {
-        message: `即将停止`,
+        message: `即将要求停止`,
         tooltip: (
           <>
             <HelpTooltipTitle>即将到期的停止</HelpTooltipTitle>

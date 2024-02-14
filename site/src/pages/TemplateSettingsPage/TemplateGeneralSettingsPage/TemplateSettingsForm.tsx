@@ -93,8 +93,8 @@ export const TemplateSettingsForm: FC<TemplateSettingsForm> = ({
       aria-label="Template settings form"
     >
       <FormSection
-        title="General info"
-        description="The name is used to identify the template in URLs and the API."
+        title="常规信息"
+        description="名称用于在URL和API中标识模板。"
       >
         <FormFields>
           <TextField
@@ -103,21 +103,21 @@ export const TemplateSettingsForm: FC<TemplateSettingsForm> = ({
             onChange={onChangeTrimmed(form)}
             autoFocus
             fullWidth
-            label="Name"
+            label="名称"
           />
         </FormFields>
       </FormSection>
 
       <FormSection
-        title="Display info"
-        description="A friendly name, description, and icon to help developers identify your template."
+        title="显示信息"
+        description="一个友好的名称、描述和图标，帮助开发者识别您的模板。"
       >
         <FormFields>
           <TextField
             {...getFieldHelpers("display_name")}
             disabled={isSubmitting}
             fullWidth
-            label="Display name"
+            label="显示名称"
           />
 
           <TextField
@@ -127,7 +127,7 @@ export const TemplateSettingsForm: FC<TemplateSettingsForm> = ({
             multiline
             disabled={isSubmitting}
             fullWidth
-            label="Description"
+            label="描述"
             rows={2}
           />
 
@@ -143,8 +143,8 @@ export const TemplateSettingsForm: FC<TemplateSettingsForm> = ({
       </FormSection>
 
       <FormSection
-        title="Operations"
-        description="Regulate actions allowed on workspaces created from this template."
+        title="选项"
+        description="管理从该模板创建的工作区上允许的选项。"
       >
         <Stack direction="column" spacing={5}>
           <label htmlFor="allow_user_cancel_workspace_jobs">
@@ -164,21 +164,18 @@ export const TemplateSettingsForm: FC<TemplateSettingsForm> = ({
                   spacing={0.5}
                   css={styles.optionText}
                 >
-                  Allow users to cancel in-progress workspace jobs.
+                  允许用户取消进行中的工作区任务。
                   <HelpTooltip>
                     <HelpTooltipTrigger />
                     <HelpTooltipContent>
                       <HelpTooltipText>
-                        If checked, users may be able to corrupt their
-                        workspace.
+                        如果选中，用户可能会破坏他们的工作区。
                       </HelpTooltipText>
                     </HelpTooltipContent>
                   </HelpTooltip>
                 </Stack>
                 <span css={styles.optionHelperText}>
-                  Depending on your template, canceling builds may leave
-                  workspaces in an unhealthy state. This option isn&apos;t
-                  recommended for most use cases.
+                  根据您的模板，取消构建可能会使工作区处于不健康状态。对于大多数用例，不建议使用此选项。
                 </span>
               </Stack>
             </Stack>
@@ -199,19 +196,18 @@ export const TemplateSettingsForm: FC<TemplateSettingsForm> = ({
                   spacing={0.5}
                   css={styles.optionText}
                 >
-                  Require workspaces automatically update when started.
+                  在启动时要求工作区自动更新。
                   <HelpTooltip>
                     <HelpTooltipTrigger />
                     <HelpTooltipContent>
                       <HelpTooltipText>
-                        This setting is not enforced for template admins.
+                        此设置对模板管理员不适用。
                       </HelpTooltipText>
                     </HelpTooltipContent>
                   </HelpTooltip>
                 </Stack>
                 <span css={styles.optionHelperText}>
-                  Workspaces that are manually started or auto-started will use
-                  the active template version.
+                  手动启动或自动启动的工作区将使用当前模板的活动版本。
                 </span>
               </Stack>
             </Stack>
@@ -220,8 +216,8 @@ export const TemplateSettingsForm: FC<TemplateSettingsForm> = ({
       </FormSection>
 
       <FormSection
-        title="Deprecate"
-        description="Deprecating a template prevents any new workspaces from being created. Existing workspaces will continue to function."
+        title="弃用"
+        description="将模板设为弃用会阻止创建新的工作区。现有的工作区将继续正常运行。"
       >
         <FormFields>
           <Stack direction="column" spacing={0.5}>
@@ -231,20 +227,17 @@ export const TemplateSettingsForm: FC<TemplateSettingsForm> = ({
               spacing={0.5}
               css={styles.optionText}
             >
-              Deprecation Message
+              弃用消息
             </Stack>
             <span css={styles.optionHelperText}>
-              Leave the message empty to keep the template active. Any message
-              provided will mark the template as deprecated. Use this message to
-              inform users of the deprecation and how to migrate to a new
-              template.
+              将消息留空以保持模板处于活动状态。提供任何消息都将标记模板为已弃用。使用此消息通知用户模板已弃用，并说明如何迁移到新模板。
             </span>
           </Stack>
           <TextField
             {...getFieldHelpers("deprecation_message")}
             disabled={isSubmitting || !accessControlEnabled}
             fullWidth
-            label="Deprecation Message"
+            label="弃用消息"
           />
           {!accessControlEnabled && (
             <Stack direction="row">

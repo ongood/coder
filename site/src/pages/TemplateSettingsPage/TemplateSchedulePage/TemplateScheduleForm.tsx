@@ -351,11 +351,11 @@ export const TemplateScheduleForm: FC<TemplateScheduleForm> = ({
   return (
     <HorizontalForm
       onSubmit={form.handleSubmit}
-      aria-label="Template settings form"
+      aria-label="模板设置表单"
     >
       <FormSection
-        title="Schedule"
-        description="Define when workspaces created from this template are stopped."
+        title="日程"
+        description="定义从此模板创建的工作区何时停止。"
       >
         <Stack direction="row" css={styles.ttlFields}>
           <TextField
@@ -367,7 +367,7 @@ export const TemplateScheduleForm: FC<TemplateScheduleForm> = ({
             disabled={isSubmitting}
             fullWidth
             inputProps={{ min: 0, step: 1 }}
-            label="Default autostop (hours)"
+            label="默认自动停止 (小时)"
             type="number"
           />
 
@@ -380,15 +380,15 @@ export const TemplateScheduleForm: FC<TemplateScheduleForm> = ({
             disabled={isSubmitting}
             fullWidth
             inputProps={{ min: 0, step: 1 }}
-            label="Activity bump (hours)"
+            label="活动提升 (小时)"
             type="number"
           />
         </Stack>
       </FormSection>
 
       <FormSection
-        title="Autostop Requirement"
-        description="Define when workspaces created from this template are stopped periodically to enforce template updates and ensure idle workspaces are stopped."
+        title="自动停止规定"
+        description="定义从此模板创建的工作区定期停止的条件，以强制执行模板更新并确保闲置工作区被停止。"
       >
         <Stack direction="row" css={styles.ttlFields}>
           <TextField
@@ -403,19 +403,19 @@ export const TemplateScheduleForm: FC<TemplateScheduleForm> = ({
             fullWidth
             select
             value={form.values.autostop_requirement_days_of_week}
-            label="Days with required stop"
+            label="必须停止的日期"
           >
             <MenuItem key="off" value="off">
-              Off
+              关闭
             </MenuItem>
             <MenuItem key="daily" value="daily">
-              Daily
+              每天
             </MenuItem>
             <MenuItem key="saturday" value="saturday">
-              Saturday
+              周六
             </MenuItem>
             <MenuItem key="sunday" value="sunday">
-              Sunday
+              周日
             </MenuItem>
           </TextField>
 
@@ -437,15 +437,15 @@ export const TemplateScheduleForm: FC<TemplateScheduleForm> = ({
             }
             fullWidth
             inputProps={{ min: 1, max: 16, step: 1 }}
-            label="Weeks between required stops"
+            label="自动停止间隔周数"
             type="number"
           />
         </Stack>
       </FormSection>
 
       <FormSection
-        title="Max Lifetime"
-        description="Define the maximum lifetime for workspaces created from this template."
+        title="最大生命周期"
+        description="定义从此模板创建的工作区的最大生命周期。"
         deprecated
       >
         <Stack direction="column" spacing={4}>
@@ -464,7 +464,7 @@ export const TemplateScheduleForm: FC<TemplateScheduleForm> = ({
               label={
                 <Stack spacing={0.5}>
                   <strong>
-                    Use a max lifetime instead of a required autostop schedule.
+                    使用最大生命周期代替必需的自动停止计划。
                   </strong>
                   <span
                     css={{
@@ -472,9 +472,7 @@ export const TemplateScheduleForm: FC<TemplateScheduleForm> = ({
                       color: theme.palette.text.secondary,
                     }}
                   >
-                    Use a maximum lifetime for workspaces created from this
-                    template instead of an autostop requirement as configured
-                    above.
+                    使用此模板创建的工作区的最大生命周期，而不是上面配置的自动停止要求。
                   </span>
                 </Stack>
               }
@@ -487,8 +485,8 @@ export const TemplateScheduleForm: FC<TemplateScheduleForm> = ({
                 <MaxTTLHelperText ttl={form.values.max_ttl_ms} />
               ) : (
                 <>
-                  You need an enterprise license to use it{" "}
-                  <Link href={docs("/enterprise")}>Learn more</Link>.
+                  您需要企业版许可才能使用它{" "}
+                  <Link href={docs("/enterprise")}>了解更多</Link>.
                 </>
               ),
             })}
@@ -572,9 +570,7 @@ export const TemplateScheduleForm: FC<TemplateScheduleForm> = ({
                   color: theme.palette.text.secondary,
                 }}
               >
-                Workspaces will always use the default TTL if this is set.
-                Regardless of this setting, workspaces can only stay on for the
-                max lifetime.
+                如果设置了此项，工作区将始终使用默认的TTL。无论此设置如何，工作区都只能保持最大生存期。
               </span>
             </Stack>
           </Stack>
@@ -583,8 +579,8 @@ export const TemplateScheduleForm: FC<TemplateScheduleForm> = ({
       {allowAdvancedScheduling && (
         <>
           <FormSection
-            title="Failure Cleanup"
-            description="When enabled, Coder will attempt to stop workspaces that are in a failed state after a specified number of days."
+            title="失败清理"
+            description="启用时，Coder 将尝试在指定天数后停止处于失败状态的工作区。"
           >
             <FormFields>
               <FormControlLabel
@@ -612,8 +608,8 @@ export const TemplateScheduleForm: FC<TemplateScheduleForm> = ({
             </FormFields>
           </FormSection>
           <FormSection
-            title="Dormancy Threshold"
-            description="When enabled, Coder will mark workspaces as dormant after a period of time with no connections. Dormant workspaces can be auto-deleted (see below) or manually reviewed by the workspace owner or admins."
+            title="休眠阈值"
+            description="启用时，Coder 将在一段时间内没有连接的情况下将工作区标记为休眠状态。 休眠的工作区可以被自动删除（参见下文），也可以由工作区所有者或管理员手动审查。"
           >
             <FormFields>
               <FormControlLabel
@@ -624,7 +620,7 @@ export const TemplateScheduleForm: FC<TemplateScheduleForm> = ({
                     onChange={handleToggleInactivityCleanup}
                   />
                 }
-                label="Enable Dormancy Threshold"
+                label="启用休眠阈值"
               />
               <TextField
                 {...getFieldHelpers("time_til_dormant_ms", {
@@ -645,8 +641,8 @@ export const TemplateScheduleForm: FC<TemplateScheduleForm> = ({
             </FormFields>
           </FormSection>
           <FormSection
-            title="Dormancy Auto-Deletion"
-            description="When enabled, Coder will permanently delete dormant workspaces after a period of time. Once a workspace is deleted it cannot be recovered."
+            title="休眠自动删除"
+            description="启用后，Coder 将在一段时间后永久删除休眠的工作区。一旦工作区被删除，将无法恢复。"
           >
             <FormFields>
               <FormControlLabel
@@ -657,7 +653,7 @@ export const TemplateScheduleForm: FC<TemplateScheduleForm> = ({
                     onChange={handleToggleDormantAutoDeletion}
                   />
                 }
-                label="Enable Dormancy Auto-Deletion"
+                label="启用休眠自动删除"
               />
               <TextField
                 {...getFieldHelpers("time_til_dormant_autodelete_ms", {
@@ -673,7 +669,7 @@ export const TemplateScheduleForm: FC<TemplateScheduleForm> = ({
                 }
                 fullWidth
                 inputProps={{ min: 0, step: "any" }}
-                label="Time until deletion (days)"
+                label="自动删除时间（天）"
                 type="number"
               />
             </FormFields>
@@ -710,7 +706,7 @@ export const TemplateScheduleForm: FC<TemplateScheduleForm> = ({
           onClose={() => {
             setIsScheduleDialogOpen(false);
           }}
-          title="Workspace Scheduling"
+          title="工作区调度"
           updateDormantWorkspaces={(update: boolean) =>
             form.setFieldValue("update_workspace_dormant_at", update)
           }

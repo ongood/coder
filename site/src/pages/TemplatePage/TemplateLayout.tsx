@@ -110,16 +110,16 @@ export const TemplateLayout: FC<PropsWithChildren> = ({
 
       <Tabs>
         <TabLink end to={`/templates/${templateName}`}>
-          Summary
+          摘要
         </TabLink>
-        <TabLink to={`/templates/${templateName}/docs`}>Docs</TabLink>
+        <TabLink to={`/templates/${templateName}/docs`}>文档</TabLink>
         {data.permissions.canUpdateTemplate && (
-          <TabLink to={`/templates/${templateName}/files`}>Source Code</TabLink>
+          <TabLink to={`/templates/${templateName}/files`}>源代码</TabLink>
         )}
-        <TabLink to={`/templates/${templateName}/versions`}>Versions</TabLink>
-        <TabLink to={`/templates/${templateName}/embed`}>Embed</TabLink>
+        <TabLink to={`/templates/${templateName}/versions`}>版本</TabLink>
+        <TabLink to={`/templates/${templateName}/embed`}>嵌入</TabLink>
         {shouldShowInsights && (
-          <TabLink to={`/templates/${templateName}/insights`}>Insights</TabLink>
+          <TabLink to={`/templates/${templateName}/insights`}>洞察</TabLink>
         )}
       </Tabs>
 

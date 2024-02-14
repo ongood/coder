@@ -89,8 +89,8 @@ export const TemplateEmbedPageView: FC<TemplateEmbedPageViewProps> = ({
           <div css={{ flex: 1, maxWidth: 400 }}>
             <VerticalForm>
               <FormSection
-                title="Creation mode"
-                description="By changing the mode to automatic, when the user clicks the button, the workspace will be created automatically instead of showing a form to the user."
+                title="创建模式"
+                description="通过将模式更改为自动，当用户单击按钮时，工作区将自动创建，而不是向用户显示表单。"
               >
                 <RadioGroup
                   defaultValue={buttonValues.mode}
@@ -104,12 +104,12 @@ export const TemplateEmbedPageView: FC<TemplateEmbedPageViewProps> = ({
                   <FormControlLabel
                     value="manual"
                     control={<Radio size="small" />}
-                    label="Manual"
+                    label="手动"
                   />
                   <FormControlLabel
                     value="auto"
                     control={<Radio size="small" />}
-                    label="Automatic"
+                    label="自动"
                   />
                 </RadioGroup>
               </FormSection>
