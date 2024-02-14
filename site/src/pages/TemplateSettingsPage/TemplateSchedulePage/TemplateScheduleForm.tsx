@@ -380,7 +380,7 @@ export const TemplateScheduleForm: FC<TemplateScheduleForm> = ({
             disabled={isSubmitting}
             fullWidth
             inputProps={{ min: 0, step: 1 }}
-            label="活动提升 (小时)"
+            label="活动延迟(小时)"
             type="number"
           />
         </Stack>

@@ -105,11 +105,11 @@ export const PortForwardPopoverView: FC<PortForwardPopoverViewProps> = ({
           borderBottom: `1px solid ${theme.palette.divider}`,
         }}
       >
-        <HelpTooltipTitle>Forwarded ports</HelpTooltipTitle>
+        <HelpTooltipTitle>转发端口</HelpTooltipTitle>
         <HelpTooltipText css={{ color: theme.palette.text.secondary }}>
           {ports?.length === 0
-            ? "No open ports were detected."
-            : "The forwarded ports are exclusively accessible to you."}
+            ? "未检测到开放端口。"
+            : "转发的端口仅供您访问。"}
         </HelpTooltipText>
         <div css={{ marginTop: 12 }}>
           {ports?.map((port) => {
@@ -141,9 +141,9 @@ export const PortForwardPopoverView: FC<PortForwardPopoverViewProps> = ({
       </div>
 
       <div css={{ padding: 20 }}>
-        <HelpTooltipTitle>Forward port</HelpTooltipTitle>
+        <HelpTooltipTitle>转发端口</HelpTooltipTitle>
         <HelpTooltipText css={{ color: theme.palette.text.secondary }}>
-          Access ports running on the agent:
+          访问代理上运行的端口:
         </HelpTooltipText>
 
         <form
@@ -195,7 +195,7 @@ export const PortForwardPopoverView: FC<PortForwardPopoverViewProps> = ({
 
         <HelpTooltipLinksGroup>
           <HelpTooltipLink href={docs("/networking/port-forwarding#dashboard")}>
-            Learn more
+            了解更多
           </HelpTooltipLink>
         </HelpTooltipLinksGroup>
       </div>

@@ -60,7 +60,7 @@ export const HealthyBadge: FC<HealthyBadge> = ({ derpOnly }) => {
 };
 
 export const NotHealthyBadge: FC = () => {
-  return <span css={[styles.badge, styles.errorBadge]}>不健康</span>;
+  return <span css={[styles.badge, styles.errorBadge]}>亚健康</span>;
 };
 
 export const NotRegisteredBadge: FC = () => {

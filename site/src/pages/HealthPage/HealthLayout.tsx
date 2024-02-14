@@ -102,7 +102,7 @@ export const HealthLayout: FC = () => {
                     </Tooltip>
                   </div>
                   <div css={{ fontWeight: 500, marginTop: 16 }}>
-                    {healthStatus.healthy ? "健康" : "不健康"}
+                    {healthStatus.healthy ? "健康" : "亚健康"}
                   </div>
                   <div
                     css={{

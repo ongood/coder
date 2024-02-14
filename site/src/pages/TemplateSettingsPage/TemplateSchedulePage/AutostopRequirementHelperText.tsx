@@ -3,13 +3,13 @@ import type { Template } from "api/typesGenerated";
 import type { TemplateAutostopRequirementDaysValue } from "utils/schedule";
 
 const autostopRequirementDescriptions = {
-  off: "Workspaces are not required to stop periodically.",
+  off: "工作区不需要定期停止。",
   daily:
-    "Workspaces are required to be automatically stopped daily in the user's quiet hours and timezone.",
+    "工作区需要每天在用户静默的时间和时区自动停止。",
   saturday:
-    "Workspaces are required to be automatically stopped every Saturday in the user's quiet hours and timezone.",
+    "工作区需要在用户的静默时间和时区中指定的每周六自动停止。",
   sunday:
-    "Workspaces are required to be automatically stopped every Sunday in the user's quiet hours and timezone.",
+    "工作区需要在用户的静默时间和时区中指定的每周日自动停止。",
 };
 
 export const convertAutostopRequirementDaysValue = (
@@ -49,8 +49,7 @@ export const AutostopRequirementWeeksHelperText: FC<
   if (days !== "saturday" && days !== "sunday") {
     return (
       <span>
-        Weeks between required stops cannot be set unless days between required
-        stops is Saturday or Sunday.
+        除非必须停止的日期是周六或周日，否则不能设置自动停止间隔周数。
       </span>
     );
   }
@@ -58,16 +57,14 @@ export const AutostopRequirementWeeksHelperText: FC<
   if (weeks <= 1) {
     return (
       <span>
-        Workspaces are required to be automatically stopped every week on the
-        specified day in the user&apos;s quiet hours and timezone.
+        工作区需要在用户的静默时间和时区中指定的每周特定日期自动停止。
       </span>
     );
   }
 
   return (
     <span>
-      Workspaces are required to be automatically stopped every {weeks} weeks on
-      the specified day in the user&apos;s quiet hours and timezone.
+      工作区需要在用户的静默时间和时区中指定的每{weeks}周的特定日期自动停止。
     </span>
   );
 };

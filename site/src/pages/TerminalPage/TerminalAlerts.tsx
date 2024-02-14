@@ -11,32 +11,32 @@ export const ErrorScriptAlert: FC = () => {
       dismissible
       actions={<RefreshSessionButton />}
     >
-      The workspace{" "}
+      此工作区{" "}
       <Link
-        title="startup script has exited with an error"
+        title="启动脚本已退出并出现错误"
         href={docs("/templates#startup-script-exited-with-an-error")}
         target="_blank"
         rel="noreferrer"
       >
-        startup script has exited with an error
+        启动脚本已退出并出现错误
       </Link>
-      , we recommend reloading this session and{" "}
+      , 我们建议重新加载此会话并{" "}
       <Link
-        title=" debugging the startup script"
+        title="调试启动脚本"
         href={docs("/templates#debugging-the-startup-script")}
         target="_blank"
         rel="noreferrer"
       >
-        debugging the startup script
+        调试启动脚本。
       </Link>{" "}
       because{" "}
       <Link
-        title="your workspace may be incomplete."
+        title="您的工作空间可能不完整。"
         href={docs("/templates#your-workspace-may-be-incomplete")}
         target="_blank"
         rel="noreferrer"
       >
-        your workspace may be incomplete.
+        您的工作空间可能不完整。
       </Link>{" "}
     </TerminalAlert>
   );
@@ -49,16 +49,15 @@ export const LoadingScriptsAlert: FC = () => {
       severity="info"
       actions={<RefreshSessionButton />}
     >
-      Startup scripts are still running. You can continue using this terminal,
-      but{" "}
+      启动脚本仍在运行。 您可以继续使用该终端，但{" "}
       <Link
-        title="your workspace may be incomplete."
+        title="您的工作空间可能不完整。"
         href={docs("/templates#your-workspace-may-be-incomplete")}
         target="_blank"
         rel="noreferrer"
       >
         {" "}
-        your workspace may be incomplete.
+        您的工作空间可能不完整。
       </Link>
     </TerminalAlert>
   );
@@ -71,18 +70,16 @@ export const LoadedScriptsAlert: FC = () => {
       dismissible
       actions={<RefreshSessionButton />}
     >
-      Startup scripts have completed successfully. The workspace is ready but
-      this{" "}
+      启动脚本已成功完成。 工作区已准备就绪，但此{" "}
       <Link
-        title="session was started before the startup scripts finished"
+        title="会话在启动脚本完成之前启动"
         href={docs("/templates#your-workspace-may-be-incomplete")}
         target="_blank"
         rel="noreferrer"
       >
-        session was started before the startup script finished.
+        会话在启动脚本完成之前启动。
       </Link>{" "}
-      To ensure your shell environment is up-to-date, we recommend reloading
-      this session.
+       为了确保您的 shell 环境是最新的，我们建议重新加载本次会话。
     </TerminalAlert>
   );
 };
@@ -111,7 +108,7 @@ export const DisconnectedAlert: FC<AlertProps> = (props) => {
       severity="warning"
       actions={<RefreshSessionButton />}
     >
-      Disconnected
+      已断开连接
     </TerminalAlert>
   );
 };
@@ -129,7 +126,7 @@ const RefreshSessionButton: FC = () => {
         window.location.reload();
       }}
     >
-      {isRefreshing ? "Refreshing session..." : "Refresh session"}
+      {isRefreshing ? "正在刷新会话..." : "刷新会话"}
     </Button>
   );
 };

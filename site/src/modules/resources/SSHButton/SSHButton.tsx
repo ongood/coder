@@ -41,7 +41,7 @@ export const SSHButton: FC<SSHButtonProps> = ({
           endIcon={<KeyboardArrowDown />}
           css={{ fontSize: 13, padding: "8px 12px" }}
         >
-          Connect via SSH
+          通过 SSH 连接
         </Button>
       </PopoverTrigger>
 
@@ -54,7 +54,7 @@ export const SSHButton: FC<SSHButtonProps> = ({
           <div>
             <HelpTooltipText>
               <strong css={styles.codeExampleLabel}>
-                Configure SSH hosts on machine:
+                在机器上配置 SSH 主机:
               </strong>
             </HelpTooltipText>
             <CodeExample secret={false} code="coder config-ssh" />
@@ -63,7 +63,7 @@ export const SSHButton: FC<SSHButtonProps> = ({
           <div>
             <HelpTooltipText>
               <strong css={styles.codeExampleLabel}>
-                Connect to the agent:
+                连接到代理:
               </strong>
             </HelpTooltipText>
             <CodeExample
