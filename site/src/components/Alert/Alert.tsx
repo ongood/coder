@@ -56,7 +56,7 @@ export const Alert: FC<AlertProps> = ({
                 }}
                 data-testid="dismiss-banner-btn"
               >
-                Dismiss
+                忽略
               </Button>
             )}
           </>

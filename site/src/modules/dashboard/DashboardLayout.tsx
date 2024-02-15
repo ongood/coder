@@ -82,16 +82,16 @@ export const DashboardLayout: FC = () => {
                 })}
               />
               <p>
-                Coder {updateCheck.data?.version} is now available. View the{" "}
-                <Link href={updateCheck.data?.url}>release notes</Link> and{" "}
-                <Link href={docs("/admin/upgrade")}>upgrade instructions</Link>{" "}
-                for more information.
+                Coder {updateCheck.data?.version} 现在可用。查看{" "}
+                <Link href={updateCheck.data?.url}>发行说明</Link> 和{" "}
+                <Link href={docs("/admin/upgrade")}>升级说明</Link>{" "}
+                获取更多信息。
               </p>
             </div>
           }
           action={
             <Button variant="text" size="small" onClick={updateCheck.dismiss}>
-              Dismiss
+              忽略
             </Button>
           }
         />
