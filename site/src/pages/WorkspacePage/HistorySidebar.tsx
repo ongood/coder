@@ -28,7 +28,7 @@ export const HistorySidebar: FC<HistorySidebarProps> = ({ workspace }) => {
 
   return (
     <Sidebar>
-      <SidebarCaption>History</SidebarCaption>
+      <SidebarCaption>历史</SidebarCaption>
       {builds
         ? builds.map((build) => (
             <SidebarLink
@@ -60,7 +60,7 @@ export const HistorySidebar: FC<HistorySidebarProps> = ({ workspace }) => {
               fontSize: 13,
             }}
           >
-            Show more builds
+            显示更多
           </LoadingButton>
         </div>
       )}

@@ -47,7 +47,7 @@ export const WorkspaceBuildLogsSection: FC<WorkspaceBuildLogsSectionProps> = ({
           borderRadius: "8px 8px 0 0",
         }}
       >
-        Build logs
+        构建日志
       </header>
       <div ref={scrollRef} css={{ height: "400px", overflowY: "auto" }}>
         {logs ? (

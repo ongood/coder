@@ -143,7 +143,7 @@ export const CreateTokenForm: FC<CreateTokenFormProps> = ({
       <FormFooter
         onCancel={() => navigate("/settings/tokens")}
         isLoading={isCreating}
-        submitLabel={creationFailed ? "Retry" : "创建令牌"}
+        submitLabel={creationFailed ? "重试" : "创建令牌"}
       />
     </HorizontalForm>
   );

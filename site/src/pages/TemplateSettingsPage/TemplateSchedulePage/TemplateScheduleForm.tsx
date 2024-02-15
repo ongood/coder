@@ -497,7 +497,7 @@ export const TemplateScheduleForm: FC<TemplateScheduleForm> = ({
             }
             fullWidth
             inputProps={{ min: 0, step: 1 }}
-            label="Max lifetime (hours)"
+            label="最大生命周期（小时）"
             type="number"
           />
         </Stack>

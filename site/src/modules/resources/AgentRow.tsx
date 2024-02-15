@@ -429,7 +429,7 @@ export const AgentRow: FC<AgentRowProps> = ({
                                 {assignedIcon && (
                                   <i>
                                     <br />
-                                    No icon specified!
+                                    未指定图标！
                                   </i>
                                 )}
                               </>
@@ -451,7 +451,7 @@ export const AgentRow: FC<AgentRowProps> = ({
             onClick={() => setShowLogs((v) => !v)}
           >
             <DropdownArrow close={showLogs} margin={false} />
-            {showLogs ? "Hide" : "Show"} logs
+            {showLogs ? "隐藏" : "显示"} 日志
           </button>
         </section>
       )}

@@ -82,13 +82,13 @@ export const TemplateScheduleAutostart: FC<TemplateScheduleAutostartProps> = ({
 };
 
 export const sortedDays = [
-  "monday",
-  "tuesday",
-  "wednesday",
-  "thursday",
-  "friday",
-  "saturday",
-  "sunday",
+  "周一",
+  "周二",
+  "周三",
+  "周四",
+  "周五",
+  "周六",
+  "周日",
 ] as TemplateAutostartRequirementDaysValue[];
 
 interface AutostartHelperTextProps {
@@ -119,7 +119,7 @@ const AutostartHelperText: FC<AutostartHelperTextProps> = ({
   }
 
   let daymsg = "工作区永远不会在周末自动启动。";
-  if (days.size !== 5 || days.has("saturday") || days.has("sunday")) {
+  if (days.size !== 5 || days.has("周六") || days.has("周日")) {
     daymsg = `工作区可以在${sortedDays
       .filter((day) => days.has(day))
       .join(", ")}自动启动。`;

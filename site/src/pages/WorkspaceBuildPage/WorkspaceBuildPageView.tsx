@@ -53,15 +53,15 @@ export const WorkspaceBuildPageView: FC<WorkspaceBuildPageViewProps> = ({
         <Stack direction="row" alignItems="center" spacing={3}>
           <BuildAvatar build={build} />
           <div>
-            <PageHeaderTitle>Build #{build.build_number}</PageHeaderTitle>
+            <PageHeaderTitle>构建 #{build.build_number}</PageHeaderTitle>
             <PageHeaderSubtitle>{build.initiator_name}</PageHeaderSubtitle>
           </div>
         </Stack>
 
-        <Stats aria-label="Build details" css={styles.stats}>
+        <Stats aria-label="构建细节" css={styles.stats}>
           <StatsItem
             css={styles.statsItem}
-            label="Workspace"
+            label="工作区"
             value={
               <Link
                 to={`/@${build.workspace_owner_name}/${build.workspace_name}`}
@@ -72,22 +72,22 @@ export const WorkspaceBuildPageView: FC<WorkspaceBuildPageViewProps> = ({
           />
           <StatsItem
             css={styles.statsItem}
-            label="Template version"
+            label="模板版本"
             value={build.template_version_name}
           />
           <StatsItem
             css={styles.statsItem}
-            label="Duration"
+            label="持续时间"
             value={displayWorkspaceBuildDuration(build)}
           />
           <StatsItem
             css={styles.statsItem}
-            label="Started at"
+            label="开始时间"
             value={new Date(build.created_at).toLocaleString()}
           />
           <StatsItem
             css={styles.statsItem}
-            label="Action"
+            label="动作"
             value={
               <span css={{ textTransform: "capitalize" }}>
                 {build.transition}
@@ -107,7 +107,7 @@ export const WorkspaceBuildPageView: FC<WorkspaceBuildPageViewProps> = ({
         }}
       >
         <Sidebar>
-          <SidebarCaption>Builds</SidebarCaption>
+          <SidebarCaption>构建</SidebarCaption>
           {!builds &&
             Array.from({ length: 15 }, (_, i) => (
               <SidebarItem key={i}>
@@ -139,8 +139,7 @@ export const WorkspaceBuildPageView: FC<WorkspaceBuildPageViewProps> = ({
               }}
             >
               <div>
-                The workspace may have failed to delete due to a Terraform state
-                mismatch. A template admin may run{" "}
+                工作区可能由于 Terraform 状态不匹配而无法删除。模板管理员可以运行{" "}
                 <code
                   css={{
                     display: "inline-block",
@@ -152,7 +151,7 @@ export const WorkspaceBuildPageView: FC<WorkspaceBuildPageViewProps> = ({
                     build.workspace_owner_name + "/" + build.workspace_name
                   } --orphan`}
                 </code>{" "}
-                to delete the workspace skipping resource destruction.
+                以跳过资源销毁的方式删除工作区。
               </div>
             </Alert>
           )}

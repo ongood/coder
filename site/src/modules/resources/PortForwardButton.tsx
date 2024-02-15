@@ -74,7 +74,7 @@ export const PortForwardButton: FC<PortForwardButtonProps> = (props) => {
             )
           }
         >
-          Open ports
+          打开的端口
         </Button>
       </PopoverTrigger>
       <PopoverContent horizontal="right" classes={{ paper }}>
@@ -166,7 +166,7 @@ export const PortForwardPopoverView: FC<PortForwardPopoverViewProps> = ({
             aria-label="Port number"
             name="portNumber"
             type="number"
-            placeholder="Type a port number..."
+            placeholder="输入端口号..."
             min={0}
             max={65535}
             required

@@ -447,7 +447,7 @@ export const ttlShutdownAt = (formTTL: number): string => {
     // Passing an empty value for TTL in the form results in a number that is not zero but less than 1.
     return "您的工作区不会自动关闭。";
   } else {
-    return `您的工作区将在下次启动后 ${formatDuration(
+    return `您的工作区将在下次启动 ${formatDuration(
       intervalToDuration({ start: 0, end: formTTL * 60 * 60 * 1000 }),
       { delimiter: " and " },
     )} 后关闭。我们在检测到活动时延迟关闭1小时。`;

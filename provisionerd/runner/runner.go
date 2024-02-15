@@ -922,7 +922,7 @@ func (r *Runner) runWorkspaceBuild(ctx context.Context) (*proto.CompletedJob, *p
 		return nil, failedJob
 	}
 
-	resp, failed := r.buildWorkspace(ctx, "Planning infrastructure", &sdkproto.Request{
+	resp, failed := r.buildWorkspace(ctx, "规划基础设施", &sdkproto.Request{
 		Type: &sdkproto.Request_Plan{
 			Plan: &sdkproto.PlanRequest{
 				Metadata:              r.job.GetWorkspaceBuild().Metadata,
