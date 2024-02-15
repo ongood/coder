@@ -47,8 +47,8 @@ export const useStatusFilterMenu = ({
 export type StatusFilterMenu = ReturnType<typeof useStatusFilterMenu>;
 
 const PRESET_FILTERS = [
-  { query: userFilterQuery.active, name: "Active users" },
-  { query: userFilterQuery.all, name: "All users" },
+  { query: userFilterQuery.active, name: "活跃用户" },
+  { query: userFilterQuery.all, name: "所有用户" },
 ];
 
 interface UsersFilterProps {

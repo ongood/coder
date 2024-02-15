@@ -70,7 +70,7 @@ export const DeleteDialog: FC<DeleteDialogProps> = ({
             {Boolean(info) && <div css={styles.callout}>{info}</div>}
 
             <p>
-              输入<strong>{name}</strong>以确认。
+              输入 <strong>{name}</strong> 以确认。
             </p>
           </Stack>
 

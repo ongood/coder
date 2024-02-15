@@ -49,7 +49,7 @@ export const TemplateExampleCard: FC<TemplateExampleCardProps> = ({
             to={`/starter-templates/${example.id}`}
             css={{ display: "inline-block", fontSize: 13, marginTop: 4 }}
           >
-            Read more
+            读取更多
           </Link>
         </span>
       </div>
@@ -60,7 +60,7 @@ export const TemplateExampleCard: FC<TemplateExampleCardProps> = ({
           fullWidth
           to={`/templates/new?exampleId=${example.id}`}
         >
-          Use template
+          使用模板
         </Button>
       </div>
     </div>

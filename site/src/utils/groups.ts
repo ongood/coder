@@ -15,16 +15,16 @@ export const isEveryoneGroup = (group: Group): boolean =>
 export const getGroupSubtitle = (group: Group): string => {
   // It is the everyone group when a group id is the same of the org id
   if (group.id === group.organization_id) {
-    return `All users`;
+    return `所有用户`;
   }
 
   if (!group.members) {
-    return `0 members`;
+    return `0 成员`;
   }
 
   if (group.members.length === 1) {
-    return `1 member`;
+    return `1 成员`;
   }
 
-  return `${group.members.length} members`;
+  return `${group.members.length} 成员`;
 };

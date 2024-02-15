@@ -74,7 +74,7 @@ const UpdateGroupForm: FC<UpdateGroupFormProps> = ({
             <>
               <TextField
                 {...getFieldHelpers("display_name", {
-                  helperText: "Optional: keep empty to default to the name.",
+                  helperText: "可选：保留为空以使用默认名称。",
                 })}
                 onChange={onChangeTrimmed(form)}
                 autoComplete="display_name"

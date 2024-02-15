@@ -138,7 +138,7 @@ export const GroupPage: FC = () => {
                   });
                   reset();
                 } catch (error) {
-                  displayError(getErrorMessage(error, "Failed to add member."));
+                  displayError(getErrorMessage(error, "添加成员失败。"));
                 }
               }}
             />
@@ -148,7 +148,7 @@ export const GroupPage: FC = () => {
               isLoading={Boolean(isLoading)}
               showing={groupData?.members.length ?? 0}
               total={groupData?.members.length ?? 0}
-              label="members"
+              label="成员"
             />
           </TableToolbar>
 
@@ -156,8 +156,8 @@ export const GroupPage: FC = () => {
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell width="59%">User</TableCell>
-                  <TableCell width="40">Status</TableCell>
+                  <TableCell width="59%">用户</TableCell>
+                  <TableCell width="40">状态</TableCell>
                   <TableCell width="1%"></TableCell>
                 </TableRow>
               </TableHead>
@@ -167,8 +167,8 @@ export const GroupPage: FC = () => {
                   <TableRow>
                     <TableCell colSpan={999}>
                       <EmptyState
-                        message="No members yet"
-                        description="Add a member using the controls above"
+                        message="还没有成员"
+                        description="使用上面的控件添加成员"
                       />
                     </TableCell>
                   </TableRow>
@@ -193,13 +193,13 @@ export const GroupPage: FC = () => {
           isOpen={isDeletingGroup}
           confirmLoading={deleteGroupMutation.isLoading}
           name={groupQuery.data.name}
-          entity="group"
+          entity="用户组"
           onConfirm={async () => {
             try {
               await deleteGroupMutation.mutateAsync(groupId);
               navigate("/groups");
             } catch (error) {
-              displayError(getErrorMessage(error, "Failed to delete group."));
+              displayError(getErrorMessage(error, "删除用户组失败。"));
             }
           }}
           onCancel={() => {
@@ -306,10 +306,10 @@ const GroupMemberRow: FC<GroupMemberRowProps> = ({
                       groupId: group.id,
                       userId: member.id,
                     });
-                    displaySuccess("Member removed successfully.");
+                    displaySuccess("成员移除成功。");
                   } catch (error) {
                     displayError(
-                      getErrorMessage(error, "Failed to remove member."),
+                      getErrorMessage(error, "无法移除成员。"),
                     );
                   }
                 }}

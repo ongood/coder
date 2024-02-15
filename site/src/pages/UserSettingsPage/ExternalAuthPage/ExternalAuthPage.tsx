@@ -36,31 +36,29 @@ const ExternalAuthPage: FC = () => {
           try {
             const data = await validateAppMutation.mutateAsync(providerID);
             if (data.authenticated) {
-              displaySuccess("Application link is valid.");
+              displaySuccess("应用链接有效。");
             } else {
               displayError(
-                "Application link is not valid. Please unlink the application and reauthenticate.",
+                "应用链接无效。请取消链接该应用并重新验证身份。",
               );
             }
           } catch (e) {
             displayError(
-              getErrorMessage(e, "Error validating application link."),
+              getErrorMessage(e, "验证应用链接时出错。"),
             );
           }
         }}
       />
       <DeleteDialog
         key={appToUnlink}
-        title="Unlink Application"
+        title="取消链接应用"
         verb="Unlinking"
-        info="This does not revoke the access token from the oauth2 provider.
-        It only removes the link on this side. To fully revoke access, you must
-        do so on the oauth2 provider's side."
-        label="Name of the application to unlink"
+        info="这不会从oauth2提供者那里撤销访问令牌。 它只会在此端删除链接。 要完全撤销访问权限，您必须在oauth2提供者端执行此操作。"
+        label="要取消链接的应用名称"
         isOpen={appToUnlink !== undefined}
         confirmLoading={unlinkAppMutation.isLoading}
         name={appToUnlink ?? ""}
-        entity="application"
+        entity="应用程序"
         onCancel={() => setAppToUnlink(undefined)}
         onConfirm={async () => {
           try {
@@ -73,9 +71,9 @@ const ExternalAuthPage: FC = () => {
             // as at least 1 provider was unlinked.
             setUnlinked(unlinked + 1);
 
-            displaySuccess("Successfully unlinked the oauth2 application.");
+            displaySuccess("成功取消链接oauth2应用程序。");
           } catch (e) {
-            displayError(getErrorMessage(e, "Error unlinking application."));
+            displayError(getErrorMessage(e, "取消链接应用程序时出错。"));
           }
         }}
       />

@@ -50,7 +50,7 @@ export const WorkspaceSchedule: FC<WorkspaceScheduleProps> = ({
   return (
     <TopbarData>
       <TopbarIcon>
-        <Tooltip title="Schedule">
+        <Tooltip title="日程">
           <ScheduleOutlined aria-label="Schedule" />
         </Tooltip>
       </TopbarIcon>
@@ -105,14 +105,14 @@ export const WorkspaceScheduleControls: FC<WorkspaceScheduleControlsProps> = ({
   const updateDeadlineMutation = useMutation({
     ...updateDeadline(workspace),
     onSuccess: (_, updatedDeadline) => {
-      displaySuccess("Workspace shutdown time has been successfully updated.");
+      displaySuccess("工作区关闭时间已成功更新。");
       lastStableDeadline.current = updatedDeadline;
     },
     onError: (error) => {
       displayError(
         getErrorMessage(
           error,
-          "We couldn't update your workspace shutdown time. Please try again.",
+          "无法更新您的工作区关闭时间。请重试",
         ),
       );
       updateWorkspaceDeadlineQueryData(lastStableDeadline.current);
@@ -138,13 +138,13 @@ export const WorkspaceScheduleControls: FC<WorkspaceScheduleControlsProps> = ({
         />
       ) : (
         <ScheduleSettingsLink>
-          Starts at {autostartDisplay(workspace.autostart_schedule)}
+          开始于 {autostartDisplay(workspace.autostart_schedule)}
         </ScheduleSettingsLink>
       )}
 
       {canUpdateSchedule && canEditDeadline(workspace) && (
         <div css={styles.scheduleControls}>
-          <Tooltip title="Subtract 1 hour from deadline">
+          <Tooltip title="从截止时间减去1小时">
             <IconButton
               disabled={!deadlineMinusEnabled}
               size="small"
@@ -154,10 +154,10 @@ export const WorkspaceScheduleControls: FC<WorkspaceScheduleControlsProps> = ({
               }}
             >
               <RemoveIcon />
-              <span style={visuallyHidden}>Subtract 1 hour</span>
+              <span style={visuallyHidden}>减去1小时</span>
             </IconButton>
           </Tooltip>
-          <Tooltip title="Add 1 hour to deadline">
+          <Tooltip title="截止时间加1小时">
             <IconButton
               disabled={!deadlinePlusEnabled}
               size="small"
@@ -167,7 +167,7 @@ export const WorkspaceScheduleControls: FC<WorkspaceScheduleControlsProps> = ({
               }}
             >
               <AddIcon />
-              <span style={visuallyHidden}>Add 1 hour</span>
+              <span style={visuallyHidden}>增加1小时</span>
             </IconButton>
           </Tooltip>
         </div>

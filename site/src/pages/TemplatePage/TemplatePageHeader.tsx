@@ -107,7 +107,7 @@ const TemplateMenu: FC<TemplateMenuProps> = ({
           isOpen={dialogState.isDeleteDialogOpen}
           onConfirm={dialogState.confirmDelete}
           onCancel={dialogState.cancelDeleteConfirmation}
-          entity="template"
+          entity="模板"
           name={templateName}
         />
       ) : (

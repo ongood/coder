@@ -17,17 +17,17 @@ import { docs } from "utils/docs";
 const PRESET_FILTERS = [
   {
     query: "resource_type:workspace action:create",
-    name: "Created workspaces",
+    name: "已创建的工作区",
   },
-  { query: "resource_type:template action:create", name: "Added templates" },
-  { query: "resource_type:user action:delete", name: "Deleted users" },
+  { query: "resource_type:template action:create", name: "已添加的模板" },
+  { query: "resource_type:user action:delete", name: "已删除的用户" },
   {
     query: "resource_type:workspace_build action:start build_reason:initiator",
-    name: "Builds started by a user",
+    name: "由用户发起的构建",
   },
   {
     query: "resource_type:api_key action:login",
-    name: "User logins",
+    name: "用户登录记录",
   },
 ];
 
@@ -97,7 +97,7 @@ const ActionMenu = (menu: ActionFilterMenu) => {
         menu.selectedOption ? (
           <OptionItem option={menu.selectedOption} />
         ) : (
-          "All actions"
+          "所有动作"
         )
       }
     >
@@ -157,7 +157,7 @@ const ResourceTypeMenu = (menu: ResourceTypeFilterMenu) => {
         menu.selectedOption ? (
           <OptionItem option={menu.selectedOption} />
         ) : (
-          "All resource types"
+          "所有资源类型"
         )
       }
     >

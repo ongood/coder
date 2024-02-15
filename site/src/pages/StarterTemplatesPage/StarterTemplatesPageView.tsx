@@ -15,7 +15,7 @@ import type { StarterTemplatesByTag } from "utils/starterTemplates";
 
 const getTagLabel = (tag: string) => {
   const labelByTag: Record<string, string> = {
-    all: "All templates",
+    all: "所有模板",
     digitalocean: "DigitalOcean",
     aws: "AWS",
     google: "Google Cloud",
@@ -50,9 +50,9 @@ export const StarterTemplatesPageView: FC<StarterTemplatesPageViewProps> = ({
   return (
     <Margins>
       <PageHeader>
-        <PageHeaderTitle>Starter Templates</PageHeaderTitle>
+        <PageHeaderTitle>入门模板</PageHeaderTitle>
         <PageHeaderSubtitle>
-          Import a built-in template to start developing in the cloud
+          导入内置模板以在云中开始开发
         </PageHeaderSubtitle>
       </PageHeader>
 
@@ -65,7 +65,7 @@ export const StarterTemplatesPageView: FC<StarterTemplatesPageViewProps> = ({
           <Stack
             css={{ width: 208, flexShrink: 0, position: "sticky", top: 48 }}
           >
-            <span css={styles.filterCaption}>Filter</span>
+            <span css={styles.filterCaption}>筛选</span>
             {tags.map((tag) => (
               <Link
                 key={tag}

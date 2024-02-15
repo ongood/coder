@@ -323,7 +323,7 @@ export const CreateTemplateForm: FC<CreateTemplateFormProps> = (props) => {
       <FormFooter
         onCancel={onCancel}
         isLoading={isSubmitting}
-        submitLabel={jobError ? "Retry" : "创建模板"}
+        submitLabel={jobError ? "重试" : "创建模板"}
       />
     </HorizontalForm>
   );

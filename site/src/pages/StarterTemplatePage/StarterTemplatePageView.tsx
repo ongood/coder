@@ -52,7 +52,7 @@ export const StarterTemplatePageView: FC<StarterTemplatePageViewProps> = ({
               rel="noreferrer"
               startIcon={<ViewCodeIcon />}
             >
-              View source code
+              查看源代码
             </Button>
             <Button
               variant="contained"
@@ -60,7 +60,7 @@ export const StarterTemplatePageView: FC<StarterTemplatePageViewProps> = ({
               to={`/templates/new?exampleId=${starterTemplate.id}`}
               startIcon={<PlusIcon />}
             >
-              Use template
+              使用模板
             </Button>
           </>
         }

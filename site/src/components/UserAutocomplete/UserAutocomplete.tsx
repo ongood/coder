@@ -103,7 +103,7 @@ export const UserAutocomplete: FC<UserAutocompleteProps> = ({
           fullWidth
           size={size}
           label={label}
-          placeholder="User email or username"
+          placeholder="用户邮箱或用户名"
           css={{
             "&:not(:has(label))": {
               margin: 0,
