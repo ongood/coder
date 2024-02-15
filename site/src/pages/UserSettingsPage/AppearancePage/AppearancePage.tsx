@@ -19,7 +19,7 @@ export const AppearancePage: FC = () => {
       <Section
         title={
           <Stack direction="row" alignItems="center">
-            <span>Theme</span>
+            <span>主题</span>
             {updateAppearanceSettingsMutation.isLoading && (
               <CircularProgress size={16} />
             )}

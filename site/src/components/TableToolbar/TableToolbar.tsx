@@ -52,7 +52,7 @@ export const PaginationStatus: FC<PaginationStatusProps> = (props) => {
 
   return (
     <div>
-      Showing <strong>{showing}</strong> of{" "}
+      显示 <strong>{showing}</strong> 个，共{" "}
       <strong>{total?.toLocaleString()}</strong> {label}
     </div>
   );

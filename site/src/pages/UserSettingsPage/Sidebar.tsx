@@ -37,10 +37,10 @@ export const Sidebar: FC<SidebarProps> = ({ user }) => {
         账户
       </SidebarNavItem>
       <SidebarNavItem href="appearance" icon={AppearanceIcon}>
-        外观
+        主题
       </SidebarNavItem>
       <SidebarNavItem href="external-auth" icon={GitIcon}>
-        外部认证
+        外部验证
       </SidebarNavItem>
       {showSchedulePage && (
         <SidebarNavItem href="schedule" icon={ScheduleIcon}>

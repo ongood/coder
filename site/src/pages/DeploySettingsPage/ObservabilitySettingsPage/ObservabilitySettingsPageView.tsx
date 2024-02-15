@@ -24,7 +24,7 @@ export const ObservabilitySettingsPageView: FC<
     <>
       <Stack direction="column" spacing={6}>
         <div>
-          <Header title="可观察性" />
+          <Header title="可观测性" />
           <Header
             title="审计日志"
             secondary

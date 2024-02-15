@@ -81,7 +81,7 @@ export const UserMenu: FC<UserMenuProps> = ({ menu }) => {
         menu.selectedOption ? (
           <UserOptionItem option={menu.selectedOption} />
         ) : (
-          "All users"
+          "所有用户"
         )
       }
     >

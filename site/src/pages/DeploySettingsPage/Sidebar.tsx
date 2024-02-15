@@ -28,10 +28,10 @@ export const Sidebar: FC = () => {
         外观
       </SidebarNavItem>
       <SidebarNavItem href="userauth" icon={VpnKeyOutlined}>
-        用户认证
+        用户验证
       </SidebarNavItem>
       <SidebarNavItem href="external-auth" icon={GitIcon}>
-        外部认证
+        外部验证
       </SidebarNavItem>
       {/* Not exposing this yet since token exchange is not finished yet.
       <SidebarNavItem href="oauth2-provider/apps" icon={Token}>
@@ -47,7 +47,7 @@ export const Sidebar: FC = () => {
         安全
       </SidebarNavItem>
       <SidebarNavItem href="observability" icon={InsertChartIcon}>
-        可观察性
+        可观测性
       </SidebarNavItem>
       <SidebarNavItem href="/health" icon={MonitorHeartOutlined}>
         健康状态

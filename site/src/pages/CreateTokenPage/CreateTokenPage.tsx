@@ -69,7 +69,7 @@ export const CreateTokenPage: FC = () => {
 
   const tokenDescription = (
     <>
-      <p>Make sure you copy the below token before proceeding:</p>
+      <p>请确保在继续之前复制以下令牌:</p>
       <CodeExample
         secret={false}
         code={newToken?.key ?? ""}
@@ -90,12 +90,12 @@ export const CreateTokenPage: FC = () => {
   return (
     <>
       <Helmet>
-        <title>{pageTitle("Create Token")}</title>
+        <title>{pageTitle("创建令牌")}</title>
       </Helmet>
       {tokenFetchFailed && <ErrorAlert error={tokenFetchError} />}
       <FullPageHorizontalForm
-        title="Create Token"
-        detail="All tokens are unscoped and therefore have full resource access."
+        title="创建令牌"
+        detail="所有令牌都是无范围的，因此具有完全的资源访问权限。"
       >
         <CreateTokenForm
           form={form}
@@ -109,7 +109,7 @@ export const CreateTokenPage: FC = () => {
         <ConfirmDialog
           type="info"
           hideCancel
-          title="Creation successful"
+          title="创建成功"
           description={tokenDescription}
           open={creationSuccessful && Boolean(newToken.key)}
           confirmLoading={isCreating}

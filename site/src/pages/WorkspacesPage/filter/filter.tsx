@@ -35,23 +35,23 @@ type FilterPreset = {
 const PRESET_FILTERS: FilterPreset[] = [
   {
     query: workspaceFilterQuery.me,
-    name: "My workspaces",
+    name: "我的工作区",
   },
   {
     query: workspaceFilterQuery.all,
-    name: "All workspaces",
+    name: "所有工作区",
   },
   {
     query: workspaceFilterQuery.running,
-    name: "Running workspaces",
+    name: "运行中的工作区",
   },
   {
     query: workspaceFilterQuery.failed,
-    name: "Failed workspaces",
+    name: "失败的工作区",
   },
   {
     query: workspaceFilterQuery.outdated,
-    name: "Outdated workspaces",
+    name: "过期的工作区",
   },
 ];
 
@@ -60,7 +60,7 @@ const PRESETS_WITH_DORMANT: FilterPreset[] = [
   ...PRESET_FILTERS,
   {
     query: workspaceFilterQuery.dormant,
-    name: "Dormant workspaces",
+    name: "休眠的工作区",
   },
 ];
 
@@ -119,7 +119,7 @@ const TemplateMenu = (menu: TemplateFilterMenu) => {
         menu.selectedOption ? (
           <TemplateOptionItem option={menu.selectedOption} />
         ) : (
-          "All templates"
+          "所有模板"
         )
       }
     >
@@ -178,7 +178,7 @@ const StatusMenu = (menu: StatusFilterMenu) => {
         menu.selectedOption ? (
           <StatusOptionItem option={menu.selectedOption} />
         ) : (
-          "All statuses"
+          "所有状态"
         )
       }
     >

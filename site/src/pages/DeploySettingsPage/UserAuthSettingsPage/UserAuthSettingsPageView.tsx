@@ -27,7 +27,7 @@ export const UserAuthSettingsPageView = ({
     <>
       <Stack direction="column" spacing={6}>
         <div>
-          <Header title="用户认证" />
+          <Header title="用户验证" />
 
           <Header
             title="使用 OpenID 连接登录"

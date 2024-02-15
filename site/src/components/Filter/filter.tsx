@@ -238,7 +238,7 @@ export const Filter: FC<FilterProps> = ({
               InputProps={{
                 "aria-label": "Filter",
                 name: "query",
-                placeholder: "Search...",
+                placeholder: "搜索...",
                 value: queryCopy,
                 ref: textboxInputRef,
                 onChange: (e) => {

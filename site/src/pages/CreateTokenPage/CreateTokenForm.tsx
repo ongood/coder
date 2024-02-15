@@ -59,14 +59,14 @@ export const CreateTokenForm: FC<CreateTokenFormProps> = ({
   return (
     <HorizontalForm onSubmit={form.handleSubmit}>
       <FormSection
-        title="Name"
-        description="What is this token for?"
+        title="名称"
+        description="这个令牌是用来做什么的？"
         classes={{ sectionInfo: classNames.sectionInfo }}
       >
         <FormFields>
           <TextField
             {...getFieldHelpers("name")}
-            label="Name"
+            label="名称"
             required
             onChange={onChangeTrimmed(form, () => setFormError(undefined))}
             autoFocus
@@ -90,7 +90,7 @@ export const CreateTokenForm: FC<CreateTokenFormProps> = ({
           <Stack direction="row">
             <TextField
               select
-              label="Lifetime"
+              label="生命周期"
               required
               defaultValue={determineDefaultLtValue(maxTokenLifetime)}
               onChange={(event) => {
@@ -114,7 +114,7 @@ export const CreateTokenForm: FC<CreateTokenFormProps> = ({
             {lifetimeDays === "custom" && (
               <TextField
                 type="date"
-                label="Expires on"
+                label="到期时间"
                 defaultValue={dayjs().add(expDays, "day").format("YYYY-MM-DD")}
                 onChange={(event) => {
                   const lt = Math.ceil(

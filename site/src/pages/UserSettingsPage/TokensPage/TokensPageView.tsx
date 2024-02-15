@@ -54,10 +54,10 @@ export const TokensPageView: FC<TokensPageViewProps> = ({
           <TableHead>
             <TableRow>
               <TableCell width="20%">ID</TableCell>
-              <TableCell width="20%">Name</TableCell>
-              <TableCell width="20%">Last Used</TableCell>
-              <TableCell width="20%">Expires At</TableCell>
-              <TableCell width="20%">Created At</TableCell>
+              <TableCell width="20%">名称</TableCell>
+              <TableCell width="20%">上次使用时间</TableCell>
+              <TableCell width="20%">到期时间</TableCell>
+              <TableCell width="20%">创建时间</TableCell>
               <TableCell width="0%"></TableCell>
             </TableRow>
           </TableHead>
@@ -67,7 +67,7 @@ export const TokensPageView: FC<TokensPageViewProps> = ({
                 <TableLoader />
               </Cond>
               <Cond condition={hasLoaded && tokens?.length === 0}>
-                <TableEmpty message="No tokens found" />
+                <TableEmpty message="未找到令牌" />
               </Cond>
               <Cond>
                 {tokens?.map((token) => {

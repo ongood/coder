@@ -1811,7 +1811,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		{
 			// Env handling is done in cli.ReadGitAuthFromEnvironment
 			Name:        "External Auth Providers",
-			Description: "外部认证提供程序。",
+			Description: "外部验证提供程序。",
 			YAML:        "externalAuthProviders",
 			Flag:        "external-auth-providers",
 			Value:       &c.ExternalAuthConfigs,

@@ -70,7 +70,7 @@ export const WorkspacesButton: FC<WorkspacesButtonProps> = ({
         <SearchBox
           value={searchTerm}
           onValueChange={(newValue) => setSearchTerm(newValue)}
-          placeholder="Type/select a workspace template"
+          placeholder="输入或选择一个工作区模板"
           label="Template select for workspace"
           css={{ flexShrink: 0, columnGap: 12 }}
         />
