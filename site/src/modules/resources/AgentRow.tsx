@@ -451,7 +451,7 @@ export const AgentRow: FC<AgentRowProps> = ({
             onClick={() => setShowLogs((v) => !v)}
           >
             <DropdownArrow close={showLogs} margin={false} />
-            {showLogs ? "隐藏" : "显示"} 日志
+            {showLogs ? "隐藏" : "显示"}日志
           </button>
         </section>
       )}

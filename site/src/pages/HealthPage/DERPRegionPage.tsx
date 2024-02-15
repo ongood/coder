@@ -64,7 +64,7 @@ export const DERPRegionPage: FC = () => {
             <ArrowBackOutlined
               css={{ fontSize: 12, verticalAlign: "middle", marginRight: 8 }}
             />
-            Back to DERP
+            返回DERP
           </Link>
           <HeaderTitle>
             <HealthyDot severity={severity as HealthSeverity} />
