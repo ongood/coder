@@ -224,7 +224,7 @@ export const CreateWorkspacePageView: FC<CreateWorkspacePageViewProps> = ({
                   label="工作区名称"
                 />
                 <FormHelperText data-chromatic="ignore">
-                  需要建议吗？{" "}
+                  需要一些建议吗？为您提供了参考名称，点击可以自动填入：{" "}
                   <Button
                     variant="text"
                     css={styles.nameSuggestion}
