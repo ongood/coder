@@ -72,7 +72,7 @@ export const AuditPageView: FC<AuditPageViewProps> = ({
 
           <PaginationContainer
             query={paginationResult}
-            paginationUnitLabel="logs"
+            paginationUnitLabel="日志"
           >
             <TableContainer>
               <Table>
@@ -96,7 +96,7 @@ export const AuditPageView: FC<AuditPageViewProps> = ({
                         <Cond condition={isNonInitialPage}>
                           <TableRow>
                             <TableCell colSpan={999}>
-                              <EmptyState message="No audit logs available on this page" />
+                              <EmptyState message="此页面上没有可用的审计日志" />
                             </TableCell>
                           </TableRow>
                         </Cond>
@@ -104,7 +104,7 @@ export const AuditPageView: FC<AuditPageViewProps> = ({
                         <Cond>
                           <TableRow>
                             <TableCell colSpan={999}>
-                              <EmptyState message="No audit logs available" />
+                              <EmptyState message="没有可用的审计日志" />
                             </TableCell>
                           </TableRow>
                         </Cond>
@@ -131,8 +131,8 @@ export const AuditPageView: FC<AuditPageViewProps> = ({
 
         <Cond>
           <Paywall
-            message="Audit logs"
-            description="Audit logs allow you to monitor user operations on your deployment. You need an Enterprise license to use this feature."
+            message="审计日志"
+            description="审计日志允许您监控部署中的用户操作。您需要企业版许可证才能使用此功能。"
             documentationLink={docs("/admin/audit-logs")}
           />
         </Cond>

@@ -48,8 +48,8 @@ func (api *API) postGroupByOrganization(rw http.ResponseWriter, r *http.Request)
 
 	if req.Name == database.EveryoneGroup {
 		httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
-			Message:     "Invalid group name.",
-			Validations: []codersdk.ValidationError{{Field: "name", Detail: fmt.Sprintf("%q is a reserved group name", req.Name)}},
+			Message:     "无效的组名。",
+			Validations: []codersdk.ValidationError{{Field: "name", Detail: fmt.Sprintf("%q 是一个保留的组名。", req.Name)}},
 		})
 		return
 	}
@@ -64,8 +64,8 @@ func (api *API) postGroupByOrganization(rw http.ResponseWriter, r *http.Request)
 	})
 	if database.IsUniqueViolation(err) {
 		httpapi.Write(ctx, rw, http.StatusConflict, codersdk.Response{
-			Message:     fmt.Sprintf("A group named %q already exists.", req.Name),
-			Validations: []codersdk.ValidationError{{Field: "name", Detail: "Group names must be unique"}},
+			Message:     fmt.Sprintf("已经存在一个名为 %q 的组。", req.Name),
+			Validations: []codersdk.ValidationError{{Field: "name", Detail: "组名必须唯一"}},
 		})
 		return
 	}
@@ -117,21 +117,21 @@ func (api *API) patchGroup(rw http.ResponseWriter, r *http.Request) {
 
 	if group.IsEveryone() && req.Name != "" {
 		httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
-			Message: fmt.Sprintf("Cannot rename the %q group!", database.EveryoneGroup),
+			Message: fmt.Sprintf("无法重命名 %q 组！", database.EveryoneGroup),
 		})
 		return
 	}
 
 	if group.IsEveryone() && (req.DisplayName != nil && *req.DisplayName != "") {
 		httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
-			Message: fmt.Sprintf("Cannot update the Display Name for the %q group!", database.EveryoneGroup),
+			Message: fmt.Sprintf("无法更新 %q 组的显示名称！", database.EveryoneGroup),
 		})
 		return
 	}
 
 	if req.Name == database.EveryoneGroup {
 		httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
-			Message: fmt.Sprintf("%q is a reserved group name!", database.EveryoneGroup),
+			Message: fmt.Sprintf("%q 是一个保留的组名！", database.EveryoneGroup),
 		})
 		return
 	}
@@ -142,7 +142,7 @@ func (api *API) patchGroup(rw http.ResponseWriter, r *http.Request) {
 
 	if len(users) > 0 && group.Name == database.EveryoneGroup {
 		httpapi.Write(ctx, rw, http.StatusForbidden, codersdk.Response{
-			Message: fmt.Sprintf("Cannot add or remove users from the %q group!", database.EveryoneGroup),
+			Message: fmt.Sprintf("无法向 %q 组添加或删除用户！", database.EveryoneGroup),
 		})
 		return
 	}
@@ -157,7 +157,7 @@ func (api *API) patchGroup(rw http.ResponseWriter, r *http.Request) {
 	for _, id := range users {
 		if _, err := uuid.Parse(id); err != nil {
 			httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
-				Message: fmt.Sprintf("ID %q must be a valid user UUID.", id),
+				Message: fmt.Sprintf("ID %q 必须是有效的用户 UUID。", id),
 			})
 			return
 		}
@@ -169,7 +169,7 @@ func (api *API) patchGroup(rw http.ResponseWriter, r *http.Request) {
 		})
 		if xerrors.Is(err, sql.ErrNoRows) {
 			httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
-				Message: fmt.Sprintf("User %q must be a member of organization %q", id, group.ID),
+				Message: fmt.Sprintf("用户 %q 必须是组织 %q 的成员", id, group.ID),
 			})
 			return
 		}
@@ -186,7 +186,7 @@ func (api *API) patchGroup(rw http.ResponseWriter, r *http.Request) {
 		})
 		if err == nil {
 			httpapi.Write(ctx, rw, http.StatusConflict, codersdk.Response{
-				Message: fmt.Sprintf("A group with name %q already exists.", req.Name),
+				Message: fmt.Sprintf("名称为 %q 的组已存在。", req.Name),
 			})
 			return
 		}
@@ -235,7 +235,7 @@ func (api *API) patchGroup(rw http.ResponseWriter, r *http.Request) {
 				UserID:  userID,
 			})
 			if err != nil {
-				return xerrors.Errorf("insert group member %q: %w", id, err)
+				return xerrors.Errorf("插入组成员 %q: %w", id, err)
 			}
 		}
 		for _, id := range req.RemoveUsers {
@@ -248,7 +248,7 @@ func (api *API) patchGroup(rw http.ResponseWriter, r *http.Request) {
 				GroupID: group.ID,
 			})
 			if err != nil {
-				return xerrors.Errorf("insert group member %q: %w", id, err)
+				return xerrors.Errorf("插入组成员 %q: %w", id, err)
 			}
 		}
 		return nil
@@ -256,14 +256,14 @@ func (api *API) patchGroup(rw http.ResponseWriter, r *http.Request) {
 
 	if database.IsUniqueViolation(err) {
 		httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
-			Message: "Cannot add the same user to a group twice!",
+			Message: "无法将同一用户添加到组中两次！",
 			Detail:  err.Error(),
 		})
 		return
 	}
 	if httpapi.Is404Error(err) {
 		httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
-			Message: "Failed to add or remove non-existent group member",
+			Message: "无法添加或删除不存在的组成员",
 			Detail:  err.Error(),
 		})
 		return
@@ -308,7 +308,7 @@ func (api *API) deleteGroup(rw http.ResponseWriter, r *http.Request) {
 
 	if group.Name == database.EveryoneGroup {
 		httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
-			Message: fmt.Sprintf("%q is a reserved group and cannot be deleted!", database.EveryoneGroup),
+			Message: fmt.Sprintf("%q 是一个保留组，不能被删除！", database.EveryoneGroup),
 		})
 		return
 	}
@@ -328,7 +328,7 @@ func (api *API) deleteGroup(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	httpapi.Write(ctx, rw, http.StatusOK, codersdk.Response{
-		Message: "Successfully deleted group!",
+		Message: "成功删除组！",
 	})
 }
 
@@ -396,7 +396,7 @@ func (api *API) groups(rw http.ResponseWriter, r *http.Request) {
 	groups, err = coderd.AuthorizeFilter(api.AGPL.HTTPAuth, r, rbac.ActionRead, groups)
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: "Internal error fetching groups.",
+			Message: "获取组时发生内部错误。",
 			Detail:  err.Error(),
 		})
 		return

@@ -50,7 +50,7 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(
           ref={ref}
           tabIndex={-1}
           type="text"
-          placeholder="Search..."
+          placeholder="搜索..."
           css={{
             height: "100%",
             border: 0,

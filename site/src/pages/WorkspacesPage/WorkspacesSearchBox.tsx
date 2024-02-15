@@ -27,8 +27,8 @@ export const SearchBox = forwardRef(function SearchBox(
   const {
     onValueChange,
     onKeyDown,
-    label = "Search",
-    placeholder = "Search...",
+    label = "搜索",
+    placeholder = "搜索...",
     ...attrs
   } = props;
 

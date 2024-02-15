@@ -60,7 +60,7 @@ export const UsersPageView: FC<UsersPageViewProps> = ({
     <>
       <UsersFilter {...filterProps} />
 
-      <PaginationContainer query={usersQuery} paginationUnitLabel="users">
+      <PaginationContainer query={usersQuery} paginationUnitLabel="用户">
         <UsersTable
           users={users}
           roles={roles}

@@ -26,7 +26,7 @@ const meta: Meta<EssentialComponent> = {
   component: PaginationContainer,
   args: {
     paginationUnitLabel: "puppies",
-    children: <div>Put any content here</div>,
+    children: <div>在这里放置任何内容</div>,
   },
 };
 
@@ -100,7 +100,7 @@ export const TransitionFromFirstToSecondPage: Story = {
       hasNextPage: false,
       isPreviousData: true,
     },
-    children: <div>Previous data from page 1</div>,
+    children: <div>来自第一页的先前数据</div>,
   },
 };
 
@@ -117,6 +117,6 @@ export const SecondPageWithData: Story = {
       hasNextPage: true,
       isPreviousData: false,
     },
-    children: <div>New data for page 2</div>,
+    children: <div>第二页的新数据</div>,
   },
 };
