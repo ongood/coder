@@ -390,7 +390,7 @@ func (r *Runner) doCleanFinish(ctx context.Context) {
 		r.queueLog(ctx, &proto.Log{
 			Source:    proto.LogSource_PROVISIONER_DAEMON,
 			Level:     sdkproto.LogLevel_INFO,
-			Stage:     "Cleaning Up",
+			Stage:     "清理中",
 			CreatedAt: time.Now().UnixMilli(),
 		})
 		r.flushQueuedLogs(ctx)
@@ -407,7 +407,7 @@ func (r *Runner) do(ctx context.Context) (*proto.CompletedJob, *proto.FailedJob)
 	r.queueLog(ctx, &proto.Log{
 		Source:    proto.LogSource_PROVISIONER_DAEMON,
 		Level:     sdkproto.LogLevel_INFO,
-		Stage:     "Setting up",
+		Stage:     "设置中",
 		CreatedAt: time.Now().UnixMilli(),
 	})
 
@@ -904,13 +904,13 @@ func (r *Runner) runWorkspaceBuild(ctx context.Context) (*proto.CompletedJob, *p
 	)
 	switch r.job.GetWorkspaceBuild().Metadata.WorkspaceTransition {
 	case sdkproto.WorkspaceTransition_START:
-		applyStage = "Starting workspace"
+		applyStage = "正在启动工作区"
 		commitQuota = true
 	case sdkproto.WorkspaceTransition_STOP:
-		applyStage = "Stopping workspace"
+		applyStage = "正在停止工作区"
 		commitQuota = true
 	case sdkproto.WorkspaceTransition_DESTROY:
-		applyStage = "Destroying workspace"
+		applyStage = "正在销毁工作区"
 	}
 
 	failedJob := r.configure(&sdkproto.Config{
@@ -922,7 +922,7 @@ func (r *Runner) runWorkspaceBuild(ctx context.Context) (*proto.CompletedJob, *p
 		return nil, failedJob
 	}
 
-	resp, failed := r.buildWorkspace(ctx, "规划基础设施", &sdkproto.Request{
+	resp, failed := r.buildWorkspace(ctx, "Planning infrastructure", &sdkproto.Request{
 		Type: &sdkproto.Request_Plan{
 			Plan: &sdkproto.PlanRequest{
 				Metadata:              r.job.GetWorkspaceBuild().Metadata,

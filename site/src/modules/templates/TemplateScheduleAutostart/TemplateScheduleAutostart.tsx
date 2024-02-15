@@ -33,13 +33,13 @@ export const TemplateScheduleAutostart: FC<TemplateScheduleAutostartProps> = ({
       >
         {(
           [
-            { value: "monday", key: "Mon" },
-            { value: "tuesday", key: "Tue" },
-            { value: "wednesday", key: "Wed" },
-            { value: "thursday", key: "Thu" },
-            { value: "friday", key: "Fri" },
-            { value: "saturday", key: "Sat" },
-            { value: "sunday", key: "Sun" },
+            { value: "monday", key: "周一" },
+            { value: "tuesday", key: "周二" },
+            { value: "wednesday", key: "周三" },
+            { value: "thursday", key: "周四" },
+            { value: "friday", key: "周五" },
+            { value: "saturday", key: "周六" },
+            { value: "sunday", key: "周日" },
           ] as {
             value: TemplateAutostartRequirementDaysValue;
             key: string;

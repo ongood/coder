@@ -58,7 +58,7 @@ export const WorkspaceBuildPageView: FC<WorkspaceBuildPageViewProps> = ({
           </div>
         </Stack>
 
-        <Stats aria-label="构建细节" css={styles.stats}>
+        <Stats aria-label="Build details" css={styles.stats}>
           <StatsItem
             css={styles.statsItem}
             label="工作区"

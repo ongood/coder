@@ -74,7 +74,7 @@ export const PortForwardButton: FC<PortForwardButtonProps> = (props) => {
             )
           }
         >
-          打开的端口
+          开放端口
         </Button>
       </PopoverTrigger>
       <PopoverContent horizontal="right" classes={{ paper }}>
