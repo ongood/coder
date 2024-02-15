@@ -28,7 +28,7 @@ export const ObservabilitySettingsPageView: FC<
           <Header
             title="审计日志"
             secondary
-            description="允许审计人员监视您部署中的用户操作。"
+            description="允许审计人员监视用户操作。"
             docsHref={docs("/admin/audit-logs")}
           />
 

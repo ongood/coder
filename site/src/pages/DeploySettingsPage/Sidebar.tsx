@@ -41,10 +41,10 @@ export const Sidebar: FC = () => {
         网络
       </SidebarNavItem>
       <SidebarNavItem href="workspace-proxies" icon={HubOutlinedIcon}>
-        工作区代理
+        代理
       </SidebarNavItem>
       <SidebarNavItem href="security" icon={LockRounded}>
-        安全性
+        安全
       </SidebarNavItem>
       <SidebarNavItem href="observability" icon={InsertChartIcon}>
         可观察性

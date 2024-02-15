@@ -22,12 +22,12 @@ import { type ClassName, useClassName } from "hooks/useClassName";
 
 const roleDescriptions: Record<string, string> = {
   owner:
-    "Owner can manage all resources, including users, groups, templates, and workspaces.",
-  "user-admin": "User admin can manage all users and groups.",
-  "template-admin": "Template admin can manage all templates and workspaces.",
-  auditor: "Auditor can access the audit logs.",
+    "拥有者可以管理所有资源，包括用户、群组、模板和工作区。",
+  "user-admin": "用户管理员可以管理所有用户和群组。",
+  "template-admin": "模板管理员可以管理所有模板和工作区。",
+  auditor: "审计员可以访问审计日志。",
   member:
-    "Everybody is a member. This is a shared and default role for all users.",
+    "任何用户都是成员。这是所有用户的权利和默认角色。",
 };
 
 interface OptionProps {
@@ -106,9 +106,9 @@ export const EditRolesButton: FC<EditRolesButtonProps> = ({
       <HelpTooltip>
         <HelpTooltipTrigger size="small" />
         <HelpTooltipContent>
-          <HelpTooltipTitle>Externally controlled</HelpTooltipTitle>
+          <HelpTooltipTitle>外部控制</HelpTooltipTitle>
           <HelpTooltipText>
-            Roles for this user are controlled by the OIDC identity provider.
+            此用户的角色由 OIDC 身份提供者控制。
           </HelpTooltipText>
         </HelpTooltipContent>
       </HelpTooltip>
@@ -121,7 +121,7 @@ export const EditRolesButton: FC<EditRolesButtonProps> = ({
         <IconButton
           size="small"
           css={styles.editButton}
-          title="Edit user roles"
+          title="编辑用户角色"
         >
           <EditSquare />
         </IconButton>
@@ -131,7 +131,7 @@ export const EditRolesButton: FC<EditRolesButtonProps> = ({
         <fieldset
           css={styles.fieldset}
           disabled={isLoading}
-          title="Available roles"
+          title="可用角色"
         >
           <Stack css={styles.options} spacing={3}>
             {roles.map((role) => (
@@ -150,7 +150,7 @@ export const EditRolesButton: FC<EditRolesButtonProps> = ({
           <Stack direction="row" alignItems="flex-start">
             <UserIcon css={styles.userIcon} />
             <Stack spacing={0}>
-              <strong>Member</strong>
+              <strong>成员</strong>
               <span css={styles.optionDescription}>
                 {roleDescriptions.member}
               </span>

@@ -48,7 +48,7 @@ export const LicenseCard: FC<LicenseCardProps> = ({
         title="确认删除许可证"
         confirmLoading={isRemoving}
         confirmText="删除"
-        description="移除此许可证将禁用所有企业功能。您随时可以添加新的许可证。"
+        description="移除此许可证将禁用所有企业版功能。您随时可以添加新的许可证。"
       />
       <Stack
         direction="row"
@@ -71,9 +71,9 @@ export const LicenseCard: FC<LicenseCardProps> = ({
           }}
         >
           <Stack direction="column" spacing={0} alignItems="center">
-            <span css={styles.secondaryMaincolor}>Users</span>
+            <span css={styles.secondaryMaincolor}>用户数</span>
             <span css={styles.userLimit}>
-              {userLimitActual} {` / ${currentUserLimit || "Unlimited"}`}
+              {userLimitActual} {` / ${currentUserLimit || "无限"}`}
             </span>
           </Stack>
           <Stack
@@ -87,10 +87,10 @@ export const LicenseCard: FC<LicenseCardProps> = ({
               new Date(),
             ) < 1 ? (
               <Pill css={styles.expiredBadge} type="error">
-                Expired
+                已到期
               </Pill>
             ) : (
-              <span css={styles.secondaryMaincolor}>Valid Until</span>
+              <span css={styles.secondaryMaincolor}>有效期至</span>
             )}
             <span css={styles.licenseExpires}>
               {dayjs

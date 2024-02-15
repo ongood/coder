@@ -15,7 +15,7 @@ export const DefaultTTLHelperText = (props: { ttl?: number }) => {
 
   return (
     <span>
-      工作空间将在启动后默认在{ttl}小时后停止。
+      工作区默认将在启动后的{ttl}小时内停止。
     </span>
   );
 };
@@ -31,14 +31,14 @@ export const ActivityBumpHelperText = (props: { bump?: number }) => {
   if (bump === 0) {
     return (
       <span>
-        工作区不会根据用户活动自动延长其停止时间。用户仍然可以手动延迟停止时间。
+        工作区不会根据用户活动自动延长其运行时间。用户仍然可以手动延迟停止时间。
       </span>
     );
   }
 
   return (
     <span>
-      当检测到用户活动时，工作区将自动被推迟{bump}小时
+      当检测到用户活动时，工作区的到期关闭将自动推迟{bump}小时。
     </span>
   );
 };
