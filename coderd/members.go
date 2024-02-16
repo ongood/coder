@@ -38,7 +38,7 @@ func (api *API) putMemberRoles(rw http.ResponseWriter, r *http.Request) {
 
 	if apiKey.UserID == member.UserID {
 		httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
-			Message: "You cannot change your own organization roles.",
+			Message: "您无法更改自己的组织角色",
 		})
 		return
 	}

@@ -58,12 +58,12 @@ export const TemplateVersionPageView: FC<TemplateVersionPageViewProps> = ({
               component={RouterLink}
               to={`/templates/${templateName}/versions/${versionName}/edit`}
             >
-              Edit
+              编辑
             </Button>
           </>
         }
       >
-        <PageHeaderCaption>Version</PageHeaderCaption>
+        <PageHeaderCaption>版本</PageHeaderCaption>
         <PageHeaderTitle>{versionName}</PageHeaderTitle>
         {currentVersion &&
           currentVersion.message &&

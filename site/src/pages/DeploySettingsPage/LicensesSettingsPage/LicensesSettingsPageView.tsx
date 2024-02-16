@@ -108,10 +108,9 @@ const LicensesSettingsPageView: FC<Props> = ({
         <div css={styles.root}>
           <Stack alignItems="center" spacing={1}>
             <Stack alignItems="center" spacing={0.5}>
-              <span css={styles.title}>You don&apos;t have any licenses!</span>
+              <span css={styles.title}>您没有任何许可证！</span>
               <span css={styles.description}>
-                You&apos;re missing out on high availability, RBAC, quotas, and
-                much more. Contact{" "}
+                您错过了高可用性、RBAC、配额等很多功能。请联系{" "}
                 <MuiLink href="mailto:sales@coder.com">sales</MuiLink> or{" "}
                 <MuiLink href="https://coder.com/trial">
                  申请试用许可证

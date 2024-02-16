@@ -48,7 +48,7 @@ func (api *API) userDebugOIDC(rw http.ResponseWriter, r *http.Request) {
 
 	if user.LoginType != database.LoginTypeOIDC {
 		httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
-			Message: "User is not an OIDC user.",
+			Message: "不是 OIDC 用户。",
 		})
 		return
 	}
@@ -59,7 +59,7 @@ func (api *API) userDebugOIDC(rw http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: "Failed to get user links.",
+			Message: "无法获取用户链接。",
 			Detail:  err.Error(),
 		})
 		return
@@ -84,7 +84,7 @@ func (api *API) firstUser(rw http.ResponseWriter, r *http.Request) {
 	userCount, err := api.Database.GetUserCount(dbauthz.AsSystemRestricted(ctx))
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: "Internal error fetching user count.",
+			Message: "获取用户计数时发生内部错误。",
 			Detail:  err.Error(),
 		})
 		return
@@ -92,13 +92,13 @@ func (api *API) firstUser(rw http.ResponseWriter, r *http.Request) {
 
 	if userCount == 0 {
 		httpapi.Write(ctx, rw, http.StatusNotFound, codersdk.Response{
-			Message: "The initial user has not been created!",
+			Message: "初始用户尚未创建！",
 		})
 		return
 	}
 
 	httpapi.Write(ctx, rw, http.StatusOK, codersdk.Response{
-		Message: "The initial user has already been created!",
+		Message: "初始用户已创建！",
 	})
 }
 
@@ -125,7 +125,7 @@ func (api *API) postFirstUser(rw http.ResponseWriter, r *http.Request) {
 	userCount, err := api.Database.GetUserCount(dbauthz.AsSystemRestricted(ctx))
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: "Internal error fetching user count.",
+			Message: "获取用户数量时发生内部错误。",
 			Detail:  err.Error(),
 		})
 		return
@@ -134,7 +134,7 @@ func (api *API) postFirstUser(rw http.ResponseWriter, r *http.Request) {
 	// If a user already exists, the initial admin user no longer can be created.
 	if userCount != 0 {
 		httpapi.Write(ctx, rw, http.StatusConflict, codersdk.Response{
-			Message: "The initial user has already been created.",
+			Message: "初始用户已经创建。",
 		})
 		return
 	}
@@ -142,7 +142,7 @@ func (api *API) postFirstUser(rw http.ResponseWriter, r *http.Request) {
 	err = userpassword.Validate(createUser.Password)
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
-			Message: "Password not strong enough!",
+			Message: "密码强度不够！",
 			Validations: []codersdk.ValidationError{{
 				Field:  "password",
 				Detail: err.Error(),
@@ -164,7 +164,7 @@ func (api *API) postFirstUser(rw http.ResponseWriter, r *http.Request) {
 		})
 		if err != nil {
 			httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-				Message: "Failed to generate trial",
+				Message: "无法生成试用版",
 				Detail:  err.Error(),
 			})
 			return
@@ -185,7 +185,7 @@ func (api *API) postFirstUser(rw http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: "Internal error creating user.",
+			Message: "创建用户时出现内部错误。",
 			Detail:  err.Error(),
 		})
 		return
@@ -209,7 +209,7 @@ func (api *API) postFirstUser(rw http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: "Internal error updating user's roles.",
+			Message: "更新用户角色时发生内部错误。",
 			Detail:  err.Error(),
 		})
 		return
@@ -249,7 +249,7 @@ func (api *API) users(rw http.ResponseWriter, r *http.Request) {
 	}
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: "Internal error fetching user's organizations.",
+			Message: "获取用户组织时出现内部错误。",
 			Detail:  err.Error(),
 		})
 		return
@@ -272,7 +272,7 @@ func (api *API) GetUsers(rw http.ResponseWriter, r *http.Request) ([]database.Us
 	params, errs := searchquery.Users(query)
 	if len(errs) > 0 {
 		httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
-			Message:     "Invalid user search query.",
+			Message:     "无效的用户搜索查询。",
 			Validations: errs,
 		})
 		return nil, -1, false
@@ -295,7 +295,7 @@ func (api *API) GetUsers(rw http.ResponseWriter, r *http.Request) ([]database.Us
 	})
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: "Internal error fetching users.",
+			Message: "获取用户时出现内部错误。",
 			Detail:  err.Error(),
 		})
 		return nil, -1, false
@@ -349,7 +349,7 @@ func (api *API) postUser(rw http.ResponseWriter, r *http.Request) {
 
 	if req.UserLoginType != codersdk.LoginTypePassword && req.Password != "" {
 		httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
-			Message: fmt.Sprintf("Password cannot be set for non-password (%q) authentication.", req.UserLoginType),
+			Message: fmt.Sprintf("不能为非密码（%q）认证设置密码。", req.UserLoginType),
 		})
 		return
 	}
@@ -358,7 +358,7 @@ func (api *API) postUser(rw http.ResponseWriter, r *http.Request) {
 	// created with a password!
 	if api.DeploymentValues.DisablePasswordAuth && req.UserLoginType == codersdk.LoginTypePassword {
 		httpapi.Write(ctx, rw, http.StatusForbidden, codersdk.Response{
-			Message: "Password based authentication is disabled! Unable to provision new users with password authentication.",
+			Message: "基于密码的认证已禁用！无法为新用户提供密码认证。",
 		})
 		return
 	}
@@ -371,13 +371,13 @@ func (api *API) postUser(rw http.ResponseWriter, r *http.Request) {
 	})
 	if err == nil {
 		httpapi.Write(ctx, rw, http.StatusConflict, codersdk.Response{
-			Message: "User already exists.",
+			Message: "用户已存在。",
 		})
 		return
 	}
 	if !errors.Is(err, sql.ErrNoRows) {
 		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: "Internal error fetching user.",
+			Message: "获取用户时出现内部错误。",
 			Detail:  err.Error(),
 		})
 		return
@@ -395,7 +395,7 @@ func (api *API) postUser(rw http.ResponseWriter, r *http.Request) {
 			}
 
 			httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-				Message: "Internal error fetching organization.",
+				Message: "获取组织时出现内部错误。",
 				Detail:  err.Error(),
 			})
 			return
@@ -428,7 +428,7 @@ func (api *API) postUser(rw http.ResponseWriter, r *http.Request) {
 		err = userpassword.Validate(req.Password)
 		if err != nil {
 			httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
-				Message: "Password not strong enough!",
+				Message: "密码强度不够！",
 				Validations: []codersdk.ValidationError{{
 					Field:  "password",
 					Detail: err.Error(),
@@ -443,7 +443,7 @@ func (api *API) postUser(rw http.ResponseWriter, r *http.Request) {
 		loginType = database.LoginTypeGithub
 	default:
 		httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
-			Message: fmt.Sprintf("Unsupported login type %q for manually creating new users.", req.UserLoginType),
+			Message: fmt.Sprintf("手动创建新用户时不支持登录类型 %q。", req.UserLoginType),
 		})
 	}
 
@@ -453,13 +453,13 @@ func (api *API) postUser(rw http.ResponseWriter, r *http.Request) {
 	})
 	if dbauthz.IsNotAuthorizedError(err) {
 		httpapi.Write(ctx, rw, http.StatusForbidden, codersdk.Response{
-			Message: "You are not authorized to create users.",
+			Message: "您无权创建用户。",
 		})
 		return
 	}
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: "Internal error creating user.",
+			Message: "创建用户时发生内部错误。",
 			Detail:  err.Error(),
 		})
 		return
@@ -499,7 +499,7 @@ func (api *API) deleteUser(rw http.ResponseWriter, r *http.Request) {
 
 	if auth.Actor.ID == user.ID.String() {
 		httpapi.Write(ctx, rw, http.StatusForbidden, codersdk.Response{
-			Message: "You cannot delete yourself!",
+			Message: "你不能删除自己！",
 		})
 		return
 	}
@@ -509,14 +509,14 @@ func (api *API) deleteUser(rw http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: "Internal error fetching workspaces.",
+			Message: "获取工作区时发生内部错误。",
 			Detail:  err.Error(),
 		})
 		return
 	}
 	if len(workspaces) > 0 {
 		httpapi.Write(ctx, rw, http.StatusExpectationFailed, codersdk.Response{
-			Message: "You cannot delete a user that has workspaces. Delete their workspaces and try again!",
+			Message: "您无法删除拥有工作区的用户。删除他们的工作区并重试！",
 		})
 		return
 	}
@@ -531,7 +531,7 @@ func (api *API) deleteUser(rw http.ResponseWriter, r *http.Request) {
 	}
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: "Internal error deleting user.",
+			Message: "删除用户时发生内部错误。",
 			Detail:  err.Error(),
 		})
 		return
@@ -539,7 +539,7 @@ func (api *API) deleteUser(rw http.ResponseWriter, r *http.Request) {
 	user.Deleted = true
 	aReq.New = user
 	httpapi.Write(ctx, rw, http.StatusOK, codersdk.Response{
-		Message: "User has been deleted!",
+		Message: "用户已被删除！",
 	})
 }
 
@@ -560,7 +560,7 @@ func (api *API) userByName(rw http.ResponseWriter, r *http.Request) {
 	organizationIDs, err := userOrganizationIDs(ctx, api, user)
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: "Internal error fetching user's organizations.",
+			Message: "获取用户组织时发生内部错误。",
 			Detail:  err.Error(),
 		})
 		return
@@ -588,7 +588,7 @@ func (api *API) userAutofillParameters(rw http.ResponseWriter, r *http.Request) 
 	p.ErrorExcessParams(r.URL.Query())
 	if len(p.Errors) > 0 {
 		httpapi.Write(r.Context(), rw, http.StatusBadRequest, codersdk.Response{
-			Message:     "Invalid query parameters.",
+			Message:     "查询参数无效。",
 			Validations: p.Errors,
 		})
 		return
@@ -603,7 +603,7 @@ func (api *API) userAutofillParameters(rw http.ResponseWriter, r *http.Request) 
 	)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		httpapi.Write(r.Context(), rw, http.StatusInternalServerError, codersdk.Response{
-			Message: "Internal error fetching user's parameters.",
+			Message: "获取用户参数时发生内部错误。",
 			Detail:  err.Error(),
 		})
 		return
@@ -641,7 +641,7 @@ func (*API) userLoginType(rw http.ResponseWriter, r *http.Request) {
 	if key.UserID != user.ID {
 		// Currently this is only valid for querying yourself.
 		httpapi.Write(ctx, rw, http.StatusForbidden, codersdk.Response{
-			Message: "You are not authorized to view this user's login type.",
+			Message: "您无权查看此用户的登录类型。",
 		})
 		return
 	}
@@ -688,17 +688,17 @@ func (api *API) putUserProfile(rw http.ResponseWriter, r *http.Request) {
 	if err == nil && isDifferentUser {
 		responseErrors := []codersdk.ValidationError{{
 			Field:  "username",
-			Detail: "This username is already in use.",
+			Detail: "该用户名已被使用。",
 		}}
 		httpapi.Write(ctx, rw, http.StatusConflict, codersdk.Response{
-			Message:     "A user with this username already exists.",
+			Message:     "具有此用户名的用户已存在。",
 			Validations: responseErrors,
 		})
 		return
 	}
 	if !errors.Is(err, sql.ErrNoRows) && isDifferentUser {
 		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: "Internal error fetching user.",
+			Message: "获取用户时发生内部错误。",
 			Detail:  err.Error(),
 		})
 		return
@@ -716,7 +716,7 @@ func (api *API) putUserProfile(rw http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: "Internal error updating user.",
+			Message: "更新用户时发生内部错误。",
 			Detail:  err.Error(),
 		})
 		return
@@ -725,7 +725,7 @@ func (api *API) putUserProfile(rw http.ResponseWriter, r *http.Request) {
 	organizationIDs, err := userOrganizationIDs(ctx, api, user)
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: "Internal error fetching user's organizations.",
+			Message: "获取用户组织时发生内部错误。",
 			Detail:  err.Error(),
 		})
 		return
@@ -783,13 +783,13 @@ func (api *API) putUserStatus(status database.UserStatus) func(rw http.ResponseW
 				// Suspending yourself is not allowed, as you can lock yourself
 				// out of the system.
 				httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
-					Message: "You cannot suspend yourself.",
+					Message: "你不能暂停自己。",
 				})
 				return
 			case slice.Contains(user.RBACRoles, rbac.RoleOwner()):
 				// You may not suspend an owner
 				httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
-					Message: fmt.Sprintf("You cannot suspend a user with the %q role. You must remove the role first.", rbac.RoleOwner()),
+					Message: fmt.Sprintf("您无法暂停具有 %q 角色的用户。您必须先删除该角色。", rbac.RoleOwner()),
 				})
 				return
 			}
@@ -802,7 +802,7 @@ func (api *API) putUserStatus(status database.UserStatus) func(rw http.ResponseW
 		})
 		if err != nil {
 			httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-				Message: fmt.Sprintf("Internal error updating user's status to %q.", status),
+				Message: fmt.Sprintf("将用户的状态更新为 %q 时发生内部错误。", status),
 				Detail:  err.Error(),
 			})
 			return
@@ -812,7 +812,7 @@ func (api *API) putUserStatus(status database.UserStatus) func(rw http.ResponseW
 		organizations, err := userOrganizationIDs(ctx, api, user)
 		if err != nil {
 			httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-				Message: "Internal error fetching user's organizations.",
+				Message: "获取用户的组织时发生内部错误。",
 				Detail:  err.Error(),
 			})
 			return
@@ -850,7 +850,7 @@ func (api *API) putUserAppearanceSettings(rw http.ResponseWriter, r *http.Reques
 	})
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: "Internal error updating user.",
+			Message: "更新用户时发生内部错误。",
 			Detail:  err.Error(),
 		})
 		return
@@ -859,7 +859,7 @@ func (api *API) putUserAppearanceSettings(rw http.ResponseWriter, r *http.Reques
 	organizationIDs, err := userOrganizationIDs(ctx, api, user)
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: "Internal error fetching user's organizations.",
+			Message: "获取用户的组织时发生内部错误。",
 			Detail:  err.Error(),
 		})
 		return
@@ -899,7 +899,7 @@ func (api *API) putUserPassword(rw http.ResponseWriter, r *http.Request) {
 
 	if user.LoginType != database.LoginTypePassword {
 		httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
-			Message: "Users without password login type cannot change their password.",
+			Message: "没有密码登录类型的用户无法更改他们的密码。",
 		})
 		return
 	}
@@ -907,7 +907,7 @@ func (api *API) putUserPassword(rw http.ResponseWriter, r *http.Request) {
 	err := userpassword.Validate(params.Password)
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
-			Message: "Invalid password.",
+			Message: "密码无效。",
 			Validations: []codersdk.ValidationError{
 				{
 					Field:  "password",
@@ -924,18 +924,18 @@ func (api *API) putUserPassword(rw http.ResponseWriter, r *http.Request) {
 		ok, err := userpassword.Compare(string(user.HashedPassword), params.OldPassword)
 		if err != nil {
 			httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-				Message: "Internal error with passwords.",
+				Message: "密码发生内部错误。",
 				Detail:  err.Error(),
 			})
 			return
 		}
 		if !ok {
 			httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
-				Message: "Old password is incorrect.",
+				Message: "旧密码不正确。",
 				Validations: []codersdk.ValidationError{
 					{
 						Field:  "old_password",
-						Detail: "Old password is incorrect.",
+						Detail: "旧密码不正确。",
 					},
 				},
 			})
@@ -946,7 +946,7 @@ func (api *API) putUserPassword(rw http.ResponseWriter, r *http.Request) {
 	// Prevent users reusing their old password.
 	if match, _ := userpassword.Compare(string(user.HashedPassword), params.Password); match {
 		httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
-			Message: "New password cannot match old password.",
+			Message: "新密码不能与旧密码匹配。",
 		})
 		return
 	}
@@ -954,7 +954,7 @@ func (api *API) putUserPassword(rw http.ResponseWriter, r *http.Request) {
 	hashedPassword, err := userpassword.Hash(params.Password)
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: "Internal error hashing new password.",
+			Message: "散列新密码时发生内部错误。",
 			Detail:  err.Error(),
 		})
 		return
@@ -966,19 +966,19 @@ func (api *API) putUserPassword(rw http.ResponseWriter, r *http.Request) {
 			HashedPassword: []byte(hashedPassword),
 		})
 		if err != nil {
-			return xerrors.Errorf("update user hashed password: %w", err)
+			return xerrors.Errorf("更新用户散列密码时出错：%w", err)
 		}
 
 		err = tx.DeleteAPIKeysByUserID(ctx, user.ID)
 		if err != nil {
-			return xerrors.Errorf("delete api keys by user ID: %w", err)
+			return xerrors.Errorf("按用户ID删除API密钥时出错：%w", err)
 		}
 
 		return nil
 	}, nil)
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: "Internal error updating user's password.",
+			Message: "更新用户密码时发生内部错误。",
 			Detail:  err.Error(),
 		})
 		return
@@ -1016,7 +1016,7 @@ func (api *API) userRoles(rw http.ResponseWriter, r *http.Request) {
 	memberships, err := api.Database.GetOrganizationMembershipsByUserID(ctx, user.ID)
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: "Internal error fetching user's organization memberships.",
+			Message: "获取用户组织成员身份时出现内部错误。",
 			Detail:  err.Error(),
 		})
 		return
@@ -1061,15 +1061,15 @@ func (api *API) putUserRoles(rw http.ResponseWriter, r *http.Request) {
 
 	if user.LoginType == database.LoginTypeOIDC && api.OIDCConfig.RoleSyncEnabled() {
 		httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
-			Message: "Cannot modify roles for OIDC users when role sync is enabled.",
-			Detail:  "'User Role Field' is set in the OIDC configuration. All role changes must come from the oidc identity provider.",
+			Message: "当角色同步已启用时，无法修改 OIDC 用户的角色。",
+			Detail:  "在 OIDC 配置中设置了 'User Role Field'。所有角色更改必须来自 OIDC 身份提供者。",
 		})
 		return
 	}
 
 	if apiKey.UserID == user.ID {
 		httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
-			Message: "You cannot change your own roles.",
+			Message: "您无法更改自己的角色。",
 		})
 		return
 	}
@@ -1098,7 +1098,7 @@ func (api *API) putUserRoles(rw http.ResponseWriter, r *http.Request) {
 	organizationIDs, err := userOrganizationIDs(ctx, api, user)
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: "Internal error fetching user's organizations.",
+			Message: "获取用户组织时出现内部错误。",
 			Detail:  err.Error(),
 		})
 		return
@@ -1113,17 +1113,17 @@ func UpdateSiteUserRoles(ctx context.Context, db database.Store, args database.U
 	// Enforce only site wide roles.
 	for _, r := range args.GrantedRoles {
 		if _, ok := rbac.IsOrgRole(r); ok {
-			return database.User{}, xerrors.Errorf("Must only update site wide roles")
+			return database.User{}, xerrors.Errorf("必须仅更新站点范围的角色")
 		}
 
 		if _, err := rbac.RoleByName(r); err != nil {
-			return database.User{}, xerrors.Errorf("%q is not a supported role", r)
+			return database.User{}, xerrors.Errorf("%q 不是支持的角色", r)
 		}
 	}
 
 	updatedUser, err := db.UpdateUserRoles(ctx, args)
 	if err != nil {
-		return database.User{}, xerrors.Errorf("update site roles: %w", err)
+		return database.User{}, xerrors.Errorf("更新站点角色：%w", err)
 	}
 	return updatedUser, nil
 }
@@ -1149,7 +1149,7 @@ func (api *API) organizationsByUser(rw http.ResponseWriter, r *http.Request) {
 	}
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: "Internal error fetching user's organizations.",
+			Message: "获取用户的组织时发生内部错误。",
 			Detail:  err.Error(),
 		})
 		return
@@ -1159,7 +1159,7 @@ func (api *API) organizationsByUser(rw http.ResponseWriter, r *http.Request) {
 	organizations, err = AuthorizeFilter(api.HTTPAuth, r, rbac.ActionRead, organizations)
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: "Internal error fetching organizations.",
+			Message: "获取组织时发生内部错误。",
 			Detail:  err.Error(),
 		})
 		return
@@ -1192,7 +1192,7 @@ func (api *API) organizationByUserAndName(rw http.ResponseWriter, r *http.Reques
 	}
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: "Internal error fetching organization.",
+			Message: "获取组织时发生内部错误。",
 			Detail:  err.Error(),
 		})
 		return
@@ -1211,7 +1211,7 @@ func (api *API) CreateUser(ctx context.Context, store database.Store, req Create
 	// Ensure the username is valid. It's the caller's responsibility to ensure
 	// the username is valid and unique.
 	if usernameValid := httpapi.NameValid(req.Username); usernameValid != nil {
-		return database.User{}, uuid.Nil, xerrors.Errorf("invalid username %q: %w", req.Username, usernameValid)
+		return database.User{}, uuid.Nil, xerrors.Errorf("无效的用户名 %q: %w", req.Username, usernameValid)
 	}
 
 	var user database.User
@@ -1220,7 +1220,7 @@ func (api *API) CreateUser(ctx context.Context, store database.Store, req Create
 		// If no organization is provided, create a new one for the user.
 		if req.OrganizationID == uuid.Nil {
 			if !req.CreateOrganization {
-				return xerrors.Errorf("organization ID must be provided")
+				return xerrors.Errorf("必须提供组织 ID")
 			}
 
 			organization, err := tx.InsertOrganization(ctx, database.InsertOrganizationParams{
@@ -1231,7 +1231,7 @@ func (api *API) CreateUser(ctx context.Context, store database.Store, req Create
 				Description: "",
 			})
 			if err != nil {
-				return xerrors.Errorf("create organization: %w", err)
+				return xerrors.Errorf("创建组织: %w", err)
 			}
 			req.OrganizationID = organization.ID
 			// TODO: When organizations are allowed to be created, we should
@@ -1242,7 +1242,7 @@ func (api *API) CreateUser(ctx context.Context, store database.Store, req Create
 
 			_, err = tx.InsertAllUsersGroup(ctx, organization.ID)
 			if err != nil {
-				return xerrors.Errorf("create %q group: %w", database.EveryoneGroup, err)
+				return xerrors.Errorf("创建 %q 组失败: %w", database.EveryoneGroup, err)
 			}
 		}
 
@@ -1261,7 +1261,7 @@ func (api *API) CreateUser(ctx context.Context, store database.Store, req Create
 		if req.Password != "" {
 			hashedPassword, err := userpassword.Hash(req.Password)
 			if err != nil {
-				return xerrors.Errorf("hash password: %w", err)
+				return xerrors.Errorf("散列密码: %w", err)
 			}
 			params.HashedPassword = []byte(hashedPassword)
 		}
@@ -1269,12 +1269,12 @@ func (api *API) CreateUser(ctx context.Context, store database.Store, req Create
 		var err error
 		user, err = tx.InsertUser(ctx, params)
 		if err != nil {
-			return xerrors.Errorf("create user: %w", err)
+			return xerrors.Errorf("创建用户: %w", err)
 		}
 
 		privateKey, publicKey, err := gitsshkey.Generate(api.SSHKeygenAlgorithm)
 		if err != nil {
-			return xerrors.Errorf("generate user gitsshkey: %w", err)
+			return xerrors.Errorf("生成用户的 gitsshkey: %w", err)
 		}
 		_, err = tx.InsertGitSSHKey(ctx, database.InsertGitSSHKeyParams{
 			UserID:     user.ID,
@@ -1284,7 +1284,7 @@ func (api *API) CreateUser(ctx context.Context, store database.Store, req Create
 			PublicKey:  publicKey,
 		})
 		if err != nil {
-			return xerrors.Errorf("insert user gitsshkey: %w", err)
+			return xerrors.Errorf("插入用户的 gitsshkey: %w", err)
 		}
 		_, err = tx.InsertOrganizationMember(ctx, database.InsertOrganizationMemberParams{
 			OrganizationID: req.OrganizationID,
@@ -1295,7 +1295,7 @@ func (api *API) CreateUser(ctx context.Context, store database.Store, req Create
 			Roles: orgRoles,
 		})
 		if err != nil {
-			return xerrors.Errorf("create organization member: %w", err)
+			return xerrors.Errorf("创建组织成员: %w", err)
 		}
 		return nil
 	}, nil)
@@ -1316,7 +1316,7 @@ func userOrganizationIDs(ctx context.Context, api *API, user database.User) ([]u
 		return []uuid.UUID{}, err
 	}
 	if len(organizationIDsByMemberIDsRows) == 0 {
-		return []uuid.UUID{}, xerrors.Errorf("user %q must be a member of at least one organization", user.Email)
+		return []uuid.UUID{}, xerrors.Errorf("user %q 必须至少是一个组织的成员", user.Email)
 	}
 	member := organizationIDsByMemberIDsRows[0]
 	return member.OrganizationIDs, nil
