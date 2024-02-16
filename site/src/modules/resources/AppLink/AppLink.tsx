@@ -90,7 +90,7 @@ export const AppLink: FC<AppLinkProps> = ({ app, workspace, agent }) => {
   }
   if (app.health === "unhealthy") {
     icon = <ErrorOutlineIcon css={{ color: theme.palette.warning.light }} />;
-    primaryTooltip = "Unhealthy";
+    primaryTooltip = "亚健康";
   }
   if (!appsHost && app.subdomain) {
     canClick = false;
@@ -102,7 +102,7 @@ export const AppLink: FC<AppLinkProps> = ({ app, workspace, agent }) => {
       />
     );
     primaryTooltip =
-      "Your admin has not configured subdomain application access";
+      "您的管理员尚未配置子域应用程序访问权限";
   }
   if (fetchingSessionToken) {
     canClick = false;

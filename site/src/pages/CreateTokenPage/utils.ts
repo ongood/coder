@@ -12,25 +12,25 @@ export interface LifetimeDay {
 
 export const lifetimeDayPresets: LifetimeDay[] = [
   {
-    label: "7 days",
+    label: "7天",
     value: 7,
   },
   {
-    label: "30 days",
+    label: "30天",
     value: 30,
   },
   {
-    label: "60 days",
+    label: "60天",
     value: 60,
   },
   {
-    label: "90 days",
+    label: "90天",
     value: 90,
   },
 ];
 
 export const customLifetimeDay: LifetimeDay = {
-  label: "Custom",
+  label: "自定义",
   value: "custom",
 };
 

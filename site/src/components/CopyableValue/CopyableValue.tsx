@@ -21,7 +21,7 @@ export const CopyableValue: FC<CopyableValueProps> = ({
 
   return (
     <Tooltip
-      title={isCopied ? "Copied!" : "Click to copy"}
+      title={isCopied ? "已复制！" : "点击复制"}
       placement={placement}
       PopperProps={PopperProps}
     >

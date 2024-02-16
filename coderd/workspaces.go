@@ -707,7 +707,7 @@ func (api *API) patchWorkspace(rw http.ResponseWriter, r *http.Request) {
 			return
 		}
 		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: "更新工作空间时发生内部错误。",
+			Message: "更新工作区时发生内部错误。",
 			Detail:  err.Error(),
 		})
 		return

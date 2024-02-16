@@ -13,9 +13,9 @@ export const WorkspacesEmpty = (props: {
   const { isUsingFilter, templates, canCreateTemplate } = props;
   const totalFeaturedTemplates = 6;
   const featuredTemplates = templates?.slice(0, totalFeaturedTemplates);
-  const defaultTitle = "Create a workspace";
+  const defaultTitle = "创建一个工作区";
   const defaultMessage =
-    "A workspace is your personal, customizable development environment.";
+    "一个工作区是您个人的、可定制的开发环境。";
   const defaultImage = (
     <div
       css={{
@@ -35,14 +35,14 @@ export const WorkspacesEmpty = (props: {
   );
 
   if (isUsingFilter) {
-    return <TableEmpty message="No results matched your search" />;
+    return <TableEmpty message="没有与您的搜索匹配的结果" />;
   }
 
   if (templates && templates.length === 0 && canCreateTemplate) {
     return (
       <TableEmpty
         message={defaultTitle}
-        description={`${defaultMessage} To create a workspace, you first need to create a template.`}
+        description={`${defaultMessage} 要创建工作区，您首先需要创建一个模板。`}
         cta={
           <Button
             component={Link}
@@ -65,7 +65,7 @@ export const WorkspacesEmpty = (props: {
     return (
       <TableEmpty
         message={defaultTitle}
-        description={`${defaultMessage} There are no templates available, but you will see them here once your admin adds them.`}
+        description={`${defaultMessage} 目前没有可用的模板，但一旦管理员添加了模板，您就会在这里看到它们。`}
         css={{
           paddingBottom: 0,
         }}
@@ -77,7 +77,7 @@ export const WorkspacesEmpty = (props: {
   return (
     <TableEmpty
       message={defaultTitle}
-      description={`${defaultMessage} Select one template below to start.`}
+      description={`${defaultMessage} 选择下面的一个模板开始。`}
       cta={
         <div>
           <div

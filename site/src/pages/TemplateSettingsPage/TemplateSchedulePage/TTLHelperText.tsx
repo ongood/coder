@@ -10,7 +10,7 @@ export const DefaultTTLHelperText = (props: { ttl?: number }) => {
   }
 
   if (ttl === 0) {
-    return <span>工作空间将一直运行，直到手动停止。</span>;
+    return <span>工作区将一直运行，直到手动停止。</span>;
   }
 
   return (

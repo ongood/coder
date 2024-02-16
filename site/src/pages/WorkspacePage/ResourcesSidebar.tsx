@@ -22,7 +22,7 @@ export const ResourcesSidebar = (props: ResourcesSidebarProps) => {
 
   return (
     <Sidebar>
-      <SidebarCaption>Resources</SidebarCaption>
+      <SidebarCaption>资源</SidebarCaption>
       {failed && (
         <p
           css={{
@@ -33,8 +33,7 @@ export const ResourcesSidebar = (props: ResourcesSidebarProps) => {
             lineHeight: "1.5",
           }}
         >
-          Your workspace build failed, so the necessary resources couldn&apos;t
-          be created.
+          工作区构建失败，因此无法创建必要的资源。
         </p>
       )}
       {resources.length === 0 &&

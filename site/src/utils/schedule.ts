@@ -143,7 +143,7 @@ export function getMaxDeadline(ws: Workspace | undefined): dayjs.Dayjs {
   // note: we count runtime from updated_at as started_at counts from the start of
   // the workspace build process, which can take a while.
   if (ws === undefined) {
-    throw Error("无法计算最大截止日期，因为工作空间未定义");
+    throw Error("无法计算最大截止日期，因为工作区未定义");
   }
   const startedAt = dayjs(ws.latest_build.updated_at);
   return startedAt.add(deadlineExtensionMax);

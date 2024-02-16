@@ -257,7 +257,7 @@ const ProxyMenu: FC<ProxyMenuProps> = ({ proxyContextValue }) => {
         }}
       >
         <span css={{ ...visuallyHidden }}>
-          Latency for {selectedProxy?.display_name ?? "your region"}
+          延迟为 {selectedProxy?.display_name ?? "你的地区"}
         </span>
 
         {selectedProxy ? (
@@ -282,7 +282,7 @@ const ProxyMenu: FC<ProxyMenuProps> = ({ proxyContextValue }) => {
             />
           </div>
         ) : (
-          "Select Proxy"
+          "选择代理"
         )}
       </Button>
 
@@ -352,7 +352,7 @@ const ProxyMenu: FC<ProxyMenuProps> = ({ proxyContextValue }) => {
               css={{ fontSize: 14 }}
               onClick={() => {
                 if (!proxy.healthy) {
-                  displayError("Please select a healthy workspace proxy.");
+                  displayError("请选择一个健康的工作区代理。");
                   closeMenu();
                   return;
                 }

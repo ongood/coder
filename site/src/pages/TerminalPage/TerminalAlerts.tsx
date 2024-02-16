@@ -31,12 +31,12 @@ export const ErrorScriptAlert: FC = () => {
       </Link>{" "}
       because{" "}
       <Link
-        title="您的工作空间可能不完整。"
+        title="您的工作区可能不完整。"
         href={docs("/templates#your-workspace-may-be-incomplete")}
         target="_blank"
         rel="noreferrer"
       >
-        您的工作空间可能不完整。
+        您的工作区可能不完整。
       </Link>{" "}
     </TerminalAlert>
   );

@@ -45,7 +45,7 @@ export const PaginationHeader: FC<PaginationHeaderProps> = ({
            * Have to put text content in divs so that flexbox doesn't scramble
            * the inner text nodes up
            */}
-          {totalRecords === 0 && <div>No records available</div>}
+          {totalRecords === 0 && <div>没有可用记录</div>}
 
           {totalRecords !== 0 && currentOffsetStart !== undefined && (
             <div>

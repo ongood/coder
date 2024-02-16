@@ -293,7 +293,7 @@ export const DeploymentBannerView: FC<DeploymentBannerViewProps> = ({
           gap: 16,
         }}
       >
-        <Tooltip title="上次统计数据聚合时间。工作空间定期报告统计数据，因此更新可能需要一段时间！">
+        <Tooltip title="上次统计数据聚合时间。工作区定期报告统计数据，因此更新可能需要一段时间！">
           <div css={styles.value}>
             <CollectedIcon />
             {lastAggregated}
