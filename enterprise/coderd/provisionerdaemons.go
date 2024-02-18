@@ -45,7 +45,7 @@ func (api *API) provisionerDaemonsEnabledMW(next http.Handler) http.Handler {
 
 		if !epd {
 			httpapi.Write(r.Context(), rw, http.StatusForbidden, codersdk.Response{
-				Message: "External provisioner daemons is an Enterprise feature. Contact sales!",
+				Message: "外部配置管理器守护程序是企业版功能。请联系销售部门！",
 			})
 			return
 		}
@@ -70,7 +70,7 @@ func (api *API) provisionerDaemons(rw http.ResponseWriter, r *http.Request) {
 	}
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: "Internal error fetching provisioner daemons.",
+			Message: "获取配置管理器守护程序时发生内部错误。",
 			Detail:  err.Error(),
 		})
 		return
@@ -81,7 +81,7 @@ func (api *API) provisionerDaemons(rw http.ResponseWriter, r *http.Request) {
 	daemons, err = coderd.AuthorizeFilter(api.AGPL.HTTPAuth, r, rbac.ActionRead, daemons)
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: "Internal error fetching provisioner daemons.",
+			Message: "获取配置管理器守护程序时发生内部错误。",
 			Detail:  err.Error(),
 		})
 		return
@@ -147,7 +147,7 @@ func (api *API) provisionerDaemonServe(rw http.ResponseWriter, r *http.Request) 
 			parts := strings.SplitN(tag, "=", 2)
 			if len(parts) < 2 {
 				httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
-					Message: fmt.Sprintf("Invalid format for tag %q. Key and value must be separated with =.", tag),
+					Message: fmt.Sprintf("标签 %q 的格式无效。键和值必须用 = 分隔。", tag),
 				})
 				return
 			}
@@ -156,7 +156,7 @@ func (api *API) provisionerDaemonServe(rw http.ResponseWriter, r *http.Request) 
 	}
 	if !r.URL.Query().Has("provisioner") {
 		httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
-			Message: "The provisioner query parameter must be specified.",
+			Message: "必须指定 provisioner 查询参数。",
 		})
 		return
 	}
@@ -193,7 +193,7 @@ func (api *API) provisionerDaemonServe(rw http.ResponseWriter, r *http.Request) 
 		api.Logger.Warn(ctx, "unauthorized provisioner daemon serve request", slog.F("tags", tags))
 		httpapi.Write(ctx, rw, http.StatusForbidden,
 			codersdk.Response{
-				Message: fmt.Sprintf("You aren't allowed to create provisioner daemons with scope %q", tags[provisionersdk.TagScope]),
+				Message: fmt.Sprintf("您不被允许创建具有范围 %q 的配置管理器守护程序。", tags[provisionersdk.TagScope]),
 			},
 		)
 		return
@@ -201,7 +201,7 @@ func (api *API) provisionerDaemonServe(rw http.ResponseWriter, r *http.Request) 
 	api.Logger.Debug(ctx, "provisioner authorized", slog.F("tags", tags))
 	if err := provisionerdserver.Tags(tags).Valid(); err != nil {
 		httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
-			Message: "Given tags are not acceptable to the service",
+			Message: "给定的标签不被服务所接受",
 			Validations: []codersdk.ValidationError{
 				{Field: "tags", Detail: err.Error()},
 			},
@@ -241,7 +241,7 @@ func (api *API) provisionerDaemonServe(rw http.ResponseWriter, r *http.Request) 
 
 	if err := provisionersdk.VersionCurrent.Validate(apiVersion); err != nil {
 		httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
-			Message: "Incompatible or unparsable version",
+			Message: "不兼容或无法解析的版本",
 			Validations: []codersdk.ValidationError{
 				{Field: "version", Detail: err.Error()},
 			},
@@ -264,7 +264,7 @@ func (api *API) provisionerDaemonServe(rw http.ResponseWriter, r *http.Request) 
 		if !xerrors.Is(err, context.Canceled) {
 			log.Error(ctx, "create provisioner daemon", slog.Error(err))
 			httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-				Message: "Internal error creating provisioner daemon.",
+				Message: "创建配置管理器守护程序时出现内部错误。",
 				Detail:  err.Error(),
 			})
 		}
@@ -292,7 +292,7 @@ func (api *API) provisionerDaemonServe(rw http.ResponseWriter, r *http.Request) 
 			log.Error(ctx, "accept provisioner websocket conn", slog.Error(err))
 		}
 		httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
-			Message: "Internal error accepting websocket connection.",
+			Message: "接受 websocket 连接时发生内部错误。",
 			Detail:  err.Error(),
 		})
 		return

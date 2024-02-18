@@ -42,7 +42,7 @@ docker run --rm -it \
   -e CODER_PG_CONNECTION_URL="postgresql://username:password@database/coder" \
   -v /var/run/docker.sock:/var/run/docker.sock \
   --group-add $DOCKER_GROUP \
-  ghcr.io/coder/coder:latest
+  ghcr.io/ongood/coder:latest
 ```
 
 ## docker compose
