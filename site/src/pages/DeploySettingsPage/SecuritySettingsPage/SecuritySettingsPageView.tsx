@@ -65,7 +65,7 @@ export const SecuritySettingsPageView: FC<SecuritySettingsPageViewProps> = ({
           <Header
             title="TLS"
             secondary
-            description="Ensure TLS is properly configured for your Coder deployment."
+            description="确保为您的 Coder 部署正确配置了 TLS。"
           />
 
           <OptionsTable options={tlsOptions} />

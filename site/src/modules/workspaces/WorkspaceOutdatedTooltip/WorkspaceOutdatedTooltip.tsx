@@ -67,7 +67,7 @@ export const WorkspaceOutdatedTooltipContent: FC<TooltipProps> = ({
 
       <div css={styles.container}>
         <div css={{ lineHeight: "1.6" }}>
-          <div css={styles.bold}>New version</div>
+          <div css={styles.bold}>新版本</div>
           <div>
             {activeVersion ? (
               <Link
@@ -84,11 +84,11 @@ export const WorkspaceOutdatedTooltipContent: FC<TooltipProps> = ({
         </div>
 
         <div css={{ lineHeight: "1.6" }}>
-          <div css={styles.bold}>Message</div>
+          <div css={styles.bold}>消息</div>
           <div>
             {activeVersion ? (
               activeVersion.message === "" ? (
-                "No message"
+                "没有消息"
               ) : (
                 activeVersion.message
               )

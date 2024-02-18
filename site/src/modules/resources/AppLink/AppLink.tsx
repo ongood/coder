@@ -86,7 +86,7 @@ export const AppLink: FC<AppLinkProps> = ({ app, workspace, agent }) => {
         <CircularProgress size={14} />
       </span>
     );
-    primaryTooltip = "Initializing...";
+    primaryTooltip = "初始化中...";
   }
   if (app.health === "unhealthy") {
     icon = <ErrorOutlineIcon css={{ color: theme.palette.warning.light }} />;

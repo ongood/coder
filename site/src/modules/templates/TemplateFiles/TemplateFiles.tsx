@@ -130,7 +130,7 @@ export const TemplateFiles: FC<TemplateFilesProps> = ({
                         }}
                       >
                         <EditOutlined css={{ fontSize: "inherit" }} />
-                        Edit
+                        编辑
                       </Link>
                     </div>
                   </header>

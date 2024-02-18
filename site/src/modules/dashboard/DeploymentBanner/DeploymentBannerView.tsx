@@ -264,7 +264,7 @@ export const DeploymentBannerView: FC<DeploymentBannerViewProps> = ({
             </div>
           </Tooltip>
           <ValueSeparator />
-          <Tooltip title="SSH Sessions">
+          <Tooltip title="SSH 会话">
             <div css={styles.value}>
               <TerminalIcon />
               {typeof stats?.session_count.ssh === "undefined"
@@ -273,7 +273,7 @@ export const DeploymentBannerView: FC<DeploymentBannerViewProps> = ({
             </div>
           </Tooltip>
           <ValueSeparator />
-          <Tooltip title="Web Terminal Sessions">
+          <Tooltip title="Web 终端会话">
             <div css={styles.value}>
               <WebTerminalIcon />
               {typeof stats?.session_count.reconnecting_pty === "undefined"

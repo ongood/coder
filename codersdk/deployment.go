@@ -509,7 +509,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		}
 		deploymentGroupOAuth2 = clibase.Group{
 			Name:        "OAuth2",
-			Description: "Configure login and user-provisioning with GitHub via oAuth2.",
+			Description: "使用 OAuth2 配置 GitHub 登录和用户配置。",
 			YAML:        "oauth2",
 		}
 		deploymentGroupOAuth2GitHub = clibase.Group{
@@ -533,7 +533,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		}
 		deploymentGroupUserQuietHoursSchedule = clibase.Group{
 			Name:        "User Quiet Hours Schedule",
-			Description: "Allow users to set quiet hours schedules each day for workspaces to avoid workspaces stopping during the day due to template max TTL.",
+			Description: "允许用户为工作区设置每天的静默时段计划，以避免因为模板最大生存时间而在白天停止工作区。",
 			YAML:        "userQuietHoursSchedule",
 		}
 		deploymentGroupDangerous = clibase.Group{
@@ -564,7 +564,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 	}
 	tlsBindAddress := clibase.Option{
 		Name:        "TLS Address",
-		Description: "HTTPS bind address of the server.",
+		Description: "服务器的 HTTPS 绑定地址。",
 		Flag:        "tls-address",
 		Env:         "CODER_TLS_ADDRESS",
 		Default:     "127.0.0.1:3443",
@@ -584,7 +584,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 	}
 	logFilter := clibase.Option{
 		Name:          "Log Filter",
-		Description:   "Filter debug logs by matching against a given regex. Use .* to match all debug logs.",
+		Description:   "通过匹配给定的正则表达式来过滤调试日志。 使用 .* 匹配所有调试日志。",
 		Flag:          "log-filter",
 		FlagShorthand: "l",
 		Env:           "CODER_LOG_FILTER",
@@ -627,7 +627,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "Docs URL",
-			Description: "Specifies the custom docs URL.",
+			Description: "指定自定义文档 URL。",
 			Value:       &c.DocsURL,
 			Flag:        "docs-url",
 			Env:         "CODER_DOCS_URL",
@@ -649,7 +649,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "Job Hang Detector Interval",
-			Description: "Interval to poll for hung jobs and automatically terminate them.",
+			Description: "轮询挂起作业并自动终止它们的时间间隔。",
 			Flag:        "job-hang-detector-interval",
 			Env:         "CODER_JOB_HANG_DETECTOR_INTERVAL",
 			Hidden:      true,
@@ -773,7 +773,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "TLS Ciphers",
-			Description: "Specify specific TLS ciphers that allowed to be used. See https://github.com/golang/go/blob/master/src/crypto/tls/cipher_suites.go#L53-L75.",
+			Description: "指定允许使用的特定 TLS 密码。请参阅 https://github.com/golang/go/blob/master/src/crypto/tls/cipher_suites.go#L53-L75.",
 			Flag:        "tls-ciphers",
 			Env:         "CODER_TLS_CIPHERS",
 			Default:     "",
@@ -784,7 +784,7 @@ func (c *DeploymentValues) Options() clibase.OptionSet {
 		},
 		{
 			Name:        "TLS Allow Insecure Ciphers",
-			Description: "By default, only ciphers marked as 'secure' are allowed to be used. See https://github.com/golang/go/blob/master/src/crypto/tls/cipher_suites.go#L82-L95.",
+			Description: "默认情况下，只允许使用标记为“安全”的密码。请参阅 https://github.com/golang/go/blob/master/src/crypto/tls/cipher_suites.go#L82-L95.",
 			Flag:        "tls-allow-insecure-ciphers",
 			Env:         "CODER_TLS_ALLOW_INSECURE_CIPHERS",
 			Default:     "false",

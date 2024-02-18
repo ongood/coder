@@ -32,7 +32,7 @@ export const useWorkspaceBuildLogs = (
         });
       },
       onError: () => {
-        displayError("Error on getting the build logs");
+        displayError("获取构建日志出错");
       },
     });
 
