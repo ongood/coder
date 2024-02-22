@@ -4,7 +4,7 @@
 
 // From codersdk/templates.go
 export interface ACLAvailable {
-  readonly users: User[];
+  readonly users: ReducedUser[];
   readonly groups: Group[];
 }
 
@@ -581,7 +581,7 @@ export interface Group {
   readonly name: string;
   readonly display_name: string;
   readonly organization_id: string;
-  readonly members: User[];
+  readonly members: ReducedUser[];
   readonly avatar_url: string;
   readonly quota_allowance: number;
   readonly source: GroupSource;
@@ -705,6 +705,11 @@ export interface OAuth2ProviderApp {
   readonly callback_url: string;
   readonly icon: string;
   readonly endpoints: OAuth2AppEndpoints;
+}
+
+// From codersdk/oauth2.go
+export interface OAuth2ProviderAppFilter {
+  readonly user_id?: string;
 }
 
 // From codersdk/oauth2.go
@@ -904,6 +909,17 @@ export interface PutOAuth2ProviderAppRequest {
 export interface RateLimitConfig {
   readonly disable_all: boolean;
   readonly api: number;
+}
+
+// From codersdk/users.go
+export interface ReducedUser extends MinimalUser {
+  readonly name: string;
+  readonly email: string;
+  readonly created_at: string;
+  readonly last_seen_at: string;
+  readonly status: UserStatus;
+  readonly login_type: LoginType;
+  readonly theme_preference: string;
 }
 
 // From codersdk/workspaceproxy.go
@@ -1182,6 +1198,7 @@ export interface TemplateVersionExternalAuth {
   readonly display_icon: string;
   readonly authenticate_url: string;
   readonly authenticated: boolean;
+  readonly optional?: boolean;
 }
 
 // From codersdk/templateversions.go
@@ -1379,19 +1396,9 @@ export interface UpsertWorkspaceAgentPortShareRequest {
 }
 
 // From codersdk/users.go
-export interface User {
-  readonly id: string;
-  readonly username: string;
-  readonly name: string;
-  readonly email: string;
-  readonly created_at: string;
-  readonly last_seen_at: string;
-  readonly status: UserStatus;
+export interface User extends ReducedUser {
   readonly organization_ids: string[];
   readonly roles: Role[];
-  readonly avatar_url: string;
-  readonly login_type: LoginType;
-  readonly theme_preference: string;
 }
 
 // From codersdk/insights.go
@@ -1889,8 +1896,12 @@ export const Entitlements: Entitlement[] = [
 ];
 
 // From codersdk/deployment.go
-export type Experiment = "example" | "shared-ports";
-export const Experiments: Experiment[] = ["example", "shared-ports"];
+export type Experiment = "auto-fill-parameters" | "example" | "shared-ports";
+export const Experiments: Experiment[] = [
+  "auto-fill-parameters",
+  "example",
+  "shared-ports",
+];
 
 // From codersdk/deployment.go
 export type FeatureName =
@@ -1986,6 +1997,19 @@ export const LoginTypes: LoginType[] = [
   "oidc",
   "password",
   "token",
+];
+
+// From codersdk/oauth2.go
+export type OAuth2ProviderGrantType = "authorization_code" | "refresh_token";
+export const OAuth2ProviderGrantTypes: OAuth2ProviderGrantType[] = [
+  "authorization_code",
+  "refresh_token",
+];
+
+// From codersdk/oauth2.go
+export type OAuth2ProviderResponseType = "code";
+export const OAuth2ProviderResponseTypes: OAuth2ProviderResponseType[] = [
+  "code",
 ];
 
 // From codersdk/provisionerdaemons.go

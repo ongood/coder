@@ -209,7 +209,7 @@ func (api *API) provisionerDaemonServe(rw http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	provisioners := make([]database.ProvisionerType, 0)
+	provisioners := make([]database.ProvisionerType, 0, len(provisionersMap))
 	for p := range provisionersMap {
 		switch p {
 		case codersdk.ProvisionerTypeTerraform:
@@ -239,7 +239,7 @@ func (api *API) provisionerDaemonServe(rw http.ResponseWriter, r *http.Request) 
 		apiVersion = qv
 	}
 
-	if err := provisionersdk.VersionCurrent.Validate(apiVersion); err != nil {
+	if err := proto.CurrentVersion.Validate(apiVersion); err != nil {
 		httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
 			Message: "不兼容或无法解析的版本",
 			Validations: []codersdk.ValidationError{

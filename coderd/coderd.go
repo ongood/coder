@@ -457,7 +457,7 @@ func New(options *Options) *API {
 				},
 				ProvisionerDaemons: healthcheck.ProvisionerDaemonsReportDeps{
 					CurrentVersion:         buildinfo.Version(),
-					CurrentAPIMajorVersion: provisionersdk.CurrentMajor,
+					CurrentAPIMajorVersion: proto.CurrentMajor,
 					Store:                  options.Database,
 					// TimeNow and StaleInterval set to defaults, see healthcheck/provisioner.go
 				},
@@ -1067,6 +1067,14 @@ func New(options *Options) *API {
 		// See globalHTTPSwaggerHandler comment as to why we use a package
 		// global variable here.
 		r.Get("/swagger/*", globalHTTPSwaggerHandler)
+	} else {
+		swaggerDisabled := http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+			httpapi.Write(context.Background(), rw, http.StatusNotFound, codersdk.Response{
+				Message: "Swagger documentation is disabled.",
+			})
+		})
+		r.Get("/swagger", swaggerDisabled)
+		r.Get("/swagger/*", swaggerDisabled)
 	}
 
 	// Add CSP headers to all static assets and pages. CSP headers only affect
@@ -1239,7 +1247,7 @@ func (api *API) CreateInMemoryProvisionerDaemon(dialCtx context.Context, name st
 		Tags:       provisionersdk.MutateTags(uuid.Nil, nil),
 		LastSeenAt: sql.NullTime{Time: dbtime.Now(), Valid: true},
 		Version:    buildinfo.Version(),
-		APIVersion: provisionersdk.VersionCurrent.String(),
+		APIVersion: proto.CurrentVersion.String(),
 	})
 	if err != nil {
 		return nil, xerrors.Errorf("failed to create in-memory provisioner daemon: %w", err)

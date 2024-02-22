@@ -418,7 +418,7 @@ export const WorkspaceScheduleForm: FC<WorkspaceScheduleFormProps> = ({
               !template.allow_user_autostop ||
               !form.values.autostopEnabled
             }
-            inputProps={{ min: 0, step: "any" }}
+            inputProps={{ min: 0, step: "any", maxLength: 5 }}
             label={Language.ttlLabel}
             type="number"
             fullWidth
@@ -442,10 +442,17 @@ export const ttlShutdownAt = (formTTL: number): string => {
   if (formTTL === 0) {
     // Passing an empty value for TTL in the form results in a number that is not zero but less than 1.
     return "您的工作区不会自动关闭。";
-  } else {
+  }
+
+  try {
     return `您的工作区将在下次启动 ${formatDuration(
       intervalToDuration({ start: 0, end: formTTL * 60 * 60 * 1000 }),
       { delimiter: " and " },
     )} 后关闭。我们在检测到活动时延迟关闭1小时。`;
+  } catch (e) {
+    if (e instanceof RangeError) {
+      return Language.errorTtlMax;
+    }
+    throw e;
   }
 };

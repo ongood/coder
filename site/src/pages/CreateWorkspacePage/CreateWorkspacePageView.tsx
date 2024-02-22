@@ -256,11 +256,14 @@ export const CreateWorkspacePageView: FC<CreateWorkspacePageViewProps> = ({
               title="参数"
               description="这些是模板使用的设置。请注意，一旦工作区创建后，不可更改的参数无法修改。"
             >
-              {/*
-                Opted not to use FormFields in order to increase spacing.
-                This decision was made because rich parameter inputs are more visually dense than standard text fields.
-              */}
-              <div css={{ display: "flex", flexDirection: "column", gap: 36 }}>
+              {/* The parameter fields are densely packed and carry significant information,
+               /* hence they require additional vertical spacing for better
+               /*readability and user experience. */}
+              <FormFields
+                css={{
+                  gap: 36,
+                }}
+              >
                 {parameters.map((parameter, index) => {
                   const parameterField = `rich_parameter_values.${index}`;
                   const parameterInputName = `${parameterField}.value`;
@@ -285,7 +288,7 @@ export const CreateWorkspacePageView: FC<CreateWorkspacePageViewProps> = ({
                     />
                   );
                 })}
-              </div>
+              </FormFields>
             </FormSection>
           )}
 
