@@ -25,6 +25,7 @@ import {
   getInitialRichParameterValues,
   useValidationSchemaForRichParameters,
 } from "utils/richParameters";
+import { ExternalAuthButton } from "./ExternalAuthButton";
 import { ErrorAlert } from "components/Alert/ErrorAlert";
 import { Stack } from "components/Stack/Stack";
 import { Alert } from "components/Alert/Alert";
@@ -42,7 +43,6 @@ import {
   CreateWorkspaceMode,
   ExternalAuthPollingState,
 } from "./CreateWorkspacePage";
-import { ExternalAuthBanner } from "./ExternalAuthBanner/ExternalAuthBanner";
 import { CreateWSPermissions } from "./permissions";
 
 export const Language = {
@@ -147,6 +147,10 @@ export const CreateWorkspacePageView: FC<CreateWorkspacePageViewProps> = ({
     );
   }, [autofillParameters]);
 
+  const hasAllRequiredExternalAuth = externalAuth.every(
+    (auth) => auth.optional || auth.authenticated,
+  );
+
   return (
     <Margins size="medium">
       <PageHeader actions={<Button onClick={onCancel}>取消</Button>}>
@@ -171,134 +175,149 @@ export const CreateWorkspacePageView: FC<CreateWorkspacePageViewProps> = ({
         </Stack>
       </PageHeader>
 
-      {requiresExternalAuth ? (
-        <ExternalAuthBanner
-          providers={externalAuth}
-          pollingState={externalAuthPollingState}
-          onStartPolling={startPollingExternalAuth}
-        />
-      ) : (
-        <HorizontalForm
-          name="create-workspace-form"
-          onSubmit={form.handleSubmit}
-          css={{ padding: "16px 0" }}
+      <HorizontalForm
+        name="create-workspace-form"
+        onSubmit={form.handleSubmit}
+        css={{ padding: "16px 0" }}
+      >
+        {Boolean(error) && <ErrorAlert error={error} />}
+
+        {mode === "duplicate" && (
+          <Alert severity="info" dismissible data-testid="duplication-warning">
+            {Language.duplicationWarning}
+          </Alert>
+        )}
+
+        {/* General info */}
+        <FormSection
+          title="常规"
+          description={
+            permissions.createWorkspaceForUser
+              ? "工作区的名称及其所有者。只有管理员可以为其他用户创建工作区。"
+              : "您新工作区的名称。"
+          }
         >
-          {Boolean(error) && <ErrorAlert error={error} />}
+          <FormFields>
+            {versionId && versionId !== template.active_version_id && (
+              <Stack spacing={1} css={styles.hasDescription}>
+                <TextField
+                  disabled
+                  fullWidth
+                  value={versionId}
+                  label="Version ID"
+                />
+                <span css={styles.description}>
+                  此参数已预设，无法修改。
+                </span>
+              </Stack>
+            )}
 
-          {mode === "duplicate" && (
-            <Alert severity="info" dismissible>
-              {Language.duplicationWarning}
-            </Alert>
-          )}
+            <div>
+              <TextField
+                {...getFieldHelpers("name")}
+                disabled={creatingWorkspace}
+                // resetMutation facilitates the clearing of validation errors
+                onChange={onChangeTrimmed(form, resetMutation)}
+                fullWidth
+                label="工作区名称"
+              />
+              <FormHelperText data-chromatic="ignore">
+                需要建议?{" "}
+                <Button
+                  variant="text"
+                  css={styles.nameSuggestion}
+                  onClick={async () => {
+                    await form.setFieldValue("name", suggestedName);
+                    rerollSuggestedName();
+                  }}
+                >
+                  {suggestedName}
+                </Button>
+              </FormHelperText>
+            </div>
 
-          {/* General info */}
+            {permissions.createWorkspaceForUser && (
+              <UserAutocomplete
+                value={owner}
+                onChange={(user) => {
+                  setOwner(user ?? defaultOwner);
+                }}
+                label="Owner"
+                size="medium"
+              />
+            )}
+          </FormFields>
+        </FormSection>
+
+        {externalAuth && externalAuth.length > 0 && (
           <FormSection
-            title="常规"
-            description={
-              permissions.createWorkspaceForUser
-                ? "工作区的名称及其所有者。只有管理员可以为其他用户创建工作区。"
-                : "您的新工作区的名称"
-            }
+            title="外部认证"
+            description="此模板使用外部服务进行认证。"
           >
             <FormFields>
-              {versionId && versionId !== template.active_version_id && (
-                <Stack spacing={1} css={styles.hasDescription}>
-                  <TextField
-                    disabled
-                    fullWidth
-                    value={versionId}
-                    label="版本 ID"
-                  />
-                  <span css={styles.description}>
-                    这个参数已经预设，无法修改。
-                  </span>
-                </Stack>
+              {Boolean(error) && !hasAllRequiredExternalAuth && (
+                <Alert severity="error">
+                  要使用此模板创建工作区，请连接到下面列出的所有必需的外部认证提供者。
+                </Alert>
               )}
-              <div>
-                <TextField
-                  {...getFieldHelpers("name")}
-                  disabled={creatingWorkspace}
-                  // resetMutation facilitates the clearing of validation errors
-                  onChange={onChangeTrimmed(form, resetMutation)}
-                  fullWidth
-                  label="工作区名称"
+              {externalAuth.map((auth) => (
+                <ExternalAuthButton
+                  key={auth.id}
+                  error={error}
+                  auth={auth}
+                  isLoading={externalAuthPollingState === "polling"}
+                  onStartPolling={startPollingExternalAuth}
+                  displayRetry={externalAuthPollingState === "abandoned"}
                 />
-                <FormHelperText data-chromatic="ignore">
-                  需要一些建议吗？为您提供了参考名称，点击可以自动填入：{" "}
-                  <Button
-                    variant="text"
-                    css={styles.nameSuggestion}
-                    onClick={async () => {
-                      await form.setFieldValue("name", suggestedName);
-                      rerollSuggestedName();
-                    }}
-                  >
-                    {suggestedName}
-                  </Button>
-                </FormHelperText>
-              </div>
-
-              {permissions.createWorkspaceForUser && (
-                <UserAutocomplete
-                  value={owner}
-                  onChange={(user) => {
-                    setOwner(user ?? defaultOwner);
-                  }}
-                  label="拥有者"
-                  size="medium"
-                />
-              )}
+              ))}
             </FormFields>
           </FormSection>
+        )}
 
-          {parameters.length > 0 && (
-            <FormSection
-              title="参数"
-              description="这些是模板使用的设置。请注意，一旦工作区创建后，不可更改的参数无法修改。"
-            >
-              {/* The parameter fields are densely packed and carry significant information,
-               /* hence they require additional vertical spacing for better
-               /*readability and user experience. */}
-              <FormFields
-                css={{
-                  gap: 36,
-                }}
-              >
-                {parameters.map((parameter, index) => {
-                  const parameterField = `rich_parameter_values.${index}`;
-                  const parameterInputName = `${parameterField}.value`;
-                  const isDisabled =
-                    disabledParamsList?.includes(
-                      parameter.name.toLowerCase().replace(/ /g, "_"),
-                    ) || creatingWorkspace;
+        {parameters.length > 0 && (
+          <FormSection
+            title="参数"
+            description="这些是模板使用的设置。请注意，一旦工作区创建后，不可更改的参数无法修改。"
+          >
+            {/* The parameter fields are densely packed and carry significant information,
+                hence they require additional vertical spacing for better readability and
+                user experience. */}
+            <FormFields css={{ gap: 36 }}>
+              {parameters.map((parameter, index) => {
+                const parameterField = `rich_parameter_values.${index}`;
+                const parameterInputName = `${parameterField}.value`;
+                const isDisabled =
+                  disabledParamsList?.includes(
+                    parameter.name.toLowerCase().replace(/ /g, "_"),
+                  ) || creatingWorkspace;
 
-                  return (
-                    <RichParameterInput
-                      {...getFieldHelpers(parameterInputName)}
-                      onChange={async (value) => {
-                        await form.setFieldValue(parameterField, {
-                          name: parameter.name,
-                          value,
-                        });
-                      }}
-                      autofillSource={autofillSources[parameter.name]}
-                      key={parameter.name}
-                      parameter={parameter}
-                      disabled={isDisabled}
-                    />
-                  );
-                })}
-              </FormFields>
-            </FormSection>
-          )}
+                return (
+                  <RichParameterInput
+                    {...getFieldHelpers(parameterInputName)}
+                    onChange={async (value) => {
+                      await form.setFieldValue(parameterField, {
+                        name: parameter.name,
+                        value,
+                      });
+                    }}
+                    autofillSource={autofillSources[parameter.name]}
+                    key={parameter.name}
+                    parameter={parameter}
+                    disabled={isDisabled}
+                  />
+                );
+              })}
+            </FormFields>
+          </FormSection>
+        )}
 
-          <FormFooter
-            onCancel={onCancel}
-            isLoading={creatingWorkspace}
-            submitLabel="创建工作区"
-          />
-        </HorizontalForm>
-      )}
+        <FormFooter
+          onCancel={onCancel}
+          isLoading={creatingWorkspace}
+          submitDisabled={!hasAllRequiredExternalAuth}
+          submitLabel="创建工作区"
+        />
+      </HorizontalForm>
     </Margins>
   );
 };

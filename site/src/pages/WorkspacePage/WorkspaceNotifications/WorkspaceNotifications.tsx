@@ -15,6 +15,7 @@ import {
   NotificationItem,
   Notifications,
 } from "./Notifications";
+import { TemplateUpdateMessage } from "modules/templates/TemplateUpdateMessage";
 
 type WorkspaceNotificationsProps = {
   workspace: Workspace;
@@ -24,8 +25,6 @@ type WorkspaceNotificationsProps = {
   onUpdateWorkspace: () => void;
   onActivateWorkspace: () => void;
   latestVersion?: TemplateVersion;
-  // Used for storybook
-  defaultOpen?: "info" | "warning";
 };
 
 export const WorkspaceNotifications: FC<WorkspaceNotificationsProps> = ({
@@ -33,7 +32,6 @@ export const WorkspaceNotifications: FC<WorkspaceNotificationsProps> = ({
   template,
   latestVersion,
   permissions,
-  defaultOpen,
   onRestartWorkspace,
   onUpdateWorkspace,
   onActivateWorkspace,
@@ -71,7 +69,9 @@ export const WorkspaceNotifications: FC<WorkspaceNotificationsProps> = ({
       notifications.push({
         title: "你的工作区有可用更新",
         severity: "info",
-        detail: latestVersion.message,
+        detail: (
+          <TemplateUpdateMessage>{latestVersion.message}</TemplateUpdateMessage>
+        ),
         actions,
       });
     }
@@ -214,7 +214,6 @@ export const WorkspaceNotifications: FC<WorkspaceNotificationsProps> = ({
     <div css={styles.notificationsGroup}>
       {infoNotifications.length > 0 && (
         <Notifications
-          isDefaultOpen={defaultOpen === "info"}
           items={infoNotifications}
           severity="info"
           icon={<InfoOutlined />}
@@ -223,7 +222,6 @@ export const WorkspaceNotifications: FC<WorkspaceNotificationsProps> = ({
 
       {warningNotifications.length > 0 && (
         <Notifications
-          isDefaultOpen={defaultOpen === "warning"}
           items={warningNotifications}
           severity="warning"
           icon={<WarningRounded />}

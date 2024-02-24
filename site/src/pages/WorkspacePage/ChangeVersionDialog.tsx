@@ -6,7 +6,7 @@ import AlertTitle from "@mui/material/AlertTitle";
 import InfoIcon from "@mui/icons-material/InfoOutlined";
 import { css } from "@emotion/css";
 import type { Template, TemplateVersion } from "api/typesGenerated";
-import { Alert, AlertDetail } from "components/Alert/Alert";
+import { Alert } from "components/Alert/Alert";
 import type { DialogProps } from "components/Dialogs/Dialog";
 import { ConfirmDialog } from "components/Dialogs/ConfirmDialog/ConfirmDialog";
 import { FormFields } from "components/Form/Form";
@@ -16,6 +16,7 @@ import { AvatarData } from "components/AvatarData/AvatarData";
 import { Pill } from "components/Pill/Pill";
 import { Avatar } from "components/Avatar/Avatar";
 import { createDayString } from "utils/createDayString";
+import { TemplateUpdateMessage } from "modules/templates/TemplateUpdateMessage";
 
 export type ChangeVersionDialogProps = DialogProps & {
   template: Template | undefined;
@@ -34,7 +35,9 @@ export const ChangeVersionDialog: FC<ChangeVersionDialogProps> = ({
   ...dialogProps
 }) => {
   const [isAutocompleteOpen, setIsAutocompleteOpen] = useState(false);
-  const selectedTemplateVersion = useRef<TemplateVersion | undefined>();
+  const selectedTemplateVersion = useRef<TemplateVersion | undefined>(
+    defaultTemplateVersion,
+  );
   const version = selectedTemplateVersion.current;
   const validTemplateVersions = templateVersions?.filter((version) => {
     return version.job.status === "succeeded";
@@ -119,7 +122,7 @@ export const ChangeVersionDialog: FC<ChangeVersionDialogProps> = ({
                       <TextField
                         {...params}
                         fullWidth
-                        placeholder="Template version name"
+                        placeholder="模板版本名称"
                         InputProps={{
                           ...params.InputProps,
                           endAdornment: (
@@ -138,14 +141,18 @@ export const ChangeVersionDialog: FC<ChangeVersionDialogProps> = ({
                 />
               </FormFields>
               {version && (
-                <Alert severity="info">
-                  <AlertTitle>
-                    由 {version.created_by.username} 发布
-                  </AlertTitle>
+                <>
                   {version.message && (
-                    <AlertDetail>{version.message}</AlertDetail>
+                    <TemplateUpdateMessage>
+                      {version.message}
+                    </TemplateUpdateMessage>
                   )}
-                </Alert>
+                  <Alert severity="info">
+                    <AlertTitle>
+                      由{version.created_by.username}发布
+                    </AlertTitle>
+                  </Alert>
+                </>
               )}
             </>
           ) : (
