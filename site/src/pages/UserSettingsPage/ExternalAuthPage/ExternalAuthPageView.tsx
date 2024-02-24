@@ -158,7 +158,7 @@ const ExternalAuthRow: FC<ExternalAuthRowProps> = ({
             startPollingExternalAuth();
           }}
         >
-          {authenticated ? "Authenticated" : "Click to Login"}
+          {authenticated ? "Authenticated" : "点击登录"}
         </LoadingButton>
       </TableCell>
       <TableCell>
@@ -187,7 +187,7 @@ const ExternalAuthRow: FC<ExternalAuthRowProps> = ({
                 await refetch();
               }}
             >
-              Unlink&hellip;
+              删除链接&hellip;
             </MoreMenuItem>
           </MoreMenuContent>
         </MoreMenu>

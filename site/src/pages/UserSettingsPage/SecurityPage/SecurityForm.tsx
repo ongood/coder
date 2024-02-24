@@ -69,7 +69,7 @@ export const SecurityForm: FC<SecurityFormProps> = ({
   if (disabled) {
     return (
       <Alert severity="info">
-        Password changes are only allowed for password based accounts.
+        仅允许基于密码的帐户更改密码。
       </Alert>
     );
   }

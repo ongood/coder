@@ -69,13 +69,10 @@ const ExternalAuthPage: FC = () => {
       // show an error there?
       return (
         <SignInLayout>
-          <Welcome>Failed to validate oauth access token</Welcome>
+          <Welcome>无法验证 oauth 访问令牌</Welcome>
 
           <p css={{ textAlign: "center" }}>
-            Attempted to validate the user&apos;s oauth access token from the
-            authentication flow. This situation may occur as a result of an
-            external authentication provider misconfiguration. Verify the
-            external authentication validation URL is accurately configured.
+            尝试从认证流程中验证用户的oauth访问令牌。这种情况可能是由于外部认证提供商配置错误导致的。请确认外部认证验证URL配置正确。
           </p>
           <br />
           <Button
@@ -84,7 +81,7 @@ const ExternalAuthPage: FC = () => {
               window.location.href = `/external-auth/${provider}/callback`;
             }}
           >
-            Retry
+            重试
           </Button>
         </SignInLayout>
       );

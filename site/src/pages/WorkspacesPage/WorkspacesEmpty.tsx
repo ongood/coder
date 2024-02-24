@@ -15,7 +15,7 @@ export const WorkspacesEmpty = (props: {
   const featuredTemplates = templates?.slice(0, totalFeaturedTemplates);
   const defaultTitle = "创建一个工作区";
   const defaultMessage =
-    "一个工作区是您个人的、可定制的开发环境。";
+    "工作区是您个人的、可定制的开发环境。";
   const defaultImage = (
     <div
       css={{
@@ -77,7 +77,7 @@ export const WorkspacesEmpty = (props: {
   return (
     <TableEmpty
       message={defaultTitle}
-      description={`${defaultMessage} 选择下面的一个模板开始。`}
+      description={`${defaultMessage} 选择下面的一个模板创建你的工作区。`}
       cta={
         <div>
           <div

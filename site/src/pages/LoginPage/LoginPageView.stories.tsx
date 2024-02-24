@@ -36,7 +36,7 @@ export const WithAllAuthMethods: Story = {
 export const AuthError: Story = {
   args: {
     error: mockApiError({
-      message: "Incorrect email or password.",
+      message: "电子邮件地址或密码错误。",
     }),
     authMethods: MockAuthMethodsPasswordOnly,
   },
@@ -45,7 +45,7 @@ export const AuthError: Story = {
 export const ExternalAuthError: Story = {
   args: {
     error: mockApiError({
-      message: "Incorrect email or password.",
+      message: "电子邮件地址或密码错误。",
     }),
     authMethods: MockAuthMethodsAll,
   },

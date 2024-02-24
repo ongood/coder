@@ -52,7 +52,7 @@ const ExternalAuthPage: FC = () => {
       <DeleteDialog
         key={appToUnlink}
         title="取消链接应用"
-        verb="Unlinking"
+        verb="取消链接"
         info="这不会从oauth2提供者那里撤销访问令牌。 它只会在此端删除链接。 要完全撤销访问权限，您必须在oauth2提供者端执行此操作。"
         label="要取消链接的应用名称"
         isOpen={appToUnlink !== undefined}

@@ -23,7 +23,7 @@ export const ExternalAuthSettingsPageView: FC<
     <>
       <Header
         title="外部验证"
-        description="Coder 与 GitHub、GitLab、BitBucket、Azure Repos 和 OpenID Connect 集成，可与外部服务对开发者进行身份验证。"
+        description="Coder 与 GitHub、GitLab、BitBucket、Azure Repos 和 OpenID Connect 集成，使用这些服务中的用户账号信息来进行身份验证。"
         docsHref={docs("/admin/external-auth")}
       />
 

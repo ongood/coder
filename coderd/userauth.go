@@ -307,7 +307,7 @@ func (api *API) loginRequest(ctx context.Context, rw http.ResponseWriter, req co
 		// This message is the same as above to remove ease in detecting whether
 		// users are registered or not. Attackers still could with a timing attack.
 		httpapi.Write(ctx, rw, http.StatusUnauthorized, codersdk.Response{
-			Message: "Incorrect email or password.",
+			Message: "电子邮件地址或密码错误。",
 		})
 		return user, database.GetAuthorizationUserRolesRow{}, false
 	}
@@ -539,7 +539,7 @@ func (api *API) userOAuth2Github(rw http.ResponseWriter, r *http.Request) {
 			}
 		}
 		if len(selectedMemberships) == 0 {
-			httpmw.CustomRedirectToLogin(rw, r, redirect, "You aren't a member of the authorized Github organizations!", http.StatusUnauthorized)
+			httpmw.CustomRedirectToLogin(rw, r, redirect, "您不是授权的 Github 组织的成员！", http.StatusUnauthorized)
 			return
 		}
 	}
