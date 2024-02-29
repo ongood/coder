@@ -98,7 +98,7 @@ export const AddNewLicensePageView: FC<AddNewLicenseProps> = ({
             name="licenseKey"
             placeholder="输入您的许可证..."
             multiline
-            rows={1}
+            rows={3}
             fullWidth
           />
         </Fieldset>

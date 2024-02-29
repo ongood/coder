@@ -42,8 +42,7 @@ export const TemplateUpload: FC<TemplateUploadProps> = ({
       removeLabel="Remove file"
       title="上传模板"
       description={description}
-      extension=".tar"
-      fileTypeRequired="application/x-tar"
+      extensions={["tar", "zip"]}
     />
   );
 };

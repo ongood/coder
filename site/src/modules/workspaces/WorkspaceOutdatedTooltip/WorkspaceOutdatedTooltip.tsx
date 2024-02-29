@@ -87,11 +87,7 @@ export const WorkspaceOutdatedTooltipContent: FC<TooltipProps> = ({
           <div css={styles.bold}>消息</div>
           <div>
             {activeVersion ? (
-              activeVersion.message === "" ? (
-                "没有消息"
-              ) : (
-                activeVersion.message
-              )
+              activeVersion.message || "没有消息"
             ) : (
               <Skeleton variant="text" height={20} width={150} />
             )}

@@ -80,11 +80,7 @@ export const WorkspaceSchedulePage: FC = () => {
       <Helmet>
         <title>{pageTitle([workspaceName, "Schedule"])}</title>
       </Helmet>
-      <PageHeader
-        css={{
-          paddingTop: 0,
-        }}
-      >
+      <PageHeader css={{ paddingTop: 0 }}>
         <PageHeaderTitle>工作区日程</PageHeaderTitle>
       </PageHeader>
 
