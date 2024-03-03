@@ -1807,13 +1807,13 @@ func clearOAuthConvertCookie() *http.Cookie {
 func wrongLoginTypeHTTPError(user database.LoginType, params database.LoginType) httpError {
 	addedMsg := ""
 	if user == database.LoginTypePassword {
-		addedMsg = " You can convert your account to use this login type by visiting your account settings."
+		addedMsg = " 您可以通过访问账户设置，将您的账户转换为使用此登录类型。"
 	}
 	return httpError{
 		code:             http.StatusForbidden,
 		renderStaticPage: true,
-		msg:              "Incorrect login type",
-		detail: fmt.Sprintf("Attempting to use login type %q, but the user has the login type %q.%s",
+		msg:              "登录类型不正确",
+		detail: fmt.Sprintf("尝试使用登录类型 %q，但该用户在系统中的实际登录类型为 %q.%s",
 			params, user, addedMsg),
 	}
 }

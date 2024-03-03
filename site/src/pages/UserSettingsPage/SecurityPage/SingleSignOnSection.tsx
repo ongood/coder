@@ -197,12 +197,12 @@ export const SingleSignOnSection: FC<SingleSignOnSectionProps> = ({
                 }}
               />
               <span>
-                已验证为{" "}
+                当前账号已通过{" "}
                 <strong>
                   {userLoginType.login_type === "github"
                     ? "GitHub"
                     : getOIDCLabel(authMethods.oidc)}
-                </strong>
+                </strong>验证登录。
               </span>
               <div css={{ marginLeft: "auto", lineHeight: 1 }}>
                 {userLoginType.login_type === "github" ? (
