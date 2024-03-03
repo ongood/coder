@@ -123,6 +123,7 @@ func (r *RootCmd) Core() []*clibase.Cmd {
 		r.vscodeSSH(),
 		r.workspaceAgent(),
 		r.expCmd(),
+		r.support(),
 	}
 }
 
@@ -715,7 +716,7 @@ func CurrentOrganization(r *RootCmd, inv *clibase.Invocation, client *codersdk.C
 	if selected == "" && conf.Organization().Exists() {
 		org, err := conf.Organization().Read()
 		if err != nil {
-			return codersdk.Organization{}, fmt.Errorf("read selected organization from config file %q: %w", conf.Organization(), err)
+			return codersdk.Organization{}, xerrors.Errorf("read selected organization from config file %q: %w", conf.Organization(), err)
 		}
 		selected = org
 	}
