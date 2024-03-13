@@ -1,26 +1,26 @@
-import { type Interpolation, type Theme } from "@emotion/react";
+import type { Interpolation, Theme } from "@emotion/react";
+import { useTheme } from "@emotion/react";
+import HistoryOutlined from "@mui/icons-material/HistoryOutlined";
+import HubOutlined from "@mui/icons-material/HubOutlined";
 import AlertTitle from "@mui/material/AlertTitle";
-import { type FC } from "react";
+import type { FC } from "react";
 import { useNavigate } from "react-router-dom";
 import type * as TypesGen from "api/typesGenerated";
 import { Alert, AlertDetail } from "components/Alert/Alert";
+import { SidebarIconButton } from "components/FullPageLayout/Sidebar";
+import { useSearchParamsKey } from "hooks/useSearchParamsKey";
 import { AgentRow } from "modules/resources/AgentRow";
-import { useTab } from "hooks";
+import { HistorySidebar } from "./HistorySidebar";
+import type { WorkspacePermissions } from "./permissions";
+import { ResourceMetadata } from "./ResourceMetadata";
+import { ResourcesSidebar } from "./ResourcesSidebar";
+import { resourceOptionValue, useResourcesNav } from "./useResourcesNav";
 import {
   ActiveTransition,
   WorkspaceBuildProgress,
 } from "./WorkspaceBuildProgress";
 import { WorkspaceDeletedBanner } from "./WorkspaceDeletedBanner";
 import { WorkspaceTopbar } from "./WorkspaceTopbar";
-import { HistorySidebar } from "./HistorySidebar";
-import HistoryOutlined from "@mui/icons-material/HistoryOutlined";
-import { useTheme } from "@emotion/react";
-import { SidebarIconButton } from "components/FullPageLayout/Sidebar";
-import HubOutlined from "@mui/icons-material/HubOutlined";
-import { ResourcesSidebar } from "./ResourcesSidebar";
-import { WorkspacePermissions } from "./permissions";
-import { resourceOptionValue, useResourcesNav } from "./useResourcesNav";
-import { ResourceMetadata } from "./ResourceMetadata";
 
 export interface WorkspaceProps {
   handleStart: (buildParameters?: TypesGen.WorkspaceBuildParameter[]) => void;
@@ -88,13 +88,12 @@ export const Workspace: FC<WorkspaceProps> = ({
   const transitionStats =
     template !== undefined ? ActiveTransition(template, workspace) : undefined;
 
-  const sidebarOption = useTab("sidebar", "");
+  const sidebarOption = useSearchParamsKey({ key: "sidebar" });
   const setSidebarOption = (newOption: string) => {
-    const { set, value } = sidebarOption;
-    if (value === newOption) {
-      set("");
+    if (sidebarOption.value === newOption) {
+      sidebarOption.deleteValue();
     } else {
-      set(newOption);
+      sidebarOption.setValue(newOption);
     }
   };
 
