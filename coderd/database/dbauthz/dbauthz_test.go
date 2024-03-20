@@ -2093,7 +2093,7 @@ func (s *MethodTestSuite) TestSystemFunctions() {
 		j := dbgen.ProvisionerJob(s.T(), db, nil, database.ProvisionerJob{
 			StartedAt: sql.NullTime{Valid: false},
 		})
-		check.Args(database.AcquireProvisionerJobParams{Types: []database.ProvisionerType{j.Provisioner}, Tags: must(json.Marshal(j.Tags))}).
+		check.Args(database.AcquireProvisionerJobParams{OrganizationID: j.OrganizationID, Types: []database.ProvisionerType{j.Provisioner}, Tags: must(json.Marshal(j.Tags))}).
 			Asserts( /*rbac.ResourceSystem, rbac.ActionUpdate*/ )
 	}))
 	s.Run("UpdateProvisionerJobWithCompleteByID", s.Subtest(func(db database.Store, check *expects) {
@@ -2274,7 +2274,7 @@ func (s *MethodTestSuite) TestSystemFunctions() {
 	s.Run("GetReplicaByID", s.Subtest(func(db database.Store, check *expects) {
 		check.Args(uuid.New()).Asserts(rbac.ResourceSystem, rbac.ActionRead).Errors(sql.ErrNoRows)
 	}))
-	s.Run("GetWorkspaceAgentAndOwnerByAuthToken", s.Subtest(func(db database.Store, check *expects) {
+	s.Run("GetWorkspaceAgentAndLatestBuildByAuthToken", s.Subtest(func(db database.Store, check *expects) {
 		check.Args(uuid.New()).Asserts(rbac.ResourceSystem, rbac.ActionRead).Errors(sql.ErrNoRows)
 	}))
 	s.Run("GetUserLinksByUserID", s.Subtest(func(db database.Store, check *expects) {
