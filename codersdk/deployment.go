@@ -466,7 +466,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		deploymentGroupNetworkingTLS = serpent.Group{
 			Parent: &deploymentGroupNetworking,
 			Name:   "TLS",
-			Description: "为您的 Coder 部署配置 TLS/HTTPS。如果您在 TLS 终止反向代理后运行 Coder，或者通过安全链接访问 Coder，您可以安全地忽略这些设置。",
+			Description: "O为您的 Coder 部署配置 TLS/HTTPS。如果您在 TLS 终止反向代理后运行 Coder，或者通过安全链接访问 Coder，您可以安全地忽略这些设置.",
 			YAML: "tls",
 		}
 		deploymentGroupNetworkingHTTP = serpent.Group{
@@ -477,12 +477,12 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		deploymentGroupNetworkingDERP = serpent.Group{
 			Parent: &deploymentGroupNetworking,
 			Name:   "DERP",
-			Description: "大多数 Coder 部署无需考虑 DERP，因为工作区和用户之间的所有连接都是点对点的。但是，当 Coder 无法建立点对点连接时，Coder 使用由 Tailscale 和 WireGuard 支持的分布式中继网络。",
+			Description: "O大多数 Coder 部署无需考虑 DERP，因为工作区和用户之间的所有连接都是点对点的。但是，当 Coder 无法建立点对点连接时，Coder 使用由 Tailscale 和 WireGuard 支持的分布式中继网络.",
 			YAML: "derp",
 		}
 		deploymentGroupIntrospection = serpent.Group{
 			Name:        "Introspection",
-			Description: "配置日志记录、跟踪和指标导出。",
+			Description: "O配置日志记录、跟踪和指标导出.",
 			YAML:        "introspection",
 		}
 		deploymentGroupIntrospectionPPROF = serpent.Group{
@@ -512,7 +512,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		}
 		deploymentGroupOAuth2 = serpent.Group{
 			Name:        "OAuth2",
-			Description: "使用 OAuth2 配置 GitHub 登录和用户配置。",
+			Description: "O使用 OAuth2 配置 GitHub 登录和用户配置.",
 			YAML:        "oauth2",
 		}
 		deploymentGroupOAuth2GitHub = serpent.Group{
@@ -527,16 +527,16 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		deploymentGroupTelemetry = serpent.Group{
 			Name: "Telemetry",
 			YAML: "telemetry",
-			Description: "反馈对于我们改进 Coder 的能力至关重要。在将数据发送到我们的服务器之前，我们会删除所有个人信息。请仅在您的组织安全策略要求时禁用反馈。",
+			Description: "O反馈对于我们改进 Coder 的能力至关重要。在将数据发送到我们的服务器之前，我们会删除所有个人信息。请仅在您的组织安全策略要求时禁用反馈.",
 		}
 		deploymentGroupProvisioning = serpent.Group{
 			Name:        "Provisioning",
-			Description: "调整配置生成器的行为，生成器负责创建、更新和删除工作区资源。",
+			Description: "O调整配置生成器的行为，生成器负责创建、更新和删除工作区资源。",
 			YAML:        "provisioning",
 		}
 		deploymentGroupUserQuietHoursSchedule = serpent.Group{
 			Name:        "User Quiet Hours Schedule",
-			Description: "允许用户为工作区设置每天的静默时段计划，以避免因为模板最大生存时间而在白天停止工作区。",
+			Description: "O允许用户为工作区设置每天的静默时段计划，以避免因为模板最大生存时间而在白天停止工作区.",
 			YAML:        "userQuietHoursSchedule",
 		}
 		deploymentGroupDangerous = serpent.Group{
@@ -545,18 +545,18 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		}
 		deploymentGroupClient = serpent.Group{
 			Name: "Client",
-			Description: "这些选项更改客户端与 Coder 的交互方式。客户端包括 coder cli、vs code 扩展和 Web UI。",
+			Description: "O这些选项更改客户端与 Coder 的交互方式。客户端包括 coder cli、vs code 扩展和 Web UI.",
 			YAML: "client",
 		}
 		deploymentGroupConfig = serpent.Group{
 			Name:        "Config",
-			Description: "当服务器启动变得复杂时，可以使用 YAML 配置文件。",
+			Description: "O当服务器启动变得复杂时，可以使用 YAML 配置文件.",
 		}
 	)
 
 	httpAddress := serpent.Option{
 		Name:        "HTTP Address",
-		Description: "服务器的HTTP绑定地址。将其设置为未设置以禁用HTTP端点。",
+		Description: "O服务器的HTTP绑定地址。将其设置为未设置以禁用HTTP端点.",
 		Flag:        "http-address",
 		Env:         "CODER_HTTP_ADDRESS",
 		Default:     "127.0.0.1:3000",
@@ -567,7 +567,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 	}
 	tlsBindAddress := serpent.Option{
 		Name:        "TLS Address",
-		Description: "服务器的 HTTPS 绑定地址。",
+		Description: "O服务器的 HTTPS 绑定地址.",
 		Flag:        "tls-address",
 		Env:         "CODER_TLS_ADDRESS",
 		Default:     "127.0.0.1:3443",
@@ -578,7 +578,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 	}
 	redirectToAccessURL := serpent.Option{
 		Name:        "Redirect to Access URL",
-		Description: "指定是否重定向未匹配访问URL主机的请求。",
+		Description: "O指定是否重定向未匹配访问URL主机的请求.",
 		Flag:        "redirect-to-access-url",
 		Env:         "CODER_REDIRECT_TO_ACCESS_URL",
 		Value:       &c.RedirectToAccessURL,
@@ -587,7 +587,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 	}
 	logFilter := serpent.Option{
 		Name:          "Log Filter",
-		Description:   "通过匹配给定的正则表达式来过滤调试日志。 使用 .* 匹配所有调试日志。",
+		Description:   "通过匹配给定的正则表达式来过滤调试日志。 使用 .* 匹配所有调试日志.",
 		Flag:          "log-filter",
 		FlagShorthand: "l",
 		Env:           "CODER_LOG_FILTER",
@@ -598,7 +598,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 	opts := serpent.OptionSet{
 		{
 			Name:        "Access URL",
-			Description: "用于访问 Coder 部署的URL。",
+			Description: "O用于访问 Coder 部署的URL.",
 			Value:       &c.AccessURL,
 			Flag:        "access-url",
 			Env:         "CODER_ACCESS_URL",
@@ -608,7 +608,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "Wildcard Access URL",
-			Description: "指定工作区应用程序使用的通配符主机名，格式为\"*.example.com\"。",
+			Description: "O指定工作区应用程序使用的通配符主机名，格式为\"*.example.com\".",
 			Flag:        "wildcard-access-url",
 			Env:         "CODER_WILDCARD_ACCESS_URL",
 			// Do not use a serpent.URL here. We are intentionally omitting the
@@ -630,7 +630,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "Docs URL",
-			Description: "指定自定义文档 URL。",
+			Description: "O指定自定义文档 URL.",
 			Value:       &c.DocsURL,
 			Flag:        "docs-url",
 			Env:         "CODER_DOCS_URL",
@@ -641,7 +641,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		redirectToAccessURL,
 		{
 			Name:        "Autobuild Poll Interval",
-			Description: "定期轮询计划中的工作区构建的间隔时间。",
+			Description: "O定期轮询计划中的工作区构建的间隔时间.",
 			Flag:        "autobuild-poll-interval",
 			Env:         "CODER_AUTOBUILD_POLL_INTERVAL",
 			Hidden:      true,
@@ -652,7 +652,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "Job Hang Detector Interval",
-			Description: "轮询挂起作业并自动终止它们的时间间隔。",
+			Description: "O轮询挂起作业并自动终止它们的时间间隔.",
 			Flag:        "job-hang-detector-interval",
 			Env:         "CODER_JOB_HANG_DETECTOR_INTERVAL",
 			Hidden:      true,
@@ -665,7 +665,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		tlsBindAddress,
 		{
 			Name:          "Address",
-			Description:   "服务器的绑定地址。",
+			Description:   "服务器的绑定地址.",
 			Flag:          "address",
 			FlagShorthand: "a",
 			Env:           "CODER_ADDRESS",
@@ -681,7 +681,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		// TLS settings
 		{
 			Name:        "TLS Enable",
-			Description: "是否启用 TLS。",
+			Description: "O是否启用 TLS.",
 			Flag:        "tls-enable",
 			Env:         "CODER_TLS_ENABLE",
 			Value:       &c.TLS.Enable,
@@ -691,7 +691,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "Redirect HTTP to HTTPS",
-			Description: "是否将 HTTP 请求重定向到访问 URL（如果是 https URL 并且启用了 TLS）。不管此设置如何，对本地 IP 地址的请求都不会被重定向。",
+			Description: "O是否将 HTTP 请求重定向到访问 URL（如果是 https URL 并且启用了 TLS）。不管此设置如何，对本地 IP 地址的请求都不会被重定向.",
 			Flag:        "tls-redirect-http-to-https",
 			Env:         "CODER_TLS_REDIRECT_HTTP_TO_HTTPS",
 			Default:     "true",
@@ -714,7 +714,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "TLS Client CA Files",
-			Description: "用于检查客户端真实性的 PEM 编码的证书颁发机构文件。",
+			Description: "O用于检查客户端真实性的 PEM 编码的证书颁发机构文件.",
 			Flag:        "tls-client-ca-file",
 			Env:         "CODER_TLS_CLIENT_CA_FILE",
 			Value:       &c.TLS.ClientCAFile,
@@ -724,7 +724,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "TLS Client Auth",
-			Description: "TLS 客户端身份验证的服务器策略。接受的值为\"none\",\"request\",\"require-any\",\"verify-if-given\" 或 \"require-and-verify\"。",
+			Description: "TLS 客户端身份验证的服务器策略。接受的值为\"none\",\"request\",\"require-any\",\"verify-if-given\" 或 \"require-and-verify\".",
 			Flag:        "tls-client-auth",
 			Env:         "CODER_TLS_CLIENT_AUTH",
 			Default:     "none",
@@ -735,7 +735,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "TLS Key Files",
-			Description: "每个证书的私钥文件路径。需要使用 PEM 编码的文件。",
+			Description: "O每个证书的私钥文件路径。需要使用 PEM 编码的文件.",
 			Flag:        "tls-key-file",
 			Env:         "CODER_TLS_KEY_FILE",
 			Value:       &c.TLS.KeyFiles,
@@ -745,7 +745,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "TLS Minimum Version",
-			Description: "TLS 的最低支持版本。可接受的值为 \"tls10\"、\"tls11\"、\"tls12\" 或 \"tls13\"。",
+			Description: "TLS 的最低支持版本。可接受的值为 \"tls10\"、\"tls11\"、\"tls12\" 或 \"tls13\".",
 			Flag:        "tls-min-version",
 			Env:         "CODER_TLS_MIN_VERSION",
 			Default:     "tls12",
@@ -756,7 +756,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "TLS Client Cert File",
-			Description: "客户端 TLS 认证的证书路径。需要使用 PEM 编码的文件。",
+			Description: "O客户端 TLS 认证的证书路径。需要使用 PEM 编码的文件.",
 			Flag:        "tls-client-cert-file",
 			Env:         "CODER_TLS_CLIENT_CERT_FILE",
 			Value:       &c.TLS.ClientCertFile,
@@ -766,7 +766,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "TLS Client Key File",
-			Description: "客户端 TLS 认证的密钥路径。需要使用 PEM 编码的文件。",
+			Description: "O客户端 TLS 认证的密钥路径。需要使用 PEM 编码的文件.",
 			Flag:        "tls-client-key-file",
 			Env:         "CODER_TLS_CLIENT_KEY_FILE",
 			Value:       &c.TLS.ClientKeyFile,
@@ -776,7 +776,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "TLS Ciphers",
-			Description: "指定允许使用的特定 TLS 密码。请参阅 https://github.com/golang/go/blob/master/src/crypto/tls/cipher_suites.go#L53-L75.",
+			Description: "O指定允许使用的特定 TLS 密码。请参阅 https://github.com/golang/go/blob/master/src/crypto/tls/cipher_suites.go#L53-L75.",
 			Flag:        "tls-ciphers",
 			Env:         "CODER_TLS_CIPHERS",
 			Default:     "",
@@ -787,7 +787,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "TLS Allow Insecure Ciphers",
-			Description: "默认情况下，只允许使用标记为“安全”的密码。请参阅 https://github.com/golang/go/blob/master/src/crypto/tls/cipher_suites.go#L82-L95.",
+			Description: "O默认情况下，只允许使用标记为“安全”的密码。请参阅 https://github.com/golang/go/blob/master/src/crypto/tls/cipher_suites.go#L82-L95.",
 			Flag:        "tls-allow-insecure-ciphers",
 			Env:         "CODER_TLS_ALLOW_INSECURE_CIPHERS",
 			Default:     "false",
@@ -799,7 +799,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		// Derp settings
 		{
 			Name:        "DERP Server Enable",
-			Description: "是否启用内嵌的 DERP 中继服务器。",
+			Description: "O是否启用内嵌的 DERP 中继服务器.",
 			Flag:        "derp-server-enable",
 			Env:         "CODER_DERP_SERVER_ENABLE",
 			Default:     "true",
@@ -810,7 +810,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "DERP Server Region ID",
-			Description: "用于内嵌 DERP 服务器的区域 ID。",
+			Description: "O用于内嵌 DERP 服务器的区域 ID.",
 			Flag:        "derp-server-region-id",
 			Env:         "CODER_DERP_SERVER_REGION_ID",
 			Default:     "999",
@@ -822,7 +822,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "DERP Server Region Code",
-			Description: "用于内嵌 DERP 服务器的区域代码。",
+			Description: "O用于内嵌 DERP 服务器的区域代码.",
 			Flag:        "derp-server-region-code",
 			Env:         "CODER_DERP_SERVER_REGION_CODE",
 			Default:     "coder",
@@ -834,7 +834,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "DERP Server Region Name",
-			Description: "为嵌入式 DERP 服务器设置的区域名称。",
+			Description: "O为嵌入式 DERP 服务器设置的区域名称.",
 			Flag:        "derp-server-region-name",
 			Env:         "CODER_DERP_SERVER_REGION_NAME",
 			Default:     "Coder Embedded Relay",
@@ -845,7 +845,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "DERP Server STUN Addresses",
-			Description: "STUN服务器的地址，用于建立P2P连接。建议至少有两个STUN服务器，以便为用户提供最佳的P2P连接工作区的机会。每个STUN服务器将拥有自己的DERP区域，区域ID从--derp-server-region-id + 1开始。使用值'disable'来完全关闭STUN。",
+			Description: "STUN服务器的地址，用于建立P2P连接。建议至少有两个STUN服务器，以便为用户提供最佳的P2P连接工作区的机会。每个STUN服务器将拥有自己的DERP区域，区域ID从--derp-server-region-id + 1开始。使用值'disable'来完全关闭STUN.",
 			Flag:        "derp-server-stun-addresses",
 			Env:         "CODER_DERP_SERVER_STUN_ADDRESSES",
 			Default:     "stun.l.google.com:19302,stun1.l.google.com:19302,stun2.l.google.com:19302,stun3.l.google.com:19302,stun4.l.google.com:19302",
@@ -855,7 +855,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "DERP Server Relay URL",
-			Description: "其他副本可访问的 HTTP URL，用于中继 DERP 流量。在高可用性情况下需要。",
+			Description: "O其他副本可访问的 HTTP URL，用于中继 DERP 流量。在高可用性情况下需要.",
 			Flag:        "derp-server-relay-url",
 			Env:         "CODER_DERP_SERVER_RELAY_URL",
 			Value:       &c.DERP.Server.RelayURL,
@@ -867,7 +867,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "Block Direct Connections",
-			Description: "阻止点对点 (即直接) 工作区连接。启用后，来自 CLI 的所有工作区连接都将通过 Coder (或自定义配置的 DERP 服务器) 进行代理，并且永远不会是点对点。在此更改生效后，工作区仍然可以与 STUN 服务器联系以获取其地址，但新连接仍然会被代理。",
+			Description: "O阻止点对点 (即直接) 工作区连接。启用后，来自 CLI 的所有工作区连接都将通过 Coder (或自定义配置的 DERP 服务器) 进行代理，并且永远不会是点对点。在此更改生效后，工作区仍然可以与 STUN 服务器联系以获取其地址，但新连接仍然会被代理.",
 			// This cannot be called `disable-direct-connections` because that's
 			// already a global CLI flag for CLI connections. This is a
 			// deployment-wide flag.
@@ -880,7 +880,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "DERP Force WebSockets",
-			Description: "强制客户端和代理始终使用 WebSocket 连接到 DERP 中继服务器。默认情况下，DERP 使用 Upgrade: derp，这可能会导致某些反向代理出现问题。如果客户端检测到 Upgrade: derp 存在问题，它们可能会自动回退到 WebSocket，但这并不适用于所有情况。",
+			Description: "O强制客户端和代理始终使用 WebSocket 连接到 DERP 中继服务器。默认情况下，DERP 使用 Upgrade: derp，这可能会导致某些反向代理出现问题。如果客户端检测到 Upgrade: derp 存在问题，它们可能会自动回退到 WebSocket，但这并不适用于所有情况.",
 			Flag:        "derp-force-websockets",
 			Env:         "CODER_DERP_FORCE_WEBSOCKETS",
 			Value:       &c.DERP.Config.ForceWebSockets,
@@ -889,7 +889,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "DERP Config URL",
-			Description: "启动时获取 DERP 映射的 URL。参考：https://tailscale.com/kb/1118/custom-derp-servers/。",
+			Description: "O启动时获取 DERP 映射的 URL。参考：https://tailscale.com/kb/1118/custom-derp-servers/.",
 			Flag:        "derp-config-url",
 			Env:         "CODER_DERP_CONFIG_URL",
 			Value:       &c.DERP.Config.URL,
@@ -898,7 +898,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "DERP Config Path",
-			Description: "从中读取 DERP 映射的路径。参考：https://tailscale.com/kb/1118/custom-derp-servers/。",
+			Description: "O从中读取 DERP 映射的路径。参考：https://tailscale.com/kb/1118/custom-derp-servers/.",
 			Flag:        "derp-config-path",
 			Env:         "CODER_DERP_CONFIG_PATH",
 			Value:       &c.DERP.Config.Path,
@@ -909,7 +909,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		// Prometheus 设置
 		{
 			Name:        "Prometheus Enable",
-			Description: "在 prometheus address 定义的地址上提供 prometheus 指标服务。",
+			Description: "O在 prometheus address 定义的地址上提供 prometheus 指标服务.",
 			Flag:        "prometheus-enable",
 			Env:         "CODER_PROMETHEUS_ENABLE",
 			Value:       &c.Prometheus.Enable,
@@ -919,7 +919,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "Prometheus Address",
-			Description: "用于提供 prometheus 指标服务的绑定地址。",
+			Description: "O用于提供 prometheus 指标服务的绑定地址.",
 			Flag:        "prometheus-address",
 			Env:         "CODER_PROMETHEUS_ADDRESS",
 			Default:     "127.0.0.1:2112",
@@ -930,7 +930,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "Prometheus Collect Agent Stats",
-			Description: "收集 agent 统计信息（可能增加指标存储的费用）。",
+			Description: "O收集 agent 统计信息（可能增加指标存储的费用）.",
 			Flag:        "prometheus-collect-agent-stats",
 			Env:         "CODER_PROMETHEUS_COLLECT_AGENT_STATS",
 			Value:       &c.Prometheus.CollectAgentStats,
@@ -955,7 +955,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "Prometheus Collect Database Metrics",
-			Description: "收集数据库指标（可能会增加指标存储的费用）。",
+			Description: "O收集数据库指标（可能会增加指标存储的费用）.",
 			Flag:        "prometheus-collect-db-metrics",
 			Env:         "CODER_PROMETHEUS_COLLECT_DB_METRICS",
 			Value:       &c.Prometheus.CollectDBMetrics,
@@ -966,7 +966,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		// Pprof settings
 		{
 			Name:        "pprof Enable",
-			Description: "在 pprof 地址上提供性能分析指标。",
+			Description: "O在 pprof 地址上提供性能分析指标.",
 			Flag:        "pprof-enable",
 			Env:         "CODER_PPROF_ENABLE",
 			Value:       &c.Pprof.Enable,
@@ -976,7 +976,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "pprof Address",
-			Description: "用于提供 pprof 的绑定地址。",
+			Description: "O用于提供 pprof 的绑定地址.",
 			Flag:        "pprof-address",
 			Env:         "CODER_PPROF_ADDRESS",
 			Default:     "127.0.0.1:6060",
@@ -988,7 +988,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		// oAuth settings
 		{
 			Name:        "OAuth2 GitHub Client ID",
-			Description: "GitHub 登录所需的客户端 ID。",
+			Description: "GitHub 登录所需的客户端 ID.",
 			Flag:        "oauth2-github-client-id",
 			Env:         "CODER_OAUTH2_GITHUB_CLIENT_ID",
 			Value:       &c.OAuth2.Github.ClientID,
@@ -997,7 +997,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "OAuth2 GitHub Client Secret",
-			Description: "GitHub 登录所需的客户端密钥。",
+			Description: "GitHub 登录所需的客户端密钥.",
 			Flag:        "oauth2-github-client-secret",
 			Env:         "CODER_OAUTH2_GITHUB_CLIENT_SECRET",
 			Value:       &c.OAuth2.Github.ClientSecret,
@@ -1006,7 +1006,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "OAuth2 GitHub Allowed Orgs",
-			Description: "要求用户是其中成员才能使用 GitHub 登录的组织。",
+			Description: "O要求用户是其中成员才能使用 GitHub 登录的组织.",
 			Flag:        "oauth2-github-allowed-orgs",
 			Env:         "CODER_OAUTH2_GITHUB_ALLOWED_ORGS",
 			Value:       &c.OAuth2.Github.AllowedOrgs,
@@ -1015,7 +1015,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "OAuth2 GitHub Allowed Teams",
-			Description: "要求用户是其中成员才能使用 GitHub 登录的组织内团队。格式为：<组织名称>/<团队标识>。",
+			Description: "O要求用户是其中成员才能使用 GitHub 登录的组织内团队。格式为：<组织名称>/<团队标识>.",
 			Flag:        "oauth2-github-allowed-teams",
 			Env:         "CODER_OAUTH2_GITHUB_ALLOWED_TEAMS",
 			Value:       &c.OAuth2.Github.AllowedTeams,
@@ -1024,7 +1024,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "OAuth2 GitHub Allow Signups",
-			Description: "是否允许新用户使用 GitHub 进行注册。",
+			Description: "O是否允许新用户使用 GitHub 进行注册.",
 			Flag:        "oauth2-github-allow-signups",
 			Env:         "CODER_OAUTH2_GITHUB_ALLOW_SIGNUPS",
 			Value:       &c.OAuth2.Github.AllowSignups,
@@ -1033,7 +1033,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "OAuth2 GitHub Allow Everyone",
-			Description: "允许所有登录，设置此选项意味着允许的组织和团队必须为空。",
+			Description: "O允许所有登录，设置此选项意味着允许的组织和团队必须为空.",
 			Flag:        "oauth2-github-allow-everyone",
 			Env:         "CODER_OAUTH2_GITHUB_ALLOW_EVERYONE",
 			Value:       &c.OAuth2.Github.AllowEveryone,
@@ -1042,7 +1042,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "OAuth2 GitHub Enterprise Base URL",
-			Description: "用于登录 GitHub 的 GitHub Enterprise 部署的基本 URL。",
+			Description: "O用于登录 GitHub 的 GitHub Enterprise 部署的基本 URL.",
 			Flag:        "oauth2-github-enterprise-base-url",
 			Env:         "CODER_OAUTH2_GITHUB_ENTERPRISE_BASE_URL",
 			Value:       &c.OAuth2.Github.EnterpriseBaseURL,
@@ -1052,7 +1052,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		// OIDC settings.
 		{
 			Name:        "OIDC Allow Signups",
-			Description: "是否允许新用户使用 OIDC 进行注册。",
+			Description: "O是否允许新用户使用 OIDC 进行注册.",
 			Flag:        "oidc-allow-signups",
 			Env:         "CODER_OIDC_ALLOW_SIGNUPS",
 			Default:     "true",
@@ -1062,7 +1062,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "OIDC Client ID",
-			Description: "用于 OIDC 登录的客户端 ID。",
+			Description: "O用于 OIDC 登录的客户端 ID.",
 			Flag:        "oidc-client-id",
 			Env:         "CODER_OIDC_CLIENT_ID",
 			Value:       &c.OIDC.ClientID,
@@ -1071,7 +1071,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "OIDC Client Secret",
-			Description: "用于 OIDC 登录的客户端密钥。",
+			Description: "O用于 OIDC 登录的客户端密钥.",
 			Flag:        "oidc-client-secret",
 			Env:         "CODER_OIDC_CLIENT_SECRET",
 			Annotations: serpent.Annotations{}.Mark(annotationSecretKey, "true"),
@@ -1080,8 +1080,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name: "OIDC Client Key File",
-			Description: "用于 OAuth2 PKI/JWT 授权的 PEM 编码的 RSA 私钥。 " +
-				"如果您的 IDP 支持，可以使用此密钥代替 oidc-client-secret。",
+			Description: "O用于 OAuth2 PKI/JWT 授权的 PEM 编码的 RSA 私钥.如果您的 IDP 支持，可以使用此密钥代替 oidc-client-secret.",
 			Flag:  "oidc-client-key-file",
 			Env:   "CODER_OIDC_CLIENT_KEY_FILE",
 			YAML:  "oidcClientKeyFile",
@@ -1090,8 +1089,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name: "OIDC Client Cert File",
-			Description: "用于 OAuth2 PKI/JWT 授权的 PEM 编码的证书文件。 " +
-				"与 oidc-client-key-file 配套的公共证书。预期是标准的 x509 证书。",
+			Description: "O用于 OAuth2 PKI/JWT 授权的 PEM 编码的证书文件。与 oidc-client-key-file 配套的公共证书。预期是标准的 x509 证书.",
 			Flag:  "oidc-client-cert-file",
 			Env:   "CODER_OIDC_CLIENT_CERT_FILE",
 			YAML:  "oidcClientCertFile",
@@ -1100,7 +1098,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "OIDC Email Domain",
-			Description: "使用 OIDC 登录的客户端必须匹配的电子邮件域。",
+			Description: "O使用 OIDC 登录的客户端必须匹配的电子邮件域.",
 			Flag:        "oidc-email-domain",
 			Env:         "CODER_OIDC_EMAIL_DOMAIN",
 			Value:       &c.OIDC.EmailDomain,
@@ -1109,7 +1107,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "OIDC Issuer URL",
-			Description: "用于 OIDC 登录的发行者 URL。",
+			Description: "O用于 OIDC 登录的发行者 URL.",
 			Flag:        "oidc-issuer-url",
 			Env:         "CODER_OIDC_ISSUER_URL",
 			Value:       &c.OIDC.IssuerURL,
@@ -1118,7 +1116,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "OIDC Scopes",
-			Description: "在使用 OIDC 进行身份验证时授予的作用域。",
+			Description: "O在使用 OIDC 进行身份验证时授予的作用域.",
 			Flag:        "oidc-scopes",
 			Env:         "CODER_OIDC_SCOPES",
 			Default:     strings.Join([]string{oidc.ScopeOpenID, "profile", "email"}, ","),
@@ -1128,7 +1126,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "OIDC Ignore Email Verified",
-			Description: "忽略上游提供者中的 email_verified 声明。",
+			Description: "O忽略上游提供者中的 email_verified 声明.",
 			Flag:        "oidc-ignore-email-verified",
 			Env:         "CODER_OIDC_IGNORE_EMAIL_VERIFIED",
 			Value:       &c.OIDC.IgnoreEmailVerified,
@@ -1137,7 +1135,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "OIDC Username Field",
-			Description: "用作用户名的 OIDC 声明字段。",
+			Description: "O用作用户名的 OIDC 声明字段.",
 			Flag:        "oidc-username-field",
 			Env:         "CODER_OIDC_USERNAME_FIELD",
 			Default:     "preferred_username",
@@ -1147,7 +1145,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "OIDC Email Field",
-			Description: "用作电子邮件的 OIDC 声明字段。",
+			Description: "O用作电子邮件的 OIDC 声明字段.",
 			Flag:        "oidc-email-field",
 			Env:         "CODER_OIDC_EMAIL_FIELD",
 			Default:     "email",
@@ -1157,7 +1155,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "OIDC Auth URL Parameters",
-			Description: "要传递给上游提供者的 OIDC 认证 URL 参数。",
+			Description: "O要传递给上游提供者的 OIDC 认证 URL 参数.",
 			Flag:        "oidc-auth-url-params",
 			Env:         "CODER_OIDC_AUTH_URL_PARAMS",
 			Default:     `{"access_type": "offline"}`,
@@ -1167,7 +1165,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "OIDC Ignore UserInfo",
-			Description: "忽略 userinfo 端点，仅使用 ID 令牌获取用户信息。",
+			Description: "O忽略 userinfo 端点，仅使用 ID 令牌获取用户信息.",
 			Flag:        "oidc-ignore-userinfo",
 			Env:         "CODER_OIDC_IGNORE_USERINFO",
 			Default:     "false",
@@ -1177,7 +1175,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "OIDC Group Field",
-			Description: "如果使用组同步功能且范围名称不是'groups'，则必须设置此字段。设置为用于组的声明。",
+			Description: "O如果使用组同步功能且范围名称不是'groups'，则必须设置此字段。设置为用于组的声明.",
 			Flag:        "oidc-group-field",
 			Env:         "CODER_OIDC_GROUP_FIELD",
 			// This value is intentionally blank. If this is empty, then OIDC group
@@ -1192,7 +1190,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "OIDC Group Mapping",
-			Description: "OIDC组ID与应映射到Coder中的组之间的映射关系。这对于OIDC提供程序仅返回组ID时非常有用。",
+			Description: "OIDC组ID与应映射到Coder中的组之间的映射关系。这对于OIDC提供程序仅返回组ID时非常有用.",
 			Flag:        "oidc-group-mapping",
 			Env:         "CODER_OIDC_GROUP_MAPPING",
 			Default:     "{}",
@@ -1202,7 +1200,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "Enable OIDC Group Auto Create",
-			Description: "自动创建用户组声明中缺失的组。",
+			Description: "O自动创建用户组声明中缺失的组.",
 			Flag:        "oidc-group-auto-create",
 			Env:         "CODER_OIDC_GROUP_AUTO_CREATE",
 			Default:     "false",
@@ -1212,7 +1210,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "OIDC Regex Group Filter",
-			Description: "如果提供的任何组名与正则表达式不匹配，则会被忽略。这允许过滤掉不需要的组。此过滤器在组映射之后应用。",
+			Description: "O如果提供的任何组名与正则表达式不匹配，则会被忽略。这允许过滤掉不需要的组。此过滤器在组映射之后应用.",
 			Flag:        "oidc-group-regex-filter",
 			Env:         "CODER_OIDC_GROUP_REGEX_FILTER",
 			Default:     ".*",
@@ -1222,7 +1220,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "OIDC Allowed Groups",
-			Description: "如果提供的任何组名不在列表中，将不允许进行身份验证。这允许限制对特定组的访问。此过滤器在组映射之后和正则表达式过滤器之前应用。",
+			Description: "O如果提供的任何组名不在列表中，将不允许进行身份验证。这允许限制对特定组的访问。此过滤器在组映射之后和正则表达式过滤器之前应用.",
 			Flag:        "oidc-allowed-groups",
 			Env:         "CODER_OIDC_ALLOWED_GROUPS",
 			Default:     "",
@@ -1232,7 +1230,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "OIDC User Role Field",
-			Description: "如果使用用户角色同步功能，则必须设置此字段。将其设置为用于存储用户角色的声明名称。角色应作为字符串数组发送。",
+			Description: "O如果使用用户角色同步功能，则必须设置此字段。将其设置为用于存储用户角色的声明名称。角色应作为字符串数组发送.",
 			Flag:        "oidc-user-role-field",
 			Env:         "CODER_OIDC_USER_ROLE_FIELD",
 			// This value is intentionally blank. If this is empty, then OIDC user role
@@ -1244,7 +1242,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "OIDC User Role Mapping",
-			Description: "一个 OIDC 传递的用户角色与 Coder 中应映射到的组的映射表。如果映射到空字符串，则该角色将被忽略。",
+			Description: "O一个 OIDC 传递的用户角色与 Coder 中应映射到的组的映射表。如果映射到空字符串，则该角色将被忽略.",
 			Flag:        "oidc-user-role-mapping",
 			Env:         "CODER_OIDC_USER_ROLE_MAPPING",
 			Default:     "{}",
@@ -1254,7 +1252,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "OIDC User Role Default",
-			Description: "如果用户角色同步已启用，这些角色将始终包含在所有经过身份验证的用户中。始终分配 'member' 角色。",
+			Description: "O如果用户角色同步已启用，这些角色将始终包含在所有经过身份验证的用户中。始终分配 'member' 角色.",
 			Flag:        "oidc-user-role-default",
 			Env:         "CODER_OIDC_USER_ROLE_DEFAULT",
 			Default:     "",
@@ -1264,7 +1262,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "OpenID Connect sign in text",
-			Description: "在OpenID Connect登录按钮上显示的文本。",
+			Description: "O在OpenID Connect登录按钮上显示的文本.",
 			Flag:        "oidc-sign-in-text",
 			Env:         "CODER_OIDC_SIGN_IN_TEXT",
 			Default:     "OpenID Connect",
@@ -1274,7 +1272,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "OpenID connect icon URL",
-			Description: "指向在OpenID Connect登录按钮上使用的图标的URL。",
+			Description: "O指向在OpenID Connect登录按钮上使用的图标的URL.",
 			Flag:        "oidc-icon-url",
 			Env:         "CODER_OIDC_ICON_URL",
 			Value:       &c.OIDC.IconURL,
@@ -1283,7 +1281,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "Signups disabled text",
-			Description: "自定义文本，显示在禁用 OIDC 注册的错误页面上。支持 Markdown 格式。",
+			Description: "O自定义文本，显示在禁用 OIDC 注册的错误页面上。支持 Markdown 格式.",
 			Flag:        "oidc-signups-disabled-text",
 			Env:         "CODER_OIDC_SIGNUPS_DISABLED_TEXT",
 			Value:       &c.OIDC.SignupsDisabledText,
@@ -1293,7 +1291,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		// Telemetry settings
 		{
 			Name:        "Telemetry Enable",
-			Description: "是否启用遥测。Coder收集匿名的使用数据以帮助改进我们的产品。",
+			Description: "O是否启用遥测。Coder收集匿名的使用数据以帮助改进我们的产品.",
 			Flag:        "telemetry",
 			Env:         "CODER_TELEMETRY_ENABLE",
 			Default:     strconv.FormatBool(flag.Lookup("test.v") == nil),
@@ -1303,7 +1301,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "Telemetry URL",
-			Description: "用于发送遥测的URL。",
+			Description: "O用于发送遥测的URL.",
 			Flag:        "telemetry-url",
 			Env:         "CODER_TELEMETRY_URL",
 			Hidden:      true,
@@ -1315,7 +1313,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		// Trace settings
 		{
 			Name:        "Trace Enable",
-			Description: "是否收集应用程序跟踪数据。它会导出到由环境变量配置的后端。参考: https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/protocol/exporter.md.",
+			Description: "O是否收集应用程序跟踪数据。它会导出到由环境变量配置的后端。参考: https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/protocol/exporter.md.",
 			Flag:        "trace",
 			Env:         "CODER_TRACE_ENABLE",
 			Value:       &c.Trace.Enable,
@@ -1325,7 +1323,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "Trace Honeycomb API Key",
-			Description: "使用提供的API密钥将跟踪导出到Honeycomb.io。",
+			Description: "O使用提供的API密钥将跟踪导出到Honeycomb.io.",
 			Flag:        "trace-honeycomb-api-key",
 			Env:         "CODER_TRACE_HONEYCOMB_API_KEY",
 			Annotations: serpent.Annotations{}.Mark(annotationSecretKey, "true").Mark(annotationExternalProxies, "true"),
@@ -1334,7 +1332,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "Capture Logs in Traces",
-			Description: "启用将日志作为事件捕获到跟踪中。这对于调试很有用，但可能会导致发送到跟踪后端的事件数量非常大，这可能会产生显著的成本。",
+			Description: "O启用将日志作为事件捕获到跟踪中。这对于调试很有用，但可能会导致发送到跟踪后端的事件数量非常大，这可能会产生显著的成本.",
 			Flag:        "trace-logs",
 			Env:         "CODER_TRACE_LOGS",
 			Value:       &c.Trace.CaptureLogs,
@@ -1344,7 +1342,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "Send Go runtime traces to DataDog",
-			Description: "启用将 Go runtime 跟踪发送到本地 DataDog 代理。",
+			Description: "O启用将 Go runtime 跟踪发送到本地 DataDog 代理.",
 			Flag:        "trace-datadog",
 			Env:         "CODER_TRACE_DATADOG",
 			Value:       &c.Trace.DataDog,
@@ -1361,7 +1359,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		// Provisioner settings
 		{
 			Name:        "Provisioner Daemons",
-			Description: "启动时要创建的配置器守护程序数量。如果构建在排队状态下停滞很长时间，请考虑增加此值。",
+			Description: "O启动时要创建的配置器守护程序数量。如果构建在排队状态下停滞很长时间，请考虑增加此值.",
 			Flag:        "provisioner-daemons",
 			Env:         "CODER_PROVISIONER_DAEMONS",
 			Default:     "3",
@@ -1371,7 +1369,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "Echo Provisioner",
-			Description: "是否使用回声供应程序守护程序而不是 Terraform。这是为了端到端测试。",
+			Description: "O是否使用回声供应程序守护程序而不是 Terraform。这是为了端到端测试.",
 			Flag:        "provisioner-daemons-echo",
 			Env:         "CODER_PROVISIONER_DAEMONS_ECHO",
 			Hidden:      true,
@@ -1382,7 +1380,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "Poll Interval",
-			Description: "已弃用且被忽略。",
+			Description: "O已弃用且被忽略.",
 			Flag:        "provisioner-daemon-poll-interval",
 			Env:         "CODER_PROVISIONER_DAEMON_POLL_INTERVAL",
 			Default:     time.Second.String(),
@@ -1393,7 +1391,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "Poll Jitter",
-			Description: "已弃用且被忽略。",
+			Description: "O已弃用且被忽略.",
 			Flag:        "provisioner-daemon-poll-jitter",
 			Env:         "CODER_PROVISIONER_DAEMON_POLL_JITTER",
 			Default:     (100 * time.Millisecond).String(),
@@ -1404,7 +1402,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "Force Cancel Interval",
-			Description: "强制取消卡住的配置任务的时间。",
+			Description: "O强制取消卡住的配置任务的时间.",
 			Flag:        "provisioner-force-cancel-interval",
 			Env:         "CODER_PROVISIONER_FORCE_CANCEL_INTERVAL",
 			Default:     (10 * time.Minute).String(),
@@ -1415,7 +1413,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "Provisioner Daemon Pre-shared Key (PSK)",
-			Description: "用于将外部供应商守护进程验证到 Coder 服务器的预共享密钥",
+			Description: "O用于将外部供应商守护进程验证到 Coder 服务器的预共享密钥.",
 			Flag:        "provisioner-daemon-psk",
 			Env:         "CODER_PROVISIONER_DAEMON_PSK",
 			Value:       &c.Provisioner.DaemonPSK,
@@ -1425,7 +1423,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		// RateLimit settings
 		{
 			Name:        "Disable All Rate Limits",
-			Description: "禁用所有速率限制。这在生产环境中不推荐使用。",
+			Description: "O禁用所有速率限制。这在生产环境中不推荐使用.",
 			Flag:        "dangerous-disable-rate-limits",
 			Env:         "CODER_DANGEROUS_DISABLE_RATE_LIMITS",
 
@@ -1435,7 +1433,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "API Rate Limit",
-			Description: "每个用户（或未经身份验证的用户的每个IP地址）允许的每分钟最大请求次数。负值表示没有速率限制。某些API端点具有独立的严格速率限制，无论此值如何，以防止拒绝服务或暴力攻击。",
+			Description: "O每个用户（或未经身份验证的用户的每个IP地址）允许的每分钟最大请求次数。负值表示没有速率限制。某些API端点具有独立的严格速率限制，无论此值如何，以防止拒绝服务或暴力攻击.",
 			// Change the env from the auto-generated CODER_RATE_LIMIT_API to the
 			// old value to avoid breaking existing deployments.
 			Env:         "CODER_API_RATE_LIMIT",
@@ -1448,7 +1446,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		// Logging settings
 		{
 			Name:          "Verbose",
-			Description:   "输出调试级别的日志。",
+			Description:   "输出调试级别的日志.",
 			Flag:          "verbose",
 			Env:           "CODER_VERBOSE",
 			FlagShorthand: "v",
@@ -1462,7 +1460,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		logFilter,
 		{
 			Name:        "Human Log Location",
-			Description: "将可读的日志输出到给定的文件。",
+			Description: "O将可读的日志输出到给定的文件.",
 			Flag:        "log-human",
 			Env:         "CODER_LOGGING_HUMAN",
 			Default:     "/dev/stderr",
@@ -1473,7 +1471,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "JSON Log Location",
-			Description: "将JSON日志输出到给定的文件。",
+			Description: "O将JSON日志输出到给定的文件.",
 			Flag:        "log-json",
 			Env:         "CODER_LOGGING_JSON",
 			Default:     "",
@@ -1484,7 +1482,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "Stackdriver Log Location",
-			Description: "将与Stackdriver兼容的日志输出到给定的文件。",
+			Description: "O将与Stackdriver兼容的日志输出到给定的文件.",
 			Flag:        "log-stackdriver",
 			Env:         "CODER_LOGGING_STACKDRIVER",
 			Default:     "",
@@ -1495,7 +1493,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "Enable Terraform debug mode",
-			Description: "允许管理员启用 Terraform 调试输出。",
+			Description: "O允许管理员启用 Terraform 调试输出.",
 			Flag:        "enable-terraform-debug-mode",
 			Env:         "CODER_ENABLE_TERRAFORM_DEBUG_MODE",
 			Default:     "false",
@@ -1506,7 +1504,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		// ☢️ Dangerous settings
 		{
 			Name:        "DANGEROUS: Allow all CORS requests",
-			Description: "出于安全原因，除了由同一用户拥有的工作区应用之间的请求之外，CORS 请求会被阻止。如果需要外部请求，则将此设置为 true 将设置所有 CORS 标头为 '*'。这在生产环境中绝不应该使用。",
+			Description: "O出于安全原因，除了由同一用户拥有的工作区应用之间的请求之外，CORS 请求会被阻止。如果需要外部请求，则将此设置为 true 将设置所有 CORS 标头为 '*'。这在生产环境中绝不应该使用.",
 			Flag:        "dangerous-allow-cors-requests",
 			Env:         "CODER_DANGEROUS_ALLOW_CORS_REQUESTS",
 			Hidden:      true, // Hidden, should only be used by yarn dev server
@@ -1516,7 +1514,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "DANGEROUS: Allow Path App Sharing",
-			Description: "允许共享未从子域名提供的工作区应用程序。出于安全目的，默认情况下禁用基于路径的应用程序共享。基于路径的应用程序可以向Coder API发出请求，并在工作区提供恶意JavaScript时构成安全风险。可以使用--disable-path-apps完全禁用基于路径的应用程序以进一步增强安全性。",
+			Description: "O允许共享未从子域名提供的工作区应用程序。出于安全目的，默认情况下禁用基于路径的应用程序共享。基于路径的应用程序可以向Coder API发出请求，并在工作区提供恶意JavaScript时构成安全风险。可以使用--disable-path-apps完全禁用基于路径的应用程序以进一步增强安全性.",
 			Flag:        "dangerous-allow-path-app-sharing",
 			Env:         "CODER_DANGEROUS_ALLOW_PATH_APP_SHARING",
 
@@ -1525,7 +1523,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "DANGEROUS: Allow Site Owners to Access Path Apps",
-			Description: "允许站点所有者访问他们不拥有的工作区应用程序。默认情况下，所有者无法访问他们不拥有的基于路径的应用程序。基于路径的应用程序可以向Coder API发出请求，并在工作区提供恶意JavaScript时构成安全风险。可以使用--disable-path-apps完全禁用基于路径的应用程序以进一步增强安全性。",
+			Description: "O允许站点所有者访问他们不拥有的工作区应用程序。默认情况下，所有者无法访问他们不拥有的基于路径的应用程序。基于路径的应用程序可以向Coder API发出请求，并在工作区提供恶意JavaScript时构成安全风险。可以使用--disable-path-apps完全禁用基于路径的应用程序以进一步增强安全性.",
 			Flag:        "dangerous-allow-path-app-site-owner-access",
 			Env:         "CODER_DANGEROUS_ALLOW_PATH_APP_SITE_OWNER_ACCESS",
 
@@ -1535,7 +1533,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		// Misc. settings
 		{
 			Name:        "Experiments",
-			Description: "启用一个或多个实验。这些实验尚未准备好用于生产。使用逗号分隔多个实验，或输入“*”以选择所有可用实验。",
+			Description: "O启用一个或多个实验。这些实验尚未准备好用于生产。使用逗号分隔多个实验，或输入“*”以选择所有可用实验.",
 			Flag:        "experiments",
 			Env:         "CODER_EXPERIMENTS",
 			Value:       &c.Experiments,
@@ -1544,7 +1542,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "Update Check",
-			Description: "定期检查是否有Coder的新版本，并通知所有者。检查每天执行一次。",
+			Description: "O定期检查是否有Coder的新版本，并通知所有者。检查每天执行一次.",
 			Flag:        "update-check",
 			Env:         "CODER_UPDATE_CHECK",
 			Default: strconv.FormatBool(
@@ -1555,7 +1553,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "Max Token Lifetime",
-			Description: "用户在创建API令牌时可以指定的最大生命周期持续时间。",
+			Description: "O用户在创建API令牌时可以指定的最大生命周期持续时间.",
 			Flag:        "max-token-lifetime",
 			Env:         "CODER_MAX_TOKEN_LIFETIME",
 			// The default value is essentially "forever", so just use 100 years.
@@ -1569,7 +1567,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "Enable swagger endpoint",
-			Description: "通过/swagger公开Swagger端点。",
+			Description: "O通过/swagger公开Swagger端点.",
 			Flag:        "swagger-enable",
 			Env:         "CODER_SWAGGER_ENABLE",
 
@@ -1580,7 +1578,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 			Name:        "Proxy Trusted Headers",
 			Flag:        "proxy-trusted-headers",
 			Env:         "CODER_PROXY_TRUSTED_HEADERS",
-			Description: "用于转发IP地址的可信任标头。例如：Cf-Connecting-Ip、True-Client-Ip、X-Forwarded-For。",
+			Description: "O用于转发IP地址的可信任标头。例如：Cf-Connecting-Ip、True-Client-Ip、X-Forwarded-For.",
 			Value:       &c.ProxyTrustedHeaders,
 			Group:       &deploymentGroupNetworking,
 			YAML:        "proxyTrustedHeaders",
@@ -1590,7 +1588,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 			Name:        "Proxy Trusted Origins",
 			Flag:        "proxy-trusted-origins",
 			Env:         "CODER_PROXY_TRUSTED_ORIGINS",
-			Description: "与\"proxy-trusted-headers\"一起使用的源地址。例如：192.168.1.0/24。",
+			Description: "O与\"proxy-trusted-headers\"一起使用的源地址。例如：192.168.1.0/24.",
 			Value:       &c.ProxyTrustedOrigins,
 			Group:       &deploymentGroupNetworking,
 			YAML:        "proxyTrustedOrigins",
@@ -1598,7 +1596,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "Cache Directory",
-			Description: "用于缓存临时文件的目录。如果未指定并且$CACHE_DIRECTORY已设置，将与systemd兼容。",
+			Description: "O用于缓存临时文件的目录。如果未指定并且$CACHE_DIRECTORY已设置，将与systemd兼容.",
 			Flag:        "cache-dir",
 			Env:         "CODER_CACHE_DIRECTORY",
 			Default:     DefaultCacheDir(),
@@ -1607,7 +1605,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "In Memory Database",
-			Description: "控制是否将数据存储在内存数据库中。",
+			Description: "O控制是否将数据存储在内存数据库中.",
 			Flag:        "in-memory",
 			Env:         "CODER_IN_MEMORY",
 			Hidden:      true,
@@ -1616,7 +1614,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "Postgres Connection URL",
-			Description: "PostgreSQL数据库的URL。如果为空，将从Maven（https://repo1.maven.org/maven2）下载PostgreSQL二进制文件，并将所有数据存储在配置根目录中。通过\"coder server postgres-builtin-url\"访问内置数据库。",
+			Description: "PostgreSQL数据库的URL。如果为空，将从Maven（https://repo1.maven.org/maven2）下载PostgreSQL二进制文件，并将所有数据存储在配置根目录中。通过\"coder server postgres-builtin-url\"访问内置数据库.",
 			Flag:        "postgres-url",
 			Env:         "CODER_PG_CONNECTION_URL",
 			Annotations: serpent.Annotations{}.Mark(annotationSecretKey, "true"),
@@ -1624,7 +1622,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "Secure Auth Cookie",
-			Description: "控制浏览器会话Cookie的\"Secure\"属性是否已设置。",
+			Description: "O控制浏览器会话Cookie的\"Secure\"属性是否已设置.",
 			Flag:        "secure-auth-cookie",
 			Env:         "CODER_SECURE_AUTH_COOKIE",
 			Value:       &c.SecureAuthCookie,
@@ -1634,7 +1632,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name: "Strict-Transport-Security",
-			Description: "控制是否在所有静态文件响应中设置\"Strict-Transport-Security\"响应头。此响应头应仅在通过HTTPS访问服务器时设置。该值表示头的最大有效时间（以秒为单位）。",
+			Description: "O控制是否在所有静态文件响应中设置\"Strict-Transport-Security\"响应头。此响应头应仅在通过HTTPS访问服务器时设置。该值表示头的最大有效时间（以秒为单位）.",
 			Default:     "0",
 			Flag:        "strict-transport-security",
 			Env:         "CODER_STRICT_TRANSPORT_SECURITY",
@@ -1645,7 +1643,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name: "Strict-Transport-Security Options",
-			Description: "在Strict-Transport-Security响应头中可以设置两个可选字段：\"includeSubDomains\"和\"preload\"。必须将\"strict-transport-security\"标志设置为非零值才能使用这些选项。",
+			Description: "O在Strict-Transport-Security响应头中可以设置两个可选字段：\"includeSubDomains\"和\"preload\"。必须将\"strict-transport-security\"标志设置为非零值才能使用这些选项.",
 			Flag:        "strict-transport-security-options",
 			Env:         "CODER_STRICT_TRANSPORT_SECURITY_OPTIONS",
 			Value:       &c.StrictTransportSecurityOptions,
@@ -1655,7 +1653,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "SSH Keygen Algorithm",
-			Description: "用于生成SSH密钥的算法。可接受的值为\"ed25519\"、\"ecdsa\"或\"rsa4096\"。",
+			Description: "O用于生成SSH密钥的算法。可接受的值为\"ed25519\"、\"ecdsa\"或\"rsa4096\".",
 			Flag:        "ssh-keygen-algorithm",
 			Env:         "CODER_SSH_KEYGEN_ALGORITHM",
 			Default:     "ed25519",
@@ -1664,7 +1662,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "Metrics Cache Refresh Interval",
-			Description: "指标刷新的频率。",
+			Description: "O指标刷新的频率.",
 			Flag:        "metrics-cache-refresh-interval",
 			Env:         "CODER_METRICS_CACHE_REFRESH_INTERVAL",
 			Hidden:      true,
@@ -1674,7 +1672,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "Agent Stat Refresh Interval",
-			Description: "代理统计信息记录的频率。",
+			Description: "O代理统计信息记录的频率.",
 			Flag:        "agent-stats-refresh-interval",
 			Env:         "CODER_AGENT_STATS_REFRESH_INTERVAL",
 			Hidden:      true,
@@ -1684,7 +1682,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "Agent Fallback Troubleshooting URL",
-			Description: "用于在模板中未设置时进行代理故障排除的URL。",
+			Description: "O用于在模板中未设置时进行代理故障排除的URL.",
 			Flag:        "agent-fallback-troubleshooting-url",
 			Env:         "CODER_AGENT_FALLBACK_TROUBLESHOOTING_URL",
 			Hidden:      true,
@@ -1694,7 +1692,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "Browser Only",
-			Description: "是否只允许通过浏览器连接工作区。",
+			Description: "O是否只允许通过浏览器连接工作区.",
 			Flag:        "browser-only",
 			Env:         "CODER_BROWSER_ONLY",
 			Annotations: serpent.Annotations{}.Mark(annotationEnterpriseKey, "true"),
@@ -1704,7 +1702,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "SCIM API Key",
-			Description: "启用SCIM并设置内置SCIM服务器的身份验证头。新用户将自动使用OIDC身份验证进行创建。",
+			Description: "O启用SCIM并设置内置SCIM服务器的身份验证头。新用户将自动使用OIDC身份验证进行创建.",
 			Flag:        "scim-auth-header",
 			Env:         "CODER_SCIM_AUTH_HEADER",
 			Annotations: serpent.Annotations{}.Mark(annotationEnterpriseKey, "true").Mark(annotationSecretKey, "true"),
@@ -1712,7 +1710,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "External Token Encryption Keys",
-			Description: "在数据库中使用 AES-256-GCM 加密 OIDC 和 Git 认证令牌。该值必须是一个以逗号分隔的 base64 编码密钥列表。每个密钥在进行 base64 解码时必须恰好为 32 字节长度。第一个密钥将用于加密新值。在解密时，后续的密钥将用作备用。在正常操作期间，建议只设置一个密钥，除非您正在使用 coder server dbcrypt rotate 命令进行密钥轮换。",
+			Description: "O在数据库中使用 AES-256-GCM 加密 OIDC 和 Git 认证令牌。该值必须是一个以逗号分隔的 base64 编码密钥列表。每个密钥在进行 base64 解码时必须恰好为 32 字节长度。第一个密钥将用于加密新值。在解密时，后续的密钥将用作备用。在正常操作期间，建议只设置一个密钥，除非您正在使用 coder server dbcrypt rotate 命令进行密钥轮换.",
 			Flag:        "external-token-encryption-keys",
 			Env:         "CODER_EXTERNAL_TOKEN_ENCRYPTION_KEYS",
 			Annotations: serpent.Annotations{}.Mark(annotationEnterpriseKey, "true").Mark(annotationSecretKey, "true"),
@@ -1720,7 +1718,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "Disable Path Apps",
-			Description: "禁用非子域名服务的工作区应用程序。基于路径的应用程序可以向Coder API发送请求，并在工作区提供恶意JavaScript时构成安全风险。如果配置了--wildcard-access-url，出于安全目的建议使用此选项。",
+			Description: "O禁用非子域名服务的工作区应用程序。基于路径的应用程序可以向Coder API发送请求，并在工作区提供恶意JavaScript时构成安全风险。如果配置了--wildcard-access-url，出于安全目的建议使用此选项.",
 			Flag:        "disable-path-apps",
 			Env:         "CODER_DISABLE_PATH_APPS",
 
@@ -1730,7 +1728,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "Disable Owner Workspace Access",
-			Description: "移除\"owner\"角色对所有工作区的工作区执行权限。这将阻止\"owner\"角色基于其\"owner\"角色进行ssh、应用程序和终端访问。他们仍然可以使用用户权限访问自己的工作区。",
+			Description: "O移除\"owner\"角色对所有工作区的工作区执行权限。这将阻止\"owner\"角色基于其\"owner\"角色进行ssh、应用程序和终端访问。他们仍然可以使用用户权限访问自己的工作区.",
 			Flag:        "disable-owner-workspace-access",
 			Env:         "CODER_DISABLE_OWNER_WORKSPACE_ACCESS",
 
@@ -1740,7 +1738,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "Session Duration",
-			Description: "浏览器会话的令牌过期时间。如果会话正在主动发出请求，会话的持续时间可能会更长，但可以通过--disable-session-expiry-refresh选项禁用此功能。",
+			Description: "O浏览器会话的令牌过期时间。如果会话正在主动发出请求，会话的持续时间可能会更长，但可以通过--disable-session-expiry-refresh选项禁用此功能.",
 			Flag:        "session-duration",
 			Env:         "CODER_SESSION_DURATION",
 			Default:     (24 * time.Hour).String(),
@@ -1751,7 +1749,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "Disable Session Expiry Refresh",
-			Description: "禁用由于活动而自动刷新会话过期。这将使所有会话在达到会话过期时间后失效。",
+			Description: "O禁用由于活动而自动刷新会话过期。这将使所有会话在达到会话过期时间后失效.",
 			Flag:        "disable-session-expiry-refresh",
 			Env:         "CODER_DISABLE_SESSION_EXPIRY_REFRESH",
 
@@ -1761,7 +1759,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "Disable Password Authentication",
-			Description: "禁用密码身份验证。这在依赖身份提供者的生产部署中出于安全考虑是推荐的。无论此设置如何，具有owner角色的任何用户都可以使用密码登录，以避免潜在的锁定。如果您无法访问帐户，可以使用coder server create-admin命令直接在数据库中创建新的管理员用户。",
+			Description: "O禁用密码身份验证。这在依赖身份提供者的生产部署中出于安全考虑是推荐的。无论此设置如何，具有owner角色的任何用户都可以使用密码登录，以避免潜在的锁定。如果您无法访问帐户，可以使用coder server create-admin命令直接在数据库中创建新的管理员用户.",
 			Flag:        "disable-password-auth",
 			Env:         "CODER_DISABLE_PASSWORD_AUTH",
 
@@ -1771,7 +1769,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:          "Config Path",
-			Description:   `指定要加载配置的YAML文件。`,
+			Description:   `O指定要加载配置的YAML文件.`,
 			Flag:          "config",
 			Env:           "CODER_CONFIG_PATH",
 			FlagShorthand: "c",
@@ -1781,7 +1779,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "SSH Host Prefix",
-			Description: "SSH部署前缀用于ssh配置的主机。",
+			Description: "OSSH部署前缀用于ssh配置的主机.",
 			Flag:        "ssh-hostname-prefix",
 			Env:         "CODER_SSH_HOSTNAME_PREFIX",
 			YAML:        "sshHostnamePrefix",
@@ -1792,7 +1790,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name: "SSH Config Options",
-			Description: "这些SSH配置选项将覆盖默认的SSH配置选项。以\"key=value\"或\"key value\"的格式提供选项，用逗号分隔。不正确使用可能会导致SSH连接到部署的故障，请谨慎使用。",
+			Description: "O这些SSH配置选项将覆盖默认的SSH配置选项。以\"key=value\"或\"key value\"的格式提供选项，用逗号分隔。不正确使用可能会导致SSH连接到部署的故障，请谨慎使用.",
 			Flag:   "ssh-config-options",
 			Env:    "CODER_SSH_CONFIG_OPTIONS",
 			YAML:   "sshConfigOptions",
@@ -1802,7 +1800,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "CLI Upgrade Message",
-			Description: "检测到客户端/服务器不匹配时向用户显示的升级消息。默认情况下，它指示用户使用 'curl -L https://coder.com/install.sh | sh' 进行更新。",
+			Description: "O检测到客户端/服务器不匹配时向用户显示的升级消息。默认情况下，它指示用户使用 'curl -L https://coder.com/install.sh | sh' 进行更新.",
 			Flag:        "cli-upgrade-message",
 			Env:         "CODER_CLI_UPGRADE_MESSAGE",
 			YAML:        "cliUpgradeMessage",
@@ -1812,7 +1810,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name: "Write Config",
-			Description: `将当前服务器配置以YAML格式输出到stdout。`,
+			Description: `O将当前服务器配置以YAML格式输出到stdout.`,
 			Flag:        "write-config",
 			Group:       &deploymentGroupConfig,
 			Hidden:      false,
@@ -1821,7 +1819,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "Support Links",
-			Description: "支持链接显示在右上角下拉菜单中。",
+			Description: "O支持链接显示在右上角下拉菜单中.",
 			Env:         "CODER_SUPPORT_LINKS",
 			Flag:        "support-links",
 			YAML:        "supportLinks",
@@ -1831,7 +1829,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		{
 			// Env handling is done in cli.ReadGitAuthFromEnvironment
 			Name:        "External Auth Providers",
-			Description: "外部验证提供程序。",
+			Description: "O外部验证提供程序.",
 			YAML:        "externalAuthProviders",
 			Flag:        "external-auth-providers",
 			Value:       &c.ExternalAuthConfigs,
@@ -1839,7 +1837,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "Custom wgtunnel Host",
-			Description: `运行https://github.com/coder/wgtunnel的HTTPS服务器的主机名。默认情况下，它将选择Coder托管的最佳可用wgtunnel服务器。例如:\"tunnel.example.com\"。`,
+			Description: `O运行https://github.com/coder/wgtunnel的HTTPS服务器的主机名。默认情况下，它将选择Coder托管的最佳可用wgtunnel服务器。例如:\"tunnel.example.com\".`,
 			Flag:        "wg-tunnel-host",
 			Env:         "WGTUNNEL_HOST",
 			YAML:        "wgtunnelHost",
@@ -1849,7 +1847,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "Proxy Health Check Interval",
-			Description: "检查工作区代理状态的间隔时间。",
+			Description: "O检查工作区代理状态的间隔时间.",
 			Flag:        "proxy-health-interval",
 			Env:         "CODER_PROXY_HEALTH_INTERVAL",
 			Default:     (time.Minute).String(),
@@ -1860,7 +1858,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "Default Quiet Hours Schedule",
-			Description: "默认的每日定期任务计划适用于没有自定义静默时段计划的用户。静默时段计划确定了由于模板的自动停止要求而将工作区强制停止的时间，并将最大截止时间向上舍入为用户的静默时段窗口（或默认）。格式与标准的 cron 格式相同，但日期、月份和星期几必须是*。只能指定一个小时和分钟（不支持范围或逗号分隔的值）。",
+			Description: "O默认的每日定期任务计划适用于没有自定义静默时段计划的用户。静默时段计划确定了由于模板的自动停止要求而将工作区强制停止的时间，并将最大截止时间向上舍入为用户的静默时段窗口（或默认）。格式与标准的 cron 格式相同，但日期、月份和星期几必须是*。只能指定一个小时和分钟（不支持范围或逗号分隔的值）.",
 			Flag:        "default-quiet-hours-schedule",
 			Env:         "CODER_QUIET_HOURS_DEFAULT_SCHEDULE",
 			Default:     "CRON_TZ=UTC 0 0 * * *",
@@ -1870,7 +1868,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "Allow Custom Quiet Hours",
-			Description: "允许用户设置自己的静默时段计划，以便停止工作区（根据模板自动停止要求设置）。如果设置为 false，则用户无法更改其静默时段计划，始终使用站点默认值。",
+			Description: "O允许用户设置自己的静默时段计划，以便停止工作区（根据模板自动停止要求设置）。如果设置为 false，则用户无法更改其静默时段计划，始终使用站点默认值.",
 			Flag:        "allow-custom-quiet-hours",
 			Env:         "CODER_ALLOW_CUSTOM_QUIET_HOURS",
 			Default:     "true",
@@ -1880,7 +1878,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "Web Terminal Renderer",
-			Description: "打开Web终端时要使用的渲染器。有效值为'canvas'、'webgl'或'dom'。",
+			Description: "O打开Web终端时要使用的渲染器。有效值为'canvas'、'webgl'或'dom'.",
 			Flag:        "web-terminal-renderer",
 			Env:         "CODER_WEB_TERMINAL_RENDERER",
 			Default:     "canvas",
@@ -1890,7 +1888,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "Allow Workspace Renames",
-			Description: "已弃用：允许用户重命名其工作区。仅用于临时兼容性原因，此功能将在将来的版本中移除。",
+			Description: "O已弃用：允许用户重命名其工作区。仅用于临时兼容性原因，此功能将在将来的版本中移除.",
 			Flag:        "allow-workspace-renames",
 			Env:         "CODER_ALLOW_WORKSPACE_RENAMES",
 			Default:     "false",
@@ -1900,7 +1898,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		// Healthcheck Options
 		{
 			Name:        "Health Check Refresh",
-			Description: "健康检查的刷新间隔。",
+			Description: "O健康检查的刷新间隔.",
 			Flag:        "health-check-refresh",
 			Env:         "CODER_HEALTH_CHECK_REFRESH",
 			Default:     (10 * time.Minute).String(),
@@ -1911,7 +1909,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		},
 		{
 			Name:        "Health Check Threshold: Database",
-			Description: "数据库健康检查的阈值。如果数据库的中位延迟在5次尝试中超过此阈值，则认为数据库不健康。默认值为15毫秒。",
+			Description: "O数据库健康检查的阈值。如果数据库的中位延迟在5次尝试中超过此阈值，则认为数据库不健康。默认值为15毫秒.",
 			Flag:        "health-check-threshold-database",
 			Env:         "CODER_HEALTH_CHECK_THRESHOLD_DATABASE",
 			Default:     (15 * time.Millisecond).String(),

@@ -165,7 +165,7 @@ func (s *Server) handleAPIKeySmuggling(rw http.ResponseWriter, r *http.Request, 
 		site.RenderStaticErrorPage(rw, r, site.ErrorPageData{
 			Status:      http.StatusBadRequest,
 			Title:       "错误的请求",
-			Description: "无法解密 API 密钥。在主要访问 URL 上不允许使用 Workspace app API 密钥。请删除查询参数后重试。",
+			Description: "O无法解密 API 密钥。在主要访问 URL 上不允许使用 Workspace app API 密钥。请删除查询参数后重试.",
 			// Retry is disabled because the user needs to remove the query
 			// parameter before they try again.
 			RetryEnabled: false,
@@ -181,7 +181,7 @@ func (s *Server) handleAPIKeySmuggling(rw http.ResponseWriter, r *http.Request, 
 		site.RenderStaticErrorPage(rw, r, site.ErrorPageData{
 			Status:      http.StatusBadRequest,
 			Title:       "错误的请求",
-			Description: "无法解密 API 密钥。请删除查询参数后重试。",
+			Description: "O无法解密 API 密钥。请删除查询参数后重试.",
 			// Retry is disabled because the user needs to remove the query
 			// parameter before they try again.
 			RetryEnabled: false,
@@ -204,7 +204,7 @@ func (s *Server) handleAPIKeySmuggling(rw http.ResponseWriter, r *http.Request, 
 			site.RenderStaticErrorPage(rw, r, site.ErrorPageData{
 				Status:       http.StatusInternalServerError,
 				Title:        "内部服务器错误",
-				Description:  "应用程序配置了无效的应用程序通配符主机名。请联系管理员。",
+				Description:  "O应用程序配置了无效的应用程序通配符主机名。请联系管理员.",
 				RetryEnabled: false,
 				DashboardURL: s.DashboardURL.String(),
 			})
@@ -256,7 +256,7 @@ func (s *Server) workspaceAppsProxyPath(rw http.ResponseWriter, r *http.Request)
 		site.RenderStaticErrorPage(rw, r, site.ErrorPageData{
 			Status:       http.StatusForbidden,
 			Title:        "未经授权",
-			Description:  "此 Coder 部署已被管理员禁用路径应用程序。",
+			Description:  "O此 Coder 部署已被管理员禁用路径应用程序.",
 			RetryEnabled: false,
 			DashboardURL: s.DashboardURL.String(),
 		})
@@ -269,7 +269,7 @@ func (s *Server) workspaceAppsProxyPath(rw http.ResponseWriter, r *http.Request)
 		site.RenderStaticErrorPage(rw, r, site.ErrorPageData{
 			Status:       http.StatusNotFound,
 			Title:        "找不到应用程序",
-			Description:  "必须使用完整的用户名而不是 @me 访问应用程序。",
+			Description:  "O必须使用完整的用户名而不是 @me 访问应用程序.",
 			RetryEnabled: false,
 			DashboardURL: s.DashboardURL.String(),
 		})

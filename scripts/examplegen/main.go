@@ -144,10 +144,10 @@ func parseTemplateExample(projectFS, examplesFS fs.FS, name string) (te *codersd
 		errs = append(errs, err)
 	}
 
-	// description, err := getString(frontMatter.FrontMatter, "description")
-	// if err != nil {
-	// 	errs = append(errs, err)
-	// }
+	description, err := getString(frontMatter.FrontMatter, "description")
+	if err != nil {
+		errs = append(errs, err)
+	}
 
 	_, err = getString(frontMatter.FrontMatter, "maintainer_github")
 	if err != nil {

@@ -2250,7 +2250,7 @@ export const MockAuditLogSuccessfulLogin: TypesGen.AuditLog = {
   resource_target: "",
   action: "login",
   status_code: 201,
-  description: "{user} 登录",
+  description: "{user} 登录.",
 }
 
 export const MockAuditLogUnsuccessfulLoginKnownUser: TypesGen.AuditLog = {
