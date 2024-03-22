@@ -587,7 +587,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 	}
 	logFilter := serpent.Option{
 		Name:          "Log Filter",
-		Description:   "通过匹配给定的正则表达式来过滤调试日志。 使用 .* 匹配所有调试日志.",
+		Description:   "O通过匹配给定的正则表达式来过滤调试日志。 使用 .* 匹配所有调试日志.",
 		Flag:          "log-filter",
 		FlagShorthand: "l",
 		Env:           "CODER_LOG_FILTER",
@@ -665,7 +665,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		tlsBindAddress,
 		{
 			Name:          "Address",
-			Description:   "服务器的绑定地址.",
+			Description:   "O服务器的绑定地址.",
 			Flag:          "address",
 			FlagShorthand: "a",
 			Env:           "CODER_ADDRESS",
@@ -1446,7 +1446,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		// Logging settings
 		{
 			Name:          "Verbose",
-			Description:   "输出调试级别的日志.",
+			Description:   "O输出调试级别的日志.",
 			Flag:          "verbose",
 			Env:           "CODER_VERBOSE",
 			FlagShorthand: "v",
