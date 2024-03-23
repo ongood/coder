@@ -611,7 +611,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 	opts := serpent.OptionSet{
 		{
 			Name:        "Access URL",
-			Description: "用于访问 Coder 部署的URL.",
+			Description: "The URL that users will use to access the Coder deployment.",
 			Value:       &c.AccessURL,
 			Flag:        "access-url",
 			Env:         "CODER_ACCESS_URL",
