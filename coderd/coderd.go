@@ -47,6 +47,7 @@ import (
 	"github.com/coder/coder/v2/coderd/batchstats"
 	"github.com/coder/coder/v2/coderd/database"
 	"github.com/coder/coder/v2/coderd/database/dbauthz"
+	"github.com/coder/coder/v2/coderd/database/dbrollup"
 	"github.com/coder/coder/v2/coderd/database/dbtime"
 	"github.com/coder/coder/v2/coderd/database/pubsub"
 	"github.com/coder/coder/v2/coderd/externalauth"
@@ -66,6 +67,7 @@ import (
 	"github.com/coder/coder/v2/coderd/updatecheck"
 	"github.com/coder/coder/v2/coderd/util/slice"
 	"github.com/coder/coder/v2/coderd/workspaceapps"
+	"github.com/coder/coder/v2/coderd/workspaceusage"
 	"github.com/coder/coder/v2/codersdk"
 	"github.com/coder/coder/v2/codersdk/drpc"
 	"github.com/coder/coder/v2/provisionerd/proto"
@@ -190,6 +192,12 @@ type Options struct {
 
 	// NewTicker is used for unit tests to replace "time.NewTicker".
 	NewTicker func(duration time.Duration) (tick <-chan time.Time, done func())
+
+	// DatabaseRolluper rolls up template usage stats from raw agent and app
+	// stats. This is used to provide insights in the WebUI.
+	DatabaseRolluper *dbrollup.Rolluper
+	// WorkspaceUsageTracker tracks workspace usage by the CLI.
+	WorkspaceUsageTracker *workspaceusage.Tracker
 }
 
 // @title Coder API
@@ -284,7 +292,7 @@ func New(options *Options) *API {
 	if options.PrometheusRegistry == nil {
 		options.PrometheusRegistry = prometheus.NewRegistry()
 	}
-	if options.DERPServer == nil {
+	if options.DERPServer == nil && options.DeploymentValues.DERP.Server.Enable {
 		options.DERPServer = derp.NewServer(key.NewNode(), tailnet.Logger(options.Logger.Named("derp")))
 	}
 	if options.DERPMapUpdateFrequency == 0 {
@@ -362,6 +370,16 @@ func New(options *Options) *API {
 		OIDC:   options.OIDCConfig,
 	}
 
+	if options.DatabaseRolluper == nil {
+		options.DatabaseRolluper = dbrollup.New(options.Logger.Named("dbrollup"), options.Database)
+	}
+
+	if options.WorkspaceUsageTracker == nil {
+		options.WorkspaceUsageTracker = workspaceusage.New(options.Database,
+			workspaceusage.WithLogger(options.Logger.Named("workspace_usage_tracker")),
+		)
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	r := chi.NewRouter()
 
@@ -404,7 +422,10 @@ func New(options *Options) *API {
 			ctx,
 			options.Logger.Named("acquirer"),
 			options.Database,
-			options.Pubsub),
+			options.Pubsub,
+		),
+		dbRolluper:            options.DatabaseRolluper,
+		workspaceUsageTracker: options.WorkspaceUsageTracker,
 	}
 
 	api.AppearanceFetcher.Store(&appearance.DefaultFetcher)
@@ -454,7 +475,6 @@ func New(options *Options) *API {
 					DERPMap: api.DERPMap(),
 				},
 				WorkspaceProxy: healthcheck.WorkspaceProxyReportOptions{
-					CurrentVersion:               buildinfo.Version(),
 					WorkspaceProxiesFetchUpdater: *(options.WorkspaceProxiesFetchUpdater).Load(),
 				},
 				ProvisionerDaemons: healthcheck.ProvisionerDaemonsReportDeps{
@@ -567,8 +587,6 @@ func New(options *Options) *API {
 	// replicas or instances of this middleware.
 	apiRateLimiter := httpmw.RateLimit(options.APIRateLimit, time.Minute)
 
-	derpHandler := derphttp.Handler(api.DERPServer)
-	derpHandler, api.derpCloseFunc = tailnet.WithWebsocketSupport(api.DERPServer, derpHandler)
 	// Register DERP on expvar HTTP handler, which we serve below in the router, c.f. expvar.Handler()
 	// These are the metrics the DERP server exposes.
 	// TODO: export via prometheus
@@ -577,7 +595,9 @@ func New(options *Options) *API {
 		// register multiple times.  In production there is only one Coderd and one DERP server per
 		// process, but in testing, we create multiple of both, so the Once protects us from
 		// panicking.
-		expvar.Publish("derp", api.DERPServer.ExpVar())
+		if options.DERPServer != nil {
+			expvar.Publish("derp", api.DERPServer.ExpVar())
+		}
 	})
 	cors := httpmw.Cors(options.DeploymentValues.Dangerous.AllowAllCors.Value())
 	prometheusMW := httpmw.Prometheus(options.PrometheusRegistry)
@@ -627,13 +647,18 @@ func New(options *Options) *API {
 		api.workspaceAppServer.Attach(r)
 	})
 
-	r.Route("/derp", func(r chi.Router) {
-		r.Get("/", derpHandler.ServeHTTP)
-		// This is used when UDP is blocked, and latency must be checked via HTTP(s).
-		r.Get("/latency-check", func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusOK)
+	if options.DERPServer != nil {
+		derpHandler := derphttp.Handler(api.DERPServer)
+		derpHandler, api.derpCloseFunc = tailnet.WithWebsocketSupport(api.DERPServer, derpHandler)
+
+		r.Route("/derp", func(r chi.Router) {
+			r.Get("/", derpHandler.ServeHTTP)
+			// This is used when UDP is blocked, and latency must be checked via HTTP(s).
+			r.Get("/latency-check", func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+			})
 		})
-	})
+	}
 
 	// Register callback handlers for each OAuth2 provider.
 	// We must support gitauth and externalauth for backwards compatibility.
@@ -972,6 +997,7 @@ func New(options *Options) *API {
 				})
 				r.Get("/watch", api.watchWorkspace)
 				r.Put("/extend", api.putExtendWorkspace)
+				r.Post("/usage", api.postWorkspaceUsage)
 				r.Put("/dormant", api.putWorkspaceDormant)
 				r.Put("/favorite", api.putFavoriteWorkspace)
 				r.Delete("/favorite", api.deleteFavoriteWorkspace)
@@ -1056,9 +1082,11 @@ func New(options *Options) *API {
 				r.Use(httpmw.ExtractUserParam(options.Database))
 				r.Get("/debug-link", api.userDebugOIDC)
 			})
-			r.Route("/derp", func(r chi.Router) {
-				r.Get("/traffic", options.DERPServer.ServeDebugTraffic)
-			})
+			if options.DERPServer != nil {
+				r.Route("/derp", func(r chi.Router) {
+					r.Get("/traffic", options.DERPServer.ServeDebugTraffic)
+				})
+			}
 			r.Method("GET", "/expvar", expvar.Handler()) // contains DERP metrics as well as cmdline and memstats
 		})
 	})
@@ -1179,17 +1207,24 @@ type API struct {
 	statsBatcher *batchstats.Batcher
 
 	Acquirer *provisionerdserver.Acquirer
+	// dbRolluper rolls up template usage stats from raw agent and app
+	// stats. This is used to provide insights in the WebUI.
+	dbRolluper            *dbrollup.Rolluper
+	workspaceUsageTracker *workspaceusage.Tracker
 }
 
 // Close waits for all WebSocket connections to drain before returning.
 func (api *API) Close() error {
 	api.cancel()
-	api.derpCloseFunc()
+	if api.derpCloseFunc != nil {
+		api.derpCloseFunc()
+	}
 
 	api.WebsocketWaitMutex.Lock()
 	api.WebsocketWaitGroup.Wait()
 	api.WebsocketWaitMutex.Unlock()
 
+	api.dbRolluper.Close()
 	api.metricsCache.Close()
 	if api.updateChecker != nil {
 		api.updateChecker.Close()
@@ -1200,6 +1235,7 @@ func (api *API) Close() error {
 		_ = (*coordinator).Close()
 	}
 	_ = api.agentProvider.Close()
+	api.workspaceUsageTracker.Close()
 	return nil
 }
 

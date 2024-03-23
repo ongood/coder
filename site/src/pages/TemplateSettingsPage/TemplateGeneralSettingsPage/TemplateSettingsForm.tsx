@@ -232,21 +232,11 @@ export const TemplateSettingsForm: FC<TemplateSettingsForm> = ({
         description="将模板设为弃用会阻止创建新的工作区。现有的工作区将继续正常运行。"
       >
         <FormFields>
-          <Stack direction="column" spacing={0.5}>
-            <Stack
-              direction="row"
-              alignItems="center"
-              spacing={0.5}
-              css={styles.optionText}
-            >
-              弃用消息
-            </Stack>
-            <span css={styles.optionHelperText}>
-              将消息留空以保持模板处于活动状态。提供任何消息都将标记模板为已弃用。使用此消息通知用户模板已弃用，并说明如何迁移到新模板。
-            </span>
-          </Stack>
           <TextField
-            {...getFieldHelpers("deprecation_message")}
+            {...getFieldHelpers("deprecation_message", {
+              helperText:
+                "将消息留空以使模板保持活动状态。 提供的任何消息都会将该模板标记为已弃用。 使用此消息通知用户已弃用以及如何迁移到新模板。",
+            })}
             disabled={isSubmitting || !accessControlEnabled}
             fullWidth
             label="弃用消息"

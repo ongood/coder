@@ -43,25 +43,6 @@ export const ActivityBumpHelperText = (props: { bump?: number }) => {
   );
 };
 
-export const MaxTTLHelperText = (props: { ttl?: number }) => {
-  const { ttl = 0 } = props;
-
-  // Error will show once field is considered touched
-  if (ttl < 0) {
-    return null;
-  }
-
-  if (ttl === 0) {
-    return <span>工作区可能会无限期运行。</span>;
-  }
-
-  return (
-    <span>
-      无论是否有活动连接，工作区必须在启动后的{ttl}小时内停止。
-    </span>
-  );
-};
-
 export const FailureTTLHelperText = (props: { ttl?: number }) => {
   const { ttl = 0 } = props;
 
