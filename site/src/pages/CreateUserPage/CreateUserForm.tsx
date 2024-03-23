@@ -30,15 +30,15 @@ export const Language = {
 export const authMethodLanguage = {
   password: {
     displayName: "Password",
-    description: "O使用电子邮件地址和密码登录.",
+    description: "使用电子邮件地址和密码登录.",
   },
   oidc: {
     displayName: "OpenID Connect",
-    description: "O使用 OpenID Connect 提供程序进行身份验证.",
+    description: "使用 OpenID Connect 提供程序进行身份验证.",
   },
   github: {
     displayName: "Github",
-    description: "O使用 GitHub OAuth 进行身份验证.",
+    description: "使用 GitHub OAuth 进行身份验证.",
   },
   none: {
     displayName: "None",

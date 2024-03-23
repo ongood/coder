@@ -32,7 +32,7 @@ func WriteWorkspaceApp404(log slog.Logger, accessURL *url.URL, rw http.ResponseW
 	site.RenderStaticErrorPage(rw, r, site.ErrorPageData{
 		Status:       http.StatusNotFound,
 		Title:        "应用程序未找到",
-		Description:  "O您尝试访问的应用程序或工作区不存在，或者您没有权限访问它.",
+		Description:  "您尝试访问的应用程序或工作区不存在，或者您没有权限访问它.",
 		RetryEnabled: false,
 		DashboardURL: accessURL.String(),
 		Warnings:     warnings,
@@ -62,7 +62,7 @@ func WriteWorkspaceApp500(log slog.Logger, accessURL *url.URL, rw http.ResponseW
 	site.RenderStaticErrorPage(rw, r, site.ErrorPageData{
 		Status:       http.StatusInternalServerError,
 		Title:        "内部服务器错误",
-		Description:  "O发生了内部服务器错误.",
+		Description:  "发生了内部服务器错误.",
 		RetryEnabled: false,
 		DashboardURL: accessURL.String(),
 	})

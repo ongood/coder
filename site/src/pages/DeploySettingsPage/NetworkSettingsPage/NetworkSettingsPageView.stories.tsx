@@ -14,7 +14,7 @@ const meta: Meta<typeof NetworkSettingsPageView> = {
     options: [
       {
         name: "DERP Server Enable",
-        description:"O是否启用或禁用嵌入式DERP中继服务器.",
+        description:"是否启用或禁用嵌入式DERP中继服务器.",
         value: true,
         group,
         flag: "derp",
@@ -23,7 +23,7 @@ const meta: Meta<typeof NetworkSettingsPageView> = {
       },
       {
         name: "DERP Server Region Name",
-        description: "O嵌入式DERP服务器的区域名称.",
+        description: "嵌入式DERP服务器的区域名称.",
         value: "aws-east",
         group,
         flag: "derp",
@@ -32,7 +32,7 @@ const meta: Meta<typeof NetworkSettingsPageView> = {
       },
       {
         name: "DERP Server STUN Addresses",
-        description:"O用于建立点对点连接的STUN服务器地址。将其设置为空以禁用点对点连接.",
+        description:"用于建立点对点连接的STUN服务器地址。将其设置为空以禁用点对点连接.",
         value: ["stun.l.google.com:19302", "stun.l.google.com:19301"],
         group,
         flag: "derp",
@@ -41,7 +41,7 @@ const meta: Meta<typeof NetworkSettingsPageView> = {
       },
       {
         name: "DERP Config URL",
-        description:"O启动时获取DERP映射的URL。参见：https://tailscale.com/kb/1118/custom-derp-servers/.",
+        description:"启动时获取DERP映射的URL。参见：https://tailscale.com/kb/1118/custom-derp-servers/.",
         value: "https://coder.com",
         group,
         flag: "derp",
