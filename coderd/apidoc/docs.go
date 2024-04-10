@@ -485,7 +485,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/codersdk.HealthcheckReport"
+                            "$ref": "#/definitions/healthsdk.HealthcheckReport"
                         }
                     }
                 }
@@ -510,7 +510,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/codersdk.HealthSettings"
+                            "$ref": "#/definitions/healthsdk.HealthSettings"
                         }
                     }
                 }
@@ -539,7 +539,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/codersdk.UpdateHealthSettings"
+                            "$ref": "#/definitions/healthsdk.UpdateHealthSettings"
                         }
                     }
                 ],
@@ -547,7 +547,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/codersdk.UpdateHealthSettings"
+                            "$ref": "#/definitions/healthsdk.UpdateHealthSettings"
                         }
                     }
                 }
@@ -2211,6 +2211,7 @@ const docTemplate = `{
                         "CoderSessionToken": []
                     }
                 ],
+                "description": "Create a new workspace using a template. The request must\nspecify either the Template ID or the Template Version ID,\nnot both. If the Template ID is specified, the active version\nof the template will be used.",
                 "consumes": [
                     "application/json"
                 ],
@@ -5479,7 +5480,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/codersdk.WorkspaceAgentConnectionInfo"
+                            "$ref": "#/definitions/workspacesdk.AgentConnectionInfo"
                         }
                     }
                 },
@@ -5903,6 +5904,7 @@ const docTemplate = `{
                 ],
                 "summary": "Submit workspace agent stats",
                 "operationId": "submit-workspace-agent-stats",
+                "deprecated": true,
                 "parameters": [
                     {
                         "description": "Stats request",
@@ -6088,7 +6090,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/codersdk.WorkspaceAgentConnectionInfo"
+                            "$ref": "#/definitions/workspacesdk.AgentConnectionInfo"
                         }
                     }
                 }
@@ -8228,51 +8230,6 @@ const docTemplate = `{
                 "APIKeyScopeApplicationConnect"
             ]
         },
-        "codersdk.AccessURLReport": {
-            "type": "object",
-            "properties": {
-                "access_url": {
-                    "type": "string"
-                },
-                "dismissed": {
-                    "type": "boolean"
-                },
-                "error": {
-                    "type": "string"
-                },
-                "healthy": {
-                    "description": "Healthy is deprecated and left for backward compatibility purposes, use ` + "`" + `Severity` + "`" + ` instead.",
-                    "type": "boolean"
-                },
-                "healthz_response": {
-                    "type": "string"
-                },
-                "reachable": {
-                    "type": "boolean"
-                },
-                "severity": {
-                    "enum": [
-                        "ok",
-                        "warning",
-                        "error"
-                    ],
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/health.Severity"
-                        }
-                    ]
-                },
-                "status_code": {
-                    "type": "integer"
-                },
-                "warnings": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/health.Message"
-                    }
-                }
-            }
-        },
         "codersdk.AddLicenseRequest": {
             "type": "object",
             "required": [
@@ -9090,6 +9047,7 @@ const docTemplate = `{
             }
         },
         "codersdk.CreateWorkspaceRequest": {
+            "description": "CreateWorkspaceRequest provides options for creating a new workspace. Only one of TemplateID or TemplateVersionID can be specified, not both. If TemplateID is specified, the active version of the template will be used.",
             "type": "object",
             "required": [
                 "name"
@@ -9180,126 +9138,6 @@ const docTemplate = `{
                 }
             }
         },
-        "codersdk.DERPHealthReport": {
-            "type": "object",
-            "properties": {
-                "dismissed": {
-                    "type": "boolean"
-                },
-                "error": {
-                    "type": "string"
-                },
-                "healthy": {
-                    "description": "Healthy is deprecated and left for backward compatibility purposes, use ` + "`" + `Severity` + "`" + ` instead.",
-                    "type": "boolean"
-                },
-                "netcheck": {
-                    "$ref": "#/definitions/netcheck.Report"
-                },
-                "netcheck_err": {
-                    "type": "string"
-                },
-                "netcheck_logs": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "regions": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "$ref": "#/definitions/codersdk.DERPRegionReport"
-                    }
-                },
-                "severity": {
-                    "enum": [
-                        "ok",
-                        "warning",
-                        "error"
-                    ],
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/health.Severity"
-                        }
-                    ]
-                },
-                "warnings": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/health.Message"
-                    }
-                }
-            }
-        },
-        "codersdk.DERPNodeReport": {
-            "type": "object",
-            "properties": {
-                "can_exchange_messages": {
-                    "type": "boolean"
-                },
-                "client_errs": {
-                    "type": "array",
-                    "items": {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        }
-                    }
-                },
-                "client_logs": {
-                    "type": "array",
-                    "items": {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        }
-                    }
-                },
-                "error": {
-                    "type": "string"
-                },
-                "healthy": {
-                    "description": "Healthy is deprecated and left for backward compatibility purposes, use ` + "`" + `Severity` + "`" + ` instead.",
-                    "type": "boolean"
-                },
-                "node": {
-                    "$ref": "#/definitions/tailcfg.DERPNode"
-                },
-                "node_info": {
-                    "$ref": "#/definitions/derp.ServerInfoMessage"
-                },
-                "round_trip_ping": {
-                    "type": "string"
-                },
-                "round_trip_ping_ms": {
-                    "type": "integer"
-                },
-                "severity": {
-                    "enum": [
-                        "ok",
-                        "warning",
-                        "error"
-                    ],
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/health.Severity"
-                        }
-                    ]
-                },
-                "stun": {
-                    "$ref": "#/definitions/codersdk.STUNReport"
-                },
-                "uses_websocket": {
-                    "type": "boolean"
-                },
-                "warnings": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/health.Message"
-                    }
-                }
-            }
-        },
         "codersdk.DERPRegion": {
             "type": "object",
             "properties": {
@@ -9308,45 +9146,6 @@ const docTemplate = `{
                 },
                 "preferred": {
                     "type": "boolean"
-                }
-            }
-        },
-        "codersdk.DERPRegionReport": {
-            "type": "object",
-            "properties": {
-                "error": {
-                    "type": "string"
-                },
-                "healthy": {
-                    "description": "Healthy is deprecated and left for backward compatibility purposes, use ` + "`" + `Severity` + "`" + ` instead.",
-                    "type": "boolean"
-                },
-                "node_reports": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/codersdk.DERPNodeReport"
-                    }
-                },
-                "region": {
-                    "$ref": "#/definitions/tailcfg.DERPRegion"
-                },
-                "severity": {
-                    "enum": [
-                        "ok",
-                        "warning",
-                        "error"
-                    ],
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/health.Severity"
-                        }
-                    ]
-                },
-                "warnings": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/health.Message"
-                    }
                 }
             }
         },
@@ -9387,51 +9186,6 @@ const docTemplate = `{
                 },
                 "allow_path_app_site_owner_access": {
                     "type": "boolean"
-                }
-            }
-        },
-        "codersdk.DatabaseReport": {
-            "type": "object",
-            "properties": {
-                "dismissed": {
-                    "type": "boolean"
-                },
-                "error": {
-                    "type": "string"
-                },
-                "healthy": {
-                    "description": "Healthy is deprecated and left for backward compatibility purposes, use ` + "`" + `Severity` + "`" + ` instead.",
-                    "type": "boolean"
-                },
-                "latency": {
-                    "type": "string"
-                },
-                "latency_ms": {
-                    "type": "integer"
-                },
-                "reachable": {
-                    "type": "boolean"
-                },
-                "severity": {
-                    "enum": [
-                        "ok",
-                        "warning",
-                        "error"
-                    ],
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/health.Severity"
-                        }
-                    ]
-                },
-                "threshold_ms": {
-                    "type": "integer"
-                },
-                "warnings": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/health.Message"
-                    }
                 }
             }
         },
@@ -10057,36 +9811,6 @@ const docTemplate = `{
                 "GroupSourceOIDC"
             ]
         },
-        "codersdk.HealthSection": {
-            "type": "string",
-            "enum": [
-                "DERP",
-                "AccessURL",
-                "Websocket",
-                "Database",
-                "WorkspaceProxy",
-                "ProvisionerDaemons"
-            ],
-            "x-enum-varnames": [
-                "HealthSectionDERP",
-                "HealthSectionAccessURL",
-                "HealthSectionWebsocket",
-                "HealthSectionDatabase",
-                "HealthSectionWorkspaceProxy",
-                "HealthSectionProvisionerDaemons"
-            ]
-        },
-        "codersdk.HealthSettings": {
-            "type": "object",
-            "properties": {
-                "dismissed_healthchecks": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/codersdk.HealthSection"
-                    }
-                }
-            }
-        },
         "codersdk.Healthcheck": {
             "type": "object",
             "properties": {
@@ -10112,62 +9836,6 @@ const docTemplate = `{
                 },
                 "threshold_database": {
                     "type": "integer"
-                }
-            }
-        },
-        "codersdk.HealthcheckReport": {
-            "type": "object",
-            "properties": {
-                "access_url": {
-                    "$ref": "#/definitions/codersdk.AccessURLReport"
-                },
-                "coder_version": {
-                    "description": "The Coder version of the server that the report was generated on.",
-                    "type": "string"
-                },
-                "database": {
-                    "$ref": "#/definitions/codersdk.DatabaseReport"
-                },
-                "derp": {
-                    "$ref": "#/definitions/codersdk.DERPHealthReport"
-                },
-                "failing_sections": {
-                    "description": "FailingSections is a list of sections that have failed their healthcheck.",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/codersdk.HealthSection"
-                    }
-                },
-                "healthy": {
-                    "description": "Healthy is true if the report returns no errors.\nDeprecated: use ` + "`" + `Severity` + "`" + ` instead",
-                    "type": "boolean"
-                },
-                "provisioner_daemons": {
-                    "$ref": "#/definitions/codersdk.ProvisionerDaemonsReport"
-                },
-                "severity": {
-                    "description": "Severity indicates the status of Coder health.",
-                    "enum": [
-                        "ok",
-                        "warning",
-                        "error"
-                    ],
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/health.Severity"
-                        }
-                    ]
-                },
-                "time": {
-                    "description": "Time is the time the report was generated at.",
-                    "type": "string",
-                    "format": "date-time"
-                },
-                "websocket": {
-                    "$ref": "#/definitions/codersdk.WebsocketReport"
-                },
-                "workspace_proxy": {
-                    "$ref": "#/definitions/codersdk.WorkspaceProxyReport"
                 }
             }
         },
@@ -10863,46 +10531,6 @@ const docTemplate = `{
                 }
             }
         },
-        "codersdk.ProvisionerDaemonsReport": {
-            "type": "object",
-            "properties": {
-                "dismissed": {
-                    "type": "boolean"
-                },
-                "error": {
-                    "type": "string"
-                },
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/codersdk.ProvisionerDaemonsReportItem"
-                    }
-                },
-                "severity": {
-                    "$ref": "#/definitions/health.Severity"
-                },
-                "warnings": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/health.Message"
-                    }
-                }
-            }
-        },
-        "codersdk.ProvisionerDaemonsReportItem": {
-            "type": "object",
-            "properties": {
-                "provisioner_daemon": {
-                    "$ref": "#/definitions/codersdk.ProvisionerDaemon"
-                },
-                "warnings": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/health.Message"
-                    }
-                }
-            }
-        },
         "codersdk.ProvisionerJob": {
             "type": "object",
             "properties": {
@@ -11423,20 +11051,6 @@ const docTemplate = `{
                     "additionalProperties": {
                         "type": "string"
                     }
-                }
-            }
-        },
-        "codersdk.STUNReport": {
-            "type": "object",
-            "properties": {
-                "canSTUN": {
-                    "type": "boolean"
-                },
-                "enabled": {
-                    "type": "boolean"
-                },
-                "error": {
-                    "type": "string"
                 }
             }
         },
@@ -12292,17 +11906,6 @@ const docTemplate = `{
                 }
             }
         },
-        "codersdk.UpdateHealthSettings": {
-            "type": "object",
-            "properties": {
-                "dismissed_healthchecks": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/codersdk.HealthSection"
-                    }
-                }
-            }
-        },
         "codersdk.UpdateRoles": {
             "type": "object",
             "properties": {
@@ -12773,45 +12376,6 @@ const docTemplate = `{
                 }
             }
         },
-        "codersdk.WebsocketReport": {
-            "type": "object",
-            "properties": {
-                "body": {
-                    "type": "string"
-                },
-                "code": {
-                    "type": "integer"
-                },
-                "dismissed": {
-                    "type": "boolean"
-                },
-                "error": {
-                    "type": "string"
-                },
-                "healthy": {
-                    "description": "Healthy is deprecated and left for backward compatibility purposes, use ` + "`" + `Severity` + "`" + ` instead.",
-                    "type": "boolean"
-                },
-                "severity": {
-                    "enum": [
-                        "ok",
-                        "warning",
-                        "error"
-                    ],
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/health.Severity"
-                        }
-                    ]
-                },
-                "warnings": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
         "codersdk.Workspace": {
             "type": "object",
             "properties": {
@@ -13059,20 +12623,6 @@ const docTemplate = `{
                 },
                 "version": {
                     "type": "string"
-                }
-            }
-        },
-        "codersdk.WorkspaceAgentConnectionInfo": {
-            "type": "object",
-            "properties": {
-                "derp_force_websockets": {
-                    "type": "boolean"
-                },
-                "derp_map": {
-                    "$ref": "#/definitions/tailcfg.DERPMap"
-                },
-                "disable_direct_connections": {
-                    "type": "boolean"
                 }
             }
         },
@@ -13669,32 +13219,6 @@ const docTemplate = `{
                 }
             }
         },
-        "codersdk.WorkspaceProxyReport": {
-            "type": "object",
-            "properties": {
-                "dismissed": {
-                    "type": "boolean"
-                },
-                "error": {
-                    "type": "string"
-                },
-                "healthy": {
-                    "type": "boolean"
-                },
-                "severity": {
-                    "$ref": "#/definitions/health.Severity"
-                },
-                "warnings": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/health.Message"
-                    }
-                },
-                "workspace_proxies": {
-                    "$ref": "#/definitions/codersdk.RegionsResponse-codersdk_WorkspaceProxy"
-                }
-            }
-        },
         "codersdk.WorkspaceProxyStatus": {
             "type": "object",
             "properties": {
@@ -13948,6 +13472,471 @@ const docTemplate = `{
                 "SeverityWarning",
                 "SeverityError"
             ]
+        },
+        "healthsdk.AccessURLReport": {
+            "type": "object",
+            "properties": {
+                "access_url": {
+                    "type": "string"
+                },
+                "dismissed": {
+                    "type": "boolean"
+                },
+                "error": {
+                    "type": "string"
+                },
+                "healthy": {
+                    "description": "Healthy is deprecated and left for backward compatibility purposes, use ` + "`" + `Severity` + "`" + ` instead.",
+                    "type": "boolean"
+                },
+                "healthz_response": {
+                    "type": "string"
+                },
+                "reachable": {
+                    "type": "boolean"
+                },
+                "severity": {
+                    "enum": [
+                        "ok",
+                        "warning",
+                        "error"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/health.Severity"
+                        }
+                    ]
+                },
+                "status_code": {
+                    "type": "integer"
+                },
+                "warnings": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/health.Message"
+                    }
+                }
+            }
+        },
+        "healthsdk.DERPHealthReport": {
+            "type": "object",
+            "properties": {
+                "dismissed": {
+                    "type": "boolean"
+                },
+                "error": {
+                    "type": "string"
+                },
+                "healthy": {
+                    "description": "Healthy is deprecated and left for backward compatibility purposes, use ` + "`" + `Severity` + "`" + ` instead.",
+                    "type": "boolean"
+                },
+                "netcheck": {
+                    "$ref": "#/definitions/netcheck.Report"
+                },
+                "netcheck_err": {
+                    "type": "string"
+                },
+                "netcheck_logs": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "regions": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/healthsdk.DERPRegionReport"
+                    }
+                },
+                "severity": {
+                    "enum": [
+                        "ok",
+                        "warning",
+                        "error"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/health.Severity"
+                        }
+                    ]
+                },
+                "warnings": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/health.Message"
+                    }
+                }
+            }
+        },
+        "healthsdk.DERPNodeReport": {
+            "type": "object",
+            "properties": {
+                "can_exchange_messages": {
+                    "type": "boolean"
+                },
+                "client_errs": {
+                    "type": "array",
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "client_logs": {
+                    "type": "array",
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "error": {
+                    "type": "string"
+                },
+                "healthy": {
+                    "description": "Healthy is deprecated and left for backward compatibility purposes, use ` + "`" + `Severity` + "`" + ` instead.",
+                    "type": "boolean"
+                },
+                "node": {
+                    "$ref": "#/definitions/tailcfg.DERPNode"
+                },
+                "node_info": {
+                    "$ref": "#/definitions/derp.ServerInfoMessage"
+                },
+                "round_trip_ping": {
+                    "type": "string"
+                },
+                "round_trip_ping_ms": {
+                    "type": "integer"
+                },
+                "severity": {
+                    "enum": [
+                        "ok",
+                        "warning",
+                        "error"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/health.Severity"
+                        }
+                    ]
+                },
+                "stun": {
+                    "$ref": "#/definitions/healthsdk.STUNReport"
+                },
+                "uses_websocket": {
+                    "type": "boolean"
+                },
+                "warnings": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/health.Message"
+                    }
+                }
+            }
+        },
+        "healthsdk.DERPRegionReport": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                },
+                "healthy": {
+                    "description": "Healthy is deprecated and left for backward compatibility purposes, use ` + "`" + `Severity` + "`" + ` instead.",
+                    "type": "boolean"
+                },
+                "node_reports": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/healthsdk.DERPNodeReport"
+                    }
+                },
+                "region": {
+                    "$ref": "#/definitions/tailcfg.DERPRegion"
+                },
+                "severity": {
+                    "enum": [
+                        "ok",
+                        "warning",
+                        "error"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/health.Severity"
+                        }
+                    ]
+                },
+                "warnings": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/health.Message"
+                    }
+                }
+            }
+        },
+        "healthsdk.DatabaseReport": {
+            "type": "object",
+            "properties": {
+                "dismissed": {
+                    "type": "boolean"
+                },
+                "error": {
+                    "type": "string"
+                },
+                "healthy": {
+                    "description": "Healthy is deprecated and left for backward compatibility purposes, use ` + "`" + `Severity` + "`" + ` instead.",
+                    "type": "boolean"
+                },
+                "latency": {
+                    "type": "string"
+                },
+                "latency_ms": {
+                    "type": "integer"
+                },
+                "reachable": {
+                    "type": "boolean"
+                },
+                "severity": {
+                    "enum": [
+                        "ok",
+                        "warning",
+                        "error"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/health.Severity"
+                        }
+                    ]
+                },
+                "threshold_ms": {
+                    "type": "integer"
+                },
+                "warnings": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/health.Message"
+                    }
+                }
+            }
+        },
+        "healthsdk.HealthSection": {
+            "type": "string",
+            "enum": [
+                "DERP",
+                "AccessURL",
+                "Websocket",
+                "Database",
+                "WorkspaceProxy",
+                "ProvisionerDaemons"
+            ],
+            "x-enum-varnames": [
+                "HealthSectionDERP",
+                "HealthSectionAccessURL",
+                "HealthSectionWebsocket",
+                "HealthSectionDatabase",
+                "HealthSectionWorkspaceProxy",
+                "HealthSectionProvisionerDaemons"
+            ]
+        },
+        "healthsdk.HealthSettings": {
+            "type": "object",
+            "properties": {
+                "dismissed_healthchecks": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/healthsdk.HealthSection"
+                    }
+                }
+            }
+        },
+        "healthsdk.HealthcheckReport": {
+            "type": "object",
+            "properties": {
+                "access_url": {
+                    "$ref": "#/definitions/healthsdk.AccessURLReport"
+                },
+                "coder_version": {
+                    "description": "The Coder version of the server that the report was generated on.",
+                    "type": "string"
+                },
+                "database": {
+                    "$ref": "#/definitions/healthsdk.DatabaseReport"
+                },
+                "derp": {
+                    "$ref": "#/definitions/healthsdk.DERPHealthReport"
+                },
+                "failing_sections": {
+                    "description": "FailingSections is a list of sections that have failed their healthcheck.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/healthsdk.HealthSection"
+                    }
+                },
+                "healthy": {
+                    "description": "Healthy is true if the report returns no errors.\nDeprecated: use ` + "`" + `Severity` + "`" + ` instead",
+                    "type": "boolean"
+                },
+                "provisioner_daemons": {
+                    "$ref": "#/definitions/healthsdk.ProvisionerDaemonsReport"
+                },
+                "severity": {
+                    "description": "Severity indicates the status of Coder health.",
+                    "enum": [
+                        "ok",
+                        "warning",
+                        "error"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/health.Severity"
+                        }
+                    ]
+                },
+                "time": {
+                    "description": "Time is the time the report was generated at.",
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "websocket": {
+                    "$ref": "#/definitions/healthsdk.WebsocketReport"
+                },
+                "workspace_proxy": {
+                    "$ref": "#/definitions/healthsdk.WorkspaceProxyReport"
+                }
+            }
+        },
+        "healthsdk.ProvisionerDaemonsReport": {
+            "type": "object",
+            "properties": {
+                "dismissed": {
+                    "type": "boolean"
+                },
+                "error": {
+                    "type": "string"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/healthsdk.ProvisionerDaemonsReportItem"
+                    }
+                },
+                "severity": {
+                    "$ref": "#/definitions/health.Severity"
+                },
+                "warnings": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/health.Message"
+                    }
+                }
+            }
+        },
+        "healthsdk.ProvisionerDaemonsReportItem": {
+            "type": "object",
+            "properties": {
+                "provisioner_daemon": {
+                    "$ref": "#/definitions/codersdk.ProvisionerDaemon"
+                },
+                "warnings": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/health.Message"
+                    }
+                }
+            }
+        },
+        "healthsdk.STUNReport": {
+            "type": "object",
+            "properties": {
+                "canSTUN": {
+                    "type": "boolean"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "error": {
+                    "type": "string"
+                }
+            }
+        },
+        "healthsdk.UpdateHealthSettings": {
+            "type": "object",
+            "properties": {
+                "dismissed_healthchecks": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/healthsdk.HealthSection"
+                    }
+                }
+            }
+        },
+        "healthsdk.WebsocketReport": {
+            "type": "object",
+            "properties": {
+                "body": {
+                    "type": "string"
+                },
+                "code": {
+                    "type": "integer"
+                },
+                "dismissed": {
+                    "type": "boolean"
+                },
+                "error": {
+                    "type": "string"
+                },
+                "healthy": {
+                    "description": "Healthy is deprecated and left for backward compatibility purposes, use ` + "`" + `Severity` + "`" + ` instead.",
+                    "type": "boolean"
+                },
+                "severity": {
+                    "enum": [
+                        "ok",
+                        "warning",
+                        "error"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/health.Severity"
+                        }
+                    ]
+                },
+                "warnings": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "healthsdk.WorkspaceProxyReport": {
+            "type": "object",
+            "properties": {
+                "dismissed": {
+                    "type": "boolean"
+                },
+                "error": {
+                    "type": "string"
+                },
+                "healthy": {
+                    "type": "boolean"
+                },
+                "severity": {
+                    "$ref": "#/definitions/health.Severity"
+                },
+                "warnings": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/health.Message"
+                    }
+                },
+                "workspace_proxies": {
+                    "$ref": "#/definitions/codersdk.RegionsResponse-codersdk_WorkspaceProxy"
+                }
+            }
         },
         "key.NodePublic": {
             "type": "object"
@@ -14487,6 +14476,20 @@ const docTemplate = `{
                 },
                 "workspace_id": {
                     "type": "string"
+                }
+            }
+        },
+        "workspacesdk.AgentConnectionInfo": {
+            "type": "object",
+            "properties": {
+                "derp_force_websockets": {
+                    "type": "boolean"
+                },
+                "derp_map": {
+                    "$ref": "#/definitions/tailcfg.DERPMap"
+                },
+                "disable_direct_connections": {
+                    "type": "boolean"
                 }
             }
         },

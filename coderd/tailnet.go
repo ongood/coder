@@ -23,7 +23,7 @@ import (
 	"cdr.dev/slog"
 	"github.com/coder/coder/v2/coderd/tracing"
 	"github.com/coder/coder/v2/coderd/workspaceapps"
-	"github.com/coder/coder/v2/codersdk"
+	"github.com/coder/coder/v2/codersdk/workspacesdk"
 	"github.com/coder/coder/v2/site"
 	"github.com/coder/coder/v2/tailnet"
 	"github.com/coder/retry"
@@ -32,11 +32,14 @@ import (
 var tailnetTransport *http.Transport
 
 func init() {
-	var valid bool
-	tailnetTransport, valid = http.DefaultTransport.(*http.Transport)
+	tp, valid := http.DefaultTransport.(*http.Transport)
 	if !valid {
 		panic("dev error: default transport is the wrong type")
 	}
+	tailnetTransport = tp.Clone()
+	// We do not want to respect the proxy settings from the environment, since
+	// all network traffic happens over wireguard.
+	tailnetTransport.Proxy = nil
 }
 
 var _ workspaceapps.AgentProvider = (*ServerTailnet)(nil)
@@ -427,9 +430,9 @@ func (s *ServerTailnet) acquireTicket(agentID uuid.UUID) (release func()) {
 	}
 }
 
-func (s *ServerTailnet) AgentConn(ctx context.Context, agentID uuid.UUID) (*codersdk.WorkspaceAgentConn, func(), error) {
+func (s *ServerTailnet) AgentConn(ctx context.Context, agentID uuid.UUID) (*workspacesdk.AgentConn, func(), error) {
 	var (
-		conn *codersdk.WorkspaceAgentConn
+		conn *workspacesdk.AgentConn
 		ret  func()
 	)
 
@@ -440,9 +443,9 @@ func (s *ServerTailnet) AgentConn(ctx context.Context, agentID uuid.UUID) (*code
 	}
 	ret = s.acquireTicket(agentID)
 
-	conn = codersdk.NewWorkspaceAgentConn(s.conn, codersdk.WorkspaceAgentConnOptions{
+	conn = workspacesdk.NewAgentConn(s.conn, workspacesdk.AgentConnOptions{
 		AgentID:   agentID,
-		CloseFunc: func() error { return codersdk.ErrSkipClose },
+		CloseFunc: func() error { return workspacesdk.ErrSkipClose },
 	})
 
 	// Since we now have an open conn, be careful to close it if we error

@@ -381,7 +381,7 @@ export const PortForwardPopoverView: FC<PortForwardPopoverViewProps> = ({
           <HelpTooltipTitle>分享的端口</HelpTooltipTitle>
           <HelpTooltipText css={{ color: theme.palette.text.secondary }}>
             {canSharePorts
-              ? "端口可以与其他 Coder 用户或公众共享。"
+              ? "端口可以与其他Coder用户或公共用户共享。更改协议可能需要最多1分钟才能生效。"
               : "此工作区模板不允许共享端口。请联系模板管理员以启用端口共享。"}
           </HelpTooltipText>
           {canSharePorts && (

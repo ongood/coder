@@ -175,10 +175,10 @@ export const TemplateVersionEditor: FC<TemplateVersionEditorProps> = ({
     typeof editorValue === "string" ? isBinaryData(editorValue) : false;
 
   // Auto scroll
-  const buildLogsRef = useRef<HTMLDivElement>(null);
+  const logsContentRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (buildLogsRef.current) {
-      buildLogsRef.current.scrollTop = buildLogsRef.current.scrollHeight;
+    if (logsContentRef.current) {
+      logsContentRef.current.scrollTop = logsContentRef.current.scrollHeight;
     }
   }, [buildLogs]);
 
@@ -237,9 +237,7 @@ export const TemplateVersionEditor: FC<TemplateVersionEditorProps> = ({
               paddingRight: 16,
             }}
           >
-            {buildLogs && (
-              <TemplateVersionStatusBadge version={templateVersion} />
-            )}
+            <TemplateVersionStatusBadge version={templateVersion} />
 
             <ButtonGroup
               variant="outlined"
@@ -574,62 +572,51 @@ export const TemplateVersionEditor: FC<TemplateVersionEditorProps> = ({
                 )}
               </div>
 
-              <div
-                ref={buildLogsRef}
-                css={{
-                  display: selectedTab !== "logs" ? "none" : "flex",
-                  height: selectedTab ? 280 : 0,
-                  flexDirection: "column",
-                  overflowY: "auto",
-                }}
-              >
-                {templateVersion.job.error && (
-                  <div>
-                    <Alert
-                      severity="error"
-                      css={{
-                        borderRadius: 0,
-                        border: 0,
-                        borderBottom: `1px solid ${theme.palette.divider}`,
-                        borderLeft: `2px solid ${theme.palette.error.main}`,
-                      }}
-                    >
-                      <AlertTitle>构建期间出现错误</AlertTitle>
-                      <AlertDetail>{templateVersion.job.error}</AlertDetail>
-                    </Alert>
-                  </div>
-                )}
+              {selectedTab === "logs" && (
+                <div
+                  css={[styles.logs, styles.tabContent]}
+                  ref={logsContentRef}
+                >
+                  {templateVersion.job.error && (
+                    <div>
+                      <Alert
+                        severity="error"
+                        css={{
+                          borderRadius: 0,
+                          border: 0,
+                          borderBottom: `1px solid ${theme.palette.divider}`,
+                          borderLeft: `2px solid ${theme.palette.error.main}`,
+                        }}
+                      >
+                        <AlertTitle>构建出错</AlertTitle>
+                        <AlertDetail>{templateVersion.job.error}</AlertDetail>
+                      </Alert>
+                    </div>
+                  )}
 
-                {buildLogs && buildLogs.length === 0 && (
-                  <Loader css={{ height: "100%" }} />
-                )}
+                  {buildLogs && buildLogs.length > 0 ? (
+                    <WorkspaceBuildLogs
+                      css={styles.buildLogs}
+                      hideTimestamps
+                      logs={buildLogs}
+                    />
+                  ) : (
+                    <Loader css={{ height: "100%" }} />
+                  )}
+                </div>
+              )}
 
-                {buildLogs && buildLogs.length > 0 && (
-                  <WorkspaceBuildLogs
-                    css={styles.buildLogs}
-                    hideTimestamps
-                    logs={buildLogs}
-                  />
-                )}
-              </div>
-
-              <div
-                css={[
-                  {
-                    display: selectedTab !== "resources" ? "none" : undefined,
-                    height: selectedTab ? 280 : 0,
-                  },
-                  styles.resources,
-                ]}
-              >
-                {resources && (
-                  <TemplateResourcesTable
-                    resources={resources.filter(
-                      (r) => r.workspace_transition === "start",
-                    )}
-                  />
-                )}
-              </div>
+              {selectedTab === "resources" && (
+                <div css={[styles.resources, styles.tabContent]}>
+                  {resources && (
+                    <TemplateResourcesTable
+                      resources={resources.filter(
+                        (r) => r.workspace_transition === "start",
+                      )}
+                    />
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -750,6 +737,17 @@ const styles = {
     },
   }),
 
+  tabContent: {
+    height: 280,
+    overflowY: "auto",
+  },
+
+  logs: {
+    display: "flex",
+    height: "100%",
+    flexDirection: "column",
+  },
+
   buildLogs: {
     borderRadius: 0,
     border: 0,
@@ -779,8 +777,6 @@ const styles = {
   },
 
   resources: {
-    overflowY: "auto",
-
     // Hack to access customize resource-card from here
     "& .resource-card": {
       borderLeft: 0,

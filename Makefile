@@ -382,9 +382,9 @@ install: build/coder_$(VERSION)_$(GOOS)_$(GOARCH)$(GOOS_BIN_EXT)
 	cp "$<" "$$output_file"
 .PHONY: install
 
-BOLD := $(shell tput bold)
-GREEN := $(shell tput setaf 2)
-RESET := $(shell tput sgr0)
+BOLD := $(shell tput bold 2>/dev/null)
+GREEN := $(shell tput setaf 2 2>/dev/null)
+RESET := $(shell tput sgr0 2>/dev/null)
 
 fmt: fmt/eslint fmt/prettier fmt/terraform fmt/shfmt fmt/go
 .PHONY: fmt
@@ -642,7 +642,7 @@ update-golden-files: \
 .PHONY: update-golden-files
 
 cli/testdata/.gen-golden: $(wildcard cli/testdata/*.golden) $(wildcard cli/*.tpl) $(GO_SRC_FILES) $(wildcard cli/*_test.go)
-	go test ./cli -run="Test(CommandHelp|ServerYAML)" -update
+	go test ./cli -run="Test(CommandHelp|ServerYAML|ErrorExamples)" -update
 	touch "$@"
 
 enterprise/cli/testdata/.gen-golden: $(wildcard enterprise/cli/testdata/*.golden) $(wildcard cli/*.tpl) $(GO_SRC_FILES) $(wildcard enterprise/cli/*_test.go)

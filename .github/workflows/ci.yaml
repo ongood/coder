@@ -202,7 +202,9 @@ jobs:
           popd
 
       - name: make gen
-        run: "make --output-sync -j -B gen"
+        # no `-j` flag as `make` fails with:
+        # coderd/rbac/object_gen.go:1:1: syntax error: package statement must be first
+        run: "make --output-sync -B gen"
 
       - name: Check for unstaged files
         run: ./scripts/check_unstaged.sh
@@ -226,7 +228,7 @@ jobs:
         with:
           # This doesn't need caching. It's super fast anyways!
           cache: false
-          go-version: 1.21.5
+          go-version: 1.21.9
 
       - name: Install shfmt
         run: go install mvdan.cc/sh/v3/cmd/shfmt@v3.7.0
@@ -470,7 +472,8 @@ jobs:
       - run: pnpm playwright:install
         working-directory: site
 
-      - run: pnpm playwright:test --workers 1
+      # Run tests that don't require an enterprise license without an enterprise license
+      - run: pnpm playwright:test --forbid-only --workers 1
         env:
           DEBUG: pw:api
         working-directory: site
@@ -604,9 +607,6 @@ jobs:
       - name: Setup sqlc
         uses: ./.github/actions/setup-sqlc
 
-      - name: make gen
-        run: "make --output-sync -j -B gen"
-
       - name: Format
         run: |
           cd offlinedocs
@@ -618,8 +618,10 @@ jobs:
           pnpm lint
 
       - name: Build
+        # no `-j` flag as `make` fails with:
+        # coderd/rbac/object_gen.go:1:1: syntax error: package statement must be first
         run: |
-          make -j build/coder_docs_"$(./scripts/version.sh)".tgz
+          make build/coder_docs_"$(./scripts/version.sh)".tgz
 
   required:
     runs-on: ubuntu-latest
@@ -665,7 +667,7 @@ jobs:
     # to main branch. We are only building this for amd64 platform. (>95% pulls
     # are for amd64)
     needs: changes
-    if: needs.changes.outputs.docs-only == 'false' && !github.event.pull_request.head.repo.fork
+    if: github.ref == 'refs/heads/main' && needs.changes.outputs.docs-only == 'false' && !github.event.pull_request.head.repo.fork
     runs-on: ${{ github.repository_owner == 'coder' && 'buildjet-8vcpu-ubuntu-2204' || 'ubuntu-latest' }}
     env:
       DOCKER_CLI_EXPERIMENTAL: "enabled"

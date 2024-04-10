@@ -38,8 +38,6 @@ import (
 	"tailscale.com/util/clientmetric"
 
 	"cdr.dev/slog"
-	"github.com/coder/retry"
-
 	"github.com/coder/coder/v2/agent/agentproc"
 	"github.com/coder/coder/v2/agent/agentscripts"
 	"github.com/coder/coder/v2/agent/agentssh"
@@ -50,8 +48,10 @@ import (
 	"github.com/coder/coder/v2/coderd/database/dbtime"
 	"github.com/coder/coder/v2/codersdk"
 	"github.com/coder/coder/v2/codersdk/agentsdk"
+	"github.com/coder/coder/v2/codersdk/workspacesdk"
 	"github.com/coder/coder/v2/tailnet"
 	tailnetproto "github.com/coder/coder/v2/tailnet/proto"
+	"github.com/coder/retry"
 )
 
 const (
@@ -62,7 +62,10 @@ const (
 
 // EnvProcPrioMgmt determines whether we attempt to manage
 // process CPU and OOM Killer priority.
-const EnvProcPrioMgmt = "CODER_PROC_PRIO_MGMT"
+const (
+	EnvProcPrioMgmt = "CODER_PROC_PRIO_MGMT"
+	EnvProcOOMScore = "CODER_PROC_OOM_SCORE"
+)
 
 type Options struct {
 	Filesystem                   afero.Fs
@@ -1107,7 +1110,7 @@ func (a *agent) wireguardAddresses(agentID uuid.UUID) []netip.Prefix {
 			netip.PrefixFrom(tailnet.IPFromUUID(agentID), 128),
 			// We also listen on the legacy codersdk.WorkspaceAgentIP. This
 			// allows for a transition away from wsconncache.
-			netip.PrefixFrom(codersdk.WorkspaceAgentIP, 128),
+			netip.PrefixFrom(workspacesdk.AgentIP, 128),
 		}
 	}
 
@@ -1147,7 +1150,7 @@ func (a *agent) createTailnet(ctx context.Context, agentID uuid.UUID, derpMap *t
 		}
 	}()
 
-	sshListener, err := network.Listen("tcp", ":"+strconv.Itoa(codersdk.WorkspaceAgentSSHPort))
+	sshListener, err := network.Listen("tcp", ":"+strconv.Itoa(workspacesdk.AgentSSHPort))
 	if err != nil {
 		return nil, xerrors.Errorf("listen on the ssh port: %w", err)
 	}
@@ -1162,7 +1165,7 @@ func (a *agent) createTailnet(ctx context.Context, agentID uuid.UUID, derpMap *t
 		return nil, err
 	}
 
-	reconnectingPTYListener, err := network.Listen("tcp", ":"+strconv.Itoa(codersdk.WorkspaceAgentReconnectingPTYPort))
+	reconnectingPTYListener, err := network.Listen("tcp", ":"+strconv.Itoa(workspacesdk.AgentReconnectingPTYPort))
 	if err != nil {
 		return nil, xerrors.Errorf("listen for reconnecting pty: %w", err)
 	}
@@ -1211,7 +1214,7 @@ func (a *agent) createTailnet(ctx context.Context, agentID uuid.UUID, derpMap *t
 				if err != nil {
 					return
 				}
-				var msg codersdk.WorkspaceAgentReconnectingPTYInit
+				var msg workspacesdk.AgentReconnectingPTYInit
 				err = json.Unmarshal(data, &msg)
 				if err != nil {
 					logger.Warn(ctx, "failed to unmarshal init", slog.F("raw", data))
@@ -1225,7 +1228,7 @@ func (a *agent) createTailnet(ctx context.Context, agentID uuid.UUID, derpMap *t
 		return nil, err
 	}
 
-	speedtestListener, err := network.Listen("tcp", ":"+strconv.Itoa(codersdk.WorkspaceAgentSpeedtestPort))
+	speedtestListener, err := network.Listen("tcp", ":"+strconv.Itoa(workspacesdk.AgentSpeedtestPort))
 	if err != nil {
 		return nil, xerrors.Errorf("listen for speedtest: %w", err)
 	}
@@ -1273,7 +1276,7 @@ func (a *agent) createTailnet(ctx context.Context, agentID uuid.UUID, derpMap *t
 		return nil, err
 	}
 
-	apiListener, err := network.Listen("tcp", ":"+strconv.Itoa(codersdk.WorkspaceAgentHTTPAPIServerPort))
+	apiListener, err := network.Listen("tcp", ":"+strconv.Itoa(workspacesdk.AgentHTTPAPIServerPort))
 	if err != nil {
 		return nil, xerrors.Errorf("api listener: %w", err)
 	}
@@ -1386,7 +1389,7 @@ func (a *agent) runDERPMapSubscriber(ctx context.Context, conn drpc.Conn, networ
 	}
 }
 
-func (a *agent) handleReconnectingPTY(ctx context.Context, logger slog.Logger, msg codersdk.WorkspaceAgentReconnectingPTYInit, conn net.Conn) (retErr error) {
+func (a *agent) handleReconnectingPTY(ctx context.Context, logger slog.Logger, msg workspacesdk.AgentReconnectingPTYInit, conn net.Conn) (retErr error) {
 	defer conn.Close()
 	a.metrics.connectionsTotal.Add(1)
 
@@ -1575,10 +1578,31 @@ func (a *agent) manageProcessPriorityUntilGracefulShutdown() {
 		a.processManagementTick = ticker.C
 	}
 
+	oomScore := unsetOOMScore
+	if scoreStr, ok := a.environmentVariables[EnvProcOOMScore]; ok {
+		score, err := strconv.Atoi(strings.TrimSpace(scoreStr))
+		if err == nil && score >= -1000 && score <= 1000 {
+			oomScore = score
+		} else {
+			a.logger.Error(ctx, "invalid oom score",
+				slog.F("min_value", -1000),
+				slog.F("max_value", 1000),
+				slog.F("value", scoreStr),
+			)
+		}
+	}
+
+	debouncer := &logDebouncer{
+		logger:   a.logger,
+		messages: map[string]time.Time{},
+		interval: time.Minute,
+	}
+
 	for {
-		procs, err := a.manageProcessPriority(ctx)
+		procs, err := a.manageProcessPriority(ctx, debouncer, oomScore)
+		// Avoid spamming the logs too often.
 		if err != nil {
-			a.logger.Error(ctx, "manage process priority",
+			debouncer.Error(ctx, "manage process priority",
 				slog.Error(err),
 			)
 		}
@@ -1594,27 +1618,34 @@ func (a *agent) manageProcessPriorityUntilGracefulShutdown() {
 	}
 }
 
-func (a *agent) manageProcessPriority(ctx context.Context) ([]*agentproc.Process, error) {
+// unsetOOMScore is set to an invalid OOM score to imply an unset value.
+const unsetOOMScore = 1001
+
+func (a *agent) manageProcessPriority(ctx context.Context, debouncer *logDebouncer, oomScore int) ([]*agentproc.Process, error) {
 	const (
 		niceness = 10
 	)
+
+	// We fetch the agent score each time because it's possible someone updates the
+	// value after it is started.
+	agentScore, err := a.getAgentOOMScore()
+	if err != nil {
+		agentScore = unsetOOMScore
+	}
+	if oomScore == unsetOOMScore && agentScore != unsetOOMScore {
+		// If the child score has not been explicitly specified we should
+		// set it to a score relative to the agent score.
+		oomScore = childOOMScore(agentScore)
+	}
 
 	procs, err := agentproc.List(a.filesystem, a.syscaller)
 	if err != nil {
 		return nil, xerrors.Errorf("list: %w", err)
 	}
 
-	var (
-		modProcs = []*agentproc.Process{}
-		logger   slog.Logger
-	)
+	modProcs := []*agentproc.Process{}
 
 	for _, proc := range procs {
-		logger = a.logger.With(
-			slog.F("cmd", proc.Cmd()),
-			slog.F("pid", proc.PID),
-		)
-
 		containsFn := func(e string) bool {
 			contains := strings.Contains(proc.Cmd(), e)
 			return contains
@@ -1622,14 +1653,16 @@ func (a *agent) manageProcessPriority(ctx context.Context) ([]*agentproc.Process
 
 		// If the process is prioritized we should adjust
 		// it's oom_score_adj and avoid lowering its niceness.
-		if slices.ContainsFunc[[]string, string](prioritizedProcs, containsFn) {
+		if slices.ContainsFunc(prioritizedProcs, containsFn) {
 			continue
 		}
 
-		score, err := proc.Niceness(a.syscaller)
-		if err != nil {
-			logger.Warn(ctx, "unable to get proc niceness",
-				slog.Error(err),
+		score, niceErr := proc.Niceness(a.syscaller)
+		if niceErr != nil && !xerrors.Is(niceErr, os.ErrPermission) {
+			debouncer.Warn(ctx, "unable to get proc niceness",
+				slog.F("cmd", proc.Cmd()),
+				slog.F("pid", proc.PID),
+				slog.Error(niceErr),
 			)
 			continue
 		}
@@ -1643,15 +1676,31 @@ func (a *agent) manageProcessPriority(ctx context.Context) ([]*agentproc.Process
 			continue
 		}
 
-		err = proc.SetNiceness(a.syscaller, niceness)
-		if err != nil {
-			logger.Warn(ctx, "unable to set proc niceness",
-				slog.F("niceness", niceness),
-				slog.Error(err),
-			)
-			continue
+		if niceErr == nil {
+			err := proc.SetNiceness(a.syscaller, niceness)
+			if err != nil && !xerrors.Is(err, os.ErrPermission) {
+				debouncer.Warn(ctx, "unable to set proc niceness",
+					slog.F("cmd", proc.Cmd()),
+					slog.F("pid", proc.PID),
+					slog.F("niceness", niceness),
+					slog.Error(err),
+				)
+			}
 		}
 
+		// If the oom score is valid and it's not already set and isn't a custom value set by another process then it's ok to update it.
+		if oomScore != unsetOOMScore && oomScore != proc.OOMScoreAdj && !isCustomOOMScore(agentScore, proc) {
+			oomScoreStr := strconv.Itoa(oomScore)
+			err := afero.WriteFile(a.filesystem, fmt.Sprintf("/proc/%d/oom_score_adj", proc.PID), []byte(oomScoreStr), 0o644)
+			if err != nil && !xerrors.Is(err, os.ErrPermission) {
+				debouncer.Warn(ctx, "unable to set oom_score_adj",
+					slog.F("cmd", proc.Cmd()),
+					slog.F("pid", proc.PID),
+					slog.F("score", oomScoreStr),
+					slog.Error(err),
+				)
+			}
+		}
 		modProcs = append(modProcs, proc)
 	}
 	return modProcs, nil
@@ -2004,4 +2053,78 @@ func PrometheusMetricsHandler(prometheusRegistry *prometheus.Registry, logger sl
 			}
 		}
 	})
+}
+
+// childOOMScore returns the oom_score_adj for a child process. It is based
+// on the oom_score_adj of the agent process.
+func childOOMScore(agentScore int) int {
+	// If the agent has a negative oom_score_adj, we set the child to 0
+	// so it's treated like every other process.
+	if agentScore < 0 {
+		return 0
+	}
+
+	// If the agent is already almost at the maximum then set it to the max.
+	if agentScore >= 998 {
+		return 1000
+	}
+
+	// If the agent oom_score_adj is >=0, we set the child to slightly
+	// less than the maximum. If users want a different score they set it
+	// directly.
+	return 998
+}
+
+func (a *agent) getAgentOOMScore() (int, error) {
+	scoreStr, err := afero.ReadFile(a.filesystem, "/proc/self/oom_score_adj")
+	if err != nil {
+		return 0, xerrors.Errorf("read file: %w", err)
+	}
+
+	score, err := strconv.Atoi(strings.TrimSpace(string(scoreStr)))
+	if err != nil {
+		return 0, xerrors.Errorf("parse int: %w", err)
+	}
+
+	return score, nil
+}
+
+// isCustomOOMScore checks to see if the oom_score_adj is not a value that would
+// originate from an agent-spawned process.
+func isCustomOOMScore(agentScore int, process *agentproc.Process) bool {
+	score := process.OOMScoreAdj
+	return agentScore != score && score != 1000 && score != 0 && score != 998
+}
+
+// logDebouncer skips writing a log for a particular message if
+// it's been emitted within the given interval duration.
+// It's a shoddy implementation used in one spot that should be replaced at
+// some point.
+type logDebouncer struct {
+	logger   slog.Logger
+	messages map[string]time.Time
+	interval time.Duration
+}
+
+func (l *logDebouncer) Warn(ctx context.Context, msg string, fields ...any) {
+	l.log(ctx, slog.LevelWarn, msg, fields...)
+}
+
+func (l *logDebouncer) Error(ctx context.Context, msg string, fields ...any) {
+	l.log(ctx, slog.LevelError, msg, fields...)
+}
+
+func (l *logDebouncer) log(ctx context.Context, level slog.Level, msg string, fields ...any) {
+	// This (bad) implementation assumes you wouldn't reuse the same msg
+	// for different levels.
+	if last, ok := l.messages[msg]; ok && time.Since(last) < l.interval {
+		return
+	}
+	switch level {
+	case slog.LevelWarn:
+		l.logger.Warn(ctx, msg, fields...)
+	case slog.LevelError:
+		l.logger.Error(ctx, msg, fields...)
+	}
+	l.messages[msg] = time.Now()
 }

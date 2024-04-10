@@ -415,7 +415,7 @@ export const TemplateScheduleForm: FC<TemplateScheduleForm> = ({
                   color: theme.palette.text.secondary,
                 }}
               >
-                如果设置了此项，工作区将始终使用默认的TTL。无论此设置如何，工作区都只能保持最大生存期。
+                如果设置了默认的TTL（生存时间），工作空间将始终使用该默认值。
               </span>
             </Stack>
           </Stack>
