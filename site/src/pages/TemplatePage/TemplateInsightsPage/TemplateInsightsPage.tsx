@@ -296,7 +296,7 @@ const UsersLatencyPanel: FC<UsersLatencyPanelProps> = ({
         {!data && <Loader css={{ height: "100%" }} />}
         {users && users.length === 0 && <NoDataAvailable />}
         {users &&
-          users
+          [...users]
             .sort((a, b) => b.latency_ms.p50 - a.latency_ms.p50)
             .map((row) => (
               <div
@@ -366,7 +366,7 @@ const UsersActivityPanel: FC<UsersActivityPanelProps> = ({
         {!data && <Loader css={{ height: "100%" }} />}
         {users && users.length === 0 && <NoDataAvailable />}
         {users &&
-          users
+          [...users]
             .sort((a, b) => b.seconds - a.seconds)
             .map((row) => (
               <div
@@ -404,7 +404,7 @@ const UsersActivityPanel: FC<UsersActivityPanelProps> = ({
 };
 
 interface TemplateUsagePanelProps extends PanelProps {
-  data: TemplateAppUsage[] | undefined;
+  data: readonly TemplateAppUsage[] | undefined;
 }
 
 const TemplateUsagePanel: FC<TemplateUsagePanelProps> = ({
@@ -507,7 +507,7 @@ const TemplateUsagePanel: FC<TemplateUsagePanelProps> = ({
 };
 
 interface TemplateParametersUsagePanelProps extends PanelProps {
-  data: TemplateParameterUsage[] | undefined;
+  data: readonly TemplateParameterUsage[] | undefined;
 }
 
 const TemplateParametersUsagePanel: FC<TemplateParametersUsagePanelProps> = ({
@@ -578,7 +578,7 @@ const TemplateParametersUsagePanel: FC<TemplateParametersUsagePanelProps> = ({
                       <div>计数</div>
                     </Tooltip>
                   </ParameterUsageRow>
-                  {parameter.values
+                  {[...parameter.values]
                     .sort((a, b) => b.count - a.count)
                     .filter((usage) => filterOrphanValues(usage, parameter))
                     .map((usage, usageIndex) => (

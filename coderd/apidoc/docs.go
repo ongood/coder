@@ -9296,9 +9296,6 @@ const docTemplate = `{
                 "disable_path_apps": {
                     "type": "boolean"
                 },
-                "disable_session_expiry_refresh": {
-                    "type": "boolean"
-                },
                 "docs_url": {
                     "$ref": "#/definitions/serpent.URL"
                 },
@@ -9335,12 +9332,6 @@ const docTemplate = `{
                 },
                 "logging": {
                     "$ref": "#/definitions/codersdk.LoggingConfig"
-                },
-                "max_session_expiry": {
-                    "type": "integer"
-                },
-                "max_token_lifetime": {
-                    "type": "integer"
                 },
                 "metrics_cache_refresh_interval": {
                     "type": "integer"
@@ -9392,6 +9383,9 @@ const docTemplate = `{
                 },
                 "secure_auth_cookie": {
                     "type": "boolean"
+                },
+                "session_lifetime": {
+                    "$ref": "#/definitions/codersdk.SessionLifetime"
                 },
                 "ssh_keygen_algorithm": {
                     "type": "string"
@@ -11081,6 +11075,22 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "vscode": {
+                    "type": "integer"
+                }
+            }
+        },
+        "codersdk.SessionLifetime": {
+            "type": "object",
+            "properties": {
+                "default_duration": {
+                    "description": "DefaultDuration is for api keys, not tokens.",
+                    "type": "integer"
+                },
+                "disable_expiry_refresh": {
+                    "description": "DisableExpiryRefresh will disable automatically refreshing api\nkeys when they are used from the api. This means the api key lifetime at\ncreation is the lifetime of the api key.",
+                    "type": "boolean"
+                },
+                "max_token_lifetime": {
                     "type": "integer"
                 }
             }
@@ -13824,7 +13834,16 @@ const docTemplate = `{
                     }
                 },
                 "severity": {
-                    "$ref": "#/definitions/health.Severity"
+                    "enum": [
+                        "ok",
+                        "warning",
+                        "error"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/health.Severity"
+                        }
+                    ]
                 },
                 "warnings": {
                     "type": "array",
@@ -13907,7 +13926,7 @@ const docTemplate = `{
                 "warnings": {
                     "type": "array",
                     "items": {
-                        "type": "string"
+                        "$ref": "#/definitions/health.Message"
                     }
                 }
             }
@@ -13922,10 +13941,20 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "healthy": {
+                    "description": "Healthy is deprecated and left for backward compatibility purposes, use ` + "`" + `Severity` + "`" + ` instead.",
                     "type": "boolean"
                 },
                 "severity": {
-                    "$ref": "#/definitions/health.Severity"
+                    "enum": [
+                        "ok",
+                        "warning",
+                        "error"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/health.Severity"
+                        }
+                    ]
                 },
                 "warnings": {
                     "type": "array",

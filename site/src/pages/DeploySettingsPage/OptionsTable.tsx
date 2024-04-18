@@ -17,8 +17,8 @@ import {
 import { optionValue } from "./optionValue";
 
 interface OptionsTableProps {
-  options: SerpentOption[];
-  additionalValues?: string[];
+  options: readonly SerpentOption[];
+  additionalValues?: readonly string[];
 }
 
 const OptionsTable: FC<OptionsTableProps> = ({ options, additionalValues }) => {
@@ -27,7 +27,7 @@ const OptionsTable: FC<OptionsTableProps> = ({ options, additionalValues }) => {
   }
 
   return (
-    <TableContainer>
+    <TableContainer className="options-table">
       <Table
         css={css`
           & td {
@@ -57,7 +57,7 @@ const OptionsTable: FC<OptionsTableProps> = ({ options, additionalValues }) => {
               return null;
             }
             return (
-              <TableRow key={option.flag}>
+              <TableRow key={option.flag} className={"option-" + option.flag}>
                 <TableCell>
                   <OptionName>{option.name}</OptionName>
                   <OptionDescription>{option.description}</OptionDescription>

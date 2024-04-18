@@ -20,6 +20,8 @@ import (
 	"github.com/coder/retry"
 )
 
+var tailnetConnectorGracefulTimeout = time.Second
+
 // tailnetConn is the subset of the tailnet.Conn methods that tailnetAPIConnector uses.  It is
 // included so that we can fake it in testing.
 //
@@ -86,9 +88,11 @@ func runTailnetAPIConnector(
 func (tac *tailnetAPIConnector) manageGracefulTimeout() {
 	defer tac.cancelGracefulCtx()
 	<-tac.ctx.Done()
+	timer := time.NewTimer(tailnetConnectorGracefulTimeout)
+	defer timer.Stop()
 	select {
 	case <-tac.closed:
-	case <-time.After(time.Second):
+	case <-timer.C:
 	}
 }
 

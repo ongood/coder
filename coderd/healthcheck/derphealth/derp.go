@@ -29,9 +29,11 @@ import (
 )
 
 const (
-	warningNodeUsesWebsocket = `节点使用 WebSockets，因为负载均衡器可能阻止了 "Upgrade: DERP" 响应头。`
-	oneNodeUnhealthy         = "区域运行正常，但性能可能会下降，因为一个节点不健康。"
-	missingNodeReport        = "缺少节点健康报告，可能是开发者错误。"
+	warningNodeUsesWebsocket = `节点使用 WebSockets，因为 'Upgrade: DERP' 头可能在负载均衡器上被阻塞。`
+	oneNodeUnhealthy         = "区域运行正常，但由于一个节点不健康，性能可能会降低。"
+	missingNodeReport        = "缺少节点健康报告，可能是开发者的错误。"
+	noSTUN                   = "没有可用的 STUN 服务器。"
+	stunMapVaryDest          = "STUN 返回了不同的地址；你可能处于硬 NAT 后面。"
 )
 
 type ReportOptions struct {
@@ -107,8 +109,29 @@ func (r *Report) Run(ctx context.Context, opts *ReportOptions) {
 	ncReport, netcheckErr := nc.GetReport(ctx, opts.DERPMap)
 	r.Netcheck = ncReport
 	r.NetcheckErr = convertError(netcheckErr)
+	if mapVaryDest, _ := r.Netcheck.MappingVariesByDestIP.Get(); mapVaryDest {
+		r.Warnings = append(r.Warnings, health.Messagef(health.CodeSTUNMapVaryDest, stunMapVaryDest))
+	}
 
 	wg.Wait()
+
+	// Count the number of STUN-capable nodes.
+	var stunCapableNodes int
+	var stunTotalNodes int
+	for _, region := range r.Regions {
+		for _, node := range region.NodeReports {
+			if node.STUN.Enabled {
+				stunTotalNodes++
+			}
+			if node.STUN.CanSTUN {
+				stunCapableNodes++
+			}
+		}
+	}
+	if stunCapableNodes == 0 && stunTotalNodes > 0 {
+		r.Severity = health.SeverityWarning
+		r.Warnings = append(r.Warnings, health.Messagef(health.CodeSTUNNoNodes, noSTUN))
+	}
 
 	// Review region reports and select the highest severity.
 	for _, regionReport := range r.Regions {
@@ -133,8 +156,8 @@ func (r *RegionReport) Run(ctx context.Context) {
 			node       = node
 			nodeReport = NodeReport{
 				DERPNodeReport: healthsdk.DERPNodeReport{
-					Node:    node,
 					Healthy: true,
+					Node:    node,
 				},
 			}
 		)

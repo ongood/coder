@@ -61,6 +61,7 @@ export interface TemplateSettingsForm {
   // Helpful to show field errors on Storybook
   initialTouched?: FormikTouched<UpdateTemplateMeta>;
   accessControlEnabled: boolean;
+  advancedSchedulingEnabled: boolean;
   portSharingExperimentEnabled: boolean;
   portSharingControlsEnabled: boolean;
 }
@@ -73,6 +74,7 @@ export const TemplateSettingsForm: FC<TemplateSettingsForm> = ({
   isSubmitting,
   initialTouched,
   accessControlEnabled,
+  advancedSchedulingEnabled,
   portSharingExperimentEnabled,
   portSharingControlsEnabled,
 }) => {
@@ -192,38 +194,53 @@ export const TemplateSettingsForm: FC<TemplateSettingsForm> = ({
               </Stack>
             </Stack>
           </label>
-          <label htmlFor="require_active_version">
-            <Stack direction="row" spacing={1}>
-              <Checkbox
-                id="require_active_version"
-                name="require_active_version"
-                checked={form.values.require_active_version}
-                onChange={form.handleChange}
-              />
+          <Stack spacing={2}>
+            <label htmlFor="require_active_version">
+              <Stack direction="row" spacing={1}>
+                <Checkbox
+                  id="require_active_version"
+                  name="require_active_version"
+                  checked={form.values.require_active_version}
+                  onChange={form.handleChange}
+                  disabled={
+                    !template.require_active_version &&
+                    !advancedSchedulingEnabled
+                  }
+                />
 
-              <Stack direction="column" spacing={0.5}>
-                <Stack
-                  direction="row"
-                  alignItems="center"
-                  spacing={0.5}
-                  css={styles.optionText}
-                >
-                  在启动时要求工作区自动更新。
-                  <HelpTooltip>
-                    <HelpTooltipTrigger />
-                    <HelpTooltipContent>
-                      <HelpTooltipText>
-                        此设置对模板管理员不适用。
-                      </HelpTooltipText>
-                    </HelpTooltipContent>
-                  </HelpTooltip>
+                <Stack direction="column" spacing={0.5}>
+                  <Stack
+                    direction="row"
+                    alignItems="center"
+                    spacing={0.5}
+                    css={styles.optionText}
+                  >
+                    在启动时要求工作区自动更新。
+                    <HelpTooltip>
+                      <HelpTooltipTrigger />
+                      <HelpTooltipContent>
+                        <HelpTooltipText>
+                          此设置对模板管理员不适用。
+                        </HelpTooltipText>
+                      </HelpTooltipContent>
+                    </HelpTooltip>
+                  </Stack>
+                  <span css={styles.optionHelperText}>
+                    手动启动或自动启动的工作区将使用活动的模板版本。
+                  </span>
                 </Stack>
+              </Stack>
+            </label>
+
+            {!advancedSchedulingEnabled && (
+              <Stack direction="row">
+                <EnterpriseBadge />
                 <span css={styles.optionHelperText}>
-                  手动启动或自动启动的工作区将使用当前模板的活动版本。
+                  需要企业许可证才能启用。
                 </span>
               </Stack>
-            </Stack>
-          </label>
+            )}
+          </Stack>
         </Stack>
       </FormSection>
 
@@ -237,7 +254,9 @@ export const TemplateSettingsForm: FC<TemplateSettingsForm> = ({
               helperText:
                 "将消息留空以使模板保持活动状态。 提供的任何消息都会将该模板标记为已弃用。 使用此消息通知用户已弃用以及如何迁移到新模板。",
             })}
-            disabled={isSubmitting || !accessControlEnabled}
+            disabled={
+              isSubmitting || (!template.deprecated && !accessControlEnabled)
+            }
             fullWidth
             label="弃用消息"
           />
@@ -246,6 +265,8 @@ export const TemplateSettingsForm: FC<TemplateSettingsForm> = ({
               <EnterpriseBadge />
               <span css={styles.optionHelperText}>
                 Enterprise license required to deprecate templates.
+                {template.deprecated &&
+                  " You cannot change the message, but you may remove it to mark this template as no longer deprecated."}
               </span>
             </Stack>
           )}

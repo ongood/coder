@@ -1925,7 +1925,6 @@ CreateWorkspaceRequest provides options for creating a new workspace. Only one o
     "disable_owner_workspace_exec": true,
     "disable_password_auth": true,
     "disable_path_apps": true,
-    "disable_session_expiry_refresh": true,
     "docs_url": {
       "forceQuery": true,
       "fragment": "string",
@@ -1977,8 +1976,6 @@ CreateWorkspaceRequest provides options for creating a new workspace. Only one o
       "log_filter": ["string"],
       "stackdriver": "string"
     },
-    "max_session_expiry": 0,
-    "max_token_lifetime": 0,
     "metrics_cache_refresh_interval": 0,
     "oauth2": {
       "github": {
@@ -2066,6 +2063,11 @@ CreateWorkspaceRequest provides options for creating a new workspace. Only one o
     "redirect_to_access_url": true,
     "scim_api_key": "string",
     "secure_auth_cookie": true,
+    "session_lifetime": {
+      "default_duration": 0,
+      "disable_expiry_refresh": true,
+      "max_token_lifetime": 0
+    },
     "ssh_keygen_algorithm": "string",
     "strict_transport_security": 0,
     "strict_transport_security_options": ["string"],
@@ -2295,7 +2297,6 @@ CreateWorkspaceRequest provides options for creating a new workspace. Only one o
   "disable_owner_workspace_exec": true,
   "disable_password_auth": true,
   "disable_path_apps": true,
-  "disable_session_expiry_refresh": true,
   "docs_url": {
     "forceQuery": true,
     "fragment": "string",
@@ -2347,8 +2348,6 @@ CreateWorkspaceRequest provides options for creating a new workspace. Only one o
     "log_filter": ["string"],
     "stackdriver": "string"
   },
-  "max_session_expiry": 0,
-  "max_token_lifetime": 0,
   "metrics_cache_refresh_interval": 0,
   "oauth2": {
     "github": {
@@ -2436,6 +2435,11 @@ CreateWorkspaceRequest provides options for creating a new workspace. Only one o
   "redirect_to_access_url": true,
   "scim_api_key": "string",
   "secure_auth_cookie": true,
+  "session_lifetime": {
+    "default_duration": 0,
+    "disable_expiry_refresh": true,
+    "max_token_lifetime": 0
+  },
   "ssh_keygen_algorithm": "string",
   "strict_transport_security": 0,
   "strict_transport_security_options": ["string"],
@@ -2526,7 +2530,6 @@ CreateWorkspaceRequest provides options for creating a new workspace. Only one o
 | `disable_owner_workspace_exec`       | boolean                                                                                              | false    |              |                                                                    |
 | `disable_password_auth`              | boolean                                                                                              | false    |              |                                                                    |
 | `disable_path_apps`                  | boolean                                                                                              | false    |              |                                                                    |
-| `disable_session_expiry_refresh`     | boolean                                                                                              | false    |              |                                                                    |
 | `docs_url`                           | [serpent.URL](#serpenturl)                                                                           | false    |              |                                                                    |
 | `enable_terraform_debug_mode`        | boolean                                                                                              | false    |              |                                                                    |
 | `experiments`                        | array of string                                                                                      | false    |              |                                                                    |
@@ -2537,8 +2540,6 @@ CreateWorkspaceRequest provides options for creating a new workspace. Only one o
 | `in_memory_database`                 | boolean                                                                                              | false    |              |                                                                    |
 | `job_hang_detector_interval`         | integer                                                                                              | false    |              |                                                                    |
 | `logging`                            | [codersdk.LoggingConfig](#codersdkloggingconfig)                                                     | false    |              |                                                                    |
-| `max_session_expiry`                 | integer                                                                                              | false    |              |                                                                    |
-| `max_token_lifetime`                 | integer                                                                                              | false    |              |                                                                    |
 | `metrics_cache_refresh_interval`     | integer                                                                                              | false    |              |                                                                    |
 | `oauth2`                             | [codersdk.OAuth2Config](#codersdkoauth2config)                                                       | false    |              |                                                                    |
 | `oidc`                               | [codersdk.OIDCConfig](#codersdkoidcconfig)                                                           | false    |              |                                                                    |
@@ -2554,6 +2555,7 @@ CreateWorkspaceRequest provides options for creating a new workspace. Only one o
 | `redirect_to_access_url`             | boolean                                                                                              | false    |              |                                                                    |
 | `scim_api_key`                       | string                                                                                               | false    |              |                                                                    |
 | `secure_auth_cookie`                 | boolean                                                                                              | false    |              |                                                                    |
+| `session_lifetime`                   | [codersdk.SessionLifetime](#codersdksessionlifetime)                                                 | false    |              |                                                                    |
 | `ssh_keygen_algorithm`               | string                                                                                               | false    |              |                                                                    |
 | `strict_transport_security`          | integer                                                                                              | false    |              |                                                                    |
 | `strict_transport_security_options`  | array of string                                                                                      | false    |              |                                                                    |
@@ -4293,6 +4295,24 @@ CreateWorkspaceRequest provides options for creating a new workspace. Only one o
 | `reconnecting_pty` | integer | false    |              |             |
 | `ssh`              | integer | false    |              |             |
 | `vscode`           | integer | false    |              |             |
+
+## codersdk.SessionLifetime
+
+```json
+{
+  "default_duration": 0,
+  "disable_expiry_refresh": true,
+  "max_token_lifetime": 0
+}
+```
+
+### Properties
+
+| Name                     | Type    | Required | Restrictions | Description                                                                                                                                                                        |
+| ------------------------ | ------- | -------- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `default_duration`       | integer | false    |              | Default duration is for api keys, not tokens.                                                                                                                                      |
+| `disable_expiry_refresh` | boolean | false    |              | Disable expiry refresh will disable automatically refreshing api keys when they are used from the api. This means the api key lifetime at creation is the lifetime of the api key. |
+| `max_token_lifetime`     | integer | false    |              |                                                                                                                                                                                    |
 
 ## codersdk.SupportConfig
 
@@ -8114,7 +8134,12 @@ If the schedule is empty, the user will be updated to use the default schedule.|
     "error": "string",
     "healthy": true,
     "severity": "ok",
-    "warnings": ["string"]
+    "warnings": [
+      {
+        "code": "EUNKNOWN",
+        "message": "string"
+      }
+    ]
   },
   "workspace_proxy": {
     "dismissed": true,
@@ -8231,6 +8256,14 @@ If the schedule is empty, the user will be updated to use the default schedule.|
 | `severity`  | [health.Severity](#healthseverity)                                                        | false    |              |             |
 | `warnings`  | array of [health.Message](#healthmessage)                                                 | false    |              |             |
 
+#### Enumerated Values
+
+| Property   | Value     |
+| ---------- | --------- |
+| `severity` | `ok`      |
+| `severity` | `warning` |
+| `severity` | `error`   |
+
 ## healthsdk.ProvisionerDaemonsReportItem
 
 ```json
@@ -8306,21 +8339,26 @@ If the schedule is empty, the user will be updated to use the default schedule.|
   "error": "string",
   "healthy": true,
   "severity": "ok",
-  "warnings": ["string"]
+  "warnings": [
+    {
+      "code": "EUNKNOWN",
+      "message": "string"
+    }
+  ]
 }
 ```
 
 ### Properties
 
-| Name        | Type                               | Required | Restrictions | Description                                                                                 |
-| ----------- | ---------------------------------- | -------- | ------------ | ------------------------------------------------------------------------------------------- |
-| `body`      | string                             | false    |              |                                                                                             |
-| `code`      | integer                            | false    |              |                                                                                             |
-| `dismissed` | boolean                            | false    |              |                                                                                             |
-| `error`     | string                             | false    |              |                                                                                             |
-| `healthy`   | boolean                            | false    |              | Healthy is deprecated and left for backward compatibility purposes, use `Severity` instead. |
-| `severity`  | [health.Severity](#healthseverity) | false    |              |                                                                                             |
-| `warnings`  | array of string                    | false    |              |                                                                                             |
+| Name        | Type                                      | Required | Restrictions | Description                                                                                 |
+| ----------- | ----------------------------------------- | -------- | ------------ | ------------------------------------------------------------------------------------------- |
+| `body`      | string                                    | false    |              |                                                                                             |
+| `code`      | integer                                   | false    |              |                                                                                             |
+| `dismissed` | boolean                                   | false    |              |                                                                                             |
+| `error`     | string                                    | false    |              |                                                                                             |
+| `healthy`   | boolean                                   | false    |              | Healthy is deprecated and left for backward compatibility purposes, use `Severity` instead. |
+| `severity`  | [health.Severity](#healthseverity)        | false    |              |                                                                                             |
+| `warnings`  | array of [health.Message](#healthmessage) | false    |              |                                                                                             |
 
 #### Enumerated Values
 
@@ -8376,14 +8414,22 @@ If the schedule is empty, the user will be updated to use the default schedule.|
 
 ### Properties
 
-| Name                | Type                                                                                                 | Required | Restrictions | Description |
-| ------------------- | ---------------------------------------------------------------------------------------------------- | -------- | ------------ | ----------- |
-| `dismissed`         | boolean                                                                                              | false    |              |             |
-| `error`             | string                                                                                               | false    |              |             |
-| `healthy`           | boolean                                                                                              | false    |              |             |
-| `severity`          | [health.Severity](#healthseverity)                                                                   | false    |              |             |
-| `warnings`          | array of [health.Message](#healthmessage)                                                            | false    |              |             |
-| `workspace_proxies` | [codersdk.RegionsResponse-codersdk_WorkspaceProxy](#codersdkregionsresponse-codersdk_workspaceproxy) | false    |              |             |
+| Name                | Type                                                                                                 | Required | Restrictions | Description                                                                                 |
+| ------------------- | ---------------------------------------------------------------------------------------------------- | -------- | ------------ | ------------------------------------------------------------------------------------------- |
+| `dismissed`         | boolean                                                                                              | false    |              |                                                                                             |
+| `error`             | string                                                                                               | false    |              |                                                                                             |
+| `healthy`           | boolean                                                                                              | false    |              | Healthy is deprecated and left for backward compatibility purposes, use `Severity` instead. |
+| `severity`          | [health.Severity](#healthseverity)                                                                   | false    |              |                                                                                             |
+| `warnings`          | array of [health.Message](#healthmessage)                                                            | false    |              |                                                                                             |
+| `workspace_proxies` | [codersdk.RegionsResponse-codersdk_WorkspaceProxy](#codersdkregionsresponse-codersdk_workspaceproxy) | false    |              |                                                                                             |
+
+#### Enumerated Values
+
+| Property   | Value     |
+| ---------- | --------- |
+| `severity` | `ok`      |
+| `severity` | `warning` |
+| `severity` | `error`   |
 
 ## key.NodePublic
 

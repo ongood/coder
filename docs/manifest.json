@@ -55,6 +55,11 @@
           "title": "1-click install",
           "description": "Install Coder on a cloud provider with a single click",
           "path": "./install/1-click.md"
+        },
+        {
+          "title": "Releases",
+          "description": "Coder Release Channels and Cadence",
+          "path": "./install/releases.md"
         }
       ]
     },
@@ -1070,6 +1075,11 @@
       "path": "./guides/index.md",
       "icon_path": "./images/icons/notes.svg",
       "children": [
+        {
+          "title": "Generate a Support Bundle",
+          "description": "Generate and upload a Support Bundle to Coder Support",
+          "path": "./guides/support-bundle.md"
+        },
         {
           "title": "Configuring Okta",
           "description": "Custom claims/scopes with Okta for group/role sync",

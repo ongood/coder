@@ -105,6 +105,9 @@ export const AppearanceSettingsPageView: FC<
           fullWidth
           placeholder='留空显示 "Coder"。'
           disabled={!isEntitled}
+          inputProps={{
+            "aria-label": "Application name",
+          }}
         />
       </Fieldset>
 
@@ -148,6 +151,9 @@ export const AppearanceSettingsPageView: FC<
                 />
               </InputAdornment>
             ),
+          }}
+          inputProps={{
+            "aria-label": "Logo URL",
           }}
         />
       </Fieldset>
@@ -205,6 +211,7 @@ export const AppearanceSettingsPageView: FC<
                     );
                     await serviceBannerForm.setFieldValue("enabled", newState);
                   }}
+                  data-testid="switch-service-banner"
                 />
               }
               label="启用"
@@ -218,6 +225,9 @@ export const AppearanceSettingsPageView: FC<
                 fullWidth
                 label="消息"
                 multiline
+                inputProps={{
+                  "aria-label": "Message",
+                }}
               />
             </Stack>
 

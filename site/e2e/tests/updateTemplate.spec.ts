@@ -1,10 +1,14 @@
 import { expect, test } from "@playwright/test";
+import { expectUrl } from "../expectUrl";
 import {
   createGroup,
   createTemplate,
   requiresEnterpriseLicense,
   updateTemplateSettings,
 } from "../helpers";
+import { beforeCoderTest } from "../hooks";
+
+test.beforeEach(({ page }) => beforeCoderTest(page));
 
 test("template update with new name redirects on successful submit", async ({
   page,
@@ -25,7 +29,7 @@ test("add and remove a group", async ({ page }) => {
   await page.goto(`/templates/${templateName}/settings/permissions`, {
     waitUntil: "domcontentloaded",
   });
-  await expect(page).toHaveURL(
+  await expectUrl(page).toHavePathName(
     `/templates/${templateName}/settings/permissions`,
   );
 
@@ -55,7 +59,7 @@ test("require latest version", async ({ page }) => {
   await page.goto(`/templates/${templateName}/settings`, {
     waitUntil: "domcontentloaded",
   });
-  await expect(page).toHaveURL(`/templates/${templateName}/settings`);
+  await expectUrl(page).toHavePathName(`/templates/${templateName}/settings`);
   let checkbox = await page.waitForSelector("#require_active_version");
   await checkbox.click();
   await page.getByTestId("form-submit").click();
