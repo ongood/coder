@@ -8,7 +8,7 @@
 
 set -euo pipefail
 
-npm install -g pnpm
+npm install -g pnpm@8.14.0
 
 pnpm_flags=(
 	# Do not execute install scripts
