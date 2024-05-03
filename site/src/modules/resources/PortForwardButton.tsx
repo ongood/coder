@@ -65,7 +65,7 @@ export interface PortForwardButtonProps {
 
 export const PortForwardButton: FC<PortForwardButtonProps> = (props) => {
   const { agent } = props;
-  const { entitlements, experiments } = useDashboard();
+  const { entitlements } = useDashboard();
   const paper = useClassName(classNames.paper, []);
 
   const portsQuery = useQuery({
@@ -103,7 +103,6 @@ export const PortForwardButton: FC<PortForwardButtonProps> = (props) => {
         <PortForwardPopoverView
           {...props}
           listeningPorts={portsQuery.data?.ports}
-          portSharingExperimentEnabled={experiments.includes("shared-ports")}
           portSharingControlsEnabled={
             entitlements.features.control_shared_ports.enabled
           }
@@ -121,7 +120,6 @@ const getValidationSchema = (): Yup.AnyObjectSchema =>
 
 interface PortForwardPopoverViewProps extends PortForwardButtonProps {
   listeningPorts?: readonly WorkspaceAgentListeningPort[];
-  portSharingExperimentEnabled: boolean;
   portSharingControlsEnabled: boolean;
 }
 
@@ -135,7 +133,6 @@ export const PortForwardPopoverView: FC<PortForwardPopoverViewProps> = ({
   template,
   username,
   listeningPorts,
-  portSharingExperimentEnabled,
   portSharingControlsEnabled,
 }) => {
   const theme = useTheme();
@@ -200,9 +197,9 @@ export const PortForwardPopoverView: FC<PortForwardPopoverViewProps> = ({
     filteredSharedPorts.every((sharedPort) => sharedPort.port !== port.port),
   );
   // only disable the form if shared port controls are entitled and the template doesn't allow sharing ports
-  const canSharePorts =
-    portSharingExperimentEnabled &&
-    !(portSharingControlsEnabled && template.max_port_share_level === "owner");
+  const canSharePorts = !(
+    portSharingControlsEnabled && template.max_port_share_level === "owner"
+  );
   const canSharePortsPublic =
     canSharePorts && template.max_port_share_level === "public";
 
@@ -395,183 +392,179 @@ export const PortForwardPopoverView: FC<PortForwardPopoverViewProps> = ({
           })}
         </Stack>
       </div>
-      {portSharingExperimentEnabled && (
-        <div
-          css={{
-            padding: 20,
-            borderTop: `1px solid ${theme.palette.divider}`,
-          }}
-        >
-          <HelpTooltipTitle>分享的端口</HelpTooltipTitle>
-          <HelpTooltipText css={{ color: theme.palette.text.secondary }}>
-            {canSharePorts
-              ? "端口可以与其他Coder用户或公共用户共享。更改协议可能需要最多1分钟才能生效。"
-              : "此工作区模板不允许共享端口。请联系模板管理员以启用端口共享。"}
-          </HelpTooltipText>
-          {canSharePorts && (
-            <div>
-              {filteredSharedPorts?.map((share) => {
-                const url = portForwardURL(
-                  host,
-                  share.port,
-                  agent.name,
-                  workspaceName,
-                  username,
-                  share.protocol,
-                );
-                const label = share.port;
-                return (
-                  <Stack
-                    key={share.port}
-                    direction="row"
-                    justifyContent="space-between"
-                    alignItems="center"
+      <div
+        css={{
+          padding: 20,
+          borderTop: `1px solid ${theme.palette.divider}`,
+        }}
+      >
+        <HelpTooltipTitle>Shared Ports</HelpTooltipTitle>
+        <HelpTooltipText css={{ color: theme.palette.text.secondary }}>
+          {canSharePorts
+            ? "端口可以与其他Coder用户或公共用户共享。更改协议可能需要最多1分钟才能生效。"
+            : "此工作区模板不允许共享端口。请联系模板管理员以启用端口共享。"}
+        </HelpTooltipText>
+        {canSharePorts && (
+          <div>
+            {filteredSharedPorts?.map((share) => {
+              const url = portForwardURL(
+                host,
+                share.port,
+                agent.name,
+                workspaceName,
+                username,
+                share.protocol,
+              );
+              const label = share.port;
+              return (
+                <Stack
+                  key={share.port}
+                  direction="row"
+                  justifyContent="space-between"
+                  alignItems="center"
+                >
+                  <Link
+                    underline="none"
+                    css={styles.portLink}
+                    href={url}
+                    target="_blank"
+                    rel="noreferrer"
                   >
-                    <Link
-                      underline="none"
-                      css={styles.portLink}
-                      href={url}
-                      target="_blank"
-                      rel="noreferrer"
+                    {share.share_level === "public" ? (
+                      <LockOpenIcon css={{ width: 14, height: 14 }} />
+                    ) : (
+                      <LockIcon css={{ width: 14, height: 14 }} />
+                    )}
+                    {label}
+                  </Link>
+                  <FormControl size="small" css={styles.protocolFormControl}>
+                    <Select
+                      css={styles.shareLevelSelect}
+                      value={share.protocol}
+                      onChange={async (event) => {
+                        await upsertSharedPortMutation.mutateAsync({
+                          agent_name: agent.name,
+                          port: share.port,
+                          protocol: event.target
+                            .value as WorkspaceAgentPortShareProtocol,
+                          share_level: share.share_level,
+                        });
+                        await sharedPortsQuery.refetch();
+                      }}
                     >
-                      {share.share_level === "public" ? (
-                        <LockOpenIcon css={{ width: 14, height: 14 }} />
-                      ) : (
-                        <LockIcon css={{ width: 14, height: 14 }} />
-                      )}
-                      {label}
-                    </Link>
-                    <FormControl size="small" css={styles.protocolFormControl}>
+                      <MenuItem value="http">HTTP</MenuItem>
+                      <MenuItem value="https">HTTPS</MenuItem>
+                    </Select>
+                  </FormControl>
+
+                  <Stack direction="row" justifyContent="flex-end">
+                    <FormControl
+                      size="small"
+                      css={styles.shareLevelFormControl}
+                    >
                       <Select
                         css={styles.shareLevelSelect}
-                        value={share.protocol}
+                        value={share.share_level}
                         onChange={async (event) => {
                           await upsertSharedPortMutation.mutateAsync({
                             agent_name: agent.name,
                             port: share.port,
-                            protocol: event.target
-                              .value as WorkspaceAgentPortShareProtocol,
-                            share_level: share.share_level,
+                            protocol: share.protocol,
+                            share_level: event.target
+                              .value as WorkspaceAgentPortShareLevel,
                           });
                           await sharedPortsQuery.refetch();
                         }}
                       >
-                        <MenuItem value="http">HTTP</MenuItem>
-                        <MenuItem value="https">HTTPS</MenuItem>
+                        <MenuItem value="authenticated">Authenticated</MenuItem>
+                        {canSharePortsPublic ? (
+                          <MenuItem value="public">Public</MenuItem>
+                        ) : (
+                          disabledPublicMenuItem
+                        )}
                       </Select>
                     </FormControl>
-
-                    <Stack direction="row" justifyContent="flex-end">
-                      <FormControl
-                        size="small"
-                        css={styles.shareLevelFormControl}
-                      >
-                        <Select
-                          css={styles.shareLevelSelect}
-                          value={share.share_level}
-                          onChange={async (event) => {
-                            await upsertSharedPortMutation.mutateAsync({
-                              agent_name: agent.name,
-                              port: share.port,
-                              protocol: share.protocol,
-                              share_level: event.target
-                                .value as WorkspaceAgentPortShareLevel,
-                            });
-                            await sharedPortsQuery.refetch();
-                          }}
-                        >
-                          <MenuItem value="authenticated">
-                            已认证
-                          </MenuItem>
-                          {canSharePortsPublic ? (
-                            <MenuItem value="public">公共</MenuItem>
-                          ) : (
-                            disabledPublicMenuItem
-                          )}
-                        </Select>
-                      </FormControl>
-                      <Button
-                        size="small"
-                        variant="text"
-                        css={styles.deleteButton}
-                        onClick={async () => {
-                          await deleteSharedPortMutation.mutateAsync({
-                            agent_name: agent.name,
-                            port: share.port,
-                          });
-                          await sharedPortsQuery.refetch();
+                    <Button
+                      size="small"
+                      variant="text"
+                      css={styles.deleteButton}
+                      onClick={async () => {
+                        await deleteSharedPortMutation.mutateAsync({
+                          agent_name: agent.name,
+                          port: share.port,
+                        });
+                        await sharedPortsQuery.refetch();
+                      }}
+                    >
+                      <CloseIcon
+                        css={{
+                          width: 14,
+                          height: 14,
+                          color: theme.palette.text.primary,
                         }}
-                      >
-                        <CloseIcon
-                          css={{
-                            width: 14,
-                            height: 14,
-                            color: theme.palette.text.primary,
-                          }}
-                        />
-                      </Button>
-                    </Stack>
+                      />
+                    </Button>
                   </Stack>
-                );
-              })}
-              <form onSubmit={form.handleSubmit}>
-                <Stack
-                  direction="column"
-                  gap={2}
-                  justifyContent="flex-end"
-                  sx={{
-                    marginTop: 2,
-                  }}
-                >
-                  <TextField
-                    {...getFieldHelpers("port")}
-                    disabled={isSubmitting}
-                    label="Port"
-                    size="small"
-                    variant="outlined"
-                    type="number"
-                    value={form.values.port}
-                  />
-                  <TextField
-                    {...getFieldHelpers("protocol")}
-                    disabled={isSubmitting}
-                    fullWidth
-                    select
-                    value={form.values.protocol}
-                    label="Protocol"
-                  >
-                    <MenuItem value="http">HTTP</MenuItem>
-                    <MenuItem value="https">HTTPS</MenuItem>
-                  </TextField>
-                  <TextField
-                    {...getFieldHelpers("share_level")}
-                    disabled={isSubmitting}
-                    fullWidth
-                    select
-                    value={form.values.share_level}
-                    label="Sharing Level"
-                  >
-                    <MenuItem value="authenticated">已认证</MenuItem>
-                    {canSharePortsPublic ? (
-                      <MenuItem value="public">公共</MenuItem>
-                    ) : (
-                      disabledPublicMenuItem
-                    )}
-                  </TextField>
-                  <LoadingButton
-                    variant="contained"
-                    type="submit"
-                    loading={isSubmitting}
-                    disabled={!form.isValid}
-                  >
-                     共享端口
-                  </LoadingButton>
                 </Stack>
-              </form>
-            </div>
-          )}
-        </div>
-      )}
+              );
+            })}
+            <form onSubmit={form.handleSubmit}>
+              <Stack
+                direction="column"
+                gap={2}
+                justifyContent="flex-end"
+                sx={{
+                  marginTop: 2,
+                }}
+              >
+                <TextField
+                  {...getFieldHelpers("port")}
+                  disabled={isSubmitting}
+                  label="Port"
+                  size="small"
+                  variant="outlined"
+                  type="number"
+                  value={form.values.port}
+                />
+                <TextField
+                  {...getFieldHelpers("protocol")}
+                  disabled={isSubmitting}
+                  fullWidth
+                  select
+                  value={form.values.protocol}
+                  label="Protocol"
+                >
+                  <MenuItem value="http">HTTP</MenuItem>
+                  <MenuItem value="https">HTTPS</MenuItem>
+                </TextField>
+                <TextField
+                  {...getFieldHelpers("share_level")}
+                  disabled={isSubmitting}
+                  fullWidth
+                  select
+                  value={form.values.share_level}
+                  label="Sharing Level"
+                >
+                  <MenuItem value="authenticated">Authenticated</MenuItem>
+                  {canSharePortsPublic ? (
+                    <MenuItem value="public">Public</MenuItem>
+                  ) : (
+                    disabledPublicMenuItem
+                  )}
+                </TextField>
+                <LoadingButton
+                  variant="contained"
+                  type="submit"
+                  loading={isSubmitting}
+                  disabled={!form.isValid}
+                >
+                  Share Port
+                </LoadingButton>
+              </Stack>
+            </form>
+          </div>
+        )}
+      </div>
     </>
   );
 };

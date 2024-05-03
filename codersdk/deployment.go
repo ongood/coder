@@ -200,6 +200,7 @@ type DeploymentValues struct {
 	AllowWorkspaceRenames           serpent.Bool                         `json:"allow_workspace_renames,omitempty" typescript:",notnull"`
 	Healthcheck                     HealthcheckConfig                    `json:"healthcheck,omitempty" typescript:",notnull"`
 	CLIUpgradeMessage               serpent.String                       `json:"cli_upgrade_message,omitempty" typescript:",notnull"`
+	TermsOfServiceURL               serpent.String                       `json:"terms_of_service_url,omitempty" typescript:",notnull"`
 
 	Config      serpent.YAMLConfigPath `json:"config,omitempty" typescript:",notnull"`
 	WriteConfig serpent.Bool           `json:"write_config,omitempty" typescript:",notnull"`
@@ -1674,6 +1675,14 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 			Annotations: serpent.Annotations{}.Mark(annotationExternalProxies, "true"),
 		},
 		{
+			Name:        "Terms of Service URL",
+			Description: "A URL to an external Terms of Service that must be accepted by users when logging in.",
+			Flag:        "terms-of-service-url",
+			Env:         "CODER_TERMS_OF_SERVICE_URL",
+			YAML:        "termsOfServiceURL",
+			Value:       &c.TermsOfServiceURL,
+		},
+		{
 			Name: "Strict-Transport-Security",
 			Description: "O控制是否在所有静态文件响应中设置\"Strict-Transport-Security\"响应头。此响应头应仅在通过HTTPS访问服务器时设置。该值表示头的最大有效时间（以秒为单位）.",
 			Default:     "0",
@@ -2126,6 +2135,9 @@ type BuildInfoResponse struct {
 	// UpgradeMessage is the message displayed to users when an outdated client
 	// is detected.
 	UpgradeMessage string `json:"upgrade_message"`
+
+	// DeploymentID is the unique identifier for this deployment.
+	DeploymentID string `json:"deployment_id"`
 }
 
 type WorkspaceProxyBuildInfo struct {
@@ -2164,8 +2176,7 @@ type Experiment string
 
 const (
 	// Add new experiments here!
-	ExperimentExample            Experiment = "example" // This isn't used for anything.
-	ExperimentSharedPorts        Experiment = "shared-ports"
+	ExperimentExample            Experiment = "example"              // This isn't used for anything.
 	ExperimentAutoFillParameters Experiment = "auto-fill-parameters" // This should not be taken out of experiments until we have redesigned the feature.
 )
 
@@ -2173,9 +2184,7 @@ const (
 // users to opt-in to via --experimental='*'.
 // Experiments that are not ready for consumption by all users should
 // not be included here and will be essentially hidden.
-var ExperimentsAll = Experiments{
-	ExperimentSharedPorts,
-}
+var ExperimentsAll = Experiments{}
 
 // Experiments is a list of experiments.
 // Multiple experiments may be enabled at the same time.

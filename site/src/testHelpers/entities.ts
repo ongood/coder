@@ -201,6 +201,7 @@ export const MockBuildInfo: TypesGen.BuildInfoResponse = {
   dashboard_url: "https:///mock-url",
   workspace_proxy: false,
   upgrade_message: "My custom upgrade message",
+  deployment_id: "510d407f-e521-4180-b559-eab4a6d802b8",
 };
 
 export const MockSupportLinks: TypesGen.LinkConfig[] = [
@@ -1368,6 +1369,13 @@ export const MockUserAgent = {
 };
 
 export const MockAuthMethodsPasswordOnly: TypesGen.AuthMethods = {
+  password: { enabled: true },
+  github: { enabled: false },
+  oidc: { enabled: false, signInText: "", iconUrl: "" },
+};
+
+export const MockAuthMethodsPasswordTermsOfService: TypesGen.AuthMethods = {
+  terms_of_service_url: "https://www.youtube.com/watch?v=C2f37Vb2NAE",
   password: { enabled: true },
   github: { enabled: false },
   oidc: { enabled: false, signInText: "", iconUrl: "" },

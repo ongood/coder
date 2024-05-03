@@ -1,5 +1,6 @@
-import type { Interpolation, Theme } from "@emotion/react";
 import Checkbox from "@mui/material/Checkbox";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import FormHelperText from "@mui/material/FormHelperText";
 import MenuItem from "@mui/material/MenuItem";
 import TextField from "@mui/material/TextField";
 import { type FormikContextType, type FormikTouched, useFormik } from "formik";
@@ -17,14 +18,12 @@ import {
   HorizontalForm,
   FormFooter,
 } from "components/Form/Form";
-import {
-  HelpTooltip,
-  HelpTooltipContent,
-  HelpTooltipText,
-  HelpTooltipTrigger,
-} from "components/HelpTooltip/HelpTooltip";
 import { IconField } from "components/IconField/IconField";
 import { Stack } from "components/Stack/Stack";
+import {
+  StackLabel,
+  StackLabelHelperText,
+} from "components/StackLabel/StackLabel";
 import {
   getFormHelpers,
   nameValidator,
@@ -62,7 +61,6 @@ export interface TemplateSettingsForm {
   initialTouched?: FormikTouched<UpdateTemplateMeta>;
   accessControlEnabled: boolean;
   advancedSchedulingEnabled: boolean;
-  portSharingExperimentEnabled: boolean;
   portSharingControlsEnabled: boolean;
 }
 
@@ -75,7 +73,6 @@ export const TemplateSettingsForm: FC<TemplateSettingsForm> = ({
   initialTouched,
   accessControlEnabled,
   advancedSchedulingEnabled,
-  portSharingExperimentEnabled,
   portSharingControlsEnabled,
 }) => {
   const validationSchema = getValidationSchema();
@@ -160,88 +157,71 @@ export const TemplateSettingsForm: FC<TemplateSettingsForm> = ({
         title="选项"
         description="管理从该模板创建的工作区上允许的选项。"
       >
-        <Stack direction="column" spacing={5}>
-          <label htmlFor="allow_user_cancel_workspace_jobs">
-            <Stack direction="row" spacing={1}>
+        <FormFields spacing={6}>
+          <FormControlLabel
+            control={
               <Checkbox
+                size="small"
                 id="allow_user_cancel_workspace_jobs"
                 name="allow_user_cancel_workspace_jobs"
                 disabled={isSubmitting}
                 checked={form.values.allow_user_cancel_workspace_jobs}
                 onChange={form.handleChange}
               />
+            }
+            label={
+              <StackLabel>
+                允许用户取消进行中的工作区任务。
+                <StackLabelHelperText>
+                   根据您的模板，取消构建可能会使工作区处于不健康状态。对于大多数用例，不建议使用此选项。{" "}
+                  <strong>
+                    如果选中，用户可能会破坏他们的工作区。
+                  </strong>
+                </StackLabelHelperText>
+              </StackLabel>
+            }
+          />
 
-              <Stack direction="column" spacing={0.5}>
-                <Stack
-                  direction="row"
-                  alignItems="center"
-                  spacing={0.5}
-                  css={styles.optionText}
-                >
-                  允许用户取消进行中的工作区任务。
-                  <HelpTooltip>
-                    <HelpTooltipTrigger />
-                    <HelpTooltipContent>
-                      <HelpTooltipText>
-                        如果选中，用户可能会破坏他们的工作区。
-                      </HelpTooltipText>
-                    </HelpTooltipContent>
-                  </HelpTooltip>
-                </Stack>
-                <span css={styles.optionHelperText}>
-                  根据您的模板，取消构建可能会使工作区处于不健康状态。对于大多数用例，不建议使用此选项。
-                </span>
-              </Stack>
-            </Stack>
-          </label>
-          <Stack spacing={2}>
-            <label htmlFor="require_active_version">
-              <Stack direction="row" spacing={1}>
-                <Checkbox
-                  id="require_active_version"
-                  name="require_active_version"
-                  checked={form.values.require_active_version}
-                  onChange={form.handleChange}
-                  disabled={
-                    !template.require_active_version &&
-                    !advancedSchedulingEnabled
-                  }
-                />
-
-                <Stack direction="column" spacing={0.5}>
-                  <Stack
-                    direction="row"
-                    alignItems="center"
-                    spacing={0.5}
-                    css={styles.optionText}
-                  >
-                    在启动时要求工作区自动更新。
-                    <HelpTooltip>
-                      <HelpTooltipTrigger />
-                      <HelpTooltipContent>
-                        <HelpTooltipText>
-                          此设置对模板管理员不适用。
-                        </HelpTooltipText>
-                      </HelpTooltipContent>
-                    </HelpTooltip>
-                  </Stack>
-                  <span css={styles.optionHelperText}>
-                    手动启动或自动启动的工作区将使用活动的模板版本。
+          <FormControlLabel
+            control={
+              <Checkbox
+                size="small"
+                id="require_active_version"
+                name="require_active_version"
+                checked={form.values.require_active_version}
+                onChange={form.handleChange}
+                disabled={
+                  !template.require_active_version && !advancedSchedulingEnabled
+                }
+              />
+            }
+            label={
+              <StackLabel>
+                在启动时要求工作区自动更新。
+                <StackLabelHelperText>
+                  <span>
+                    手动启动或自动启动的工作区将使用当前模板版本。{" "}
+                    <strong>
+                      此设置对模板管理员不适用。
+                    </strong>
                   </span>
-                </Stack>
-              </Stack>
-            </label>
 
-            {!advancedSchedulingEnabled && (
-              <Stack direction="row">
-                <EnterpriseBadge />
-                <span css={styles.optionHelperText}>
-                  需要企业许可证才能启用。
-                </span>
-              </Stack>
-            )}
-          </Stack>
-        </Stack>
+                  {!advancedSchedulingEnabled && (
+                    <Stack
+                      direction="row"
+                      spacing={2}
+                      alignItems="center"
+                      css={{ marginTop: 16 }}
+                    >
+                      <EnterpriseBadge />
+                      <span>需要企业许可证才能启用。</span>
+                    </Stack>
+                  )}
+                </StackLabelHelperText>
+              </StackLabel>
+            }
+          />
+        </FormFields>
       </FormSection>
 
       <FormSection
@@ -261,71 +241,57 @@ export const TemplateSettingsForm: FC<TemplateSettingsForm> = ({
             label="弃用消息"
           />
           {!accessControlEnabled && (
-            <Stack direction="row">
+            <Stack direction="row" spacing={2} alignItems="center">
               <EnterpriseBadge />
-              <span css={styles.optionHelperText}>
+              <FormHelperText>
                 Enterprise license required to deprecate templates.
                 {template.deprecated &&
                   " You cannot change the message, but you may remove it to mark this template as no longer deprecated."}
-              </span>
+              </FormHelperText>
             </Stack>
           )}
         </FormFields>
       </FormSection>
 
-      {portSharingExperimentEnabled && (
-        <FormSection
-          title="Port Sharing"
-          description="Shared ports with the Public sharing level can be accessed by anyone,
+      <FormSection
+        title="Port Sharing"
+        description="Shared ports with the Public sharing level can be accessed by anyone,
           while ports with the Authenticated sharing level can only be accessed
           by authenticated Coder users. Ports with the Owner sharing level can
           only be accessed by the workspace owner."
-        >
-          <FormFields>
-            <TextField
-              {...getFieldHelpers("max_port_share_level", {
-                helperText:
-                  "The maximum level of port sharing allowed for workspaces.",
-              })}
-              disabled={isSubmitting || !portSharingControlsEnabled}
-              fullWidth
-              select
-              value={
-                portSharingControlsEnabled
-                  ? form.values.max_port_share_level
-                  : "public"
-              }
-              label="Maximum Port Sharing Level"
-            >
-              <MenuItem value="owner">Owner</MenuItem>
-              <MenuItem value="authenticated">Authenticated</MenuItem>
-              <MenuItem value="public">Public</MenuItem>
-            </TextField>
-            {!portSharingControlsEnabled && (
-              <Stack direction="row">
-                <EnterpriseBadge />
-                <span css={styles.optionHelperText}>
-                  Enterprise license required to control max port sharing level.
-                </span>
-              </Stack>
-            )}
-          </FormFields>
-        </FormSection>
-      )}
+      >
+        <FormFields>
+          <TextField
+            {...getFieldHelpers("max_port_share_level", {
+              helperText:
+                "The maximum level of port sharing allowed for workspaces.",
+            })}
+            disabled={isSubmitting || !portSharingControlsEnabled}
+            fullWidth
+            select
+            value={
+              portSharingControlsEnabled
+                ? form.values.max_port_share_level
+                : "public"
+            }
+            label="Maximum Port Sharing Level"
+          >
+            <MenuItem value="owner">Owner</MenuItem>
+            <MenuItem value="authenticated">Authenticated</MenuItem>
+            <MenuItem value="public">Public</MenuItem>
+          </TextField>
+          {!portSharingControlsEnabled && (
+            <Stack direction="row" spacing={2} alignItems="center">
+              <EnterpriseBadge />
+              <FormHelperText>
+                Enterprise license required to control max port sharing level.
+              </FormHelperText>
+            </Stack>
+          )}
+        </FormFields>
+      </FormSection>
 
       <FormFooter onCancel={onCancel} isLoading={isSubmitting} />
     </HorizontalForm>
   );
 };
-
-const styles = {
-  optionText: (theme) => ({
-    fontSize: 16,
-    color: theme.palette.text.primary,
-  }),
-
-  optionHelperText: (theme) => ({
-    fontSize: 12,
-    color: theme.palette.text.secondary,
-  }),
-} satisfies Record<string, Interpolation<Theme>>;

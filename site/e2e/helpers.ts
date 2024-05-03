@@ -1,5 +1,4 @@
 import { type BrowserContext, expect, type Page, test } from "@playwright/test";
-import axios from "axios";
 import { type ChildProcess, exec, spawn } from "child_process";
 import { randomUUID } from "crypto";
 import express from "express";
@@ -7,6 +6,7 @@ import capitalize from "lodash/capitalize";
 import path from "path";
 import * as ssh from "ssh2";
 import { Duplex } from "stream";
+import { axiosInstance } from "api/api";
 import type {
   WorkspaceBuildParameter,
   UpdateTemplateMeta,
@@ -391,14 +391,14 @@ export const stopAgent = async (cp: ChildProcess, goRun: boolean = true) => {
   await waitUntilUrlIsNotResponding("http://localhost:" + prometheusPort);
 };
 
-const waitUntilUrlIsNotResponding = async (url: string) => {
+export const waitUntilUrlIsNotResponding = async (url: string) => {
   const maxRetries = 30;
   const retryIntervalMs = 1000;
   let retries = 0;
 
   while (retries < maxRetries) {
     try {
-      await axios.get(url);
+      await axiosInstance.get(url);
     } catch (error) {
       return;
     }

@@ -1,4 +1,3 @@
-import { useTheme } from "@emotion/react";
 import Checkbox from "@mui/material/Checkbox";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import MenuItem from "@mui/material/MenuItem";
@@ -14,6 +13,10 @@ import {
   FormFields,
 } from "components/Form/Form";
 import { Stack } from "components/Stack/Stack";
+import {
+  StackLabel,
+  StackLabelHelperText,
+} from "components/StackLabel/StackLabel";
 import { getFormHelpers } from "utils/formUtils";
 import {
   calculateAutostopRequirementDaysValue,
@@ -47,6 +50,12 @@ const MS_DAY_CONVERSION = 86400000;
 const FAILURE_CLEANUP_DEFAULT = 7;
 const INACTIVITY_CLEANUP_DEFAULT = 180;
 const DORMANT_AUTODELETION_DEFAULT = 30;
+/**
+ * The default form field space is 4 but since this form is quite heavy I think
+ * increase the space can make it feels lighter.
+ */
+const FORM_FIELDS_SPACING = 8;
+const DORMANT_FIELDSET_SPACING = 4;
 
 export interface TemplateScheduleForm {
   template: Template;
@@ -146,7 +155,6 @@ export const TemplateScheduleForm: FC<TemplateScheduleForm> = ({
     form,
     error,
   );
-  const theme = useTheme();
 
   const now = new Date();
   const weekFromNow = new Date(now);
@@ -226,7 +234,6 @@ export const TemplateScheduleForm: FC<TemplateScheduleForm> = ({
       allow_user_autostop: form.values.allow_user_autostop,
       update_workspace_last_used_at: form.values.update_workspace_last_used_at,
       update_workspace_dormant_at: form.values.update_workspace_dormant_at,
-      require_active_version: false,
       disable_everyone_group_access: false,
     });
   };
@@ -318,10 +325,10 @@ export const TemplateScheduleForm: FC<TemplateScheduleForm> = ({
       aria-label="模板设置表单"
     >
       <FormSection
-        title="日程"
+        title="自动停止"
         description="定义从此模板创建的工作区何时停止。"
       >
-        <Stack direction="row" css={styles.ttlFields}>
+        <FormFields spacing={FORM_FIELDS_SPACING}>
           <TextField
             {...getFieldHelpers("default_ttl_ms", {
               helperText: (
@@ -347,34 +354,113 @@ export const TemplateScheduleForm: FC<TemplateScheduleForm> = ({
             label="活动延迟(小时)"
             type="number"
           />
-        </Stack>
+
+          <Stack direction="row" css={styles.ttlFields}>
+            <TextField
+              {...getFieldHelpers("autostop_requirement_days_of_week", {
+                helperText: (
+                  <AutostopRequirementDaysHelperText
+                    days={form.values.autostop_requirement_days_of_week}
+                  />
+                ),
+              })}
+              disabled={isSubmitting}
+              fullWidth
+              select
+              value={form.values.autostop_requirement_days_of_week}
+              label="Days with required stop"
+            >
+              <MenuItem key="off" value="off">
+                Off
+              </MenuItem>
+              <MenuItem key="daily" value="daily">
+                Daily
+              </MenuItem>
+              <MenuItem key="saturday" value="saturday">
+                Saturday
+              </MenuItem>
+              <MenuItem key="sunday" value="sunday">
+                Sunday
+              </MenuItem>
+            </TextField>
+
+            <TextField
+              {...getFieldHelpers("autostop_requirement_weeks", {
+                helperText: (
+                  <AutostopRequirementWeeksHelperText
+                    days={form.values.autostop_requirement_days_of_week}
+                    weeks={form.values.autostop_requirement_weeks}
+                  />
+                ),
+              })}
+              disabled={
+                isSubmitting ||
+                !["saturday", "sunday"].includes(
+                  form.values.autostop_requirement_days_of_week || "",
+                )
+              }
+              fullWidth
+              inputProps={{ min: 1, max: 16, step: 1 }}
+              label="Weeks between required stops"
+              type="number"
+            />
+          </Stack>
+
+          <FormControlLabel
+            control={
+              <Checkbox
+                id="allow-user-autostop"
+                size="small"
+                disabled={isSubmitting || !allowAdvancedScheduling}
+                onChange={async (_, checked) => {
+                  await form.setFieldValue("allow_user_autostop", checked);
+                }}
+                name="allow_user_autostop"
+                checked={form.values.allow_user_autostop}
+              />
+            }
+            label={
+              <StackLabel>
+                Allow users to customize autostop duration for workspaces.
+                <StackLabelHelperText>
+                  By default, workspaces will inherit the Autostop timer from
+                  this template. Enabling this option allows users to set custom
+                  Autostop timers on their workspaces or turn off the timer.
+                </StackLabelHelperText>
+              </StackLabel>
+            }
+          />
+        </FormFields>
       </FormSection>
 
       <FormSection
-        title="允许用户调度"
+        title="自动启动"
         description="允许用户为从此模板创建的工作区设置自定义自动启动和自动停止计划选项。"
       >
-        <Stack direction="column">
-          <Stack direction="row" alignItems="center">
-            <Checkbox
-              id="allow_user_autostart"
-              size="small"
-              disabled={isSubmitting || !allowAdvancedScheduling}
-              onChange={async () => {
-                await form.setFieldValue(
-                  "allow_user_autostart",
-                  !form.values.allow_user_autostart,
-                );
-              }}
-              name="allow_user_autostart"
-              checked={form.values.allow_user_autostart}
-            />
-            <Stack spacing={0.5}>
-              <strong>
-                允许用户按计划自动启动工作区。
-              </strong>
-            </Stack>
-          </Stack>
+        <Stack>
+          <FormControlLabel
+            control={
+              <Checkbox
+                id="allow_user_autostart"
+                size="small"
+                disabled={isSubmitting || !allowAdvancedScheduling}
+                onChange={async () => {
+                  await form.setFieldValue(
+                    "allow_user_autostart",
+                    !form.values.allow_user_autostart,
+                  );
+                }}
+                name="allow_user_autostart"
+                checked={form.values.allow_user_autostart}
+              />
+            }
+            label={
+              <StackLabel>
+                Allow users to automatically start workspaces on a schedule.
+              </StackLabel>
+            }
+          />
+
           {allowAdvancedScheduling && (
             <TemplateScheduleAutostart
               enabled={Boolean(form.values.allow_user_autostart)}
@@ -390,190 +476,121 @@ export const TemplateScheduleForm: FC<TemplateScheduleForm> = ({
               }}
             />
           )}
-
-          <Stack direction="row" alignItems="center">
-            <Checkbox
-              id="allow-user-autostop"
-              size="small"
-              disabled={isSubmitting || !allowAdvancedScheduling}
-              onChange={async () => {
-                await form.setFieldValue(
-                  "allow_user_autostop",
-                  !form.values.allow_user_autostop,
-                );
-              }}
-              name="allow_user_autostop"
-              checked={form.values.allow_user_autostop}
-            />
-            <Stack spacing={0.5}>
-              <strong>
-                允许用户为工作区自定义自动停止前的持续时间。
-              </strong>
-              <span
-                css={{
-                  fontSize: 12,
-                  color: theme.palette.text.secondary,
-                }}
-              >
-                如果设置了默认的TTL（生存时间），工作空间将始终使用该默认值。
-              </span>
-            </Stack>
-          </Stack>
-        </Stack>
-      </FormSection>
-
-      <FormSection
-        title="Autostop Requirement"
-        description="Define when workspaces created from this template are stopped periodically to enforce template updates and ensure idle workspaces are stopped."
-      >
-        <Stack direction="row" css={styles.ttlFields}>
-          <TextField
-            {...getFieldHelpers("autostop_requirement_days_of_week", {
-              helperText: (
-                <AutostopRequirementDaysHelperText
-                  days={form.values.autostop_requirement_days_of_week}
-                />
-              ),
-            })}
-            disabled={isSubmitting}
-            fullWidth
-            select
-            value={form.values.autostop_requirement_days_of_week}
-            label="Days with required stop"
-          >
-            <MenuItem key="off" value="off">
-              Off
-            </MenuItem>
-            <MenuItem key="daily" value="daily">
-              Daily
-            </MenuItem>
-            <MenuItem key="saturday" value="saturday">
-              Saturday
-            </MenuItem>
-            <MenuItem key="sunday" value="sunday">
-              Sunday
-            </MenuItem>
-          </TextField>
-
-          <TextField
-            {...getFieldHelpers("autostop_requirement_weeks", {
-              helperText: (
-                <AutostopRequirementWeeksHelperText
-                  days={form.values.autostop_requirement_days_of_week}
-                  weeks={form.values.autostop_requirement_weeks}
-                />
-              ),
-            })}
-            disabled={
-              isSubmitting ||
-              !["saturday", "sunday"].includes(
-                form.values.autostop_requirement_days_of_week || "",
-              )
-            }
-            fullWidth
-            inputProps={{ min: 1, max: 16, step: 1 }}
-            label="Weeks between required stops"
-            type="number"
-          />
         </Stack>
       </FormSection>
 
       {allowAdvancedScheduling && (
         <>
           <FormSection
-            title="失败清理"
-            description="启用时，Coder 将尝试在指定天数后停止处于失败状态的工作区。"
+            title="休眠"
+            description="启用后，Coder将在一段时间无连接后将工作空间标记为休眠。休眠工作空间可以自动删除（见下文）或由工作空间所有者或管理员手动审查。"
           >
-            <FormFields>
-              <FormControlLabel
-                control={
-                  <Switch
-                    name="failureCleanupEnabled"
-                    checked={form.values.failure_cleanup_enabled}
-                    onChange={handleToggleFailureCleanup}
-                  />
-                }
-                label="启用失败清理"
-              />
-              <TextField
-                {...getFieldHelpers("failure_ttl_ms", {
-                  helperText: (
-                    <FailureTTLHelperText ttl={form.values.failure_ttl_ms} />
-                  ),
-                })}
-                disabled={isSubmitting || !form.values.failure_cleanup_enabled}
-                fullWidth
-                inputProps={{ min: 0, step: "any" }}
-                label="清理时间（天）"
-                type="number"
-              />
-            </FormFields>
-          </FormSection>
-          <FormSection
-            title="休眠阈值"
-            description="启用时，Coder 将在一段时间内没有连接的情况下将工作区标记为休眠状态。 休眠的工作区可以被自动删除（参见下文），也可以由工作区所有者或管理员手动审查。"
-          >
-            <FormFields>
-              <FormControlLabel
-                control={
-                  <Switch
-                    name="dormancyThreshold"
-                    checked={form.values.inactivity_cleanup_enabled}
-                    onChange={handleToggleInactivityCleanup}
-                  />
-                }
-                label="启用休眠阈值"
-              />
-              <TextField
-                {...getFieldHelpers("time_til_dormant_ms", {
-                  helperText: (
-                    <DormancyTTLHelperText
-                      ttl={form.values.time_til_dormant_ms}
+            <FormFields spacing={FORM_FIELDS_SPACING}>
+              <Stack spacing={DORMANT_FIELDSET_SPACING}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      size="small"
+                      name="dormancyThreshold"
+                      checked={form.values.inactivity_cleanup_enabled}
+                      onChange={handleToggleInactivityCleanup}
                     />
-                  ),
-                })}
-                disabled={
-                  isSubmitting || !form.values.inactivity_cleanup_enabled
-                }
-                fullWidth
-                inputProps={{ min: 0, step: "any" }}
-                label="距离休眠剩余(天数)"
-                type="number"
-              />
-            </FormFields>
-          </FormSection>
-          <FormSection
-            title="休眠自动删除"
-            description="启用后，Coder 将在一段时间后永久删除休眠的工作区。一旦工作区被删除，将无法恢复。"
-          >
-            <FormFields>
-              <FormControlLabel
-                control={
-                  <Switch
-                    name="dormancyAutoDeletion"
-                    checked={form.values.dormant_autodeletion_cleanup_enabled}
-                    onChange={handleToggleDormantAutoDeletion}
-                  />
-                }
-                label="启用休眠自动删除"
-              />
-              <TextField
-                {...getFieldHelpers("time_til_dormant_autodelete_ms", {
-                  helperText: (
-                    <DormancyAutoDeletionTTLHelperText
-                      ttl={form.values.time_til_dormant_autodelete_ms}
+                  }
+                  label={<StackLabel>启用休眠阈值</StackLabel>}
+                />
+                <TextField
+                  {...getFieldHelpers("time_til_dormant_ms", {
+                    helperText: (
+                      <DormancyTTLHelperText
+                        ttl={form.values.time_til_dormant_ms}
+                      />
+                    ),
+                  })}
+                  disabled={
+                    isSubmitting || !form.values.inactivity_cleanup_enabled
+                  }
+                  fullWidth
+                  inputProps={{ min: 0, step: "any" }}
+                  label="进入休眠时间（天）"
+                  type="number"
+                />
+              </Stack>
+
+              <Stack spacing={DORMANT_FIELDSET_SPACING}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      size="small"
+                      name="dormancyAutoDeletion"
+                      checked={form.values.dormant_autodeletion_cleanup_enabled}
+                      onChange={handleToggleDormantAutoDeletion}
                     />
-                  ),
-                })}
-                disabled={
-                  isSubmitting ||
-                  !form.values.dormant_autodeletion_cleanup_enabled
-                }
-                fullWidth
-                inputProps={{ min: 0, step: "any" }}
-                label="自动删除时间（天）"
-                type="number"
-              />
+                  }
+                  label={
+                    <StackLabel>
+                      启用休眠自动删除
+                      <StackLabelHelperText>
+                        启用后，Coder将在一段时间后永久删除休眠工作空间。{" "}
+                        <strong>
+                          一旦工作空间被删除就无法恢复。
+                        </strong>
+                      </StackLabelHelperText>
+                    </StackLabel>
+                  }
+                />
+                <TextField
+                  {...getFieldHelpers("time_til_dormant_autodelete_ms", {
+                    helperText: (
+                      <DormancyAutoDeletionTTLHelperText
+                        ttl={form.values.time_til_dormant_autodelete_ms}
+                      />
+                    ),
+                  })}
+                  disabled={
+                    isSubmitting ||
+                    !form.values.dormant_autodeletion_cleanup_enabled
+                  }
+                  fullWidth
+                  inputProps={{ min: 0, step: "any" }}
+                  label="删除时间（天）"
+                  type="number"
+                />
+              </Stack>
+
+              <Stack spacing={DORMANT_FIELDSET_SPACING}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      size="small"
+                      name="failureCleanupEnabled"
+                      checked={form.values.failure_cleanup_enabled}
+                      onChange={handleToggleFailureCleanup}
+                    />
+                  }
+                  label={
+                    <StackLabel>
+                      启用失败清理
+                      <StackLabelHelperText>
+                        启用后，Coder将尝试在指定天数后停止处于失败状态的工作空间。
+                      </StackLabelHelperText>
+                    </StackLabel>
+                  }
+                />
+                <TextField
+                  {...getFieldHelpers("failure_ttl_ms", {
+                    helperText: (
+                      <FailureTTLHelperText ttl={form.values.failure_ttl_ms} />
+                    ),
+                  })}
+                  disabled={
+                    isSubmitting || !form.values.failure_cleanup_enabled
+                  }
+                  fullWidth
+                  inputProps={{ min: 0, step: "any" }}
+                  label="清理时间（天）"
+                  type="number"
+                />
+              </Stack>
             </FormFields>
           </FormSection>
         </>
