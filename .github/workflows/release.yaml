@@ -343,7 +343,6 @@ jobs:
           ./scripts/release/publish.sh \
             "${publish_args[@]}" \
             --release-notes-file "$CODER_RELEASE_NOTES_FILE" \
-            ./build/*_installer.exe \
             ./build/*.zip \
             ./build/*.tar.gz \
             ./build/*.tgz \
