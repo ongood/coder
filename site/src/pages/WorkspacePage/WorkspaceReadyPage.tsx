@@ -3,7 +3,7 @@ import { type FC, useEffect, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { useNavigate } from "react-router-dom";
-import { MissingBuildParameters, restartWorkspace } from "api/api";
+import { MissingBuildParameters, API } from "api/api";
 import { getErrorMessage } from "api/errors";
 import { buildInfo } from "api/queries/buildInfo";
 import { deploymentConfig, deploymentSSHConfig } from "api/queries/deployment";
@@ -27,6 +27,7 @@ import { displayError } from "components/GlobalSnackbar/utils";
 import { MemoizedInlineMarkdown } from "components/Markdown/Markdown";
 import { Stack } from "components/Stack/Stack";
 import { useAuthenticated } from "contexts/auth/RequireAuth";
+import { useEmbeddedMetadata } from "hooks/useEmbeddedMetadata";
 import { useWorkspaceBuildLogs } from "hooks/useWorkspaceBuildLogs";
 import { useFeatureVisibility } from "modules/dashboard/useFeatureVisibility";
 import { pageTitle } from "utils/page";
@@ -48,9 +49,11 @@ export const WorkspaceReadyPage: FC<WorkspaceReadyPageProps> = ({
   template,
   permissions,
 }) => {
+  const { metadata } = useEmbeddedMetadata();
+  const buildInfoQuery = useQuery(buildInfo(metadata["build-info"]));
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const buildInfoQuery = useQuery(buildInfo());
+
   const featureVisibility = useFeatureVisibility();
   if (workspace === undefined) {
     throw Error("工作区未定义");
@@ -80,7 +83,7 @@ export const WorkspaceReadyPage: FC<WorkspaceReadyPageProps> = ({
   }>({ open: false });
   const { mutate: mutateRestartWorkspace, isLoading: isRestarting } =
     useMutation({
-      mutationFn: restartWorkspace,
+      mutationFn: API.restartWorkspace,
     });
 
   // SSH Prefix

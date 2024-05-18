@@ -7,7 +7,6 @@ import FormLabel from "@mui/material/FormLabel";
 import MenuItem from "@mui/material/MenuItem";
 import Switch from "@mui/material/Switch";
 import TextField from "@mui/material/TextField";
-import Tooltip from "@mui/material/Tooltip";
 import { formatDuration, intervalToDuration } from "date-fns";
 import dayjs from "dayjs";
 import advancedFormat from "dayjs/plugin/advancedFormat";
@@ -19,7 +18,6 @@ import { type FormikTouched, useFormik } from "formik";
 import type { ChangeEvent, FC } from "react";
 import * as Yup from "yup";
 import type { Template } from "api/typesGenerated";
-import { DisabledBadge } from "components/Badges/Badges";
 import {
   HorizontalForm,
   FormFooter,
@@ -27,6 +25,10 @@ import {
   FormFields,
 } from "components/Form/Form";
 import { Stack } from "components/Stack/Stack";
+import {
+  StackLabel,
+  StackLabelHelperText,
+} from "components/StackLabel/StackLabel";
 import {
   defaultSchedule,
   emptySchedule,
@@ -177,6 +179,10 @@ export const validationSchema = Yup.object({
     }),
 });
 
+// This form utilizes complex, visually-intensive fields. Increasing the space
+// between these fields enhances readability and cleanliness.
+const FIELDS_SPACING = 4;
+
 export const WorkspaceScheduleForm: FC<WorkspaceScheduleFormProps> = ({
   error,
   initialValues,
@@ -271,21 +277,10 @@ export const WorkspaceScheduleForm: FC<WorkspaceScheduleFormProps> = ({
   return (
     <HorizontalForm onSubmit={form.handleSubmit}>
       <FormSection
-        title="自动启动"
-        description={
-          <>
-            <div css={{ marginBottom: 16 }}>
-              选择您希望工作区自动启动的时间和星期。
-            </div>
-            {!template.allow_user_autostart && (
-              <Tooltip title="此选项可以在模板设置中启用">
-                <DisabledBadge />
-              </Tooltip>
-            )}
-          </>
-        }
+        title="Autostart"
+        description="选择您希望工作区自动启动的时间和周天。"
       >
-        <FormFields>
+        <FormFields spacing={FIELDS_SPACING}>
           <FormControlLabel
             control={
               <Switch
@@ -293,9 +288,20 @@ export const WorkspaceScheduleForm: FC<WorkspaceScheduleFormProps> = ({
                 name="autostartEnabled"
                 checked={form.values.autostartEnabled}
                 onChange={handleToggleAutostart}
+                size="small"
               />
             }
-            label={Language.startSwitch}
+            label={
+              <StackLabel>
+                {Language.startSwitch}
+                {!template.allow_user_autostart && (
+                  <StackLabelHelperText>
+                    The template for this workspace does not allow modification
+                    of autostart.
+                  </StackLabelHelperText>
+                )}
+              </StackLabel>
+            }
           />
           <Stack direction="row">
             <TextField
@@ -383,28 +389,32 @@ export const WorkspaceScheduleForm: FC<WorkspaceScheduleFormProps> = ({
         title="自动停止"
         description={
           <>
-            <div css={{ marginBottom: 16 }}>
-              设置工作区启动后自动关闭之前应经过多少小时。在检测到工作区的最后一次活动后，此时间将延长 {dayjs.duration({ milliseconds: template.activity_bump_ms }).humanize()}。
-            </div>
-            {!template.allow_user_autostop && (
-              <Tooltip title="此选项可以在模板设置中启用">
-                <DisabledBadge />
-              </Tooltip>
-            )}
+            设置工作区启动后自动关闭之前应经过多少小时。在检测到工作区的最后一次活动后，此时间将延长 {dayjs.duration({ milliseconds: template.activity_bump_ms }).humanize()}。
           </>
         }
       >
-        <FormFields>
+        <FormFields spacing={FIELDS_SPACING}>
           <FormControlLabel
             control={
               <Switch
+                size="small"
                 name="autostopEnabled"
                 checked={form.values.autostopEnabled}
                 onChange={handleToggleAutostop}
                 disabled={!template.allow_user_autostop}
               />
             }
-            label={Language.stopSwitch}
+            label={
+              <StackLabel>
+                {Language.stopSwitch}
+                {!template.allow_user_autostop && (
+                  <StackLabelHelperText>
+                    The template for this workspace does not allow modification
+                    of autostop.
+                  </StackLabelHelperText>
+                )}
+              </StackLabel>
+            }
           />
           <TextField
             {...formHelpers("ttl", {

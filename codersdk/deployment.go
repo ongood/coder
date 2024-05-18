@@ -54,6 +54,7 @@ const (
 	FeatureWorkspaceBatchActions      FeatureName = "workspace_batch_actions"
 	FeatureAccessControl              FeatureName = "access_control"
 	FeatureControlSharedPorts         FeatureName = "control_shared_ports"
+	FeatureCustomRoles                FeatureName = "custom_roles"
 )
 
 // FeatureNames must be kept in-sync with the Feature enum above.
@@ -74,6 +75,7 @@ var FeatureNames = []FeatureName{
 	FeatureWorkspaceBatchActions,
 	FeatureAccessControl,
 	FeatureControlSharedPorts,
+	FeatureCustomRoles,
 }
 
 // Humanize returns the feature name in a human-readable format.
@@ -98,6 +100,7 @@ func (n FeatureName) AlwaysEnable() bool {
 		FeatureAppearance:                 true,
 		FeatureWorkspaceBatchActions:      true,
 		FeatureHighAvailability:           true,
+		FeatureCustomRoles:                true,
 	}[n]
 }
 
@@ -406,12 +409,13 @@ type ExternalAuthConfig struct {
 }
 
 type ProvisionerConfig struct {
-	Daemons             serpent.Int64    `json:"daemons" typescript:",notnull"`
-	DaemonsEcho         serpent.Bool     `json:"daemons_echo" typescript:",notnull"`
-	DaemonPollInterval  serpent.Duration `json:"daemon_poll_interval" typescript:",notnull"`
-	DaemonPollJitter    serpent.Duration `json:"daemon_poll_jitter" typescript:",notnull"`
-	ForceCancelInterval serpent.Duration `json:"force_cancel_interval" typescript:",notnull"`
-	DaemonPSK           serpent.String   `json:"daemon_psk" typescript:",notnull"`
+	// Daemons is the number of built-in terraform provisioners.
+	Daemons             serpent.Int64       `json:"daemons" typescript:",notnull"`
+	DaemonTypes         serpent.StringArray `json:"daemon_types" typescript:",notnull"`
+	DaemonPollInterval  serpent.Duration    `json:"daemon_poll_interval" typescript:",notnull"`
+	DaemonPollJitter    serpent.Duration    `json:"daemon_poll_jitter" typescript:",notnull"`
+	ForceCancelInterval serpent.Duration    `json:"force_cancel_interval" typescript:",notnull"`
+	DaemonPSK           serpent.String      `json:"daemon_psk" typescript:",notnull"`
 }
 
 type RateLimitConfig struct {
@@ -1403,15 +1407,30 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 			YAML:        "daemons",
 		},
 		{
-			Name:        "Echo Provisioner",
-			Description: "O是否使用回声供应程序守护程序而不是 Terraform。这是为了端到端测试.",
-			Flag:        "provisioner-daemons-echo",
-			Env:         "CODER_PROVISIONER_DAEMONS_ECHO",
-			Hidden:      true,
-			Default:     "false",
-			Value:       &c.Provisioner.DaemonsEcho,
-			Group:       &deploymentGroupProvisioning,
-			YAML:        "daemonsEcho",
+			Name: "Provisioner Daemon Types",
+			Description: fmt.Sprintf("O内置配置程序支持的作业类型。 默认情况下，这只是 terraform 类型。 支持的类型：%s.",
+				strings.Join([]string{
+					string(ProvisionerTypeTerraform), string(ProvisionerTypeEcho),
+				}, ",")),
+			Flag:    "provisioner-types",
+			Env:     "CODER_PROVISIONER_TYPES",
+			Hidden:  true,
+			Default: string(ProvisionerTypeTerraform),
+			Value: serpent.Validate(&c.Provisioner.DaemonTypes, func(values *serpent.StringArray) error {
+				if values == nil {
+					return nil
+				}
+
+				for _, value := range *values {
+					if err := ProvisionerTypeValid(value); err != nil {
+						return err
+					}
+				}
+
+				return nil
+			}),
+			Group: &deploymentGroupProvisioning,
+			YAML:  "daemonTypes",
 		},
 		{
 			Name:        "Poll Interval",
@@ -2068,19 +2087,26 @@ func (c *Client) DeploymentStats(ctx context.Context) (DeploymentStats, error) {
 }
 
 type AppearanceConfig struct {
-	ApplicationName string              `json:"application_name"`
-	LogoURL         string              `json:"logo_url"`
-	ServiceBanner   ServiceBannerConfig `json:"service_banner"`
-	SupportLinks    []LinkConfig        `json:"support_links,omitempty"`
+	ApplicationName string `json:"application_name"`
+	LogoURL         string `json:"logo_url"`
+	// Deprecated: ServiceBanner has been replaced by NotificationBanners.
+	ServiceBanner       BannerConfig   `json:"service_banner"`
+	NotificationBanners []BannerConfig `json:"notification_banners"`
+	SupportLinks        []LinkConfig   `json:"support_links,omitempty"`
 }
 
 type UpdateAppearanceConfig struct {
-	ApplicationName string              `json:"application_name"`
-	LogoURL         string              `json:"logo_url"`
-	ServiceBanner   ServiceBannerConfig `json:"service_banner"`
+	ApplicationName string `json:"application_name"`
+	LogoURL         string `json:"logo_url"`
+	// Deprecated: ServiceBanner has been replaced by NotificationBanners.
+	ServiceBanner       BannerConfig   `json:"service_banner"`
+	NotificationBanners []BannerConfig `json:"notification_banners"`
 }
 
-type ServiceBannerConfig struct {
+// Deprecated: ServiceBannerConfig has been renamed to BannerConfig.
+type ServiceBannerConfig = BannerConfig
+
+type BannerConfig struct {
 	Enabled         bool   `json:"enabled"`
 	Message         string `json:"message,omitempty"`
 	BackgroundColor string `json:"background_color,omitempty"`
@@ -2178,6 +2204,8 @@ const (
 	// Add new experiments here!
 	ExperimentExample            Experiment = "example"              // This isn't used for anything.
 	ExperimentAutoFillParameters Experiment = "auto-fill-parameters" // This should not be taken out of experiments until we have redesigned the feature.
+	ExperimentMultiOrganization  Experiment = "multi-organization"   // Requires organization context for interactions, default org is assumed.
+	ExperimentCustomRoles        Experiment = "custom-roles"         // Allows creating runtime custom roles
 )
 
 // ExperimentsAll should include all experiments that are safe for

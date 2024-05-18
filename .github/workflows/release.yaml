@@ -155,44 +155,44 @@ jobs:
             apple-codesign-0.22.0-x86_64-unknown-linux-musl/rcodesign
           rm /tmp/rcodesign.tar.gz
 
-      # - name: Setup Apple Developer certificate and API key
-      #   run: |
-      #     set -euo pipefail
-      #     touch /tmp/{apple_cert.p12,apple_cert_password.txt,apple_apikey.p8}
-      #     chmod 600 /tmp/{apple_cert.p12,apple_cert_password.txt,apple_apikey.p8}
-      #     echo "$AC_CERTIFICATE_P12_BASE64" | base64 -d > /tmp/apple_cert.p12
-      #     echo "$AC_CERTIFICATE_PASSWORD" > /tmp/apple_cert_password.txt
-      #     echo "$AC_APIKEY_P8_BASE64" | base64 -d > /tmp/apple_apikey.p8
-      #   env:
-      #     AC_CERTIFICATE_P12_BASE64: ${{ secrets.AC_CERTIFICATE_P12_BASE64 }}
-      #     AC_CERTIFICATE_PASSWORD: ${{ secrets.AC_CERTIFICATE_PASSWORD }}
-      #     AC_APIKEY_P8_BASE64: ${{ secrets.AC_APIKEY_P8_BASE64 }}
+      - name: Setup Apple Developer certificate and API key
+        run: |
+          set -euo pipefail
+          touch /tmp/{apple_cert.p12,apple_cert_password.txt,apple_apikey.p8}
+          chmod 600 /tmp/{apple_cert.p12,apple_cert_password.txt,apple_apikey.p8}
+          echo "$AC_CERTIFICATE_P12_BASE64" | base64 -d > /tmp/apple_cert.p12
+          echo "$AC_CERTIFICATE_PASSWORD" > /tmp/apple_cert_password.txt
+          echo "$AC_APIKEY_P8_BASE64" | base64 -d > /tmp/apple_apikey.p8
+        env:
+          AC_CERTIFICATE_P12_BASE64: ${{ secrets.AC_CERTIFICATE_P12_BASE64 }}
+          AC_CERTIFICATE_PASSWORD: ${{ secrets.AC_CERTIFICATE_PASSWORD }}
+          AC_APIKEY_P8_BASE64: ${{ secrets.AC_APIKEY_P8_BASE64 }}
 
-      # - name: Setup Windows EV Signing Certificate
-      #   run: |
-      #     set -euo pipefail
-      #     touch /tmp/ev_cert.pem
-      #     chmod 600 /tmp/ev_cert.pem
-      #     echo "$EV_SIGNING_CERT" > /tmp/ev_cert.pem
-      #     wget https://github.com/ebourg/jsign/releases/download/6.0/jsign-6.0.jar -O /tmp/jsign-6.0.jar
-      #   env:
-      #     EV_SIGNING_CERT: ${{ secrets.EV_SIGNING_CERT }}
-      # 注释数据迁移测试
-      # - name: Test migrations from current ref to main
-      #   run: |
-      #     make test-migrations
+      - name: Setup Windows EV Signing Certificate
+        run: |
+          set -euo pipefail
+          touch /tmp/ev_cert.pem
+          chmod 600 /tmp/ev_cert.pem
+          echo "$EV_SIGNING_CERT" > /tmp/ev_cert.pem
+          wget https://github.com/ebourg/jsign/releases/download/6.0/jsign-6.0.jar -O /tmp/jsign-6.0.jar
+        env:
+          EV_SIGNING_CERT: ${{ secrets.EV_SIGNING_CERT }}
 
-      # Setup GCloud for signing Windows binaries.
-      # - name: Authenticate to Google Cloud
-      #   id: gcloud_auth
-      #   uses: google-github-actions/auth@v2
-      #   with:
-      #     workload_identity_provider: ${{ secrets.GCP_CODE_SIGNING_WORKLOAD_ID_PROVIDER }}
-      #     service_account: ${{ secrets.GCP_CODE_SIGNING_SERVICE_ACCOUNT }}
-      #     token_format: "access_token"
+      - name: Test migrations from current ref to main
+        run: |
+          make test-migrations
 
-      # - name: Setup GCloud SDK
-      #   uses: "google-github-actions/setup-gcloud@v2"
+      Setup GCloud for signing Windows binaries.
+      - name: Authenticate to Google Cloud
+        id: gcloud_auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_CODE_SIGNING_WORKLOAD_ID_PROVIDER }}
+          service_account: ${{ secrets.GCP_CODE_SIGNING_SERVICE_ACCOUNT }}
+          token_format: "access_token"
+
+      - name: Setup GCloud SDK
+        uses: "google-github-actions/setup-gcloud@v2"
 
       - name: Build binaries
         run: |
@@ -207,23 +207,23 @@ jobs:
         env:
           CODER_SIGN_WINDOWS: "0"
           CODER_SIGN_DARWIN: "0"
-          # AC_CERTIFICATE_FILE: /tmp/apple_cert.p12
-          # AC_CERTIFICATE_PASSWORD_FILE: /tmp/apple_cert_password.txt
-          # AC_APIKEY_ISSUER_ID: ${{ secrets.AC_APIKEY_ISSUER_ID }}
-          # AC_APIKEY_ID: ${{ secrets.AC_APIKEY_ID }}
-          # AC_APIKEY_FILE: /tmp/apple_apikey.p8
-          # EV_KEY: ${{ secrets.EV_KEY }}
-          # EV_KEYSTORE: ${{ secrets.EV_KEYSTORE }}
-          # EV_TSA_URL: ${{ secrets.EV_TSA_URL }}
-          # EV_CERTIFICATE_PATH: /tmp/ev_cert.pem
-          # GCLOUD_ACCESS_TOKEN: ${{ steps.gcloud_auth.outputs.access_token }}
+          AC_CERTIFICATE_FILE: /tmp/apple_cert.p12
+          AC_CERTIFICATE_PASSWORD_FILE: /tmp/apple_cert_password.txt
+          AC_APIKEY_ISSUER_ID: ${{ secrets.AC_APIKEY_ISSUER_ID }}
+          AC_APIKEY_ID: ${{ secrets.AC_APIKEY_ID }}
+          AC_APIKEY_FILE: /tmp/apple_apikey.p8
+          EV_KEY: ${{ secrets.EV_KEY }}
+          EV_KEYSTORE: ${{ secrets.EV_KEYSTORE }}
+          EV_TSA_URL: ${{ secrets.EV_TSA_URL }}
+          EV_CERTIFICATE_PATH: /tmp/ev_cert.pem
+          GCLOUD_ACCESS_TOKEN: ${{ steps.gcloud_auth.outputs.access_token }}
           JSIGN_PATH: /tmp/jsign-6.0.jar
 
-      # - name: Delete Apple Developer certificate and API key
-      #   run: rm -f /tmp/{apple_cert.p12,apple_cert_password.txt,apple_apikey.p8}
+      - name: Delete Apple Developer certificate and API key
+        run: rm -f /tmp/{apple_cert.p12,apple_cert_password.txt,apple_apikey.p8}
 
-      # - name: Delete Windows EV Signing Cert
-      #   run: rm /tmp/ev_cert.pem
+      - name: Delete Windows EV Signing Cert
+        run: rm /tmp/ev_cert.pem
 
       - name: Determine base image tag
         id: image-base-tag
@@ -353,53 +353,53 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CODER_GPG_RELEASE_KEY_BASE64: ${{ secrets.GPG_RELEASE_KEY_BASE64 }}
 
-      # - name: Authenticate to Google Cloud
-      #   uses: google-github-actions/auth@v2
-      #   with:
-      #     workload_identity_provider: ${{ secrets.GCP_WORKLOAD_ID_PROVIDER }}
-      #     service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_ID_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
-      # - name: Setup GCloud SDK
-      #   uses: "google-github-actions/setup-gcloud@v2"
+      - name: Setup GCloud SDK
+        uses: "google-github-actions/setup-gcloud@v2"
 
-  #     - name: Publish Helm Chart
-  #       if: ${{ !inputs.dry_run }}
-  #       run: |
-  #         set -euo pipefail
-  #         version="$(./scripts/version.sh)"
-  #         mkdir -p build/helm
-  #         cp "build/coder_helm_${version}.tgz" build/helm
-  #         cp "build/provisioner_helm_${version}.tgz" build/helm
-  #         gsutil cp gs://helm.coder.com/v2/index.yaml build/helm/index.yaml
-  #         helm repo index build/helm --url https://helm.coder.com/v2 --merge build/helm/index.yaml
-  #         gsutil -h "Cache-Control:no-cache,max-age=0" cp build/helm/coder_helm_${version}.tgz gs://helm.coder.com/v2
-  #         gsutil -h "Cache-Control:no-cache,max-age=0" cp build/helm/provisioner_helm_${version}.tgz gs://helm.coder.com/v2
-  #         gsutil -h "Cache-Control:no-cache,max-age=0" cp build/helm/index.yaml gs://helm.coder.com/v2
-  #         gsutil -h "Cache-Control:no-cache,max-age=0" cp helm/artifacthub-repo.yml gs://helm.coder.com/v2
+      - name: Publish Helm Chart
+        if: ${{ !inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          version="$(./scripts/version.sh)"
+          mkdir -p build/helm
+          cp "build/coder_helm_${version}.tgz" build/helm
+          cp "build/provisioner_helm_${version}.tgz" build/helm
+          gsutil cp gs://helm.coder.com/v2/index.yaml build/helm/index.yaml
+          helm repo index build/helm --url https://helm.coder.com/v2 --merge build/helm/index.yaml
+          gsutil -h "Cache-Control:no-cache,max-age=0" cp build/helm/coder_helm_${version}.tgz gs://helm.coder.com/v2
+          gsutil -h "Cache-Control:no-cache,max-age=0" cp build/helm/provisioner_helm_${version}.tgz gs://helm.coder.com/v2
+          gsutil -h "Cache-Control:no-cache,max-age=0" cp build/helm/index.yaml gs://helm.coder.com/v2
+          gsutil -h "Cache-Control:no-cache,max-age=0" cp helm/artifacthub-repo.yml gs://helm.coder.com/v2
 
-      # - name: Upload artifacts to actions (if dry-run)
-      #   if: ${{ inputs.dry_run }}
-      #   uses: actions/upload-artifact@v4
-      #   with:
-      #     name: release-artifacts
-      #     path: |
-      #       ./build/*_installer.exe
-      #       ./build/*.zip
-      #       ./build/*.tar.gz
-      #       ./build/*.tgz
-      #       ./build/*.apk
-      #       ./build/*.deb
-      #       ./build/*.rpm
-      #     retention-days: 7
+      - name: Upload artifacts to actions (if dry-run)
+        if: ${{ inputs.dry_run }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-artifacts
+          path: |
+            ./build/*_installer.exe
+            ./build/*.zip
+            ./build/*.tar.gz
+            ./build/*.tgz
+            ./build/*.apk
+            ./build/*.deb
+            ./build/*.rpm
+          retention-days: 7
 
-      # - name: Start Packer builds
-      #   if: ${{ !inputs.dry_run }}
-      #   uses: peter-evans/repository-dispatch@v3
-      #   with:
-      #     token: ${{ secrets.CDRCI_GITHUB_TOKEN }}
-      #     repository: coder/packages
-      #     event-type: coder-release
-      #     client-payload: '{"coder_version": "${{ steps.version.outputs.version }}"}'
+      - name: Start Packer builds
+        if: ${{ !inputs.dry_run }}
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.CDRCI_GITHUB_TOKEN }}
+          repository: coder/packages
+          event-type: coder-release
+          client-payload: '{"coder_version": "${{ steps.version.outputs.version }}"}'
 
   # publish-homebrew:
   #   name: Publish to Homebrew tap
@@ -480,16 +480,16 @@ jobs:
   #   needs: release
   #   if: ${{ !inputs.dry_run }}
 
-    # steps:
-    #   - name: Sync fork
-    #     run: gh repo sync cdrci/winget-pkgs -b master
-    #     env:
-    #       GH_TOKEN: ${{ secrets.CDRCI_GITHUB_TOKEN }}
+  #   steps:
+  #     - name: Sync fork
+  #       run: gh repo sync cdrci/winget-pkgs -b master
+  #       env:
+  #         GH_TOKEN: ${{ secrets.CDRCI_GITHUB_TOKEN }}
 
-    #   - name: Checkout
-    #     uses: actions/checkout@v4
-    #     with:
-    #       fetch-depth: 0
+  #     - name: Checkout
+  #       uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0
 
   #     # If the event that triggered the build was an annotated tag (which our
   #     # tags are supposed to be), actions/checkout has a bug where the tag in

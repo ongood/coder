@@ -27,6 +27,17 @@ const (
 	ProvisionerTypeTerraform ProvisionerType = "terraform"
 )
 
+// ProvisionerTypeValid accepts string or ProvisionerType for easier usage.
+// Will validate the enum is in the set.
+func ProvisionerTypeValid[T ProvisionerType | string](pt T) error {
+	switch string(pt) {
+	case string(ProvisionerTypeEcho), string(ProvisionerTypeTerraform):
+		return nil
+	default:
+		return xerrors.Errorf("provisioner type '%s' is not supported", pt)
+	}
+}
+
 // Organization is the JSON representation of a Coder organization.
 type Organization struct {
 	ID        uuid.UUID `table:"id" json:"id" validate:"required" format:"uuid"`
@@ -37,11 +48,11 @@ type Organization struct {
 }
 
 type OrganizationMember struct {
-	UserID         uuid.UUID `db:"user_id" json:"user_id" format:"uuid"`
-	OrganizationID uuid.UUID `db:"organization_id" json:"organization_id" format:"uuid"`
-	CreatedAt      time.Time `db:"created_at" json:"created_at" format:"date-time"`
-	UpdatedAt      time.Time `db:"updated_at" json:"updated_at" format:"date-time"`
-	Roles          []Role    `db:"roles" json:"roles"`
+	UserID         uuid.UUID  `db:"user_id" json:"user_id" format:"uuid"`
+	OrganizationID uuid.UUID  `db:"organization_id" json:"organization_id" format:"uuid"`
+	CreatedAt      time.Time  `db:"created_at" json:"created_at" format:"date-time"`
+	UpdatedAt      time.Time  `db:"updated_at" json:"updated_at" format:"date-time"`
+	Roles          []SlimRole `db:"roles" json:"roles"`
 }
 
 // CreateTemplateVersionRequest enables callers to create a new Template Version.

@@ -1,6 +1,6 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import * as API from "api/api";
+import { API } from "api/api";
 import { Language as FooterFormLanguage } from "components/FormFooter/FormFooter";
 import {
   MockEntitlementsWithScheduling,
@@ -286,7 +286,7 @@ describe("TemplateSchedulePage", () => {
     };
     const validate = () => getValidationSchema().validateSync(values);
     expect(validate).toThrowError(
-      "Dormancy threshold days must not be less than 0.",
+      "Dormancy threshold must not be less than 0.",
     );
   });
 

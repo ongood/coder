@@ -1,5 +1,6 @@
+import { humanDuration } from "utils/time";
+
 const hours = (h: number) => (h === 1 ? "hour" : "hours");
-const days = (d: number) => (d === 1 ? "day" : "days");
 
 export const DefaultTTLHelperText = (props: { ttl?: number }) => {
   const { ttl = 0 } = props;
@@ -57,7 +58,7 @@ export const FailureTTLHelperText = (props: { ttl?: number }) => {
 
   return (
     <span>
-      Coder 将在{ttl}天之后尝试停止失败的工作区。
+      Coder 将在{humanDuration(ttl)}天之后尝试停止失败的工作区。
     </span>
   );
 };
@@ -76,7 +77,7 @@ export const DormancyTTLHelperText = (props: { ttl?: number }) => {
 
   return (
     <span>
-      在没有用户连接的情况下，Coder 将在{ttl}天后将工作区标记为休眠。
+      在没有用户连接的情况下，Coder 将在{humanDuration(ttl)}天后将工作区标记为休眠。
     </span>
   );
 };
@@ -95,7 +96,7 @@ export const DormancyAutoDeletionTTLHelperText = (props: { ttl?: number }) => {
 
   return (
     <span>
-      Coder 将在{ttl}天后自动删除休眠工作区。
+      Coder 将在{humanDuration(ttl)}天后自动删除休眠工作区。
     </span>
   );
 };

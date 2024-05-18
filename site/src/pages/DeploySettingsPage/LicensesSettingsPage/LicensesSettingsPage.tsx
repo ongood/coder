@@ -3,10 +3,11 @@ import { Helmet } from "react-helmet-async";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { useSearchParams } from "react-router-dom";
 import useToggle from "react-use/lib/useToggle";
-import { getLicenses, removeLicense } from "api/api";
+import { API } from "api/api";
 import { getErrorMessage } from "api/errors";
 import { entitlements, refreshEntitlements } from "api/queries/entitlements";
 import { displayError, displaySuccess } from "components/GlobalSnackbar/utils";
+import { useEmbeddedMetadata } from "hooks/useEmbeddedMetadata";
 import { pageTitle } from "utils/page";
 import LicensesSettingsPageView from "./LicensesSettingsPageView";
 
@@ -15,7 +16,10 @@ const LicensesSettingsPage: FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const success = searchParams.get("success");
   const [confettiOn, toggleConfettiOn] = useToggle(false);
-  const entitlementsQuery = useQuery(entitlements());
+
+  const { metadata } = useEmbeddedMetadata();
+  const entitlementsQuery = useQuery(entitlements(metadata.entitlements));
+
   const refreshEntitlementsMutation = useMutation(
     refreshEntitlements(queryClient),
   );
@@ -32,7 +36,7 @@ const LicensesSettingsPage: FC = () => {
   }, [entitlementsQuery.error]);
 
   const { mutate: removeLicenseApi, isLoading: isRemovingLicense } =
-    useMutation(removeLicense, {
+    useMutation(API.removeLicense, {
       onSuccess: () => {
         displaySuccess("成功移除了许可证");
         void queryClient.invalidateQueries(["licenses"]);
@@ -44,7 +48,7 @@ const LicensesSettingsPage: FC = () => {
 
   const { data: licenses, isLoading } = useQuery({
     queryKey: ["licenses"],
-    queryFn: () => getLicenses(),
+    queryFn: () => API.getLicenses(),
   });
 
   useEffect(() => {

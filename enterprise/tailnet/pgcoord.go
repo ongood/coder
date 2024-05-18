@@ -19,6 +19,7 @@ import (
 	"github.com/coder/coder/v2/coderd/database/dbauthz"
 	"github.com/coder/coder/v2/coderd/database/pubsub"
 	"github.com/coder/coder/v2/coderd/rbac"
+	"github.com/coder/coder/v2/coderd/rbac/policy"
 	agpl "github.com/coder/coder/v2/tailnet"
 	"github.com/coder/coder/v2/tailnet/proto"
 )
@@ -101,8 +102,8 @@ var pgCoordSubject = rbac.Subject{
 		{
 			Name:        "tailnetcoordinator",
 			DisplayName: "Tailnet Coordinator",
-			Site: rbac.Permissions(map[string][]rbac.Action{
-				rbac.ResourceTailnetCoordinator.Type: {rbac.WildcardSymbol},
+			Site: rbac.Permissions(map[string][]policy.Action{
+				rbac.ResourceTailnetCoordinator.Type: {policy.WildcardSymbol},
 			}),
 			Org:  map[string][]rbac.Permission{},
 			User: []rbac.Permission{},
@@ -1485,10 +1486,17 @@ func (h *heartbeats) filter(mappings []mapping) []mapping {
 		ok := m.coordinator == h.self
 		if !ok {
 			_, ok = h.coordinators[m.coordinator]
+			if !ok {
+				// If a mapping exists to a coordinator lost to heartbeats,
+				// still add the mapping as LOST. If a coordinator misses
+				// heartbeats but a client is still connected to it, this may be
+				// the only mapping available for it. Newer mappings will take
+				// precedence.
+				m.kind = proto.CoordinateResponse_PeerUpdate_LOST
+			}
 		}
-		if ok {
-			out = append(out, m)
-		}
+
+		out = append(out, m)
 	}
 	return out
 }
