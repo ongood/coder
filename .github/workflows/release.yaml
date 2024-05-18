@@ -182,7 +182,7 @@ jobs:
         run: |
           make test-migrations
 
-      Setup GCloud for signing Windows binaries.
+      # Setup GCloud for signing Windows binaries.
       - name: Authenticate to Google Cloud
         id: gcloud_auth
         uses: google-github-actions/auth@v2
