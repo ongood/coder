@@ -328,6 +328,7 @@ jobs:
       - name: ls build
         run: ls -lh build
 
+      # 暂时去掉./build/*.zip \
       - name: Publish release
         run: |
           set -euo pipefail
@@ -344,7 +345,6 @@ jobs:
           ./scripts/release/publish.sh \
             "${publish_args[@]}" \
             --release-notes-file "$CODER_RELEASE_NOTES_FILE" \
-            ./build/*.zip \
             ./build/*.tar.gz \
             ./build/*.tgz \
             ./build/*.apk \
