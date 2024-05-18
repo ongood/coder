@@ -54,6 +54,7 @@ jobs:
           version="$(./scripts/version.sh)"
           echo "version=$version" >> $GITHUB_OUTPUT
           echo "CODER_FORCE_VERSION=$version" >> $GITHUB_ENV
+          echo "VERSION=$version" >> $GITHUB_ENV
           echo "$version"
 
       - name: Verify release input
