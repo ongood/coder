@@ -334,12 +334,15 @@ jobs:
       - name: ls build
         run: ls -lh build
 
-      - name: Import GPG key (if set)
-        if: ${{ secrets.GPG_RELEASE_KEY_BASE64 != '' }}
+      - name: Import GPG key
         run: |
-          echo "Importing GPG key"
-          echo "${{ secrets.GPG_RELEASE_KEY_BASE64 }}" | base64 --decode | gpg --import
-          gpg --list-keys
+          if [ -n "${{ secrets.GPG_RELEASE_KEY_BASE64 }}" ]; then
+            echo "Importing GPG key"
+            echo "${{ secrets.GPG_RELEASE_KEY_BASE64 }}" | base64 --decode | gpg --import
+            gpg --list-keys
+          else
+            echo "No GPG key provided"
+          fi
         env:
           GPG_TTY: $(tty)
 
