@@ -195,6 +195,12 @@ jobs:
       - name: Setup GCloud SDK
         uses: "google-github-actions/setup-gcloud@v2"
 
+      - name: Install mockgen
+        run: |
+          GO111MODULE=on go install github.com/golang/mock/mockgen@v1.6.0
+        env:
+          PATH: ${{ env.PATH }}:${{ runner.temp }}/go/bin
+
       - name: Build binaries
         run: |
           set -euo pipefail
