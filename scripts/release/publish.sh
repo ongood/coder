@@ -184,9 +184,16 @@ fi
 
 target_commitish=main # This is the default.
 release_branch_refname=$(git branch --remotes --contains "${new_tag}" --format '%(refname)' '*/release/*')
+# if [[ -n "${release_branch_refname}" ]]; then
+# 	# refs/remotes/origin/release/2.9 -> release/2.9
+# 	target_commitish="release/${release_branch_refname#*release/}"
+# fi
+
 if [[ -n "${release_branch_refname}" ]]; then
-	# refs/remotes/origin/release/2.9 -> release/2.9
-	target_commitish="release/${release_branch_refname#*release/}"
+    # Sort branches to get the latest one.
+    latest_release_branch=$(echo "${release_branch_refname}" | tr ' ' '\n' | sort -rV | head -n 1)
+    # refs/remotes/origin/release/2.11 -> release/2.11
+    target_commitish="release/${latest_release_branch#*release/}"
 fi
 
 # We pipe `true` into `gh` so that it never tries to be interactive.
