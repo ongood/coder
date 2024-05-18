@@ -295,29 +295,67 @@ jobs:
           echo "$manifests" | grep -q linux/arm64
           echo "$manifests" | grep -q linux/arm/v7
 
+      # - name: Build Linux Docker images
+      #   run: |
+      #     set -euxo pipefail
+
+      #     # build Docker images for each architecture
+      #     version="$(./scripts/version.sh)"
+      #     make -j build/coder_"$version"_linux_{amd64,arm64,armv7}.tag
+
+      #     # we can't build multi-arch if the images aren't pushed, so quit now
+      #     # if dry-running
+      #     if [[ "$CODER_RELEASE" != *t* ]]; then
+      #       echo Skipping multi-arch docker builds due to dry-run.
+      #       exit 0
+      #     fi
+
+      #     # build and push multi-arch manifest, this depends on the other images
+      #     # being pushed so will automatically push them.
+      #     make -j push/build/coder_"$version"_linux.tag
+
+      #     # if the current version is equal to the highest (according to semver)
+      #     # version in the repo, also create a multi-arch image as ":latest" and
+      #     # push it
+      #     if [[ "$(git tag | grep '^v' | grep -vE '(rc|dev|-|\+|\/)' | sort -r --version-sort | head -n1)" == "v$(./scripts/version.sh)" ]]; then
+      #       ./scripts/build_docker_multiarch.sh \
+      #         --push \
+      #         --target "$(./scripts/image_tag.sh --version latest)" \
+      #         $(cat build/coder_"$version"_linux_{amd64,arm64,armv7}.tag)
+      #     fi
+      #   env:
+      #     CODER_BASE_IMAGE_TAG: ${{ steps.image-base-tag.outputs.tag }}
+
+
       - name: Build Linux Docker images
         run: |
           set -euxo pipefail
 
-          # build Docker images for each architecture
           version="$(./scripts/version.sh)"
-          make -j build/coder_"$version"_linux_{amd64,arm64,armv7}.tag
 
-          # we can't build multi-arch if the images aren't pushed, so quit now
-          # if dry-running
+          # Build and push each architecture image
+          for arch in amd64 arm64 armv7; do
+            make -j build/coder_"$version"_linux_${arch}.tag
+          done
+
+          # Check if it's a dry run
           if [[ "$CODER_RELEASE" != *t* ]]; then
-            echo Skipping multi-arch docker builds due to dry-run.
+            echo "Skipping multi-arch docker builds due to dry-run."
             exit 0
           fi
 
-          # build and push multi-arch manifest, this depends on the other images
-          # being pushed so will automatically push them.
+          # Push each architecture image
+          for arch in amd64 arm64 armv7; do
+            docker push ghcr.io/ongood/coder-base:v2.10.17-$arch
+          done
+
+          # Build and push multi-arch manifest
           make -j push/build/coder_"$version"_linux.tag
 
-          # if the current version is equal to the highest (according to semver)
-          # version in the repo, also create a multi-arch image as ":latest" and
-          # push it
-          if [[ "$(git tag | grep '^v' | grep -vE '(rc|dev|-|\+|\/)' | sort -r --version-sort | head -n1)" == "v$(./scripts/version.sh)" ]]; then
+          # Check if the current version is the latest
+          latest_tag="v$(./scripts/version.sh)"
+          highest_version=$(git tag | grep '^v' | grep -vE '(rc|dev|-|\+|\/)' | sort -r --version-sort | head -n1)
+          if [[ "$highest_version" == "$latest_tag" ]]; then
             ./scripts/build_docker_multiarch.sh \
               --push \
               --target "$(./scripts/image_tag.sh --version latest)" \
