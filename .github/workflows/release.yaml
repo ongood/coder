@@ -334,6 +334,15 @@ jobs:
       - name: ls build
         run: ls -lh build
 
+      - name: Import GPG key (if set)
+        if: ${{ secrets.GPG_RELEASE_KEY_BASE64 != '' }}
+        run: |
+          echo "Importing GPG key"
+          echo "${{ secrets.GPG_RELEASE_KEY_BASE64 }}" | base64 --decode | gpg --import
+          gpg --list-keys
+        env:
+          GPG_TTY: $(tty)
+
       # 暂时去掉./build/*.zip \
       - name: Publish release
         run: |
