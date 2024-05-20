@@ -201,7 +201,7 @@ require (
 	golang.org/x/xerrors v0.0.0-20231012003039-104605ab7028
 	golang.zx2c4.com/wireguard v0.0.0-20230704135630-469159ecf7d1
 	google.golang.org/api v0.176.1
-	google.golang.org/grpc v1.63.2
+	google.golang.org/grpc v1.64.0
 	google.golang.org/protobuf v1.33.0
 	gopkg.in/DataDog/dd-trace-go.v1 v1.61.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
@@ -429,7 +429,7 @@ require (
 	golang.zx2c4.com/wireguard/windows v0.5.3 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
 	google.golang.org/genproto v0.0.0-20240227224415-6ceb2ff114de // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20240311132316-a219d84964c2 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20240318140521-94a12d6c2237 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240415180920-8c6c420018be // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	howett.net/plist v1.0.0 // indirect
