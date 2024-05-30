@@ -24,6 +24,7 @@ import {
   UpdateButton,
   ActivateButton,
   FavoriteButton,
+  UpdateAndStartButton,
 } from "./Buttons";
 import { type ActionType, abilitiesByWorkspaceStatus } from "./constants";
 import { DebugButton } from "./DebugButton";
@@ -89,6 +90,7 @@ export const WorkspaceActions: FC<WorkspaceActionsProps> = ({
   // A mapping of button type to the corresponding React component
   const buttonMapping: Record<ActionType, ReactNode> = {
     update: <UpdateButton handleAction={handleUpdate} />,
+    updateAndStart: <UpdateAndStartButton handleAction={handleUpdate} />,
     updating: <UpdateButton loading handleAction={handleUpdate} />,
     start: (
       <StartButton
@@ -161,7 +163,13 @@ export const WorkspaceActions: FC<WorkspaceActionsProps> = ({
       data-testid="workspace-actions"
     >
       {canBeUpdated && (
-        <>{isUpdating ? buttonMapping.updating : buttonMapping.update}</>
+        <>
+          {isUpdating
+            ? buttonMapping.updating
+            : workspace.template_require_active_version
+              ? buttonMapping.updateAndStart
+              : buttonMapping.update}
+        </>
       )}
 
       {isRestarting
@@ -234,10 +242,6 @@ function getTooltipText(
 
   if (!mustUpdate && canChangeVersions) {
     return "此模板要求在工作区启动时自动更新，但模板管理员可以忽略此策略。";
-  }
-
-  if (workspace.template_require_active_version) {
-    return "此模板要求在工作区启动时自动更新。如果要保留模板版本，请联系您的管理员。";
   }
 
   if (workspace.automatic_updates === "always") {

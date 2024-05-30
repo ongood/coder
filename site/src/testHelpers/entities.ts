@@ -229,40 +229,57 @@ export const MockUpdateCheck: TypesGen.UpdateCheckResponse = {
   version: "v99.999.9999+c9cdf14",
 };
 
-export const MockOwnerRole: TypesGen.SlimRole = {
+export const MockOwnerRole: TypesGen.Role = {
   name: "owner",
   display_name: "所有者",
-}
+  site_permissions: [],
+  organization_permissions: [],
+  user_permissions: [],
+  organization_id: "",
+};
 
-export const MockUserAdminRole: TypesGen.SlimRole = {
+export const MockUserAdminRole: TypesGen.Role = {
   name: "user_admin",
   display_name: "用户管理员",
-}
+  site_permissions: [],
+  organization_permissions: [],
+  user_permissions: [],
+  organization_id: "",
+};
 
-export const MockTemplateAdminRole: TypesGen.SlimRole = {
+export const MockTemplateAdminRole: TypesGen.Role = {
   name: "template_admin",
   display_name: "模板管理员",
-}
+  site_permissions: [],
+  organization_permissions: [],
+  user_permissions: [],
+  organization_id: "",
+};
 
 export const MockMemberRole: TypesGen.SlimRole = {
   name: "member",
   display_name: "成员",
 }
 
-export const MockAuditorRole: TypesGen.SlimRole = {
+export const MockAuditorRole: TypesGen.Role = {
   name: "auditor",
   display_name: "审计人员",
-}
+  site_permissions: [],
+  organization_permissions: [],
+  user_permissions: [],
+  organization_id: "",
+};
 
 // assignableRole takes a role and a boolean. The boolean implies if the
 // actor can assign (add/remove) the role from other users.
 export function assignableRole(
-  role: TypesGen.SlimRole,
+  role: TypesGen.Role,
   assignable: boolean,
 ): TypesGen.AssignableRoles {
   return {
     ...role,
     assignable: assignable,
+    built_in: true,
   };
 }
 

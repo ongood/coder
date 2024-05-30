@@ -157,6 +157,11 @@ jobs:
         env:
           EV_SIGNING_CERT: ${{ secrets.EV_SIGNING_CERT }}
 
+      - name: Test migrations from current ref to main
+        run: |
+          make test-migrations
+
+      # Setup GCloud for signing Windows binaries.
       - name: Authenticate to Google Cloud
         id: gcloud_auth
         uses: google-github-actions/auth@v2
