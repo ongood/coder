@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -40,27 +41,52 @@ func ProvisionerTypeValid[T ProvisionerType | string](pt T) error {
 
 // Organization is the JSON representation of a Coder organization.
 type Organization struct {
-	ID        uuid.UUID `table:"id" json:"id" validate:"required" format:"uuid"`
-	Name      string    `table:"name,default_sort" json:"name" validate:"required"`
-	CreatedAt time.Time `table:"created_at" json:"created_at" validate:"required" format:"date-time"`
-	UpdatedAt time.Time `table:"updated_at" json:"updated_at" validate:"required" format:"date-time"`
-	IsDefault bool      `table:"default" json:"is_default" validate:"required"`
+	ID          uuid.UUID `table:"id" json:"id" validate:"required" format:"uuid"`
+	Name        string    `table:"name,default_sort" json:"name"`
+	DisplayName string    `table:"display_name" json:"display_name"`
+	Description string    `table:"description" json:"description"`
+	CreatedAt   time.Time `table:"created_at" json:"created_at" validate:"required" format:"date-time"`
+	UpdatedAt   time.Time `table:"updated_at" json:"updated_at" validate:"required" format:"date-time"`
+	IsDefault   bool      `table:"default" json:"is_default" validate:"required"`
+	Icon        string    `table:"icon" json:"icon"`
+}
+
+func (o Organization) HumanName() string {
+	if o.DisplayName == "" {
+		return o.Name
+	}
+	return o.DisplayName
 }
 
 type OrganizationMember struct {
-	UserID         uuid.UUID  `db:"user_id" json:"user_id" format:"uuid"`
-	OrganizationID uuid.UUID  `db:"organization_id" json:"organization_id" format:"uuid"`
-	CreatedAt      time.Time  `db:"created_at" json:"created_at" format:"date-time"`
-	UpdatedAt      time.Time  `db:"updated_at" json:"updated_at" format:"date-time"`
-	Roles          []SlimRole `db:"roles" json:"roles"`
+	UserID         uuid.UUID  `table:"user id" json:"user_id" format:"uuid"`
+	OrganizationID uuid.UUID  `table:"organization id" json:"organization_id" format:"uuid"`
+	CreatedAt      time.Time  `table:"created at" json:"created_at" format:"date-time"`
+	UpdatedAt      time.Time  `table:"updated at" json:"updated_at" format:"date-time"`
+	Roles          []SlimRole `table:"organization_roles" json:"roles"`
+}
+
+type OrganizationMemberWithUserData struct {
+	Username           string     `table:"username,default_sort" json:"username"`
+	Name               string     `table:"name" json:"name"`
+	AvatarURL          string     `json:"avatar_url"`
+	GlobalRoles        []SlimRole `json:"global_roles"`
+	OrganizationMember `table:"m,recursive_inline"`
 }
 
 type CreateOrganizationRequest struct {
-	Name string `json:"name" validate:"required,username"`
+	Name string `json:"name" validate:"required,organization_name"`
+	// DisplayName will default to the same value as `Name` if not provided.
+	DisplayName string `json:"display_name,omitempty" validate:"omitempty,organization_display_name"`
+	Description string `json:"description,omitempty"`
+	Icon        string `json:"icon,omitempty"`
 }
 
 type UpdateOrganizationRequest struct {
-	Name string `json:"name" validate:"required,username"`
+	Name        string  `json:"name,omitempty" validate:"omitempty,organization_name"`
+	DisplayName string  `json:"display_name,omitempty" validate:"omitempty,organization_display_name"`
+	Description *string `json:"description,omitempty"`
+	Icon        *string `json:"icon,omitempty"`
 }
 
 // CreateTemplateVersionRequest enables callers to create a new Template Version.
@@ -326,6 +352,52 @@ func (c *Client) TemplatesByOrganization(ctx context.Context, organizationID uui
 	res, err := c.Request(ctx, http.MethodGet,
 		fmt.Sprintf("/api/v2/organizations/%s/templates", organizationID.String()),
 		nil,
+	)
+	if err != nil {
+		return nil, xerrors.Errorf("execute request: %w", err)
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		return nil, ReadBodyAsError(res)
+	}
+
+	var templates []Template
+	return templates, json.NewDecoder(res.Body).Decode(&templates)
+}
+
+type TemplateFilter struct {
+	OrganizationID uuid.UUID
+	ExactName      string
+}
+
+// asRequestOption returns a function that can be used in (*Client).Request.
+// It modifies the request query parameters.
+func (f TemplateFilter) asRequestOption() RequestOption {
+	return func(r *http.Request) {
+		var params []string
+		// Make sure all user input is quoted to ensure it's parsed as a single
+		// string.
+		if f.OrganizationID != uuid.Nil {
+			params = append(params, fmt.Sprintf("organization:%q", f.OrganizationID.String()))
+		}
+
+		if f.ExactName != "" {
+			params = append(params, fmt.Sprintf("exact_name:%q", f.ExactName))
+		}
+
+		q := r.URL.Query()
+		q.Set("q", strings.Join(params, " "))
+		r.URL.RawQuery = q.Encode()
+	}
+}
+
+// Templates lists all viewable templates
+func (c *Client) Templates(ctx context.Context, filter TemplateFilter) ([]Template, error) {
+	res, err := c.Request(ctx, http.MethodGet,
+		"/api/v2/templates",
+		nil,
+		filter.asRequestOption(),
 	)
 	if err != nil {
 		return nil, xerrors.Errorf("execute request: %w", err)

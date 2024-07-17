@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"net/netip"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -18,9 +19,9 @@ import (
 	"github.com/coder/coder/v2/coderd/audit"
 	"github.com/coder/coder/v2/coderd/database"
 	"github.com/coder/coder/v2/coderd/database/db2sdk"
+	"github.com/coder/coder/v2/coderd/database/dbauthz"
 	"github.com/coder/coder/v2/coderd/httpapi"
 	"github.com/coder/coder/v2/coderd/httpmw"
-	"github.com/coder/coder/v2/coderd/rbac"
 	"github.com/coder/coder/v2/coderd/searchquery"
 	"github.com/coder/coder/v2/codersdk"
 )
@@ -45,7 +46,7 @@ func (api *API) auditLogs(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	queryStr := r.URL.Query().Get("q")
-	filter, errs := searchquery.AuditLogs(queryStr)
+	filter, errs := searchquery.AuditLogs(ctx, api.Database, queryStr)
 	if len(errs) > 0 {
 		httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
 			Message:     "Invalid audit search query.",
@@ -53,8 +54,8 @@ func (api *API) auditLogs(rw http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	filter.Offset = int32(page.Offset)
-	filter.Limit = int32(page.Limit)
+	filter.OffsetOpt = int32(page.Offset)
+	filter.LimitOpt = int32(page.Limit)
 
 	if filter.Username == "me" {
 		filter.UserID = apiKey.UserID
@@ -62,6 +63,10 @@ func (api *API) auditLogs(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	dblogs, err := api.Database.GetAuditLogsOffset(ctx, filter)
+	if dbauthz.IsNotAuthorizedError(err) {
+		httpapi.Forbidden(rw)
+		return
+	}
 	if err != nil {
 		httpapi.InternalServerError(rw, err)
 		return
@@ -140,6 +145,9 @@ func (api *API) generateFakeAuditLog(rw http.ResponseWriter, r *http.Request) {
 	if len(params.AdditionalFields) == 0 {
 		params.AdditionalFields = json.RawMessage("{}")
 	}
+	if params.OrganizationID == uuid.Nil {
+		params.OrganizationID = uuid.New()
+	}
 
 	_, err = api.Database.InsertAuditLog(ctx, database.InsertAuditLogParams{
 		ID:               uuid.New(),
@@ -156,7 +164,7 @@ func (api *API) generateFakeAuditLog(rw http.ResponseWriter, r *http.Request) {
 		AdditionalFields: params.AdditionalFields,
 		RequestID:        uuid.Nil, // no request ID to attach this to
 		ResourceIcon:     "",
-		OrganizationID:   uuid.New(),
+		OrganizationID:   params.OrganizationID,
 	})
 	if err != nil {
 		httpapi.InternalServerError(rw, err)
@@ -183,26 +191,26 @@ func (api *API) convertAuditLog(ctx context.Context, dblog database.GetAuditLogs
 	_ = json.Unmarshal(dblog.Diff, &diff)
 
 	var user *codersdk.User
-
 	if dblog.UserUsername.Valid {
-		user = &codersdk.User{
-			ReducedUser: codersdk.ReducedUser{
-				MinimalUser: codersdk.MinimalUser{
-					ID:        dblog.UserID,
-					Username:  dblog.UserUsername.String,
-					AvatarURL: dblog.UserAvatarUrl.String,
-				},
-				Email:     dblog.UserEmail.String,
-				CreatedAt: dblog.UserCreatedAt.Time,
-				Status:    codersdk.UserStatus(dblog.UserStatus.UserStatus),
-			},
-			Roles: []codersdk.SlimRole{},
-		}
-
-		for _, roleName := range dblog.UserRoles {
-			rbacRole, _ := rbac.RoleByName(roleName)
-			user.Roles = append(user.Roles, db2sdk.SlimRole(rbacRole))
-		}
+		// Leaving the organization IDs blank for now; not sure they are useful for
+		// the audit query anyway?
+		sdkUser := db2sdk.User(database.User{
+			ID:                 dblog.UserID,
+			Email:              dblog.UserEmail.String,
+			Username:           dblog.UserUsername.String,
+			CreatedAt:          dblog.UserCreatedAt.Time,
+			UpdatedAt:          dblog.UserUpdatedAt.Time,
+			Status:             dblog.UserStatus.UserStatus,
+			RBACRoles:          dblog.UserRoles,
+			LoginType:          dblog.UserLoginType.LoginType,
+			AvatarURL:          dblog.UserAvatarUrl.String,
+			Deleted:            dblog.UserDeleted.Bool,
+			LastSeenAt:         dblog.UserLastSeenAt.Time,
+			QuietHoursSchedule: dblog.UserQuietHoursSchedule.String,
+			ThemePreference:    dblog.UserThemePreference.String,
+			Name:               dblog.UserName.String,
+		}, []uuid.UUID{})
+		user = &sdkUser
 	}
 
 	var (
@@ -256,35 +264,41 @@ func (api *API) convertAuditLog(ctx context.Context, dblog database.GetAuditLogs
 }
 
 func auditLogDescription(alog database.GetAuditLogsOffsetRow) string {
-	str := fmt.Sprintf("{user} %s",
-		codersdk.AuditAction(alog.Action).Friendly(),
-	)
+	b := strings.Builder{}
+	// NOTE: WriteString always returns a nil error, so we never check it
+	_, _ = b.WriteString("{user} ")
+	if alog.StatusCode >= 400 {
+		_, _ = b.WriteString("unsuccessfully attempted to ")
+		_, _ = b.WriteString(string(alog.Action))
+	} else {
+		_, _ = b.WriteString(codersdk.AuditAction(alog.Action).Friendly())
+	}
 
 	// API Key resources (used for authentication) do not have targets and follow the below format:
 	// "User {logged in | logged out | registered}"
 	if alog.ResourceType == database.ResourceTypeApiKey &&
 		(alog.Action == database.AuditActionLogin || alog.Action == database.AuditActionLogout || alog.Action == database.AuditActionRegister) {
-		return str
+		return b.String()
 	}
 
 	// We don't display the name (target) for git ssh keys. It's fairly long and doesn't
 	// make too much sense to display.
 	if alog.ResourceType == database.ResourceTypeGitSshKey {
-		str += fmt.Sprintf(" the %s",
-			codersdk.ResourceType(alog.ResourceType).FriendlyString())
-		return str
+		_, _ = b.WriteString(" the ")
+		_, _ = b.WriteString(codersdk.ResourceType(alog.ResourceType).FriendlyString())
+		return b.String()
 	}
 
-	str += fmt.Sprintf(" %s",
-		codersdk.ResourceType(alog.ResourceType).FriendlyString())
+	_, _ = b.WriteString(" ")
+	_, _ = b.WriteString(codersdk.ResourceType(alog.ResourceType).FriendlyString())
 
 	if alog.ResourceType == database.ResourceTypeConvertLogin {
-		str += " to"
+		_, _ = b.WriteString(" to")
 	}
 
-	str += " {target}"
+	_, _ = b.WriteString(" {target}")
 
-	return str
+	return b.String()
 }
 
 func (api *API) auditLogIsResourceDeleted(ctx context.Context, alog database.GetAuditLogsOffsetRow) bool {

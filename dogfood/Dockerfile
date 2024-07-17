@@ -8,7 +8,7 @@ FROM ubuntu:jammy AS go
 
 RUN apt-get update && apt-get install --yes curl gcc
 # Install Go manually, so that we can control the version
-ARG GO_VERSION=1.22.3
+ARG GO_VERSION=1.22.5
 RUN mkdir --parents /usr/local/go
 
 # Boring Go is needed to build FIPS-compliant binaries.
@@ -91,6 +91,12 @@ SHELL ["/bin/bash", "-c"]
 RUN apt-get update && apt-get install --yes ca-certificates
 
 COPY files /
+# We used to copy /etc/sudoers.d/* in from files/ but this causes issues with
+# permissions and layer caching. Instead, create the file directly.
+RUN mkdir -p /etc/sudoers.d && \
+    echo 'coder ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/nopasswd && \
+	chmod 750 /etc/sudoers.d/ && \
+	chmod 640 /etc/sudoers.d/nopasswd
 
 # Install packages from apt repositories
 ARG DEBIAN_FRONTEND="noninteractive"
@@ -146,7 +152,7 @@ RUN apt-get update --quiet && apt-get install --yes \
 	openssl \
 	packer \
 	pkg-config \
-	postgresql-13 \
+	postgresql-16 \
 	python3 \
 	python3-pip \
 	rsync \
@@ -169,9 +175,9 @@ RUN apt-get update --quiet && apt-get install --yes \
 	# Configure FIPS-compliant policies
 	update-crypto-policies --set FIPS
 
-# NOTE: In scripts/Dockerfile.base we specifically install Terraform version 1.7.5.
+# NOTE: In scripts/Dockerfile.base we specifically install Terraform version 1.9.2.
 # Installing the same version here to match.
-RUN wget -O /tmp/terraform.zip "https://releases.hashicorp.com/terraform/1.7.5/terraform_1.7.5_linux_amd64.zip" && \
+RUN wget -O /tmp/terraform.zip "https://releases.hashicorp.com/terraform/1.9.2/terraform_1.9.2_linux_amd64.zip" && \
 		unzip /tmp/terraform.zip -d /usr/local/bin && \
 		rm -f /tmp/terraform.zip && \
 		chmod +x /usr/local/bin/terraform && \
@@ -205,12 +211,12 @@ RUN apt-get update && \
 	google-chrome-stable microsoft-edge-beta && \
 	# Pre-install system dependencies that Playwright needs. npx doesn't work here
 	# for some reason. See https://github.com/microsoft/playwright-cli/issues/136
-	npm i -g playwright@1.36.2 pnpm@^8 corepack && playwright install-deps && \
+	npm i -g playwright@1.36.2 pnpm@^9 corepack && playwright install-deps && \
 	npm cache clean --force
 
 # Ensure PostgreSQL binaries are in the users $PATH.
-RUN update-alternatives --install /usr/local/bin/initdb initdb /usr/lib/postgresql/13/bin/initdb 100 && \
-	update-alternatives --install /usr/local/bin/postgres postgres /usr/lib/postgresql/13/bin/postgres 100
+RUN update-alternatives --install /usr/local/bin/initdb initdb /usr/lib/postgresql/16/bin/initdb 100 && \
+	update-alternatives --install /usr/local/bin/postgres postgres /usr/lib/postgresql/16/bin/postgres 100
 
 # Create links for injected dependencies
 RUN ln --symbolic /var/tmp/coder/coder-cli/coder /usr/local/bin/coder && \

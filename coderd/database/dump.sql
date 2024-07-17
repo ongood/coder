@@ -73,6 +73,25 @@ CREATE TYPE login_type AS ENUM (
 
 COMMENT ON TYPE login_type IS 'Specifies the method of authentication. "none" is a special case in which no authentication method is allowed.';
 
+CREATE TYPE name_organization_pair AS (
+	name text,
+	organization_id uuid
+);
+
+CREATE TYPE notification_message_status AS ENUM (
+    'pending',
+    'leased',
+    'sent',
+    'permanent_failure',
+    'temporary_failure',
+    'unknown'
+);
+
+CREATE TYPE notification_method AS ENUM (
+    'smtp',
+    'webhook'
+);
+
 CREATE TYPE parameter_destination_scheme AS ENUM (
     'none',
     'environment_variable',
@@ -142,7 +161,10 @@ CREATE TYPE resource_type AS ENUM (
     'convert_login',
     'health_settings',
     'oauth2_provider_app',
-    'oauth2_provider_app_secret'
+    'oauth2_provider_app_secret',
+    'custom_role',
+    'organization_member',
+    'notifications_settings'
 );
 
 CREATE TYPE startup_script_behavior AS ENUM (
@@ -412,12 +434,15 @@ CREATE TABLE custom_roles (
     user_permissions jsonb DEFAULT '[]'::jsonb NOT NULL,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    organization_id uuid
+    organization_id uuid,
+    id uuid DEFAULT gen_random_uuid() NOT NULL
 );
 
 COMMENT ON TABLE custom_roles IS 'Custom roles allow dynamic roles expanded at runtime';
 
 COMMENT ON COLUMN custom_roles.organization_id IS 'Roles can optionally be scoped to an organization';
+
+COMMENT ON COLUMN custom_roles.id IS 'Custom roles ID is used purely for auditing purposes. Name is a better unique identifier.';
 
 CREATE TABLE dbcrypt_keys (
     number integer NOT NULL,
@@ -524,6 +549,35 @@ CREATE SEQUENCE licenses_id_seq
 
 ALTER SEQUENCE licenses_id_seq OWNED BY licenses.id;
 
+CREATE TABLE notification_messages (
+    id uuid NOT NULL,
+    notification_template_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    method notification_method NOT NULL,
+    status notification_message_status DEFAULT 'pending'::notification_message_status NOT NULL,
+    status_reason text,
+    created_by text NOT NULL,
+    payload jsonb NOT NULL,
+    attempt_count integer DEFAULT 0,
+    targets uuid[],
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone,
+    leased_until timestamp with time zone,
+    next_retry_after timestamp with time zone,
+    queued_seconds double precision
+);
+
+CREATE TABLE notification_templates (
+    id uuid NOT NULL,
+    name text NOT NULL,
+    title_template text NOT NULL,
+    body_template text NOT NULL,
+    actions jsonb,
+    "group" text
+);
+
+COMMENT ON TABLE notification_templates IS 'Templates from which to create notification messages.';
+
 CREATE TABLE oauth2_provider_app_codes (
     id uuid NOT NULL,
     created_at timestamp with time zone NOT NULL,
@@ -576,7 +630,7 @@ CREATE TABLE organization_members (
     organization_id uuid NOT NULL,
     created_at timestamp with time zone NOT NULL,
     updated_at timestamp with time zone NOT NULL,
-    roles text[] DEFAULT '{organization-member}'::text[] NOT NULL
+    roles text[] DEFAULT '{}'::text[] NOT NULL
 );
 
 CREATE TABLE organizations (
@@ -585,7 +639,9 @@ CREATE TABLE organizations (
     description text NOT NULL,
     created_at timestamp with time zone NOT NULL,
     updated_at timestamp with time zone NOT NULL,
-    is_default boolean DEFAULT false NOT NULL
+    is_default boolean DEFAULT false NOT NULL,
+    display_name text NOT NULL,
+    icon text DEFAULT ''::text NOT NULL
 );
 
 CREATE TABLE parameter_schemas (
@@ -692,6 +748,14 @@ END) STORED NOT NULL
 );
 
 COMMENT ON COLUMN provisioner_jobs.job_status IS 'Computed column to track the status of the job.';
+
+CREATE TABLE provisioner_keys (
+    id uuid NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    organization_id uuid NOT NULL,
+    name character varying(64) NOT NULL,
+    hashed_secret bytea NOT NULL
+);
 
 CREATE TABLE replicas (
     id uuid NOT NULL,
@@ -1001,7 +1065,7 @@ COMMENT ON COLUMN templates.autostart_block_days_of_week IS 'A bitmap of days of
 
 COMMENT ON COLUMN templates.deprecated IS 'If set to a non empty string, the template will no longer be able to be used. The message will be displayed to the user.';
 
-CREATE VIEW template_with_users AS
+CREATE VIEW template_with_names AS
  SELECT templates.id,
     templates.created_at,
     templates.updated_at,
@@ -1031,11 +1095,15 @@ CREATE VIEW template_with_users AS
     templates.activity_bump,
     templates.max_port_sharing_level,
     COALESCE(visible_users.avatar_url, ''::text) AS created_by_avatar_url,
-    COALESCE(visible_users.username, ''::text) AS created_by_username
-   FROM (templates
-     LEFT JOIN visible_users ON ((templates.created_by = visible_users.id)));
+    COALESCE(visible_users.username, ''::text) AS created_by_username,
+    COALESCE(organizations.name, ''::text) AS organization_name,
+    COALESCE(organizations.display_name, ''::text) AS organization_display_name,
+    COALESCE(organizations.icon, ''::text) AS organization_icon
+   FROM ((templates
+     LEFT JOIN visible_users ON ((templates.created_by = visible_users.id)))
+     LEFT JOIN organizations ON ((templates.organization_id = organizations.id)));
 
-COMMENT ON VIEW template_with_users IS 'Joins in the username + avatar url of the created by user.';
+COMMENT ON VIEW template_with_names IS 'Joins in the display name information such as username, avatar, and organization name.';
 
 CREATE TABLE user_links (
     user_id uuid NOT NULL,
@@ -1461,6 +1529,15 @@ ALTER TABLE ONLY licenses
 ALTER TABLE ONLY licenses
     ADD CONSTRAINT licenses_pkey PRIMARY KEY (id);
 
+ALTER TABLE ONLY notification_messages
+    ADD CONSTRAINT notification_messages_pkey PRIMARY KEY (id);
+
+ALTER TABLE ONLY notification_templates
+    ADD CONSTRAINT notification_templates_name_key UNIQUE (name);
+
+ALTER TABLE ONLY notification_templates
+    ADD CONSTRAINT notification_templates_pkey PRIMARY KEY (id);
+
 ALTER TABLE ONLY oauth2_provider_app_codes
     ADD CONSTRAINT oauth2_provider_app_codes_pkey PRIMARY KEY (id);
 
@@ -1514,6 +1591,9 @@ ALTER TABLE ONLY provisioner_job_logs
 
 ALTER TABLE ONLY provisioner_jobs
     ADD CONSTRAINT provisioner_jobs_pkey PRIMARY KEY (id);
+
+ALTER TABLE ONLY provisioner_keys
+    ADD CONSTRAINT provisioner_keys_pkey PRIMARY KEY (id);
 
 ALTER TABLE ONLY site_configs
     ADD CONSTRAINT site_configs_key_key UNIQUE (key);
@@ -1636,7 +1716,11 @@ CREATE INDEX idx_audit_log_user_id ON audit_logs USING btree (user_id);
 
 CREATE INDEX idx_audit_logs_time_desc ON audit_logs USING btree ("time" DESC);
 
+CREATE INDEX idx_custom_roles_id ON custom_roles USING btree (id);
+
 CREATE UNIQUE INDEX idx_custom_roles_name_lower ON custom_roles USING btree (lower(name));
+
+CREATE INDEX idx_notification_messages_status ON notification_messages USING btree (status);
 
 CREATE INDEX idx_organization_member_organization_id_uuid ON organization_members USING btree (organization_id);
 
@@ -1669,6 +1753,8 @@ CREATE UNIQUE INDEX organizations_single_default_org ON organizations USING btre
 CREATE INDEX provisioner_job_logs_id_job_id_idx ON provisioner_job_logs USING btree (job_id, id);
 
 CREATE INDEX provisioner_jobs_started_at_idx ON provisioner_jobs USING btree (started_at) WHERE (started_at IS NULL);
+
+CREATE UNIQUE INDEX provisioner_keys_organization_id_name_idx ON provisioner_keys USING btree (organization_id, lower((name)::text));
 
 CREATE INDEX template_usage_stats_start_time_idx ON template_usage_stats USING btree (start_time DESC);
 
@@ -1755,6 +1841,12 @@ ALTER TABLE ONLY jfrog_xray_scans
 ALTER TABLE ONLY jfrog_xray_scans
     ADD CONSTRAINT jfrog_xray_scans_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE;
 
+ALTER TABLE ONLY notification_messages
+    ADD CONSTRAINT notification_messages_notification_template_id_fkey FOREIGN KEY (notification_template_id) REFERENCES notification_templates(id) ON DELETE CASCADE;
+
+ALTER TABLE ONLY notification_messages
+    ADD CONSTRAINT notification_messages_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+
 ALTER TABLE ONLY oauth2_provider_app_codes
     ADD CONSTRAINT oauth2_provider_app_codes_app_id_fkey FOREIGN KEY (app_id) REFERENCES oauth2_provider_apps(id) ON DELETE CASCADE;
 
@@ -1787,6 +1879,9 @@ ALTER TABLE ONLY provisioner_job_logs
 
 ALTER TABLE ONLY provisioner_jobs
     ADD CONSTRAINT provisioner_jobs_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
+
+ALTER TABLE ONLY provisioner_keys
+    ADD CONSTRAINT provisioner_keys_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
 
 ALTER TABLE ONLY tailnet_agents
     ADD CONSTRAINT tailnet_agents_coordinator_id_fkey FOREIGN KEY (coordinator_id) REFERENCES tailnet_coordinators(id) ON DELETE CASCADE;

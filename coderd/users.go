@@ -187,6 +187,7 @@ func (api *API) postFirstUser(rw http.ResponseWriter, r *http.Request) {
 		CreateUserRequest: codersdk.CreateUserRequest{
 			Email:          createUser.Email,
 			Username:       createUser.Username,
+			Name:           createUser.Name,
 			Password:       createUser.Password,
 			OrganizationID: defaultOrg.ID,
 		},
@@ -223,7 +224,7 @@ func (api *API) postFirstUser(rw http.ResponseWriter, r *http.Request) {
 	// Add the admin role to this first user.
 	//nolint:gocritic // needed to create first user
 	_, err = api.Database.UpdateUserRoles(dbauthz.AsSystemRestricted(ctx), database.UpdateUserRolesParams{
-		GrantedRoles: []string{rbac.RoleOwner()},
+		GrantedRoles: []string{rbac.RoleOwner().String()},
 		ID:           user.ID,
 	})
 	if err != nil {
@@ -500,10 +501,9 @@ func (api *API) postUser(rw http.ResponseWriter, r *http.Request) {
 // @Summary Delete user
 // @ID delete-user
 // @Security CoderSessionToken
-// @Produce json
 // @Tags Users
 // @Param user path string true "User ID, name, or me"
-// @Success 200 {object} codersdk.User
+// @Success 204
 // @Router /users/{user} [delete]
 func (api *API) deleteUser(rw http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -557,9 +557,7 @@ func (api *API) deleteUser(rw http.ResponseWriter, r *http.Request) {
 	}
 	user.Deleted = true
 	aReq.New = user
-	httpapi.Write(ctx, rw, http.StatusOK, codersdk.Response{
-		Message: "用户已被删除！",
-	})
+	rw.WriteHeader(http.StatusNoContent)
 }
 
 // Returns the parameterized user requested. All validation
@@ -805,7 +803,7 @@ func (api *API) putUserStatus(status database.UserStatus) func(rw http.ResponseW
 					Message: "你不能暂停自己。",
 				})
 				return
-			case slice.Contains(user.RBACRoles, rbac.RoleOwner()):
+			case slice.Contains(user.RBACRoles, rbac.RoleOwner().String()):
 				// You may not suspend an owner
 				httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
 					Message: fmt.Sprintf("您无法暂停具有 %q 角色的用户。您必须先删除该角色。", rbac.RoleOwner()),
@@ -912,6 +910,11 @@ func (api *API) putUserPassword(rw http.ResponseWriter, r *http.Request) {
 	defer commitAudit()
 	aReq.Old = user
 
+	if !api.Authorize(r, policy.ActionUpdatePersonal, user) {
+		httpapi.ResourceNotFound(rw)
+		return
+	}
+
 	if !httpapi.Read(ctx, rw, r, &params) {
 		return
 	}
@@ -1007,7 +1010,7 @@ func (api *API) putUserPassword(rw http.ResponseWriter, r *http.Request) {
 	newUser.HashedPassword = []byte(hashedPassword)
 	aReq.New = newUser
 
-	httpapi.Write(ctx, rw, http.StatusNoContent, nil)
+	rw.WriteHeader(http.StatusNoContent)
 }
 
 // @Summary Get user roles
@@ -1027,12 +1030,16 @@ func (api *API) userRoles(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// TODO: Replace this with "GetAuthorizationUserRoles"
 	resp := codersdk.UserRoles{
 		Roles:             user.RBACRoles,
 		OrganizationRoles: make(map[uuid.UUID][]string),
 	}
 
-	memberships, err := api.Database.GetOrganizationMembershipsByUserID(ctx, user.ID)
+	memberships, err := api.Database.OrganizationMembers(ctx, database.OrganizationMembersParams{
+		UserID:         user.ID,
+		OrganizationID: uuid.Nil,
+	})
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
 			Message: "获取用户组织成员身份时出现内部错误。",
@@ -1042,7 +1049,7 @@ func (api *API) userRoles(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, mem := range memberships {
-		resp.OrganizationRoles[mem.OrganizationID] = mem.Roles
+		resp.OrganizationRoles[mem.OrganizationMember.OrganizationID] = mem.OrganizationMember.Roles
 	}
 
 	httpapi.Write(ctx, rw, http.StatusOK, resp)
@@ -1220,6 +1227,7 @@ func (api *API) CreateUser(ctx context.Context, store database.Store, req Create
 			ID:             uuid.New(),
 			Email:          req.Email,
 			Username:       req.Username,
+			Name:           httpapi.NormalizeRealUsername(req.Name),
 			CreatedAt:      dbtime.Now(),
 			UpdatedAt:      dbtime.Now(),
 			HashedPassword: []byte{},

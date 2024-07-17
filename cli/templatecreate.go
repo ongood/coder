@@ -31,6 +31,7 @@ func (r *RootCmd) templateCreate() *serpent.Command {
 		dormancyAutoDeletion time.Duration
 
 		uploadFlags templateUploadFlags
+		orgContext  = NewOrganizationContext()
 	)
 	client := new(codersdk.Client)
 	cmd := &serpent.Command{
@@ -68,7 +69,7 @@ func (r *RootCmd) templateCreate() *serpent.Command {
 				}
 			}
 
-			organization, err := CurrentOrganization(r, inv, client)
+			organization, err := orgContext.Selected(inv, client)
 			if err != nil {
 				return err
 			}
@@ -159,7 +160,7 @@ func (r *RootCmd) templateCreate() *serpent.Command {
 				RequireActiveVersion:           requireActiveVersion,
 			}
 
-			_, err = client.CreateTemplate(inv.Context(), organization.ID, createReq)
+			template, err := client.CreateTemplate(inv.Context(), organization.ID, createReq)
 			if err != nil {
 				return err
 			}
@@ -170,7 +171,7 @@ func (r *RootCmd) templateCreate() *serpent.Command {
 					pretty.Sprint(cliui.DefaultStyles.DateTimeStamp, time.Now().Format(time.Stamp))+"! "+
 					"Developers can provision a workspace with this template using:")+"\n")
 
-			_, _ = fmt.Fprintln(inv.Stdout, "  "+pretty.Sprint(cliui.DefaultStyles.Code, fmt.Sprintf("coder create --template=%q [workspace name]", templateName)))
+			_, _ = fmt.Fprintln(inv.Stdout, "  "+pretty.Sprint(cliui.DefaultStyles.Code, fmt.Sprintf("coder create --template=%q --org=%q [workspace name]", templateName, template.OrganizationName)))
 			_, _ = fmt.Fprintln(inv.Stdout)
 
 			return nil
@@ -243,6 +244,7 @@ func (r *RootCmd) templateCreate() *serpent.Command {
 
 		cliui.SkipPromptOption(),
 	}
+	orgContext.AttachOptions(cmd)
 	cmd.Options = append(cmd.Options, uploadFlags.options()...)
 	return cmd
 }

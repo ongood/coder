@@ -28,6 +28,7 @@ var (
 	// ResourceAssignOrgRole
 	// Valid Actions
 	//  - "ActionAssign" :: ability to assign org scoped roles
+	//  - "ActionCreate" :: ability to create/delete/edit custom roles within an organization
 	//  - "ActionDelete" :: ability to delete org scoped roles
 	//  - "ActionRead" :: view what roles are assignable
 	ResourceAssignOrgRole = Object{
@@ -160,6 +161,15 @@ var (
 		Type: "provisioner_daemon",
 	}
 
+	// ResourceProvisionerKeys
+	// Valid Actions
+	//  - "ActionCreate" :: create a provisioner key
+	//  - "ActionDelete" :: delete a provisioner key
+	//  - "ActionRead" :: read provisioner keys
+	ResourceProvisionerKeys = Object{
+		Type: "provisioner_keys",
+	}
+
 	// ResourceReplicas
 	// Valid Actions
 	//  - "ActionRead" :: read replicas
@@ -268,6 +278,7 @@ func AllResources() []Objecter {
 		ResourceOrganization,
 		ResourceOrganizationMember,
 		ResourceProvisionerDaemon,
+		ResourceProvisionerKeys,
 		ResourceReplicas,
 		ResourceSystem,
 		ResourceTailnetCoordinator,

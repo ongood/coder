@@ -173,7 +173,7 @@ export const WorkspaceReadyPage: FC<WorkspaceReadyPageProps> = ({
         stopWorkspaceMutation.mutate({ logLevel });
         break;
       case "delete":
-        deleteWorkspaceMutation.mutate({ logLevel });
+        deleteWorkspaceMutation.mutate({ log_level: logLevel });
         break;
     }
   };
@@ -336,13 +336,13 @@ export const WorkspaceReadyPage: FC<WorkspaceReadyPageProps> = ({
           setIsConfirmingUpdate(false);
         }}
         onClose={() => setIsConfirmingUpdate(false)}
-        title="升级并重启?"
-        confirmText="升级"
+        title="Update workspace?"
+        confirmText="Update"
         description={
           <Stack>
             <p>
-              重新启动您的工作区将停止所有运行中的进程，并{" "}
-              <strong>删除非持久性数据</strong>.
+              更新您的工作区将基于最新模板版本启动工作区。这可能
+              <strong>删除非持久性数据</strong>。
             </p>
             {latestVersion?.message && (
               <MemoizedInlineMarkdown allowedElements={["ol", "ul", "li"]}>

@@ -59,7 +59,7 @@ func (api *API) templateAvailablePermissions(rw http.ResponseWriter, r *http.Req
 	sdkGroups := make([]codersdk.Group, 0, len(groups))
 	for _, group := range groups {
 		// nolint:gocritic
-		members, err := api.Database.GetGroupMembers(dbauthz.AsSystemRestricted(ctx), group.ID)
+		members, err := api.Database.GetGroupMembersByGroupID(dbauthz.AsSystemRestricted(ctx), group.ID)
 		if err != nil {
 			httpapi.InternalServerError(rw, err)
 			return
@@ -128,7 +128,7 @@ func (api *API) templateACL(rw http.ResponseWriter, r *http.Request) {
 		// them read the group members.
 		// We should probably at least return more truncated user data here.
 		// nolint:gocritic
-		members, err = api.Database.GetGroupMembers(dbauthz.AsSystemRestricted(ctx), group.ID)
+		members, err = api.Database.GetGroupMembersByGroupID(dbauthz.AsSystemRestricted(ctx), group.ID)
 		if err != nil {
 			httpapi.InternalServerError(rw, err)
 			return
@@ -327,7 +327,7 @@ func convertSDKTemplateRole(role codersdk.TemplateRole) []policy.Action {
 	return nil
 }
 
-// TODO reduce the duplication across all of these.
+// TODO move to api.RequireFeatureMW when we are OK with changing the behavior.
 func (api *API) templateRBACEnabledMW(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		api.entitlementsMu.RLock()
@@ -343,19 +343,21 @@ func (api *API) templateRBACEnabledMW(next http.Handler) http.Handler {
 	})
 }
 
-func (api *API) moonsEnabledMW(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-		// Entitlement must be enabled.
-		api.entitlementsMu.RLock()
-		proxy := api.entitlements.Features[codersdk.FeatureWorkspaceProxy].Enabled
-		api.entitlementsMu.RUnlock()
-		if !proxy {
-			httpapi.Write(r.Context(), rw, http.StatusForbidden, codersdk.Response{
-				Message: "External workspace proxies is an Enterprise feature. Contact sales!",
-			})
-			return
-		}
+func (api *API) RequireFeatureMW(feat codersdk.FeatureName) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+			// Entitlement must be enabled.
+			api.entitlementsMu.RLock()
+			enabled := api.entitlements.Features[feat].Enabled
+			api.entitlementsMu.RUnlock()
+			if !enabled {
+				httpapi.Write(r.Context(), rw, http.StatusForbidden, codersdk.Response{
+					Message: fmt.Sprintf("%s is an Enterprise feature. Contact sales!", feat.Humanize()),
+				})
+				return
+			}
 
-		next.ServeHTTP(rw, r)
-	})
+			next.ServeHTTP(rw, r)
+		})
+	}
 }

@@ -27,66 +27,8 @@ export const Language = {
   copyrightText: `\u00a9 ${new Date().getFullYear()} 缤企云, Coder.`,
 };
 
-const styles = {
-  info: (theme) => [
-    theme.typography.body2 as CSSObject,
-    {
-      padding: 20,
-    },
-  ],
-  userName: {
-    fontWeight: 600,
-  },
-  userEmail: (theme) => ({
-    color: theme.palette.text.secondary,
-    width: "100%",
-    textOverflow: "ellipsis",
-    overflow: "hidden",
-  }),
-  link: {
-    textDecoration: "none",
-    color: "inherit",
-  },
-  menuItem: (theme) => css`
-    gap: 20px;
-    padding: 8px 20px;
-
-    &:hover {
-      background-color: ${theme.palette.action.hover};
-      transition: background-color 0.3s ease;
-    }
-  `,
-  menuItemIcon: (theme) => ({
-    color: theme.palette.text.secondary,
-    width: 20,
-    height: 20,
-  }),
-  menuItemText: {
-    fontSize: 14,
-  },
-  footerText: (theme) => css`
-    font-size: 12px;
-    text-decoration: none;
-    color: ${theme.palette.text.secondary};
-    display: flex;
-    align-items: center;
-    gap: 4px;
-
-    & svg {
-      width: 12px;
-      height: 12px;
-    }
-  `,
-  buildInfo: (theme) => ({
-    color: theme.palette.text.primary,
-  }),
-} satisfies Record<string, Interpolation<Theme>>;
-
 export interface UserDropdownContentProps {
   user: TypesGen.User;
-  organizations?: TypesGen.Organization[];
-  organizationId?: string;
-  setOrganizationId?: (id: string) => void;
   buildInfo?: TypesGen.BuildInfoResponse;
   supportLinks?: readonly TypesGen.LinkConfig[];
   onSignOut: () => void;
@@ -94,9 +36,6 @@ export interface UserDropdownContentProps {
 
 export const UserDropdownContent: FC<UserDropdownContentProps> = ({
   user,
-  organizations,
-  organizationId,
-  setOrganizationId,
   buildInfo,
   supportLinks,
   onSignOut,
@@ -104,7 +43,7 @@ export const UserDropdownContent: FC<UserDropdownContentProps> = ({
   const popover = usePopover();
 
   const onPopoverClose = () => {
-    popover.setIsOpen(false);
+    popover.setOpen(false);
   };
 
   const renderMenuIcon = (icon: string): JSX.Element => {
@@ -133,43 +72,6 @@ export const UserDropdownContent: FC<UserDropdownContentProps> = ({
       </Stack>
 
       <Divider css={{ marginBottom: 8 }} />
-
-      {organizations && (
-        <>
-          <div>
-            <div
-              css={{
-                padding: "8px 20px 6px",
-                textTransform: "uppercase",
-                letterSpacing: 1.1,
-                lineHeight: 1.1,
-                fontSize: "0.8em",
-              }}
-            >
-              My teams
-            </div>
-            {organizations.map((org) => (
-              <MenuItem
-                key={org.id}
-                css={styles.menuItem}
-                onClick={() => {
-                  setOrganizationId?.(org.id);
-                  popover.setIsOpen(false);
-                }}
-              >
-                {/* <LogoutIcon css={styles.menuItemIcon} /> */}
-                <Stack direction="row" spacing={1} css={styles.menuItemText}>
-                  {org.name}
-                  {organizationId === org.id && (
-                    <span css={{ fontSize: 12, color: "gray" }}>Current</span>
-                  )}
-                </Stack>
-              </MenuItem>
-            ))}
-          </div>
-          <Divider css={{ marginTop: 8, marginBottom: 8 }} />
-        </>
-      )}
 
       <Link to="/settings/account" css={styles.link}>
         <MenuItem css={styles.menuItem} onClick={onPopoverClose}>
@@ -206,9 +108,8 @@ export const UserDropdownContent: FC<UserDropdownContentProps> = ({
       <Divider css={{ marginBottom: "0 !important" }} />
 
       <Stack css={styles.info} spacing={0}>
-        <Tooltip title="Coder Version">
+        <Tooltip title="Browse the source code">
           <a
-            title="Browse Source Code"
             css={[styles.footerText, styles.buildInfo]}
             href={buildInfo?.external_url}
             target="_blank"
@@ -269,3 +170,58 @@ const includeBuildInfo = (
     )}`,
   );
 };
+
+const styles = {
+  info: (theme) => [
+    theme.typography.body2 as CSSObject,
+    {
+      padding: 20,
+    },
+  ],
+  userName: {
+    fontWeight: 600,
+  },
+  userEmail: (theme) => ({
+    color: theme.palette.text.secondary,
+    width: "100%",
+    textOverflow: "ellipsis",
+    overflow: "hidden",
+  }),
+  link: {
+    textDecoration: "none",
+    color: "inherit",
+  },
+  menuItem: (theme) => css`
+    gap: 20px;
+    padding: 8px 20px;
+
+    &:hover {
+      background-color: ${theme.palette.action.hover};
+      transition: background-color 0.3s ease;
+    }
+  `,
+  menuItemIcon: (theme) => ({
+    color: theme.palette.text.secondary,
+    width: 20,
+    height: 20,
+  }),
+  menuItemText: {
+    fontSize: 14,
+  },
+  footerText: (theme) => css`
+    font-size: 12px;
+    text-decoration: none;
+    color: ${theme.palette.text.secondary};
+    display: flex;
+    align-items: center;
+    gap: 4px;
+
+    & svg {
+      width: 12px;
+      height: 12px;
+    }
+  `,
+  buildInfo: (theme) => ({
+    color: theme.palette.text.primary,
+  }),
+} satisfies Record<string, Interpolation<Theme>>;

@@ -11,6 +11,7 @@ import {
 import type { Template } from "api/typesGenerated";
 import { Avatar } from "components/Avatar/Avatar";
 import { Loader } from "components/Loader/Loader";
+import { MenuSearch } from "components/Menu/MenuSearch";
 import { OverflowY } from "components/OverflowY/OverflowY";
 import {
   Popover,
@@ -18,7 +19,6 @@ import {
   PopoverTrigger,
 } from "components/Popover/Popover";
 import { SearchEmpty, searchStyles } from "components/Search/Search";
-import { SearchBox } from "./WorkspacesSearchBox";
 
 const ICON_SIZE = 18;
 
@@ -67,12 +67,11 @@ export const WorkspacesButton: FC<WorkspacesButtonProps> = ({
           ".MuiPaper-root": searchStyles.content,
         }}
       >
-        <SearchBox
+        <MenuSearch
           value={searchTerm}
-          onValueChange={(newValue) => setSearchTerm(newValue)}
-          placeholder="输入或选择一个工作区模板"
-          label="Template select for workspace"
-          css={{ flexShrink: 0, columnGap: 12 }}
+          onChange={setSearchTerm}
+          placeholder="输入/选择一个工作区模板"
+          aria-label="工作区模板选择"
         />
 
         <OverflowY

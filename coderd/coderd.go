@@ -37,13 +37,15 @@ import (
 	"tailscale.com/util/singleflight"
 
 	"cdr.dev/slog"
+	"github.com/coder/quartz"
+	"github.com/coder/serpent"
+
 	agentproto "github.com/coder/coder/v2/agent/proto"
 	"github.com/coder/coder/v2/buildinfo"
 	_ "github.com/coder/coder/v2/coderd/apidoc" // Used for swagger docs.
 	"github.com/coder/coder/v2/coderd/appearance"
 	"github.com/coder/coder/v2/coderd/audit"
 	"github.com/coder/coder/v2/coderd/awsidentity"
-	"github.com/coder/coder/v2/coderd/batchstats"
 	"github.com/coder/coder/v2/coderd/database"
 	"github.com/coder/coder/v2/coderd/database/dbauthz"
 	"github.com/coder/coder/v2/coderd/database/dbrollup"
@@ -56,6 +58,7 @@ import (
 	"github.com/coder/coder/v2/coderd/httpapi"
 	"github.com/coder/coder/v2/coderd/httpmw"
 	"github.com/coder/coder/v2/coderd/metricscache"
+	"github.com/coder/coder/v2/coderd/notifications"
 	"github.com/coder/coder/v2/coderd/portsharing"
 	"github.com/coder/coder/v2/coderd/prometheusmetrics"
 	"github.com/coder/coder/v2/coderd/provisionerdserver"
@@ -69,7 +72,6 @@ import (
 	"github.com/coder/coder/v2/coderd/util/slice"
 	"github.com/coder/coder/v2/coderd/workspaceapps"
 	"github.com/coder/coder/v2/coderd/workspacestats"
-	"github.com/coder/coder/v2/coderd/workspaceusage"
 	"github.com/coder/coder/v2/codersdk"
 	"github.com/coder/coder/v2/codersdk/drpc"
 	"github.com/coder/coder/v2/codersdk/healthsdk"
@@ -77,7 +79,6 @@ import (
 	"github.com/coder/coder/v2/provisionersdk"
 	"github.com/coder/coder/v2/site"
 	"github.com/coder/coder/v2/tailnet"
-	"github.com/coder/serpent"
 )
 
 // We must only ever instantiate one httpSwagger.Handler because of a data race
@@ -88,7 +89,31 @@ import (
 var globalHTTPSwaggerHandler http.HandlerFunc
 
 func init() {
-	globalHTTPSwaggerHandler = httpSwagger.Handler(httpSwagger.URL("/swagger/doc.json"))
+	globalHTTPSwaggerHandler = httpSwagger.Handler(
+		httpSwagger.URL("/swagger/doc.json"),
+		// The swagger UI has an "Authorize" button that will input the
+		// credentials into the Coder-Session-Token header. This bypasses
+		// CSRF checks **if** there is no cookie auth also present.
+		// (If the cookie matches, then it's ok too)
+		//
+		// Because swagger is hosted on the same domain, we have the cookie
+		// auth and the header auth competing. This can cause CSRF errors,
+		// and can be confusing what authentication is being used.
+		//
+		// So remove authenticating via a cookie, and rely on the authorization
+		// header passed in.
+		httpSwagger.UIConfig(map[string]string{
+			// Pulled from https://swagger.io/docs/open-source-tools/swagger-ui/usage/configuration/
+			// 'withCredentials' should disable fetch sending browser credentials, but
+			// for whatever reason it does not.
+			// So this `requestInterceptor` ensures browser credentials are
+			// omitted from all requests.
+			"requestInterceptor": `(a => {
+				a.credentials = "omit";
+				return a;
+			})`,
+			"withCredentials": "false",
+		}))
 }
 
 var expDERPOnce = sync.Once{}
@@ -144,14 +169,16 @@ type Options struct {
 	DERPServer         *derp.Server
 	// BaseDERPMap is used as the base DERP map for all clients and agents.
 	// Proxies are added to this list.
-	BaseDERPMap                 *tailcfg.DERPMap
-	DERPMapUpdateFrequency      time.Duration
-	SwaggerEndpoint             bool
-	SetUserGroups               func(ctx context.Context, logger slog.Logger, tx database.Store, userID uuid.UUID, orgGroupNames map[uuid.UUID][]string, createMissingGroups bool) error
-	SetUserSiteRoles            func(ctx context.Context, logger slog.Logger, tx database.Store, userID uuid.UUID, roles []string) error
-	TemplateScheduleStore       *atomic.Pointer[schedule.TemplateScheduleStore]
-	UserQuietHoursScheduleStore *atomic.Pointer[schedule.UserQuietHoursScheduleStore]
-	AccessControlStore          *atomic.Pointer[dbauthz.AccessControlStore]
+	BaseDERPMap                    *tailcfg.DERPMap
+	DERPMapUpdateFrequency         time.Duration
+	NetworkTelemetryBatchFrequency time.Duration
+	NetworkTelemetryBatchMaxSize   int
+	SwaggerEndpoint                bool
+	SetUserGroups                  func(ctx context.Context, logger slog.Logger, tx database.Store, userID uuid.UUID, orgGroupNames map[uuid.UUID][]string, createMissingGroups bool) error
+	SetUserSiteRoles               func(ctx context.Context, logger slog.Logger, tx database.Store, userID uuid.UUID, roles []string) error
+	TemplateScheduleStore          *atomic.Pointer[schedule.TemplateScheduleStore]
+	UserQuietHoursScheduleStore    *atomic.Pointer[schedule.UserQuietHoursScheduleStore]
+	AccessControlStore             *atomic.Pointer[dbauthz.AccessControlStore]
 	// AppSecurityKey is the crypto key used to sign and encrypt tokens related to
 	// workspace applications. It consists of both a signing and encryption key.
 	AppSecurityKey workspaceapps.SecurityKey
@@ -189,7 +216,7 @@ type Options struct {
 	HTTPClient *http.Client
 
 	UpdateAgentMetrics func(ctx context.Context, labels prometheusmetrics.AgentMetricLabels, metrics []*agentproto.Stats_Metric)
-	StatsBatcher       *batchstats.Batcher
+	StatsBatcher       workspacestats.Batcher
 
 	WorkspaceAppsStatsCollectorOptions workspaceapps.StatsCollectorOptions
 
@@ -206,7 +233,9 @@ type Options struct {
 	// stats. This is used to provide insights in the WebUI.
 	DatabaseRolluper *dbrollup.Rolluper
 	// WorkspaceUsageTracker tracks workspace usage by the CLI.
-	WorkspaceUsageTracker *workspaceusage.Tracker
+	WorkspaceUsageTracker *workspacestats.UsageTracker
+	// NotificationsEnqueuer handles enqueueing notifications for delivery by SMTP, webhook, etc.
+	NotificationsEnqueuer notifications.Enqueuer
 }
 
 // @title Coder API
@@ -307,6 +336,12 @@ func New(options *Options) *API {
 	if options.DERPMapUpdateFrequency == 0 {
 		options.DERPMapUpdateFrequency = 5 * time.Second
 	}
+	if options.NetworkTelemetryBatchFrequency == 0 {
+		options.NetworkTelemetryBatchFrequency = 1 * time.Minute
+	}
+	if options.NetworkTelemetryBatchMaxSize == 0 {
+		options.NetworkTelemetryBatchMaxSize = 1_000
+	}
 	if options.TailnetCoordinator == nil {
 		options.TailnetCoordinator = tailnet.NewCoordinator(options.Logger)
 	}
@@ -384,9 +419,13 @@ func New(options *Options) *API {
 	}
 
 	if options.WorkspaceUsageTracker == nil {
-		options.WorkspaceUsageTracker = workspaceusage.New(options.Database,
-			workspaceusage.WithLogger(options.Logger.Named("workspace_usage_tracker")),
+		options.WorkspaceUsageTracker = workspacestats.NewTracker(options.Database,
+			workspacestats.TrackerWithLogger(options.Logger.Named("workspace_usage_tracker")),
 		)
+	}
+
+	if options.NotificationsEnqueuer == nil {
+		options.NotificationsEnqueuer = notifications.NewNoopEnqueuer()
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -434,8 +473,7 @@ func New(options *Options) *API {
 			options.Database,
 			options.Pubsub,
 		),
-		dbRolluper:            options.DatabaseRolluper,
-		workspaceUsageTracker: options.WorkspaceUsageTracker,
+		dbRolluper: options.DatabaseRolluper,
 	}
 
 	var customRoleHandler CustomRoleHandler = &agplCustomRoleHandler{}
@@ -450,6 +488,7 @@ func New(options *Options) *API {
 		WorkspaceProxy:  false,
 		UpgradeMessage:  api.DeploymentValues.CLIUpgradeMessage.String(),
 		DeploymentID:    api.DeploymentID,
+		Telemetry:       api.Telemetry.Enabled(),
 	}
 	api.SiteHandler = site.New(&site.Options{
 		BinFS:             binFS,
@@ -541,12 +580,19 @@ func New(options *Options) *API {
 	if options.DeploymentValues.Prometheus.Enable {
 		options.PrometheusRegistry.MustRegister(stn)
 	}
-	api.TailnetClientService, err = tailnet.NewClientService(
-		api.Logger.Named("tailnetclient"),
-		&api.TailnetCoordinator,
-		api.Options.DERPMapUpdateFrequency,
-		api.DERPMap,
+	api.NetworkTelemetryBatcher = tailnet.NewNetworkTelemetryBatcher(
+		quartz.NewReal(),
+		api.Options.NetworkTelemetryBatchFrequency,
+		api.Options.NetworkTelemetryBatchMaxSize,
+		api.handleNetworkTelemetry,
 	)
+	api.TailnetClientService, err = tailnet.NewClientService(tailnet.ClientServiceOptions{
+		Logger:                  api.Logger.Named("tailnetclient"),
+		CoordPtr:                &api.TailnetCoordinator,
+		DERPMapUpdateFrequency:  api.Options.DERPMapUpdateFrequency,
+		DERPMapFn:               api.DERPMap,
+		NetworkTelemetryHandler: api.NetworkTelemetryBatcher.Handler,
+	})
 	if err != nil {
 		api.Logger.Fatal(api.ctx, "failed to initialize tailnet client service", slog.Error(err))
 	}
@@ -557,6 +603,7 @@ func New(options *Options) *API {
 		Pubsub:                options.Pubsub,
 		TemplateScheduleStore: options.TemplateScheduleStore,
 		StatsBatcher:          options.StatsBatcher,
+		UsageTracker:          options.WorkspaceUsageTracker,
 		UpdateAgentMetricsFn:  options.UpdateAgentMetrics,
 		AppStatBatchSize:      workspaceapps.DefaultStatsDBReporterBatchSize,
 	})
@@ -828,7 +875,7 @@ func New(options *Options) *API {
 				r.Post("/templateversions", api.postTemplateVersionsByOrganization)
 				r.Route("/templates", func(r chi.Router) {
 					r.Post("/", api.postTemplateByOrganization)
-					r.Get("/", api.templatesByOrganization)
+					r.Get("/", api.templatesByOrganization())
 					r.Get("/examples", api.templateExamples)
 					r.Route("/{templatename}", func(r chi.Router) {
 						r.Get("/", api.templateByOrganizationAndName)
@@ -839,6 +886,7 @@ func New(options *Options) *API {
 					})
 				})
 				r.Route("/members", func(r chi.Router) {
+					r.Get("/", api.listMembers)
 					r.Route("/roles", func(r chi.Router) {
 						r.Get("/", api.assignableOrgRoles)
 						r.With(httpmw.RequireExperiment(api.Experiments, codersdk.ExperimentCustomRoles)).
@@ -846,29 +894,48 @@ func New(options *Options) *API {
 					})
 
 					r.Route("/{user}", func(r chi.Router) {
-						r.Use(
-							httpmw.ExtractOrganizationMemberParam(options.Database),
-						)
-						r.Put("/roles", api.putMemberRoles)
-						r.Post("/workspaces", api.postWorkspacesByOrganization)
+						r.Group(func(r chi.Router) {
+							r.Use(
+								// Adding a member requires "read" permission
+								// on the site user. So limited to owners and user-admins.
+								// TODO: Allow org-admins to add users via some new permission? Or give them
+								// 	read on site users.
+								httpmw.ExtractUserParam(options.Database),
+							)
+							r.Post("/", api.postOrganizationMember)
+						})
+
+						r.Group(func(r chi.Router) {
+							r.Use(
+								httpmw.ExtractOrganizationMemberParam(options.Database),
+							)
+							r.Delete("/", api.deleteOrganizationMember)
+							r.Put("/roles", api.putMemberRoles)
+							r.Post("/workspaces", api.postWorkspacesByOrganization)
+						})
 					})
 				})
 			})
 		})
-		r.Route("/templates/{template}", func(r chi.Router) {
+		r.Route("/templates", func(r chi.Router) {
 			r.Use(
 				apiKeyMiddleware,
-				httpmw.ExtractTemplateParam(options.Database),
 			)
-			r.Get("/daus", api.templateDAUs)
-			r.Get("/", api.template)
-			r.Delete("/", api.deleteTemplate)
-			r.Patch("/", api.patchTemplateMeta)
-			r.Route("/versions", func(r chi.Router) {
-				r.Post("/archive", api.postArchiveTemplateVersions)
-				r.Get("/", api.templateVersionsByTemplate)
-				r.Patch("/", api.patchActiveTemplateVersion)
-				r.Get("/{templateversionname}", api.templateVersionByName)
+			r.Get("/", api.fetchTemplates(nil))
+			r.Route("/{template}", func(r chi.Router) {
+				r.Use(
+					httpmw.ExtractTemplateParam(options.Database),
+				)
+				r.Get("/daus", api.templateDAUs)
+				r.Get("/", api.template)
+				r.Delete("/", api.deleteTemplate)
+				r.Patch("/", api.patchTemplateMeta)
+				r.Route("/versions", func(r chi.Router) {
+					r.Post("/archive", api.postArchiveTemplateVersions)
+					r.Get("/", api.templateVersionsByTemplate)
+					r.Patch("/", api.patchActiveTemplateVersion)
+					r.Get("/{templateversionname}", api.templateVersionByName)
+				})
 			})
 		})
 		r.Route("/templateversions/{templateversion}", func(r chi.Router) {
@@ -951,6 +1018,7 @@ func New(options *Options) *API {
 					})
 					r.Put("/appearance", api.putUserAppearanceSettings)
 					r.Route("/password", func(r chi.Router) {
+						r.Use(httpmw.RateLimit(options.LoginRateLimit, time.Minute))
 						r.Put("/", api.putUserPassword)
 					})
 					// These roles apply to the site wide permissions.
@@ -1004,23 +1072,12 @@ func New(options *Options) *API {
 					Optional: false,
 				}))
 				r.Get("/rpc", api.workspaceAgentRPC)
-				r.Get("/manifest", api.workspaceAgentManifest)
-				// This route is deprecated and will be removed in a future release.
-				// New agents will use /me/manifest instead.
-				r.Get("/metadata", api.workspaceAgentManifest)
-				r.Post("/startup", api.postWorkspaceAgentStartup)
-				r.Patch("/startup-logs", api.patchWorkspaceAgentLogsDeprecated)
 				r.Patch("/logs", api.patchWorkspaceAgentLogs)
-				r.Post("/app-health", api.postWorkspaceAppHealth)
 				// Deprecated: Required to support legacy agents
 				r.Get("/gitauth", api.workspaceAgentsGitAuth)
 				r.Get("/external-auth", api.workspaceAgentsExternalAuth)
 				r.Get("/gitsshkey", api.agentGitSSHKey)
-				r.Get("/coordinate", api.workspaceAgentCoordinate)
-				r.Post("/report-stats", api.workspaceAgentReportStats)
-				r.Post("/report-lifecycle", api.workspaceAgentReportLifecycle)
-				r.Post("/metadata", api.workspaceAgentPostMetadata)
-				r.Post("/metadata/{key}", api.workspaceAgentPostMetadataDeprecated)
+				r.Post("/log-source", api.workspaceAgentPostLogSource)
 			})
 			r.Route("/{workspaceagent}", func(r chi.Router) {
 				r.Use(
@@ -1186,6 +1243,11 @@ func New(options *Options) *API {
 				})
 			})
 		})
+		r.Route("/notifications", func(r chi.Router) {
+			r.Use(apiKeyMiddleware)
+			r.Get("/settings", api.notificationsSettings)
+			r.Put("/settings", api.putNotificationsSettings)
+		})
 	})
 
 	if options.SwaggerEndpoint {
@@ -1207,7 +1269,7 @@ func New(options *Options) *API {
 
 	// Add CSP headers to all static assets and pages. CSP headers only affect
 	// browsers, so these don't make sense on api routes.
-	cspMW := httpmw.CSPHeaders(func() []string {
+	cspMW := httpmw.CSPHeaders(options.Telemetry.Enabled(), func() []string {
 		if api.DeploymentValues.Dangerous.AllowAllCors {
 			// In this mode, allow all external requests
 			return []string{"*"}
@@ -1247,6 +1309,7 @@ type API struct {
 	Auditor                           atomic.Pointer[audit.Auditor]
 	WorkspaceClientCoordinateOverride atomic.Pointer[func(rw http.ResponseWriter) bool]
 	TailnetCoordinator                atomic.Pointer[tailnet.Coordinator]
+	NetworkTelemetryBatcher           *tailnet.NetworkTelemetryBatcher
 	TailnetClientService              *tailnet.ClientService
 	QuotaCommitter                    atomic.Pointer[proto.QuotaCommitter]
 	AppearanceFetcher                 atomic.Pointer[appearance.Fetcher]
@@ -1300,13 +1363,17 @@ type API struct {
 	Acquirer *provisionerdserver.Acquirer
 	// dbRolluper rolls up template usage stats from raw agent and app
 	// stats. This is used to provide insights in the WebUI.
-	dbRolluper            *dbrollup.Rolluper
-	workspaceUsageTracker *workspaceusage.Tracker
+	dbRolluper *dbrollup.Rolluper
 }
 
 // Close waits for all WebSocket connections to drain before returning.
 func (api *API) Close() error {
-	api.cancel()
+	select {
+	case <-api.ctx.Done():
+		return xerrors.New("API already closed")
+	default:
+		api.cancel()
+	}
 	if api.derpCloseFunc != nil {
 		api.derpCloseFunc()
 	}
@@ -1340,7 +1407,8 @@ func (api *API) Close() error {
 		_ = (*coordinator).Close()
 	}
 	_ = api.agentProvider.Close()
-	api.workspaceUsageTracker.Close()
+	_ = api.statsReporter.Close()
+	_ = api.NetworkTelemetryBatcher.Close()
 	return nil
 }
 
@@ -1372,6 +1440,10 @@ func compressHandler(h http.Handler) http.Handler {
 // CreateInMemoryProvisionerDaemon is an in-memory connection to a provisionerd.
 // Useful when starting coderd and provisionerd in the same process.
 func (api *API) CreateInMemoryProvisionerDaemon(dialCtx context.Context, name string, provisionerTypes []codersdk.ProvisionerType) (client proto.DRPCProvisionerDaemonClient, err error) {
+	return api.CreateInMemoryTaggedProvisionerDaemon(dialCtx, name, provisionerTypes, nil)
+}
+
+func (api *API) CreateInMemoryTaggedProvisionerDaemon(dialCtx context.Context, name string, provisionerTypes []codersdk.ProvisionerType, provisionerTags map[string]string) (client proto.DRPCProvisionerDaemonClient, err error) {
 	tracer := api.TracerProvider.Tracer(tracing.TracerName)
 	clientSession, serverSession := drpc.MemTransportPipe()
 	defer func() {
@@ -1399,7 +1471,7 @@ func (api *API) CreateInMemoryProvisionerDaemon(dialCtx context.Context, name st
 		OrganizationID: defaultOrg.ID,
 		CreatedAt:      dbtime.Now(),
 		Provisioners:   dbTypes,
-		Tags:           provisionersdk.MutateTags(uuid.Nil, nil),
+		Tags:           provisionersdk.MutateTags(uuid.Nil, provisionerTags),
 		LastSeenAt:     sql.NullTime{Time: dbtime.Now(), Valid: true},
 		Version:        buildinfo.Version(),
 		APIVersion:     proto.CurrentVersion.String(),
@@ -1433,6 +1505,7 @@ func (api *API) CreateInMemoryProvisionerDaemon(dialCtx context.Context, name st
 			OIDCConfig:          api.OIDCConfig,
 			ExternalAuthConfigs: api.ExternalAuthConfigs,
 		},
+		api.NotificationsEnqueuer,
 	)
 	if err != nil {
 		return nil, err

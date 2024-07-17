@@ -97,7 +97,7 @@ func New(ctx context.Context, options *Options) (_ *API, err error) {
 		// This is a fatal error.
 		var derr *dbcrypt.DecryptFailedError
 		if xerrors.As(err, &derr) {
-			return nil, xerrors.Errorf("database encrypted with unknown key, either add the key or see https://coder.com/docs/v2/latest/admin/encryption#disabling-encryption: %w", derr)
+			return nil, xerrors.Errorf("database encrypted with unknown key, either add the key or see https://coder.com/docs/admin/encryption#disabling-encryption: %w", derr)
 		}
 		return nil, xerrors.Errorf("init database encryption: %w", err)
 	}
@@ -138,12 +138,13 @@ func New(ctx context.Context, options *Options) (_ *API, err error) {
 		}
 		return api.fetchRegions(ctx)
 	}
-	api.tailnetService, err = tailnet.NewClientService(
-		api.Logger.Named("tailnetclient"),
-		&api.AGPL.TailnetCoordinator,
-		api.Options.DERPMapUpdateFrequency,
-		api.AGPL.DERPMap,
-	)
+	api.tailnetService, err = tailnet.NewClientService(agpltailnet.ClientServiceOptions{
+		Logger:                  api.Logger.Named("tailnetclient"),
+		CoordPtr:                &api.AGPL.TailnetCoordinator,
+		DERPMapUpdateFrequency:  api.Options.DERPMapUpdateFrequency,
+		DERPMapFn:               api.AGPL.DERPMap,
+		NetworkTelemetryHandler: api.AGPL.NetworkTelemetryBatcher.Handler,
+	})
 	if err != nil {
 		api.Logger.Fatal(api.ctx, "failed to initialize tailnet client service", slog.Error(err))
 	}
@@ -204,7 +205,7 @@ func New(ctx context.Context, options *Options) (_ *API, err error) {
 		})
 		r.Route("/workspaceproxies", func(r chi.Router) {
 			r.Use(
-				api.moonsEnabledMW,
+				api.RequireFeatureMW(codersdk.FeatureWorkspaceProxy),
 			)
 			r.Group(func(r chi.Router) {
 				r.Use(
@@ -251,6 +252,22 @@ func New(ctx context.Context, options *Options) (_ *API, err error) {
 				)
 
 				r.Get("/", api.groupByOrganization)
+			})
+		})
+		r.Route("/organizations/{organization}/provisionerkeys", func(r chi.Router) {
+			r.Use(
+				apiKeyMiddleware,
+				httpmw.ExtractOrganizationParam(api.Database),
+				api.RequireFeatureMW(codersdk.FeatureMultipleOrganizations),
+				httpmw.RequireExperiment(api.AGPL.Experiments, codersdk.ExperimentMultiOrganization),
+			)
+			r.Get("/", api.provisionerKeys)
+			r.Post("/", api.postProvisionerKey)
+			r.Route("/{provisionerkey}", func(r chi.Router) {
+				r.Use(
+					httpmw.ExtractProvisionerKeyParam(options.Database),
+				)
+				r.Delete("/", api.deleteProvisionerKey)
 			})
 		})
 		// TODO: provisioner daemons are not scoped to organizations in the database, so placing them
@@ -496,7 +513,7 @@ func (api *API) writeEntitlementWarningsHeader(a rbac.Subject, header http.Heade
 		// The member role is implied, and not assignable.
 		// If there is no display name, then the role is also unassigned.
 		// This is not the ideal logic, but works for now.
-		if role.Name == rbac.RoleMember() || (role.DisplayName == "") {
+		if role.Identifier == rbac.RoleMember() || (role.DisplayName == "") {
 			continue
 		}
 		nonMemberRoles++
@@ -565,6 +582,7 @@ func (api *API) updateEntitlements(ctx context.Context) error {
 			codersdk.FeatureUserRoleManagement:         true,
 			codersdk.FeatureAccessControl:              true,
 			codersdk.FeatureControlSharedPorts:         true,
+			codersdk.FeatureMultipleOrganizations:      true,
 		})
 	if err != nil {
 		return err
@@ -746,7 +764,12 @@ func (api *API) updateEntitlements(ctx context.Context) error {
 	}
 
 	if initial, changed, enabled := featureChanged(codersdk.FeatureCustomRoles); shouldUpdate(initial, changed, enabled) {
-		var handler coderd.CustomRoleHandler = &enterpriseCustomRoleHandler{Enabled: enabled}
+		var handler coderd.CustomRoleHandler = &enterpriseCustomRoleHandler{API: api, Enabled: enabled}
+		api.AGPL.CustomRoleHandler.Store(&handler)
+	}
+
+	if initial, changed, enabled := featureChanged(codersdk.FeatureMultipleOrganizations); shouldUpdate(initial, changed, enabled) {
+		var handler coderd.CustomRoleHandler = &enterpriseCustomRoleHandler{API: api, Enabled: enabled}
 		api.AGPL.CustomRoleHandler.Store(&handler)
 	}
 

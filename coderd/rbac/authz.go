@@ -75,6 +75,17 @@ type Subject struct {
 	cachedASTValue ast.Value
 }
 
+// RegoValueOk is only used for unit testing. There is no easy way
+// to get the error for the unexported method, and this is intentional.
+// Failed rego values can default to the backup json marshal method,
+// so errors are not fatal. Unit tests should be aware when the custom
+// rego marshaller fails.
+func (s Subject) RegoValueOk() error {
+	tmp := s
+	_, err := tmp.regoValue()
+	return err
+}
+
 // WithCachedASTValue can be called if the subject is static. This will compute
 // the ast value once and cache it for future calls.
 func (s Subject) WithCachedASTValue() Subject {
@@ -110,13 +121,13 @@ func (s Subject) SafeScopeName() string {
 	if s.Scope == nil {
 		return "no-scope"
 	}
-	return s.Scope.Name()
+	return s.Scope.Name().String()
 }
 
 // SafeRoleNames prevent nil pointer dereference.
-func (s Subject) SafeRoleNames() []string {
+func (s Subject) SafeRoleNames() []RoleIdentifier {
 	if s.Roles == nil {
-		return []string{}
+		return []RoleIdentifier{}
 	}
 	return s.Roles.Names()
 }
@@ -707,9 +718,15 @@ func (c *authCache) Prepare(ctx context.Context, subject Subject, action policy.
 // rbacTraceAttributes are the attributes that are added to all spans created by
 // the rbac package. These attributes should help to debug slow spans.
 func rbacTraceAttributes(actor Subject, action policy.Action, objectType string, extra ...attribute.KeyValue) trace.SpanStartOption {
+	uniqueRoleNames := actor.SafeRoleNames()
+	roleStrings := make([]string, 0, len(uniqueRoleNames))
+	for _, roleName := range uniqueRoleNames {
+		roleName := roleName
+		roleStrings = append(roleStrings, roleName.String())
+	}
 	return trace.WithAttributes(
 		append(extra,
-			attribute.StringSlice("subject_roles", actor.SafeRoleNames()),
+			attribute.StringSlice("subject_roles", roleStrings),
 			attribute.Int("num_subject_roles", len(actor.SafeRoleNames())),
 			attribute.Int("num_groups", len(actor.Groups)),
 			attribute.String("scope", actor.SafeScopeName()),

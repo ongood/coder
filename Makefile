@@ -36,6 +36,7 @@ GOOS         := $(shell go env GOOS)
 GOARCH       := $(shell go env GOARCH)
 GOOS_BIN_EXT := $(if $(filter windows, $(GOOS)),.exe,)
 VERSION      := $(shell ./scripts/version.sh)
+POSTGRES_VERSION ?= 16
 
 # Use the highest ZSTD compression level in CI.
 ifdef CI
@@ -447,8 +448,7 @@ lint/ts:
 lint/go:
 	./scripts/check_enterprise_imports.sh
 	linter_ver=$(shell egrep -o 'GOLANGCI_LINT_VERSION=\S+' dogfood/Dockerfile | cut -d '=' -f 2)
-	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v$$linter_ver
-	golangci-lint run
+	go run github.com/golangci/golangci-lint/cmd/golangci-lint@v$$linter_ver run
 .PHONY: lint/go
 
 lint/examples:
@@ -517,6 +517,7 @@ gen/mark-fresh:
 		$(DB_GEN_FILES) \
 		site/src/api/typesGenerated.ts \
 		coderd/rbac/object_gen.go \
+		codersdk/rbacresources_gen.go \
 		docs/admin/prometheus.md \
 		docs/cli.md \
 		docs/admin/audit-logs.md \
@@ -615,10 +616,10 @@ site/src/theme/icons.json: $(wildcard scripts/gensite/*) $(wildcard site/static/
 examples/examples.gen.json: scripts/examplegen/main.go examples/examples.go $(shell find ./examples/templates)
 	go run ./scripts/examplegen/main.go > examples/examples.gen.json
 
-coderd/rbac/object_gen.go: scripts/rbacgen/main.go coderd/rbac/object.go
+coderd/rbac/object_gen.go: scripts/rbacgen/rbacobject.gotmpl scripts/rbacgen/main.go coderd/rbac/object.go coderd/rbac/policy/policy.go
 	go run scripts/rbacgen/main.go rbac > coderd/rbac/object_gen.go
 
-codersdk/rbacresources_gen.go: scripts/rbacgen/main.go coderd/rbac/object.go
+codersdk/rbacresources_gen.go: scripts/rbacgen/codersdk.gotmpl scripts/rbacgen/main.go coderd/rbac/object.go coderd/rbac/policy/policy.go
 	go run scripts/rbacgen/main.go codersdk > codersdk/rbacresources_gen.go
 
 docs/admin/prometheus.md: scripts/metricsdocgen/main.go scripts/metricsdocgen/metrics
@@ -814,7 +815,7 @@ test-migrations: test-postgres-docker
 
 # NOTE: we set --memory to the same size as a GitHub runner.
 test-postgres-docker:
-	docker rm -f test-postgres-docker || true
+	docker rm -f test-postgres-docker-${POSTGRES_VERSION} || true
 	docker run \
 		--env POSTGRES_PASSWORD=postgres \
 		--env POSTGRES_USER=postgres \
@@ -822,11 +823,11 @@ test-postgres-docker:
 		--env PGDATA=/tmp \
 		--tmpfs /tmp \
 		--publish 5432:5432 \
-		--name test-postgres-docker \
+		--name test-postgres-docker-${POSTGRES_VERSION} \
 		--restart no \
 		--detach \
 		--memory 16GB \
-		gcr.io/coder-dev-1/postgres:13 \
+		gcr.io/coder-dev-1/postgres:${POSTGRES_VERSION} \
 		-c shared_buffers=1GB \
 		-c work_mem=1GB \
 		-c effective_cache_size=1GB \
@@ -865,3 +866,7 @@ test-tailnet-integration:
 test-clean:
 	go clean -testcache
 .PHONY: test-clean
+
+.PHONY: test-e2e
+test-e2e:
+	cd ./site && DEBUG=pw:api pnpm playwright:test --forbid-only --workers 1

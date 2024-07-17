@@ -7,6 +7,7 @@ import (
 
 	"golang.org/x/exp/maps"
 	"golang.org/x/oauth2"
+	"golang.org/x/xerrors"
 
 	"github.com/coder/coder/v2/coderd/database/dbtime"
 	"github.com/coder/coder/v2/coderd/rbac"
@@ -56,6 +57,18 @@ func (s WorkspaceAgentStatus) Valid() bool {
 		return true
 	default:
 		return false
+	}
+}
+
+type AuditableOrganizationMember struct {
+	OrganizationMember
+	Username string `json:"username"`
+}
+
+func (m OrganizationMember) Auditable(username string) AuditableOrganizationMember {
+	return AuditableOrganizationMember{
+		OrganizationMember: m,
+		Username:           username,
 	}
 }
 
@@ -178,6 +191,10 @@ func (m OrganizationMember) RBACObject() rbac.Object {
 		WithOwner(m.UserID.String())
 }
 
+func (m OrganizationMembersRow) RBACObject() rbac.Object {
+	return m.OrganizationMember.RBACObject()
+}
+
 func (m GetOrganizationIDsByMemberIDsRow) RBACObject() rbac.Object {
 	// TODO: This feels incorrect as we are really returning a list of orgmembers.
 	// This return type should be refactored to return a list of orgmembers, not this
@@ -193,6 +210,12 @@ func (o Organization) RBACObject() rbac.Object {
 
 func (p ProvisionerDaemon) RBACObject() rbac.Object {
 	return rbac.ResourceProvisionerDaemon.WithID(p.ID)
+}
+
+func (p ProvisionerKey) RBACObject() rbac.Object {
+	return rbac.ResourceProvisionerKeys.
+		WithID(p.ID).
+		InOrg(p.OrganizationID)
 }
 
 func (w WorkspaceProxy) RBACObject() rbac.Object {
@@ -313,6 +336,7 @@ func ConvertUserRows(rows []GetUsersRow) []User {
 			ID:              r.ID,
 			Email:           r.Email,
 			Username:        r.Username,
+			Name:            r.Name,
 			HashedPassword:  r.HashedPassword,
 			CreatedAt:       r.CreatedAt,
 			UpdatedAt:       r.UpdatedAt,
@@ -372,4 +396,23 @@ func (p ProvisionerJob) FinishedAt() time.Time {
 	}
 
 	return time.Time{}
+}
+
+func (r CustomRole) RoleIdentifier() rbac.RoleIdentifier {
+	return rbac.RoleIdentifier{
+		Name:           r.Name,
+		OrganizationID: r.OrganizationID.UUID,
+	}
+}
+
+func (r GetAuthorizationUserRolesRow) RoleNames() ([]rbac.RoleIdentifier, error) {
+	names := make([]rbac.RoleIdentifier, 0, len(r.Roles))
+	for _, role := range r.Roles {
+		value, err := rbac.RoleNameFromString(role)
+		if err != nil {
+			return nil, xerrors.Errorf("convert role %q: %w", role, err)
+		}
+		names = append(names, value)
+	}
+	return names, nil
 }

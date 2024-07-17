@@ -17,6 +17,7 @@ import (
 	"github.com/open-policy-agent/opa/topdown"
 
 	"cdr.dev/slog"
+
 	"github.com/coder/coder/v2/coderd/rbac/policy"
 	"github.com/coder/coder/v2/coderd/rbac/rolestore"
 
@@ -162,7 +163,7 @@ var (
 		ID:           uuid.Nil.String(),
 		Roles: rbac.Roles([]rbac.Role{
 			{
-				Name:        "provisionerd",
+				Identifier:  rbac.RoleIdentifier{Name: "provisionerd"},
 				DisplayName: "Provisioner Daemon",
 				Site: rbac.Permissions(map[string][]policy.Action{
 					// TODO: Add ProvisionerJob resource type.
@@ -191,7 +192,7 @@ var (
 		ID:           uuid.Nil.String(),
 		Roles: rbac.Roles([]rbac.Role{
 			{
-				Name:        "autostart",
+				Identifier:  rbac.RoleIdentifier{Name: "autostart"},
 				DisplayName: "Autostart Daemon",
 				Site: rbac.Permissions(map[string][]policy.Action{
 					rbac.ResourceSystem.Type:           {policy.WildcardSymbol},
@@ -213,7 +214,7 @@ var (
 		ID:           uuid.Nil.String(),
 		Roles: rbac.Roles([]rbac.Role{
 			{
-				Name:        "hangdetector",
+				Identifier:  rbac.RoleIdentifier{Name: "hangdetector"},
 				DisplayName: "Hang Detector Daemon",
 				Site: rbac.Permissions(map[string][]policy.Action{
 					rbac.ResourceSystem.Type:    {policy.WildcardSymbol},
@@ -232,17 +233,17 @@ var (
 		ID:           uuid.Nil.String(),
 		Roles: rbac.Roles([]rbac.Role{
 			{
-				Name:        "system",
+				Identifier:  rbac.RoleIdentifier{Name: "system"},
 				DisplayName: "Coder",
 				Site: rbac.Permissions(map[string][]policy.Action{
 					rbac.ResourceWildcard.Type:           {policy.ActionRead},
 					rbac.ResourceApiKey.Type:             rbac.ResourceApiKey.AvailableActions(),
 					rbac.ResourceGroup.Type:              {policy.ActionCreate, policy.ActionUpdate},
 					rbac.ResourceAssignRole.Type:         rbac.ResourceAssignRole.AvailableActions(),
+					rbac.ResourceAssignOrgRole.Type:      rbac.ResourceAssignOrgRole.AvailableActions(),
 					rbac.ResourceSystem.Type:             {policy.WildcardSymbol},
 					rbac.ResourceOrganization.Type:       {policy.ActionCreate, policy.ActionRead},
 					rbac.ResourceOrganizationMember.Type: {policy.ActionCreate},
-					rbac.ResourceAssignOrgRole.Type:      {policy.ActionRead, policy.ActionCreate, policy.ActionDelete},
 					rbac.ResourceProvisionerDaemon.Type:  {policy.ActionCreate, policy.ActionUpdate},
 					rbac.ResourceUser.Type:               rbac.ResourceUser.AvailableActions(),
 					rbac.ResourceWorkspaceDormant.Type:   {policy.ActionUpdate, policy.ActionDelete, policy.ActionWorkspaceStop},
@@ -582,8 +583,38 @@ func (q *querier) authorizeUpdateFileTemplate(ctx context.Context, file database
 	}
 }
 
+// convertToOrganizationRoles converts a set of scoped role names to their unique
+// scoped names. The database stores roles as an array of strings, and needs to be
+// converted.
+// TODO: Maybe make `[]rbac.RoleIdentifier` a custom type that implements a sql scanner
+// to remove the need for these converters?
+func (*querier) convertToOrganizationRoles(organizationID uuid.UUID, names []string) ([]rbac.RoleIdentifier, error) {
+	uniques := make([]rbac.RoleIdentifier, 0, len(names))
+	for _, name := range names {
+		// This check is a developer safety check. Old code might try to invoke this code path with
+		// organization id suffixes. Catch this and return a nice error so it can be fixed.
+		if strings.Contains(name, ":") {
+			return nil, xerrors.Errorf("attempt to assign a role %q, remove the ':<organization_id> suffix", name)
+		}
+
+		uniques = append(uniques, rbac.RoleIdentifier{Name: name, OrganizationID: organizationID})
+	}
+
+	return uniques, nil
+}
+
+// convertToDeploymentRoles converts string role names into deployment wide roles.
+func (*querier) convertToDeploymentRoles(names []string) []rbac.RoleIdentifier {
+	uniques := make([]rbac.RoleIdentifier, 0, len(names))
+	for _, name := range names {
+		uniques = append(uniques, rbac.RoleIdentifier{Name: name})
+	}
+
+	return uniques
+}
+
 // canAssignRoles handles assigning built in and custom roles.
-func (q *querier) canAssignRoles(ctx context.Context, orgID *uuid.UUID, added, removed []string) error {
+func (q *querier) canAssignRoles(ctx context.Context, orgID *uuid.UUID, added, removed []rbac.RoleIdentifier) error {
 	actor, ok := ActorFromContext(ctx)
 	if !ok {
 		return NoActorError
@@ -592,33 +623,29 @@ func (q *querier) canAssignRoles(ctx context.Context, orgID *uuid.UUID, added, r
 	roleAssign := rbac.ResourceAssignRole
 	shouldBeOrgRoles := false
 	if orgID != nil {
-		roleAssign = roleAssign.InOrg(*orgID)
+		roleAssign = rbac.ResourceAssignOrgRole.InOrg(*orgID)
 		shouldBeOrgRoles = true
 	}
 
 	grantedRoles := append(added, removed...)
-	customRoles := make([]string, 0)
+	customRoles := make([]rbac.RoleIdentifier, 0)
 	// Validate that the roles being assigned are valid.
 	for _, r := range grantedRoles {
-		roleOrgIDStr, isOrgRole := rbac.IsOrgRole(r)
+		isOrgRole := r.OrganizationID != uuid.Nil
 		if shouldBeOrgRoles && !isOrgRole {
 			return xerrors.Errorf("Must only update org roles")
 		}
+
 		if !shouldBeOrgRoles && isOrgRole {
 			return xerrors.Errorf("Must only update site wide roles")
 		}
 
 		if shouldBeOrgRoles {
-			roleOrgID, err := uuid.Parse(roleOrgIDStr)
-			if err != nil {
-				return xerrors.Errorf("role %q has invalid uuid for org: %w", r, err)
-			}
-
 			if orgID == nil {
 				return xerrors.Errorf("should never happen, orgID is nil, but trying to assign an organization role")
 			}
 
-			if roleOrgID != *orgID {
+			if r.OrganizationID != *orgID {
 				return xerrors.Errorf("attempted to assign role from a different org, role %q to %q", r, orgID.String())
 			}
 		}
@@ -629,7 +656,7 @@ func (q *querier) canAssignRoles(ctx context.Context, orgID *uuid.UUID, added, r
 		}
 	}
 
-	customRolesMap := make(map[string]struct{}, len(customRoles))
+	customRolesMap := make(map[rbac.RoleIdentifier]struct{}, len(customRoles))
 	for _, r := range customRoles {
 		customRolesMap[r] = struct{}{}
 	}
@@ -649,7 +676,7 @@ func (q *querier) canAssignRoles(ctx context.Context, orgID *uuid.UUID, added, r
 				// returns them all, but then someone could pass in a large list to make us do
 				// a lot of loop iterations.
 				if !slices.ContainsFunc(expandedCustomRoles, func(customRole rbac.Role) bool {
-					return strings.EqualFold(customRole.Name, role)
+					return strings.EqualFold(customRole.Identifier.Name, role.Name) && customRole.Identifier.OrganizationID == role.OrganizationID
 				}) {
 					return xerrors.Errorf("%q is not a supported role", role)
 				}
@@ -671,8 +698,14 @@ func (q *querier) canAssignRoles(ctx context.Context, orgID *uuid.UUID, added, r
 
 	for _, roleName := range grantedRoles {
 		if _, isCustom := customRolesMap[roleName]; isCustom {
-			// For now, use a constant name so our static assign map still works.
-			roleName = rbac.CustomSiteRole()
+			// To support a dynamic mapping of what roles can assign what, we need
+			// to store this in the database. For now, just use a static role so
+			// owners and org admins can assign roles.
+			if roleName.IsOrgRole() {
+				roleName = rbac.CustomOrganizationRole(roleName.OrganizationID)
+			} else {
+				roleName = rbac.CustomSiteRole()
+			}
 		}
 
 		if !rbac.CanAssignRole(actor.Roles, roleName) {
@@ -785,6 +818,13 @@ func (q *querier) AcquireLock(ctx context.Context, id int64) error {
 	return q.db.AcquireLock(ctx, id)
 }
 
+func (q *querier) AcquireNotificationMessages(ctx context.Context, arg database.AcquireNotificationMessagesParams) ([]database.AcquireNotificationMessagesRow, error) {
+	if err := q.authorizeContext(ctx, policy.ActionUpdate, rbac.ResourceSystem); err != nil {
+		return nil, err
+	}
+	return q.db.AcquireNotificationMessages(ctx, arg)
+}
+
 // TODO: We need to create a ProvisionerJob resource type
 func (q *querier) AcquireProvisionerJob(ctx context.Context, arg database.AcquireProvisionerJobParams) (database.ProvisionerJob, error) {
 	// if err := q.authorizeContext(ctx, policy.ActionUpdate, rbac.ResourceSystem); err != nil {
@@ -827,6 +867,20 @@ func (q *querier) BatchUpdateWorkspaceLastUsedAt(ctx context.Context, arg databa
 		return err
 	}
 	return q.db.BatchUpdateWorkspaceLastUsedAt(ctx, arg)
+}
+
+func (q *querier) BulkMarkNotificationMessagesFailed(ctx context.Context, arg database.BulkMarkNotificationMessagesFailedParams) (int64, error) {
+	if err := q.authorizeContext(ctx, policy.ActionUpdate, rbac.ResourceSystem); err != nil {
+		return 0, err
+	}
+	return q.db.BulkMarkNotificationMessagesFailed(ctx, arg)
+}
+
+func (q *querier) BulkMarkNotificationMessagesSent(ctx context.Context, arg database.BulkMarkNotificationMessagesSentParams) (int64, error) {
+	if err := q.authorizeContext(ctx, policy.ActionUpdate, rbac.ResourceSystem); err != nil {
+		return 0, err
+	}
+	return q.db.BulkMarkNotificationMessagesSent(ctx, arg)
 }
 
 func (q *querier) CleanTailnetCoordinators(ctx context.Context) error {
@@ -978,6 +1032,13 @@ func (q *querier) DeleteOAuth2ProviderAppTokensByAppAndUserID(ctx context.Contex
 	return q.db.DeleteOAuth2ProviderAppTokensByAppAndUserID(ctx, arg)
 }
 
+func (q *querier) DeleteOldNotificationMessages(ctx context.Context) error {
+	if err := q.authorizeContext(ctx, policy.ActionDelete, rbac.ResourceSystem); err != nil {
+		return err
+	}
+	return q.db.DeleteOldNotificationMessages(ctx)
+}
+
 func (q *querier) DeleteOldProvisionerDaemons(ctx context.Context) error {
 	if err := q.authorizeContext(ctx, policy.ActionDelete, rbac.ResourceSystem); err != nil {
 		return err
@@ -1001,6 +1062,20 @@ func (q *querier) DeleteOldWorkspaceAgentStats(ctx context.Context) error {
 
 func (q *querier) DeleteOrganization(ctx context.Context, id uuid.UUID) error {
 	return deleteQ(q.log, q.auth, q.db.GetOrganizationByID, q.db.DeleteOrganization)(ctx, id)
+}
+
+func (q *querier) DeleteOrganizationMember(ctx context.Context, arg database.DeleteOrganizationMemberParams) error {
+	return deleteQ[database.OrganizationMember](q.log, q.auth, func(ctx context.Context, arg database.DeleteOrganizationMemberParams) (database.OrganizationMember, error) {
+		member, err := database.ExpectOne(q.OrganizationMembers(ctx, database.OrganizationMembersParams(arg)))
+		if err != nil {
+			return database.OrganizationMember{}, err
+		}
+		return member.OrganizationMember, nil
+	}, q.db.DeleteOrganizationMember)(ctx, arg)
+}
+
+func (q *querier) DeleteProvisionerKey(ctx context.Context, id uuid.UUID) error {
+	return deleteQ(q.log, q.auth, q.db.GetProvisionerKeyByID, q.db.DeleteProvisionerKey)(ctx, id)
 }
 
 func (q *querier) DeleteReplicasUpdatedBefore(ctx context.Context, updatedAt time.Time) error {
@@ -1072,11 +1147,25 @@ func (q *querier) DeleteWorkspaceAgentPortSharesByTemplate(ctx context.Context, 
 	return q.db.DeleteWorkspaceAgentPortSharesByTemplate(ctx, templateID)
 }
 
+func (q *querier) EnqueueNotificationMessage(ctx context.Context, arg database.EnqueueNotificationMessageParams) error {
+	if err := q.authorizeContext(ctx, policy.ActionCreate, rbac.ResourceSystem); err != nil {
+		return err
+	}
+	return q.db.EnqueueNotificationMessage(ctx, arg)
+}
+
 func (q *querier) FavoriteWorkspace(ctx context.Context, id uuid.UUID) error {
 	fetch := func(ctx context.Context, id uuid.UUID) (database.Workspace, error) {
 		return q.db.GetWorkspaceByID(ctx, id)
 	}
 	return update(q.log, q.auth, fetch, q.db.FavoriteWorkspace)(ctx, id)
+}
+
+func (q *querier) FetchNewMessageMetadata(ctx context.Context, arg database.FetchNewMessageMetadataParams) (database.FetchNewMessageMetadataRow, error) {
+	if err := q.authorizeContext(ctx, policy.ActionRead, rbac.ResourceSystem); err != nil {
+		return database.FetchNewMessageMetadataRow{}, err
+	}
+	return q.db.FetchNewMessageMetadata(ctx, arg)
 }
 
 func (q *querier) GetAPIKeyByID(ctx context.Context, id string) (database.APIKey, error) {
@@ -1142,6 +1231,11 @@ func (q *querier) GetAllTailnetTunnels(ctx context.Context) ([]database.TailnetT
 	return q.db.GetAllTailnetTunnels(ctx)
 }
 
+func (q *querier) GetAnnouncementBanners(ctx context.Context) (string, error) {
+	// No authz checks
+	return q.db.GetAnnouncementBanners(ctx)
+}
+
 func (q *querier) GetAppSecurityKey(ctx context.Context) (string, error) {
 	// No authz checks
 	return q.db.GetAppSecurityKey(ctx)
@@ -1153,12 +1247,21 @@ func (q *querier) GetApplicationName(ctx context.Context) (string, error) {
 }
 
 func (q *querier) GetAuditLogsOffset(ctx context.Context, arg database.GetAuditLogsOffsetParams) ([]database.GetAuditLogsOffsetRow, error) {
-	// To optimize audit logs, we only check the global audit log permission once.
-	// This is because we expect a large unbounded set of audit logs, and applying a SQL
-	// filter would slow down the query for no benefit.
-	if err := q.authorizeContext(ctx, policy.ActionRead, rbac.ResourceAuditLog); err != nil {
+	// To optimize the authz checks for audit logs, do not run an authorize
+	// check on each individual audit log row. In practice, audit logs are either
+	// fetched from a global or an organization scope.
+	// Applying a SQL filter would slow down the query for no benefit on how this query is
+	// actually used.
+
+	object := rbac.ResourceAuditLog
+	if arg.OrganizationID != uuid.Nil {
+		object = object.InOrg(arg.OrganizationID)
+	}
+
+	if err := q.authorizeContext(ctx, policy.ActionRead, object); err != nil {
 		return nil, err
 	}
+
 	return q.db.GetAuditLogsOffset(ctx, arg)
 }
 
@@ -1274,11 +1377,25 @@ func (q *querier) GetGroupByOrgAndName(ctx context.Context, arg database.GetGrou
 	return fetch(q.log, q.auth, q.db.GetGroupByOrgAndName)(ctx, arg)
 }
 
-func (q *querier) GetGroupMembers(ctx context.Context, id uuid.UUID) ([]database.User, error) {
+func (q *querier) GetGroupMembers(ctx context.Context) ([]database.GroupMember, error) {
+	if err := q.authorizeContext(ctx, policy.ActionRead, rbac.ResourceSystem); err != nil {
+		return nil, err
+	}
+	return q.db.GetGroupMembers(ctx)
+}
+
+func (q *querier) GetGroupMembersByGroupID(ctx context.Context, id uuid.UUID) ([]database.User, error) {
 	if _, err := q.GetGroupByID(ctx, id); err != nil { // AuthZ check
 		return nil, err
 	}
-	return q.db.GetGroupMembers(ctx, id)
+	return q.db.GetGroupMembersByGroupID(ctx, id)
+}
+
+func (q *querier) GetGroups(ctx context.Context) ([]database.Group, error) {
+	if err := q.authorizeContext(ctx, policy.ActionRead, rbac.ResourceSystem); err != nil {
+		return nil, err
+	}
+	return q.db.GetGroups(ctx)
 }
 
 func (q *querier) GetGroupsByOrganizationAndUserID(ctx context.Context, arg database.GetGroupsByOrganizationAndUserIDParams) ([]database.Group, error) {
@@ -1359,9 +1476,16 @@ func (q *querier) GetLogoURL(ctx context.Context) (string, error) {
 	return q.db.GetLogoURL(ctx)
 }
 
-func (q *querier) GetNotificationBanners(ctx context.Context) (string, error) {
+func (q *querier) GetNotificationMessagesByStatus(ctx context.Context, arg database.GetNotificationMessagesByStatusParams) ([]database.NotificationMessage, error) {
+	if err := q.authorizeContext(ctx, policy.ActionRead, rbac.ResourceSystem); err != nil {
+		return nil, err
+	}
+	return q.db.GetNotificationMessagesByStatus(ctx, arg)
+}
+
+func (q *querier) GetNotificationsSettings(ctx context.Context) (string, error) {
 	// No authz checks
-	return q.db.GetNotificationBanners(ctx)
+	return q.db.GetNotificationsSettings(ctx)
 }
 
 func (q *querier) GetOAuth2ProviderAppByID(ctx context.Context, id uuid.UUID) (database.OAuth2ProviderApp, error) {
@@ -1448,14 +1572,6 @@ func (q *querier) GetOrganizationIDsByMemberIDs(ctx context.Context, ids []uuid.
 	// TODO: This should be rewritten to return a list of database.OrganizationMember for consistent RBAC objects.
 	// Currently this row returns a list of org ids per user, which is challenging to check against the RBAC system.
 	return fetchWithPostFilter(q.auth, policy.ActionRead, q.db.GetOrganizationIDsByMemberIDs)(ctx, ids)
-}
-
-func (q *querier) GetOrganizationMemberByUserID(ctx context.Context, arg database.GetOrganizationMemberByUserIDParams) (database.OrganizationMember, error) {
-	return fetch(q.log, q.auth, q.db.GetOrganizationMemberByUserID)(ctx, arg)
-}
-
-func (q *querier) GetOrganizationMembershipsByUserID(ctx context.Context, userID uuid.UUID) ([]database.OrganizationMember, error) {
-	return fetchWithPostFilter(q.auth, policy.ActionRead, q.db.GetOrganizationMembershipsByUserID)(ctx, userID)
 }
 
 func (q *querier) GetOrganizations(ctx context.Context) ([]database.Organization, error) {
@@ -1557,6 +1673,14 @@ func (q *querier) GetProvisionerJobsCreatedAfter(ctx context.Context, createdAt 
 	// return nil, err
 	// }
 	return q.db.GetProvisionerJobsCreatedAfter(ctx, createdAt)
+}
+
+func (q *querier) GetProvisionerKeyByID(ctx context.Context, id uuid.UUID) (database.ProvisionerKey, error) {
+	return fetch(q.log, q.auth, q.db.GetProvisionerKeyByID)(ctx, id)
+}
+
+func (q *querier) GetProvisionerKeyByName(ctx context.Context, name database.GetProvisionerKeyByNameParams) (database.ProvisionerKey, error) {
+	return fetch(q.log, q.auth, q.db.GetProvisionerKeyByName)(ctx, name)
 }
 
 func (q *querier) GetProvisionerLogsAfterID(ctx context.Context, arg database.GetProvisionerLogsAfterIDParams) ([]database.ProvisionerJobLog, error) {
@@ -2471,9 +2595,14 @@ func (q *querier) InsertOrganization(ctx context.Context, arg database.InsertOrg
 }
 
 func (q *querier) InsertOrganizationMember(ctx context.Context, arg database.InsertOrganizationMemberParams) (database.OrganizationMember, error) {
+	orgRoles, err := q.convertToOrganizationRoles(arg.OrganizationID, arg.Roles)
+	if err != nil {
+		return database.OrganizationMember{}, xerrors.Errorf("converting to organization roles: %w", err)
+	}
+
 	// All roles are added roles. Org member is always implied.
-	addedRoles := append(arg.Roles, rbac.RoleOrgMember(arg.OrganizationID))
-	err := q.canAssignRoles(ctx, &arg.OrganizationID, addedRoles, []string{})
+	addedRoles := append(orgRoles, rbac.ScopedRoleOrgMember(arg.OrganizationID))
+	err = q.canAssignRoles(ctx, &arg.OrganizationID, addedRoles, []rbac.RoleIdentifier{})
 	if err != nil {
 		return database.OrganizationMember{}, err
 	}
@@ -2496,6 +2625,10 @@ func (q *querier) InsertProvisionerJobLogs(ctx context.Context, arg database.Ins
 	// return nil, err
 	// }
 	return q.db.InsertProvisionerJobLogs(ctx, arg)
+}
+
+func (q *querier) InsertProvisionerKey(ctx context.Context, arg database.InsertProvisionerKeyParams) (database.ProvisionerKey, error) {
+	return insert(q.log, q.auth, rbac.ResourceProvisionerKeys.InOrg(arg.OrganizationID).WithID(arg.ID), q.db.InsertProvisionerKey)(ctx, arg)
 }
 
 func (q *querier) InsertReplica(ctx context.Context, arg database.InsertReplicaParams) (database.Replica, error) {
@@ -2559,8 +2692,8 @@ func (q *querier) InsertTemplateVersionWorkspaceTag(ctx context.Context, arg dat
 
 func (q *querier) InsertUser(ctx context.Context, arg database.InsertUserParams) (database.User, error) {
 	// Always check if the assigned roles can actually be assigned by this actor.
-	impliedRoles := append([]string{rbac.RoleMember()}, arg.RBACRoles...)
-	err := q.canAssignRoles(ctx, nil, impliedRoles, []string{})
+	impliedRoles := append([]rbac.RoleIdentifier{rbac.RoleMember()}, q.convertToDeploymentRoles(arg.RBACRoles)...)
+	err := q.canAssignRoles(ctx, nil, impliedRoles, []rbac.RoleIdentifier{})
 	if err != nil {
 		return database.User{}, err
 	}
@@ -2726,6 +2859,10 @@ func (q *querier) InsertWorkspaceResourceMetadata(ctx context.Context, arg datab
 	return q.db.InsertWorkspaceResourceMetadata(ctx, arg)
 }
 
+func (q *querier) ListProvisionerKeysByOrganization(ctx context.Context, organizationID uuid.UUID) ([]database.ProvisionerKey, error) {
+	return fetchWithPostFilter(q.auth, policy.ActionRead, q.db.ListProvisionerKeysByOrganization)(ctx, organizationID)
+}
+
 func (q *querier) ListWorkspaceAgentPortShares(ctx context.Context, workspaceID uuid.UUID) ([]database.WorkspaceAgentPortShare, error) {
 	workspace, err := q.db.GetWorkspaceByID(ctx, workspaceID)
 	if err != nil {
@@ -2738,6 +2875,10 @@ func (q *querier) ListWorkspaceAgentPortShares(ctx context.Context, workspaceID 
 	}
 
 	return q.db.ListWorkspaceAgentPortShares(ctx, workspaceID)
+}
+
+func (q *querier) OrganizationMembers(ctx context.Context, arg database.OrganizationMembersParams) ([]database.OrganizationMembersRow, error) {
+	return fetchWithPostFilter(q.auth, policy.ActionRead, q.db.OrganizationMembers)(ctx, arg)
 }
 
 func (q *querier) ReduceWorkspaceAgentShareLevelToAuthenticatedByTemplate(ctx context.Context, templateID uuid.UUID) error {
@@ -2839,17 +2980,30 @@ func (q *querier) UpdateInactiveUsersToDormant(ctx context.Context, lastSeenAfte
 
 func (q *querier) UpdateMemberRoles(ctx context.Context, arg database.UpdateMemberRolesParams) (database.OrganizationMember, error) {
 	// Authorized fetch will check that the actor has read access to the org member since the org member is returned.
-	member, err := q.GetOrganizationMemberByUserID(ctx, database.GetOrganizationMemberByUserIDParams{
+	member, err := database.ExpectOne(q.OrganizationMembers(ctx, database.OrganizationMembersParams{
 		OrganizationID: arg.OrgID,
 		UserID:         arg.UserID,
-	})
+	}))
+	if err != nil {
+		return database.OrganizationMember{}, err
+	}
+
+	originalRoles, err := q.convertToOrganizationRoles(member.OrganizationMember.OrganizationID, member.OrganizationMember.Roles)
+	if err != nil {
+		return database.OrganizationMember{}, xerrors.Errorf("convert original roles: %w", err)
+	}
+
+	// The 'rbac' package expects role names to be scoped.
+	// Convert the argument roles for validation.
+	scopedGranted, err := q.convertToOrganizationRoles(arg.OrgID, arg.GrantedRoles)
 	if err != nil {
 		return database.OrganizationMember{}, err
 	}
 
 	// The org member role is always implied.
-	impliedTypes := append(arg.GrantedRoles, rbac.RoleOrgMember(arg.OrgID))
-	added, removed := rbac.ChangeRoleSet(member.Roles, impliedTypes)
+	impliedTypes := append(scopedGranted, rbac.ScopedRoleOrgMember(arg.OrgID))
+
+	added, removed := rbac.ChangeRoleSet(originalRoles, impliedTypes)
 	err = q.canAssignRoles(ctx, &arg.OrgID, added, removed)
 	if err != nil {
 		return database.OrganizationMember{}, err
@@ -3190,9 +3344,9 @@ func (q *querier) UpdateUserRoles(ctx context.Context, arg database.UpdateUserRo
 	}
 
 	// The member role is always implied.
-	impliedTypes := append(arg.GrantedRoles, rbac.RoleMember())
+	impliedTypes := append(q.convertToDeploymentRoles(arg.GrantedRoles), rbac.RoleMember())
 	// If the changeset is nothing, less rbac checks need to be done.
-	added, removed := rbac.ChangeRoleSet(user.RBACRoles, impliedTypes)
+	added, removed := rbac.ChangeRoleSet(q.convertToDeploymentRoles(user.RBACRoles), impliedTypes)
 	err = q.canAssignRoles(ctx, nil, added, removed)
 	if err != nil {
 		return database.User{}, err
@@ -3405,6 +3559,13 @@ func (q *querier) UpdateWorkspacesDormantDeletingAtByTemplateID(ctx context.Cont
 	return fetchAndExec(q.log, q.auth, policy.ActionUpdate, fetch, q.db.UpdateWorkspacesDormantDeletingAtByTemplateID)(ctx, arg)
 }
 
+func (q *querier) UpsertAnnouncementBanners(ctx context.Context, value string) error {
+	if err := q.authorizeContext(ctx, policy.ActionUpdate, rbac.ResourceDeploymentConfig); err != nil {
+		return err
+	}
+	return q.db.UpsertAnnouncementBanners(ctx, value)
+}
+
 func (q *querier) UpsertAppSecurityKey(ctx context.Context, data string) error {
 	// No authz checks as this is done during startup
 	return q.db.UpsertAppSecurityKey(ctx, data)
@@ -3429,18 +3590,31 @@ func (q *querier) UpsertCustomRole(ctx context.Context, arg database.UpsertCusto
 		return database.CustomRole{}, NoActorError
 	}
 
-	// TODO: If this is an org role, check the org assign role type.
-	if err := q.authorizeContext(ctx, policy.ActionCreate, rbac.ResourceAssignRole); err != nil {
-		return database.CustomRole{}, err
+	// Org and site role upsert share the same query. So switch the assertion based on the org uuid.
+	if arg.OrganizationID.UUID != uuid.Nil {
+		if err := q.authorizeContext(ctx, policy.ActionCreate, rbac.ResourceAssignOrgRole.InOrg(arg.OrganizationID.UUID)); err != nil {
+			return database.CustomRole{}, err
+		}
+	} else {
+		if err := q.authorizeContext(ctx, policy.ActionCreate, rbac.ResourceAssignRole); err != nil {
+			return database.CustomRole{}, err
+		}
 	}
 
-	// There is quite a bit of validation we should do here. First, let's make sure the json data is correct.
+	if arg.OrganizationID.UUID == uuid.Nil && len(arg.OrgPermissions) > 0 {
+		return database.CustomRole{}, xerrors.Errorf("organization permissions require specifying an organization id")
+	}
+
+	// There is quite a bit of validation we should do here.
+	// The rbac.Role has a 'Valid()' function on it that will do a lot
+	// of checks.
 	rbacRole, err := rolestore.ConvertDBRole(database.CustomRole{
 		Name:            arg.Name,
 		DisplayName:     arg.DisplayName,
 		SitePermissions: arg.SitePermissions,
 		OrgPermissions:  arg.OrgPermissions,
 		UserPermissions: arg.UserPermissions,
+		OrganizationID:  arg.OrganizationID,
 	})
 	if err != nil {
 		return database.CustomRole{}, xerrors.Errorf("invalid args: %w", err)
@@ -3538,11 +3712,11 @@ func (q *querier) UpsertLogoURL(ctx context.Context, value string) error {
 	return q.db.UpsertLogoURL(ctx, value)
 }
 
-func (q *querier) UpsertNotificationBanners(ctx context.Context, value string) error {
+func (q *querier) UpsertNotificationsSettings(ctx context.Context, value string) error {
 	if err := q.authorizeContext(ctx, policy.ActionUpdate, rbac.ResourceDeploymentConfig); err != nil {
 		return err
 	}
-	return q.db.UpsertNotificationBanners(ctx, value)
+	return q.db.UpsertNotificationsSettings(ctx, value)
 }
 
 func (q *querier) UpsertOAuthSigningKey(ctx context.Context, value string) error {

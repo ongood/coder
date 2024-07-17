@@ -16,9 +16,8 @@ import (
 	"tailscale.com/tailcfg"
 
 	"github.com/coder/coder/v2/coderd/database"
-	"github.com/coder/coder/v2/coderd/parameter"
 	"github.com/coder/coder/v2/coderd/rbac"
-	"github.com/coder/coder/v2/coderd/rbac/policy"
+	"github.com/coder/coder/v2/coderd/render"
 	"github.com/coder/coder/v2/coderd/workspaceapps/appurl"
 	"github.com/coder/coder/v2/codersdk"
 	"github.com/coder/coder/v2/provisionersdk/proto"
@@ -107,7 +106,7 @@ func TemplateVersionParameter(param database.TemplateVersionParameter) (codersdk
 		return codersdk.TemplateVersionParameter{}, err
 	}
 
-	descriptionPlaintext, err := parameter.Plaintext(param.Description)
+	descriptionPlaintext, err := render.PlaintextFromMarkdown(param.Description)
 	if err != nil {
 		return codersdk.TemplateVersionParameter{}, err
 	}
@@ -167,20 +166,7 @@ func User(user database.User, organizationIDs []uuid.UUID) codersdk.User {
 	convertedUser := codersdk.User{
 		ReducedUser:     ReducedUser(user),
 		OrganizationIDs: organizationIDs,
-		Roles:           make([]codersdk.SlimRole, 0, len(user.RBACRoles)),
-	}
-
-	for _, roleName := range user.RBACRoles {
-		rbacRole, err := rbac.RoleByName(roleName)
-		if err == nil {
-			convertedUser.Roles = append(convertedUser.Roles, SlimRole(rbacRole))
-		} else {
-			// TODO: Fix this for custom roles to display the actual display_name
-			//		Requires plumbing either a cached role value, or the db.
-			convertedUser.Roles = append(convertedUser.Roles, codersdk.SlimRole{
-				Name: roleName,
-			})
-		}
+		Roles:           SlimRolesFromNames(user.RBACRoles),
 	}
 
 	return convertedUser
@@ -202,13 +188,6 @@ func Group(group database.Group, members []database.User) codersdk.Group {
 		Members:        ReducedUsers(members),
 		QuotaAllowance: int(group.QuotaAllowance),
 		Source:         codersdk.GroupSource(group.Source),
-	}
-}
-
-func SlimRole(role rbac.Role) codersdk.SlimRole {
-	return codersdk.SlimRole{
-		DisplayName: role.DisplayName,
-		Name:        role.Name,
 	}
 }
 
@@ -247,7 +226,7 @@ func TemplateInsightsParameters(parameterRows []database.GetTemplateParameterIns
 				return nil, err
 			}
 
-			plaintextDescription, err := parameter.Plaintext(param.Description)
+			plaintextDescription, err := render.PlaintextFromMarkdown(param.Description)
 			if err != nil {
 				return nil, err
 			}
@@ -512,13 +491,14 @@ func Apps(dbApps []database.WorkspaceApp, agent database.WorkspaceAgent, ownerNa
 
 func ProvisionerDaemon(dbDaemon database.ProvisionerDaemon) codersdk.ProvisionerDaemon {
 	result := codersdk.ProvisionerDaemon{
-		ID:         dbDaemon.ID,
-		CreatedAt:  dbDaemon.CreatedAt,
-		LastSeenAt: codersdk.NullTime{NullTime: dbDaemon.LastSeenAt},
-		Name:       dbDaemon.Name,
-		Tags:       dbDaemon.Tags,
-		Version:    dbDaemon.Version,
-		APIVersion: dbDaemon.APIVersion,
+		ID:             dbDaemon.ID,
+		OrganizationID: dbDaemon.OrganizationID,
+		CreatedAt:      dbDaemon.CreatedAt,
+		LastSeenAt:     codersdk.NullTime{NullTime: dbDaemon.LastSeenAt},
+		Name:           dbDaemon.Name,
+		Tags:           dbDaemon.Tags,
+		Version:        dbDaemon.Version,
+		APIVersion:     dbDaemon.APIVersion,
 	}
 	for _, provisionerType := range dbDaemon.Provisioners {
 		result.Provisioners = append(result.Provisioners, codersdk.ProvisionerType(provisionerType))
@@ -526,26 +506,71 @@ func ProvisionerDaemon(dbDaemon database.ProvisionerDaemon) codersdk.Provisioner
 	return result
 }
 
-func Role(role rbac.Role) codersdk.Role {
-	roleName, orgIDStr, err := rbac.RoleSplit(role.Name)
-	if err != nil {
-		roleName = role.Name
+func SlimRole(role rbac.Role) codersdk.SlimRole {
+	orgID := ""
+	if role.Identifier.OrganizationID != uuid.Nil {
+		orgID = role.Identifier.OrganizationID.String()
 	}
 
-	return codersdk.Role{
-		Name:            roleName,
-		OrganizationID:  orgIDStr,
-		DisplayName:     role.DisplayName,
-		SitePermissions: List(role.Site, Permission),
-		// This is not perfect. If there are organization permissions in another
-		// organization, they will be omitted. This should not be allowed, so
-		// should never happen.
-		OrganizationPermissions: List(role.Org[orgIDStr], Permission),
-		UserPermissions:         List(role.User, Permission),
+	return codersdk.SlimRole{
+		DisplayName:    role.DisplayName,
+		Name:           role.Identifier.Name,
+		OrganizationID: orgID,
 	}
 }
 
-func Permission(permission rbac.Permission) codersdk.Permission {
+func SlimRolesFromNames(names []string) []codersdk.SlimRole {
+	convertedRoles := make([]codersdk.SlimRole, 0, len(names))
+
+	for _, name := range names {
+		convertedRoles = append(convertedRoles, SlimRoleFromName(name))
+	}
+
+	return convertedRoles
+}
+
+func SlimRoleFromName(name string) codersdk.SlimRole {
+	rbacRole, err := rbac.RoleByName(rbac.RoleIdentifier{Name: name})
+	var convertedRole codersdk.SlimRole
+	if err == nil {
+		convertedRole = SlimRole(rbacRole)
+	} else {
+		convertedRole = codersdk.SlimRole{Name: name}
+	}
+	return convertedRole
+}
+
+func RBACRole(role rbac.Role) codersdk.Role {
+	slim := SlimRole(role)
+
+	orgPerms := role.Org[slim.OrganizationID]
+	return codersdk.Role{
+		Name:                    slim.Name,
+		OrganizationID:          slim.OrganizationID,
+		DisplayName:             slim.DisplayName,
+		SitePermissions:         List(role.Site, RBACPermission),
+		OrganizationPermissions: List(orgPerms, RBACPermission),
+		UserPermissions:         List(role.User, RBACPermission),
+	}
+}
+
+func Role(role database.CustomRole) codersdk.Role {
+	orgID := ""
+	if role.OrganizationID.UUID != uuid.Nil {
+		orgID = role.OrganizationID.UUID.String()
+	}
+
+	return codersdk.Role{
+		Name:                    role.Name,
+		OrganizationID:          orgID,
+		DisplayName:             role.DisplayName,
+		SitePermissions:         List(role.SitePermissions, Permission),
+		OrganizationPermissions: List(role.OrgPermissions, Permission),
+		UserPermissions:         List(role.UserPermissions, Permission),
+	}
+}
+
+func Permission(permission database.CustomRolePermission) codersdk.Permission {
 	return codersdk.Permission{
 		Negate:       permission.Negate,
 		ResourceType: codersdk.RBACResource(permission.ResourceType),
@@ -553,27 +578,10 @@ func Permission(permission rbac.Permission) codersdk.Permission {
 	}
 }
 
-func RoleToRBAC(role codersdk.Role) rbac.Role {
-	orgPerms := map[string][]rbac.Permission{}
-	if role.OrganizationID != "" {
-		orgPerms = map[string][]rbac.Permission{
-			role.OrganizationID: List(role.OrganizationPermissions, PermissionToRBAC),
-		}
-	}
-
-	return rbac.Role{
-		Name:        rbac.RoleName(role.Name, role.OrganizationID),
-		DisplayName: role.DisplayName,
-		Site:        List(role.SitePermissions, PermissionToRBAC),
-		Org:         orgPerms,
-		User:        List(role.UserPermissions, PermissionToRBAC),
-	}
-}
-
-func PermissionToRBAC(permission codersdk.Permission) rbac.Permission {
-	return rbac.Permission{
+func RBACPermission(permission rbac.Permission) codersdk.Permission {
+	return codersdk.Permission{
 		Negate:       permission.Negate,
-		ResourceType: string(permission.ResourceType),
-		Action:       policy.Action(permission.Action),
+		ResourceType: codersdk.RBACResource(permission.ResourceType),
+		Action:       codersdk.RBACAction(permission.Action),
 	}
 }

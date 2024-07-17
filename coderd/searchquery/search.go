@@ -1,6 +1,7 @@
 package searchquery
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"net/url"
@@ -16,7 +17,9 @@ import (
 	"github.com/coder/coder/v2/codersdk"
 )
 
-func AuditLogs(query string) (database.GetAuditLogsOffsetParams, []codersdk.ValidationError) {
+// AuditLogs requires the database to fetch an organization by name
+// to convert to organization uuid.
+func AuditLogs(ctx context.Context, db database.Store, query string) (database.GetAuditLogsOffsetParams, []codersdk.ValidationError) {
 	// Always lowercase for all searches.
 	query = strings.ToLower(query)
 	values, errors := searchTerms(query, func(term string, values url.Values) error {
@@ -43,6 +46,28 @@ func AuditLogs(query string) (database.GetAuditLogsOffsetParams, []codersdk.Vali
 	if !filter.DateTo.IsZero() {
 		filter.DateTo = filter.DateTo.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
 	}
+
+	// Convert the "organization" parameter to an organization uuid. This can require
+	// a database lookup.
+	organizationArg := parser.String(values, "", "organization")
+	if organizationArg != "" {
+		organizationID, err := uuid.Parse(organizationArg)
+		if err == nil {
+			filter.OrganizationID = organizationID
+		} else {
+			// Organization could be a name
+			organization, err := db.GetOrganizationByName(ctx, organizationArg)
+			if err != nil {
+				parser.Errors = append(parser.Errors, codersdk.ValidationError{
+					Field:  "organization",
+					Detail: fmt.Sprintf("Organization %q either does not exist, or you are unauthorized to view it", organizationArg),
+				})
+			} else {
+				filter.OrganizationID = organization.ID
+			}
+		}
+	}
+
 	parser.ErrorExcessParams(values)
 	return filter, parser.Errors
 }
@@ -153,6 +178,51 @@ func Workspaces(query string, page codersdk.Pagination, agentInactiveDisconnectT
 		}
 		filter.ParamNames = append(filter.ParamNames, p.name)
 		filter.ParamValues = append(filter.ParamValues, *p.value)
+	}
+
+	parser.ErrorExcessParams(values)
+	return filter, parser.Errors
+}
+
+func Templates(ctx context.Context, db database.Store, query string) (database.GetTemplatesWithFilterParams, []codersdk.ValidationError) {
+	// Always lowercase for all searches.
+	query = strings.ToLower(query)
+	values, errors := searchTerms(query, func(term string, values url.Values) error {
+		// Default to the template name
+		values.Add("name", term)
+		return nil
+	})
+	if len(errors) > 0 {
+		return database.GetTemplatesWithFilterParams{}, errors
+	}
+
+	parser := httpapi.NewQueryParamParser()
+	filter := database.GetTemplatesWithFilterParams{
+		Deleted:    parser.Boolean(values, false, "deleted"),
+		ExactName:  parser.String(values, "", "exact_name"),
+		IDs:        parser.UUIDs(values, []uuid.UUID{}, "ids"),
+		Deprecated: parser.NullableBoolean(values, sql.NullBool{}, "deprecated"),
+	}
+
+	// Convert the "organization" parameter to an organization uuid. This can require
+	// a database lookup.
+	organizationArg := parser.String(values, "", "organization")
+	if organizationArg != "" {
+		organizationID, err := uuid.Parse(organizationArg)
+		if err == nil {
+			filter.OrganizationID = organizationID
+		} else {
+			// Organization could be a name
+			organization, err := db.GetOrganizationByName(ctx, organizationArg)
+			if err != nil {
+				parser.Errors = append(parser.Errors, codersdk.ValidationError{
+					Field:  "organization",
+					Detail: fmt.Sprintf("Organization %q either does not exist, or you are unauthorized to view it", organizationArg),
+				})
+			} else {
+				filter.OrganizationID = organization.ID
+			}
+		}
 	}
 
 	parser.ErrorExcessParams(values)

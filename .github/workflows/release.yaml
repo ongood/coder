@@ -33,7 +33,7 @@ env:
 jobs:
   release:
     name: Build and publish
-    runs-on: ${{ github.repository_owner == 'coder' && 'buildjet-8vcpu-ubuntu-2204' || 'ubuntu-latest' }}
+    runs-on: ${{ github.repository_owner == 'coder' && 'depot-ubuntu-22.04-8' || 'ubuntu-latest' }}
     env:
       DOCKER_CLI_EXPERIMENTAL: "enabled"
     outputs:
@@ -160,7 +160,7 @@ jobs:
       # 暂时关闭
       # - name: Test migrations from current ref to main
       #   run: |
-      #     make test-migrations
+      #     POSTGRES_VERSION=13 make test-migrations
 
       # Setup GCloud for signing Windows binaries.
       - name: Authenticate to Google Cloud
@@ -273,17 +273,26 @@ jobs:
       - name: Build Linux Docker images
         run: |
           set -euxo pipefail
-          version="${{ env.VERSION }}"
-          for arch in amd64 arm64 armv7; do
-            make -j build/coder_"$version"_linux_${arch}.tag
-          done
+
+          # build Docker images for each architecture
+          version="$(./scripts/version.sh)"
+          make build/coder_"$version"_linux_{amd64,arm64,armv7}.tag
+
+          # we can't build multi-arch if the images aren't pushed, so quit now
+          # if dry-running
           if [[ "$CODER_RELEASE" != *t* ]]; then
             echo Skipping multi-arch docker builds due to dry-run.
             exit 0
           fi
 
-          make -j push/build/coder_"$version"_linux.tag
-          if [[ "$(git tag | grep '^v' | grep -vE '(rc|dev|-|\+|\/)' | sort -r --version-sort | head -n1)" == "v$version" ]]; then
+          # build and push multi-arch manifest, this depends on the other images
+          # being pushed so will automatically push them.
+          make push/build/coder_"$version"_linux.tag
+
+          # if the current version is equal to the highest (according to semver)
+          # version in the repo, also create a multi-arch image as ":latest" and
+          # push it
+          if [[ "$(git tag | grep '^v' | grep -vE '(rc|dev|-|\+|\/)' | sort -r --version-sort | head -n1)" == "v$(./scripts/version.sh)" ]]; then
             ./scripts/build_docker_multiarch.sh \
               --push \
               --target "$(./scripts/image_tag.sh --version latest)" \

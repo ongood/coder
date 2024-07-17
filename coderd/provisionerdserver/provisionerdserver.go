@@ -25,6 +25,7 @@ import (
 	protobuf "google.golang.org/protobuf/proto"
 
 	"cdr.dev/slog"
+
 	"github.com/coder/coder/v2/coderd/apikey"
 	"github.com/coder/coder/v2/coderd/audit"
 	"github.com/coder/coder/v2/coderd/database"
@@ -32,6 +33,7 @@ import (
 	"github.com/coder/coder/v2/coderd/database/dbtime"
 	"github.com/coder/coder/v2/coderd/database/pubsub"
 	"github.com/coder/coder/v2/coderd/externalauth"
+	"github.com/coder/coder/v2/coderd/notifications"
 	"github.com/coder/coder/v2/coderd/promoauth"
 	"github.com/coder/coder/v2/coderd/schedule"
 	"github.com/coder/coder/v2/coderd/telemetry"
@@ -96,6 +98,7 @@ type server struct {
 	TemplateScheduleStore       *atomic.Pointer[schedule.TemplateScheduleStore]
 	UserQuietHoursScheduleStore *atomic.Pointer[schedule.UserQuietHoursScheduleStore]
 	DeploymentValues            *codersdk.DeploymentValues
+	NotificationEnqueuer        notifications.Enqueuer
 
 	OIDCConfig promoauth.OAuth2Config
 
@@ -150,6 +153,7 @@ func NewServer(
 	userQuietHoursScheduleStore *atomic.Pointer[schedule.UserQuietHoursScheduleStore],
 	deploymentValues *codersdk.DeploymentValues,
 	options Options,
+	enqueuer notifications.Enqueuer,
 ) (proto.DRPCProvisionerDaemonServer, error) {
 	// Fail-fast if pointers are nil
 	if lifecycleCtx == nil {
@@ -198,6 +202,7 @@ func NewServer(
 		Database:                    db,
 		Pubsub:                      ps,
 		Acquirer:                    acquirer,
+		NotificationEnqueuer:        enqueuer,
 		Telemetry:                   tel,
 		Tracer:                      tracer,
 		QuotaCommitter:              quotaCommitter,
@@ -559,16 +564,17 @@ func (s *server) acquireProtoJob(ctx context.Context, job database.ProvisionerJo
 				continue
 			}
 
-			link, valid, err := config.RefreshToken(ctx, s.Database, link)
-			if err != nil {
+			refreshed, err := config.RefreshToken(ctx, s.Database, link)
+			if err != nil && !externalauth.IsInvalidTokenError(err) {
 				return nil, failJob(fmt.Sprintf("refresh external auth link %q: %s", p.ID, err))
 			}
-			if !valid {
+			if err != nil {
+				// Invalid tokens are skipped
 				continue
 			}
 			externalAuthProviders = append(externalAuthProviders, &sdkproto.ExternalAuthProvider{
 				Id:          p.ID,
-				AccessToken: link.OAuthAccessToken,
+				AccessToken: refreshed.OAuthAccessToken,
 			})
 		}
 
@@ -597,6 +603,7 @@ func (s *server) acquireProtoJob(ctx context.Context, job database.ProvisionerJo
 					WorkspaceOwnerSessionToken:    sessionToken,
 					WorkspaceOwnerSshPublicKey:    ownerSSHPublicKey,
 					WorkspaceOwnerSshPrivateKey:   ownerSSHPrivateKey,
+					WorkspaceBuildId:              workspaceBuild.ID.String(),
 				},
 				LogLevel: input.LogLevel,
 			},
@@ -975,10 +982,16 @@ func (s *server) FailJob(ctx context.Context, failJob *proto.FailedJob) (*proto.
 		}
 
 		var build database.WorkspaceBuild
+		var workspace database.Workspace
 		err = s.Database.InTx(func(db database.Store) error {
 			build, err = db.GetWorkspaceBuildByID(ctx, input.WorkspaceBuildID)
 			if err != nil {
 				return xerrors.Errorf("get workspace build: %w", err)
+			}
+
+			workspace, err = db.GetWorkspaceByID(ctx, build.WorkspaceID)
+			if err != nil {
+				return xerrors.Errorf("get workspace: %w", err)
 			}
 
 			if jobType.WorkspaceBuild.State != nil {
@@ -1006,6 +1019,8 @@ func (s *server) FailJob(ctx context.Context, failJob *proto.FailedJob) (*proto.
 		if err != nil {
 			return nil, err
 		}
+
+		s.notifyWorkspaceBuildFailed(ctx, workspace, build)
 
 		err = s.Pubsub.Publish(codersdk.WorkspaceNotifyChannel(build.WorkspaceID), []byte{})
 		if err != nil {
@@ -1078,6 +1093,27 @@ func (s *server) FailJob(ctx context.Context, failJob *proto.FailedJob) (*proto.
 		return nil, xerrors.Errorf("publish end of job logs: %w", err)
 	}
 	return &proto.Empty{}, nil
+}
+
+func (s *server) notifyWorkspaceBuildFailed(ctx context.Context, workspace database.Workspace, build database.WorkspaceBuild) {
+	var reason string
+	if build.Reason.Valid() && build.Reason == database.BuildReasonInitiator {
+		return // failed workspace build initiated by a user should not notify
+	}
+	reason = string(build.Reason)
+	initiator := "autobuild"
+
+	if _, err := s.NotificationEnqueuer.Enqueue(ctx, workspace.OwnerID, notifications.WorkspaceAutobuildFailed,
+		map[string]string{
+			"name":      workspace.Name,
+			"initiator": initiator,
+			"reason":    reason,
+		}, "provisionerdserver",
+		// Associate this notification with all the related entities.
+		workspace.ID, workspace.OwnerID, workspace.TemplateID, workspace.OrganizationID,
+	); err != nil {
+		s.Logger.Warn(ctx, "failed to notify of failed workspace autobuild", slog.Error(err))
+	}
 }
 
 // CompleteJob is triggered by a provision daemon to mark a provisioner job as completed.
@@ -1409,6 +1445,11 @@ func (s *server) CompleteJob(ctx context.Context, completed *proto.CompletedJob)
 
 		// audit the outcome of the workspace build
 		if getWorkspaceError == nil {
+			// If the workspace has been deleted, notify the owner about it.
+			if workspaceBuild.Transition == database.WorkspaceTransitionDelete {
+				s.notifyWorkspaceDeleted(ctx, workspace, workspaceBuild)
+			}
+
 			auditor := s.Auditor.Load()
 			auditAction := auditActionFromTransition(workspaceBuild.Transition)
 
@@ -1507,6 +1548,43 @@ func (s *server) CompleteJob(ctx context.Context, completed *proto.CompletedJob)
 
 	s.Logger.Debug(ctx, "stage CompleteJob done", slog.F("job_id", jobID))
 	return &proto.Empty{}, nil
+}
+
+func (s *server) notifyWorkspaceDeleted(ctx context.Context, workspace database.Workspace, build database.WorkspaceBuild) {
+	var reason string
+	initiator := build.InitiatorByUsername
+	if build.Reason.Valid() {
+		switch build.Reason {
+		case database.BuildReasonInitiator:
+			if build.InitiatorID == workspace.OwnerID {
+				// Deletions initiated by self should not notify.
+				return
+			}
+
+			reason = "initiated by user"
+		case database.BuildReasonAutodelete:
+			reason = "autodeleted due to dormancy"
+			initiator = "autobuild"
+		default:
+			reason = string(build.Reason)
+		}
+	} else {
+		reason = string(build.Reason)
+		s.Logger.Warn(ctx, "invalid build reason when sending deletion notification",
+			slog.F("reason", reason), slog.F("workspace_id", workspace.ID), slog.F("build_id", build.ID))
+	}
+
+	if _, err := s.NotificationEnqueuer.Enqueue(ctx, workspace.OwnerID, notifications.TemplateWorkspaceDeleted,
+		map[string]string{
+			"name":      workspace.Name,
+			"reason":    reason,
+			"initiator": initiator,
+		}, "provisionerdserver",
+		// Associate this notification with all the related entities.
+		workspace.ID, workspace.OwnerID, workspace.TemplateID, workspace.OrganizationID,
+	); err != nil {
+		s.Logger.Warn(ctx, "failed to notify of workspace deletion", slog.Error(err))
+	}
 }
 
 func (s *server) startTrace(ctx context.Context, name string, opts ...trace.SpanStartOption) (context.Context, trace.Span) {

@@ -8,10 +8,33 @@
       "icon_path": "./images/icons/home.svg",
       "children": [
         {
-          "title": "Architecture",
-          "description": "Learn how Coder works",
-          "path": "./about/architecture.md",
-          "icon_path": "./images/icons/protractor.svg"
+          "title": "Screenshots",
+          "description": "Browse screenshots of the Coder platform",
+          "path": "./about/screenshots.md"
+        }
+      ]
+    },
+    {
+      "title": "Architecture",
+      "description": "Learn about validated and reference architectures for Coder",
+      "path": "./architecture/architecture.md",
+      "icon_path": "./images/icons/container.svg",
+      "children": [
+        {
+          "title": "Validated Architecture",
+          "path": "./architecture/validated-arch.md"
+        },
+        {
+          "title": "Up to 1,000 users",
+          "path": "./architecture/1k-users.md"
+        },
+        {
+          "title": "Up to 2,000 users",
+          "path": "./architecture/2k-users.md"
+        },
+        {
+          "title": "Up to 3,000 users",
+          "path": "./architecture/3k-users.md"
         }
       ]
     },
@@ -397,26 +420,12 @@
         {
           "title": "Scaling Coder",
           "description": "Learn how to use load testing tools",
-          "path": "./admin/scale.md",
-          "icon_path": "./images/icons/scale.svg"
-        },
-        {
-          "title": "Reference Architectures",
-          "description": "Learn about reference architectures for Coder",
-          "path": "./admin/architectures/index.md",
+          "path": "./admin/scaling/scale-testing.md",
           "icon_path": "./images/icons/scale.svg",
           "children": [
             {
-              "title": "Up to 1,000 users",
-              "path": "./admin/architectures/1k-users.md"
-            },
-            {
-              "title": "Up to 2,000 users",
-              "path": "./admin/architectures/2k-users.md"
-            },
-            {
-              "title": "Up to 3,000 users",
-              "path": "./admin/architectures/3k-users.md"
+              "title": "Scaling Utility",
+              "path": "./admin/scaling/scale-utility.md"
             }
           ]
         },
@@ -747,6 +756,21 @@
           "path": "cli/netcheck.md"
         },
         {
+          "title": "notifications",
+          "description": "Manage Coder notifications",
+          "path": "cli/notifications.md"
+        },
+        {
+          "title": "notifications pause",
+          "description": "Pause notifications",
+          "path": "cli/notifications_pause.md"
+        },
+        {
+          "title": "notifications resume",
+          "description": "Resume notifications",
+          "path": "cli/notifications_resume.md"
+        },
+        {
           "title": "open",
           "description": "Open a workspace",
           "path": "cli/open.md"
@@ -1063,6 +1087,11 @@
           "title": "version",
           "description": "Show coder version",
           "path": "cli/version.md"
+        },
+        {
+          "title": "whoami",
+          "description": "Fetch authenticated user info for Coder deployment",
+          "path": "cli/whoami.md"
         }
       ]
     },

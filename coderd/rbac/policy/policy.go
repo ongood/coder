@@ -160,6 +160,13 @@ var RBACPermissions = map[string]PermissionDefinition{
 			ActionDelete: actDef("delete a provisioner daemon"),
 		},
 	},
+	"provisioner_keys": {
+		Actions: map[Action]ActionDefinition{
+			ActionCreate: actDef("create a provisioner key"),
+			ActionRead:   actDef("read provisioner keys"),
+			ActionDelete: actDef("delete a provisioner key"),
+		},
+	},
 	"organization": {
 		Actions: map[Action]ActionDefinition{
 			ActionCreate: actDef("create an organization"),
@@ -218,6 +225,7 @@ var RBACPermissions = map[string]PermissionDefinition{
 			ActionAssign: actDef("ability to assign org scoped roles"),
 			ActionRead:   actDef("view what roles are assignable"),
 			ActionDelete: actDef("ability to delete org scoped roles"),
+			ActionCreate: actDef("ability to create/delete/edit custom roles within an organization"),
 		},
 	},
 	"oauth2_app": {

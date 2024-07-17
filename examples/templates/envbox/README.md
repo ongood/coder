@@ -23,7 +23,7 @@ The following environment variables can be used to configure various aspects of 
 | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
 | `CODER_INNER_IMAGE`        | The image to use for the inner container.                                                                                                                                                                                                                                                                                                                                                                                                                                       | True     |
 | `CODER_INNER_USERNAME`     | The username to use for the inner container.                                                                                                                                                                                                                                                                                                                                                                                                                                    | True     |
-| `CODER_AGENT_TOKEN`        | The [Coder Agent](https://coder.com/docs/v2/latest/about/architecture#agents) token to pass to the inner container.                                                                                                                                                                                                                                                                                                                                                             | True     |
+| `CODER_AGENT_TOKEN`        | The [Coder Agent](https://coder.com/docs/about/architecture#agents) token to pass to the inner container.                                                                                                                                                                                                                                                                                                                                                                       | True     |
 | `CODER_INNER_ENVS`         | The environment variables to pass to the inner container. A wildcard can be used to match a prefix. Ex: `CODER_INNER_ENVS=KUBERNETES_*,MY_ENV,MY_OTHER_ENV`                                                                                                                                                                                                                                                                                                                     | false    |
 | `CODER_INNER_HOSTNAME`     | The hostname to use for the inner container.                                                                                                                                                                                                                                                                                                                                                                                                                                    | false    |
 | `CODER_IMAGE_PULL_SECRET`  | The docker credentials to use when pulling the inner container. The recommended way to do this is to create an [Image Pull Secret](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/#registry-secret-existing-credentials) and then reference the secret using an [environment variable](https://kubernetes.io/docs/tasks/inject-data-application/distribute-credentials-secure/#define-container-environment-variables-using-secret-data). | false    |
@@ -36,11 +36,11 @@ The following environment variables can be used to configure various aspects of 
 | `CODER_CPUS`               | Dictates the number of CPUs to allocate the inner container. It is recommended to set this using the Kubernetes [Downward API](https://kubernetes.io/docs/tasks/inject-data-application/environment-variable-expose-pod-information/#use-container-fields-as-values-for-environment-variables).                                                                                                                                                                                 | false    |
 | `CODER_MEMORY`             | Dictates the max memory (in bytes) to allocate the inner container. It is recommended to set this using the Kubernetes [Downward API](https://kubernetes.io/docs/tasks/inject-data-application/environment-variable-expose-pod-information/#use-container-fields-as-values-for-environment-variables).                                                                                                                                                                          | false    |
 
-# Migrating Existing Envbox Templates
+## Migrating Existing Envbox Templates
 
-Due to the [deprecation and removal of legacy parameters](https://coder.com/docs/v2/latest/templates/parameters#legacy)
+Due to the [deprecation and removal of legacy parameters](https://coder.com/docs/templates/parameters#legacy)
 it may be necessary to migrate existing envbox templates on newer versions of
-Coder. Consult the [migration](https://coder.com/docs/v2/latest/templates/parameters#migration)
+Coder. Consult the [migration](https://coder.com/docs/templates/parameters#migration)
 documentation for details on how to do so.
 
 To supply values to existing existing Terraform variables you can specify the
@@ -49,6 +49,10 @@ To supply values to existing existing Terraform variables you can specify the
 ```bash
 coder templates push envbox --var namespace="mynamespace" --var max_cpus=2 --var min_cpus=1 --var max_memory=4 --var min_memory=1
 ```
+
+## Version Pinning
+
+The template sets the image tag as `latest`. We highly recommend pinning the image to a specific release of envbox, as the `latest` tag may change.
 
 ## Contributions
 

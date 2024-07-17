@@ -14,22 +14,25 @@ import (
 type ResourceType string
 
 const (
-	ResourceTypeTemplate          ResourceType = "template"
-	ResourceTypeTemplateVersion   ResourceType = "template_version"
-	ResourceTypeUser              ResourceType = "user"
-	ResourceTypeWorkspace         ResourceType = "workspace"
-	ResourceTypeWorkspaceBuild    ResourceType = "workspace_build"
-	ResourceTypeGitSSHKey         ResourceType = "git_ssh_key"
-	ResourceTypeAPIKey            ResourceType = "api_key"
-	ResourceTypeGroup             ResourceType = "group"
-	ResourceTypeLicense           ResourceType = "license"
-	ResourceTypeConvertLogin      ResourceType = "convert_login"
-	ResourceTypeHealthSettings    ResourceType = "health_settings"
-	ResourceTypeWorkspaceProxy    ResourceType = "workspace_proxy"
-	ResourceTypeOrganization      ResourceType = "organization"
-	ResourceTypeOAuth2ProviderApp ResourceType = "oauth2_provider_app"
+	ResourceTypeTemplate              ResourceType = "template"
+	ResourceTypeTemplateVersion       ResourceType = "template_version"
+	ResourceTypeUser                  ResourceType = "user"
+	ResourceTypeWorkspace             ResourceType = "workspace"
+	ResourceTypeWorkspaceBuild        ResourceType = "workspace_build"
+	ResourceTypeGitSSHKey             ResourceType = "git_ssh_key"
+	ResourceTypeAPIKey                ResourceType = "api_key"
+	ResourceTypeGroup                 ResourceType = "group"
+	ResourceTypeLicense               ResourceType = "license"
+	ResourceTypeConvertLogin          ResourceType = "convert_login"
+	ResourceTypeHealthSettings        ResourceType = "health_settings"
+	ResourceTypeNotificationsSettings ResourceType = "notifications_settings"
+	ResourceTypeWorkspaceProxy        ResourceType = "workspace_proxy"
+	ResourceTypeOrganization          ResourceType = "organization"
+	ResourceTypeOAuth2ProviderApp     ResourceType = "oauth2_provider_app"
 	// nolint:gosec // This is not a secret.
 	ResourceTypeOAuth2ProviderAppSecret ResourceType = "oauth2_provider_app_secret"
+	ResourceTypeCustomRole              ResourceType = "custom_role"
+	ResourceTypeOrganizationMember                   = "organization_member"
 )
 
 func (r ResourceType) FriendlyString() string {
@@ -62,10 +65,16 @@ func (r ResourceType) FriendlyString() string {
 		return "organization"
 	case ResourceTypeHealthSettings:
 		return "health_settings"
+	case ResourceTypeNotificationsSettings:
+		return "notifications_settings"
 	case ResourceTypeOAuth2ProviderApp:
 		return "oauth2 app"
 	case ResourceTypeOAuth2ProviderAppSecret:
 		return "oauth2 app secret"
+	case ResourceTypeCustomRole:
+		return "custom role"
+	case ResourceTypeOrganizationMember:
+		return "organization member"
 	default:
 		return "未知"
 	}
@@ -155,6 +164,7 @@ type CreateTestAuditLogRequest struct {
 	AdditionalFields json.RawMessage `json:"additional_fields,omitempty"`
 	Time             time.Time       `json:"time,omitempty" format:"date-time"`
 	BuildReason      BuildReason     `json:"build_reason,omitempty" enums:"autostart,autostop,initiator"`
+	OrganizationID   uuid.UUID       `json:"organization_id,omitempty" format:"uuid"`
 }
 
 // AuditLogs retrieves audit logs from the given page.

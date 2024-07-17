@@ -33,7 +33,7 @@ import (
 // genCtx is to give all generator functions permission if the db is a dbauthz db.
 var genCtx = dbauthz.As(context.Background(), rbac.Subject{
 	ID:     "owner",
-	Roles:  rbac.Roles(must(rbac.RoleNames{rbac.RoleOwner()}.Expand())),
+	Roles:  rbac.Roles(must(rbac.RoleIdentifiers{rbac.RoleOwner()}.Expand())),
 	Groups: []string{},
 	Scope:  rbac.ExpandableScope(rbac.ScopeAll),
 })
@@ -289,6 +289,7 @@ func User(t testing.TB, db database.Store, orig database.User) database.User {
 		ID:             takeFirst(orig.ID, uuid.New()),
 		Email:          takeFirst(orig.Email, namesgenerator.GetRandomName(1)),
 		Username:       takeFirst(orig.Username, namesgenerator.GetRandomName(1)),
+		Name:           takeFirst(orig.Name, namesgenerator.GetRandomName(1)),
 		HashedPassword: takeFirstSlice(orig.HashedPassword, []byte(must(cryptorand.String(32)))),
 		CreatedAt:      takeFirst(orig.CreatedAt, dbtime.Now()),
 		UpdatedAt:      takeFirst(orig.UpdatedAt, dbtime.Now()),
@@ -336,7 +337,9 @@ func Organization(t testing.TB, db database.Store, orig database.Organization) d
 	org, err := db.InsertOrganization(genCtx, database.InsertOrganizationParams{
 		ID:          takeFirst(orig.ID, uuid.New()),
 		Name:        takeFirst(orig.Name, namesgenerator.GetRandomName(1)),
+		DisplayName: takeFirst(orig.Name, namesgenerator.GetRandomName(1)),
 		Description: takeFirst(orig.Description, namesgenerator.GetRandomName(1)),
+		Icon:        takeFirst(orig.Icon, ""),
 		CreatedAt:   takeFirst(orig.CreatedAt, dbtime.Now()),
 		UpdatedAt:   takeFirst(orig.UpdatedAt, dbtime.Now()),
 	})
@@ -460,6 +463,18 @@ func ProvisionerJob(t testing.TB, db database.Store, ps pubsub.Pubsub, orig data
 	require.NoError(t, err)
 
 	return job
+}
+
+func ProvisionerKey(t testing.TB, db database.Store, orig database.ProvisionerKey) database.ProvisionerKey {
+	key, err := db.InsertProvisionerKey(genCtx, database.InsertProvisionerKeyParams{
+		ID:             takeFirst(orig.ID, uuid.New()),
+		CreatedAt:      takeFirst(orig.CreatedAt, dbtime.Now()),
+		OrganizationID: takeFirst(orig.OrganizationID, uuid.New()),
+		Name:           takeFirst(orig.Name, namesgenerator.GetRandomName(1)),
+		HashedSecret:   orig.HashedSecret,
+	})
+	require.NoError(t, err, "insert provisioner key")
+	return key
 }
 
 func WorkspaceApp(t testing.TB, db database.Store, orig database.WorkspaceApp) database.WorkspaceApp {
@@ -823,9 +838,9 @@ func CustomRole(t testing.TB, db database.Store, seed database.CustomRole) datab
 		Name:            takeFirst(seed.Name, strings.ToLower(namesgenerator.GetRandomName(1))),
 		DisplayName:     namesgenerator.GetRandomName(1),
 		OrganizationID:  seed.OrganizationID,
-		SitePermissions: takeFirstSlice(seed.SitePermissions, []byte("[]")),
-		OrgPermissions:  takeFirstSlice(seed.SitePermissions, []byte("{}")),
-		UserPermissions: takeFirstSlice(seed.SitePermissions, []byte("[]")),
+		SitePermissions: takeFirstSlice(seed.SitePermissions, []database.CustomRolePermission{}),
+		OrgPermissions:  takeFirstSlice(seed.SitePermissions, []database.CustomRolePermission{}),
+		UserPermissions: takeFirstSlice(seed.SitePermissions, []database.CustomRolePermission{}),
 	})
 	require.NoError(t, err, "insert custom role")
 	return role

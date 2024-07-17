@@ -11,6 +11,7 @@ import { FormFooter } from "components/FormFooter/FormFooter";
 import { FullPageForm } from "components/FullPageForm/FullPageForm";
 import { Stack } from "components/Stack/Stack";
 import {
+  displayNameValidator,
   getFormHelpers,
   nameValidator,
   onChangeTrimmed,
@@ -20,12 +21,13 @@ export const Language = {
   emailLabel: "电子邮箱",
   passwordLabel: "密码",
   usernameLabel: "用户名",
+  nameLabel: "完整名称",
   emailInvalid: "请输入一个有效的邮箱地址。",
   emailRequired: "请输入邮箱地址。",
   passwordRequired: "请输入密码",
   createUser: "创建",
   cancel: "取消",
-}
+};
 
 export const authMethodLanguage = {
   password: {
@@ -48,7 +50,7 @@ export const authMethodLanguage = {
         <Link
           target="_blank"
           rel="noopener"
-          href="https://coder.com/docs/v2/latest/admin/auth#disable-built-in-authentication"
+          href="https://coder.com/docs/admin/auth#disable-built-in-authentication"
         >
           文档
         </Link>{" "}
@@ -78,6 +80,7 @@ const validationSchema = Yup.object({
     otherwise: (schema) => schema,
   }),
   username: nameValidator(Language.usernameLabel),
+  name: displayNameValidator(Language.nameLabel),
   login_type: Yup.string().oneOf(Object.keys(authMethodLanguage)),
 });
 
@@ -90,6 +93,7 @@ export const CreateUserForm: FC<
         email: "",
         password: "",
         username: "",
+        name: "",
         organization_id: organizationId,
         disable_login: false,
         login_type: "",
@@ -123,6 +127,12 @@ export const CreateUserForm: FC<
             autoFocus
             fullWidth
             label={Language.usernameLabel}
+          />
+          <TextField
+            {...getFieldHelpers("name")}
+            autoComplete="name"
+            fullWidth
+            label={Language.nameLabel}
           />
           <TextField
             {...getFieldHelpers("email")}

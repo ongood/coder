@@ -17,7 +17,6 @@ import (
 	"golang.org/x/xerrors"
 
 	"cdr.dev/slog"
-	"github.com/coder/coder/v2/coderd/rbac/policy"
 
 	"github.com/coder/coder/v2/coderd/audit"
 	"github.com/coder/coder/v2/coderd/database"
@@ -26,9 +25,10 @@ import (
 	"github.com/coder/coder/v2/coderd/externalauth"
 	"github.com/coder/coder/v2/coderd/httpapi"
 	"github.com/coder/coder/v2/coderd/httpmw"
-	"github.com/coder/coder/v2/coderd/parameter"
 	"github.com/coder/coder/v2/coderd/provisionerdserver"
 	"github.com/coder/coder/v2/coderd/rbac"
+	"github.com/coder/coder/v2/coderd/rbac/policy"
+	"github.com/coder/coder/v2/coderd/render"
 	"github.com/coder/coder/v2/coderd/tracing"
 	"github.com/coder/coder/v2/codersdk"
 	"github.com/coder/coder/v2/examples"
@@ -353,21 +353,16 @@ func (api *API) templateVersionExternalAuth(rw http.ResponseWriter, r *http.Requ
 			return
 		}
 
-		_, updated, err := config.RefreshToken(ctx, api.Database, authLink)
-		if err != nil {
+		_, err = config.RefreshToken(ctx, api.Database, authLink)
+		if err != nil && !externalauth.IsInvalidTokenError(err) {
 			httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
 				Message: "Failed to refresh external auth token.",
 				Detail:  err.Error(),
 			})
 			return
 		}
-		// If the token couldn't be validated, then we assume the user isn't
-		// authenticated and return early.
-		if !updated {
-			providers = append(providers, provider)
-			continue
-		}
-		provider.Authenticated = true
+
+		provider.Authenticated = err == nil
 		providers = append(providers, provider)
 	}
 
@@ -1648,7 +1643,7 @@ func convertTemplateVersionParameter(param database.TemplateVersionParameter) (c
 		})
 	}
 
-	descriptionPlaintext, err := parameter.Plaintext(param.Description)
+	descriptionPlaintext, err := render.PlaintextFromMarkdown(param.Description)
 	if err != nil {
 		return codersdk.TemplateVersionParameter{}, err
 	}

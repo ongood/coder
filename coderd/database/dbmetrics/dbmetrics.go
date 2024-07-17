@@ -88,6 +88,13 @@ func (m metricsStore) AcquireLock(ctx context.Context, pgAdvisoryXactLock int64)
 	return err
 }
 
+func (m metricsStore) AcquireNotificationMessages(ctx context.Context, arg database.AcquireNotificationMessagesParams) ([]database.AcquireNotificationMessagesRow, error) {
+	start := time.Now()
+	r0, r1 := m.s.AcquireNotificationMessages(ctx, arg)
+	m.queryLatencies.WithLabelValues("AcquireNotificationMessages").Observe(time.Since(start).Seconds())
+	return r0, r1
+}
+
 func (m metricsStore) AcquireProvisionerJob(ctx context.Context, arg database.AcquireProvisionerJobParams) (database.ProvisionerJob, error) {
 	start := time.Now()
 	provisionerJob, err := m.s.AcquireProvisionerJob(ctx, arg)
@@ -121,6 +128,20 @@ func (m metricsStore) BatchUpdateWorkspaceLastUsedAt(ctx context.Context, arg da
 	r0 := m.s.BatchUpdateWorkspaceLastUsedAt(ctx, arg)
 	m.queryLatencies.WithLabelValues("BatchUpdateWorkspaceLastUsedAt").Observe(time.Since(start).Seconds())
 	return r0
+}
+
+func (m metricsStore) BulkMarkNotificationMessagesFailed(ctx context.Context, arg database.BulkMarkNotificationMessagesFailedParams) (int64, error) {
+	start := time.Now()
+	r0, r1 := m.s.BulkMarkNotificationMessagesFailed(ctx, arg)
+	m.queryLatencies.WithLabelValues("BulkMarkNotificationMessagesFailed").Observe(time.Since(start).Seconds())
+	return r0, r1
+}
+
+func (m metricsStore) BulkMarkNotificationMessagesSent(ctx context.Context, arg database.BulkMarkNotificationMessagesSentParams) (int64, error) {
+	start := time.Now()
+	r0, r1 := m.s.BulkMarkNotificationMessagesSent(ctx, arg)
+	m.queryLatencies.WithLabelValues("BulkMarkNotificationMessagesSent").Observe(time.Since(start).Seconds())
+	return r0, r1
 }
 
 func (m metricsStore) CleanTailnetCoordinators(ctx context.Context) error {
@@ -263,6 +284,13 @@ func (m metricsStore) DeleteOAuth2ProviderAppTokensByAppAndUserID(ctx context.Co
 	return r0
 }
 
+func (m metricsStore) DeleteOldNotificationMessages(ctx context.Context) error {
+	start := time.Now()
+	r0 := m.s.DeleteOldNotificationMessages(ctx)
+	m.queryLatencies.WithLabelValues("DeleteOldNotificationMessages").Observe(time.Since(start).Seconds())
+	return r0
+}
+
 func (m metricsStore) DeleteOldProvisionerDaemons(ctx context.Context) error {
 	start := time.Now()
 	r0 := m.s.DeleteOldProvisionerDaemons(ctx)
@@ -288,6 +316,20 @@ func (m metricsStore) DeleteOrganization(ctx context.Context, id uuid.UUID) erro
 	start := time.Now()
 	r0 := m.s.DeleteOrganization(ctx, id)
 	m.queryLatencies.WithLabelValues("DeleteOrganization").Observe(time.Since(start).Seconds())
+	return r0
+}
+
+func (m metricsStore) DeleteOrganizationMember(ctx context.Context, arg database.DeleteOrganizationMemberParams) error {
+	start := time.Now()
+	r0 := m.s.DeleteOrganizationMember(ctx, arg)
+	m.queryLatencies.WithLabelValues("DeleteOrganizationMember").Observe(time.Since(start).Seconds())
+	return r0
+}
+
+func (m metricsStore) DeleteProvisionerKey(ctx context.Context, id uuid.UUID) error {
+	start := time.Now()
+	r0 := m.s.DeleteProvisionerKey(ctx, id)
+	m.queryLatencies.WithLabelValues("DeleteProvisionerKey").Observe(time.Since(start).Seconds())
 	return r0
 }
 
@@ -347,11 +389,25 @@ func (m metricsStore) DeleteWorkspaceAgentPortSharesByTemplate(ctx context.Conte
 	return r0
 }
 
+func (m metricsStore) EnqueueNotificationMessage(ctx context.Context, arg database.EnqueueNotificationMessageParams) error {
+	start := time.Now()
+	r0 := m.s.EnqueueNotificationMessage(ctx, arg)
+	m.queryLatencies.WithLabelValues("EnqueueNotificationMessage").Observe(time.Since(start).Seconds())
+	return r0
+}
+
 func (m metricsStore) FavoriteWorkspace(ctx context.Context, arg uuid.UUID) error {
 	start := time.Now()
 	r0 := m.s.FavoriteWorkspace(ctx, arg)
 	m.queryLatencies.WithLabelValues("FavoriteWorkspace").Observe(time.Since(start).Seconds())
 	return r0
+}
+
+func (m metricsStore) FetchNewMessageMetadata(ctx context.Context, arg database.FetchNewMessageMetadataParams) (database.FetchNewMessageMetadataRow, error) {
+	start := time.Now()
+	r0, r1 := m.s.FetchNewMessageMetadata(ctx, arg)
+	m.queryLatencies.WithLabelValues("FetchNewMessageMetadata").Observe(time.Since(start).Seconds())
+	return r0, r1
 }
 
 func (m metricsStore) GetAPIKeyByID(ctx context.Context, id string) (database.APIKey, error) {
@@ -428,6 +484,13 @@ func (m metricsStore) GetAllTailnetTunnels(ctx context.Context) ([]database.Tail
 	start := time.Now()
 	r0, r1 := m.s.GetAllTailnetTunnels(ctx)
 	m.queryLatencies.WithLabelValues("GetAllTailnetTunnels").Observe(time.Since(start).Seconds())
+	return r0, r1
+}
+
+func (m metricsStore) GetAnnouncementBanners(ctx context.Context) (string, error) {
+	start := time.Now()
+	r0, r1 := m.s.GetAnnouncementBanners(ctx)
+	m.queryLatencies.WithLabelValues("GetAnnouncementBanners").Observe(time.Since(start).Seconds())
 	return r0, r1
 }
 
@@ -571,11 +634,25 @@ func (m metricsStore) GetGroupByOrgAndName(ctx context.Context, arg database.Get
 	return group, err
 }
 
-func (m metricsStore) GetGroupMembers(ctx context.Context, groupID uuid.UUID) ([]database.User, error) {
+func (m metricsStore) GetGroupMembers(ctx context.Context) ([]database.GroupMember, error) {
 	start := time.Now()
-	users, err := m.s.GetGroupMembers(ctx, groupID)
+	r0, r1 := m.s.GetGroupMembers(ctx)
 	m.queryLatencies.WithLabelValues("GetGroupMembers").Observe(time.Since(start).Seconds())
+	return r0, r1
+}
+
+func (m metricsStore) GetGroupMembersByGroupID(ctx context.Context, groupID uuid.UUID) ([]database.User, error) {
+	start := time.Now()
+	users, err := m.s.GetGroupMembersByGroupID(ctx, groupID)
+	m.queryLatencies.WithLabelValues("GetGroupMembersByGroupID").Observe(time.Since(start).Seconds())
 	return users, err
+}
+
+func (m metricsStore) GetGroups(ctx context.Context) ([]database.Group, error) {
+	start := time.Now()
+	r0, r1 := m.s.GetGroups(ctx)
+	m.queryLatencies.WithLabelValues("GetGroups").Observe(time.Since(start).Seconds())
+	return r0, r1
 }
 
 func (m metricsStore) GetGroupsByOrganizationAndUserID(ctx context.Context, arg database.GetGroupsByOrganizationAndUserIDParams) ([]database.Group, error) {
@@ -662,10 +739,17 @@ func (m metricsStore) GetLogoURL(ctx context.Context) (string, error) {
 	return url, err
 }
 
-func (m metricsStore) GetNotificationBanners(ctx context.Context) (string, error) {
+func (m metricsStore) GetNotificationMessagesByStatus(ctx context.Context, arg database.GetNotificationMessagesByStatusParams) ([]database.NotificationMessage, error) {
 	start := time.Now()
-	r0, r1 := m.s.GetNotificationBanners(ctx)
-	m.queryLatencies.WithLabelValues("GetNotificationBanners").Observe(time.Since(start).Seconds())
+	r0, r1 := m.s.GetNotificationMessagesByStatus(ctx, arg)
+	m.queryLatencies.WithLabelValues("GetNotificationMessagesByStatus").Observe(time.Since(start).Seconds())
+	return r0, r1
+}
+
+func (m metricsStore) GetNotificationsSettings(ctx context.Context) (string, error) {
+	start := time.Now()
+	r0, r1 := m.s.GetNotificationsSettings(ctx)
+	m.queryLatencies.WithLabelValues("GetNotificationsSettings").Observe(time.Since(start).Seconds())
 	return r0, r1
 }
 
@@ -760,20 +844,6 @@ func (m metricsStore) GetOrganizationIDsByMemberIDs(ctx context.Context, ids []u
 	return organizations, err
 }
 
-func (m metricsStore) GetOrganizationMemberByUserID(ctx context.Context, arg database.GetOrganizationMemberByUserIDParams) (database.OrganizationMember, error) {
-	start := time.Now()
-	member, err := m.s.GetOrganizationMemberByUserID(ctx, arg)
-	m.queryLatencies.WithLabelValues("GetOrganizationMemberByUserID").Observe(time.Since(start).Seconds())
-	return member, err
-}
-
-func (m metricsStore) GetOrganizationMembershipsByUserID(ctx context.Context, userID uuid.UUID) ([]database.OrganizationMember, error) {
-	start := time.Now()
-	memberships, err := m.s.GetOrganizationMembershipsByUserID(ctx, userID)
-	m.queryLatencies.WithLabelValues("GetOrganizationMembershipsByUserID").Observe(time.Since(start).Seconds())
-	return memberships, err
-}
-
 func (m metricsStore) GetOrganizations(ctx context.Context) ([]database.Organization, error) {
 	start := time.Now()
 	organizations, err := m.s.GetOrganizations(ctx)
@@ -835,6 +905,20 @@ func (m metricsStore) GetProvisionerJobsCreatedAfter(ctx context.Context, create
 	jobs, err := m.s.GetProvisionerJobsCreatedAfter(ctx, createdAt)
 	m.queryLatencies.WithLabelValues("GetProvisionerJobsCreatedAfter").Observe(time.Since(start).Seconds())
 	return jobs, err
+}
+
+func (m metricsStore) GetProvisionerKeyByID(ctx context.Context, id uuid.UUID) (database.ProvisionerKey, error) {
+	start := time.Now()
+	r0, r1 := m.s.GetProvisionerKeyByID(ctx, id)
+	m.queryLatencies.WithLabelValues("GetProvisionerKeyByID").Observe(time.Since(start).Seconds())
+	return r0, r1
+}
+
+func (m metricsStore) GetProvisionerKeyByName(ctx context.Context, name database.GetProvisionerKeyByNameParams) (database.ProvisionerKey, error) {
+	start := time.Now()
+	r0, r1 := m.s.GetProvisionerKeyByName(ctx, name)
+	m.queryLatencies.WithLabelValues("GetProvisionerKeyByName").Observe(time.Since(start).Seconds())
+	return r0, r1
 }
 
 func (m metricsStore) GetProvisionerLogsAfterID(ctx context.Context, arg database.GetProvisionerLogsAfterIDParams) ([]database.ProvisionerJobLog, error) {
@@ -1579,6 +1663,13 @@ func (m metricsStore) InsertProvisionerJobLogs(ctx context.Context, arg database
 	return logs, err
 }
 
+func (m metricsStore) InsertProvisionerKey(ctx context.Context, arg database.InsertProvisionerKeyParams) (database.ProvisionerKey, error) {
+	start := time.Now()
+	r0, r1 := m.s.InsertProvisionerKey(ctx, arg)
+	m.queryLatencies.WithLabelValues("InsertProvisionerKey").Observe(time.Since(start).Seconds())
+	return r0, r1
+}
+
 func (m metricsStore) InsertReplica(ctx context.Context, arg database.InsertReplicaParams) (database.Replica, error) {
 	start := time.Now()
 	replica, err := m.s.InsertReplica(ctx, arg)
@@ -1740,10 +1831,24 @@ func (m metricsStore) InsertWorkspaceResourceMetadata(ctx context.Context, arg d
 	return metadata, err
 }
 
+func (m metricsStore) ListProvisionerKeysByOrganization(ctx context.Context, organizationID uuid.UUID) ([]database.ProvisionerKey, error) {
+	start := time.Now()
+	r0, r1 := m.s.ListProvisionerKeysByOrganization(ctx, organizationID)
+	m.queryLatencies.WithLabelValues("ListProvisionerKeysByOrganization").Observe(time.Since(start).Seconds())
+	return r0, r1
+}
+
 func (m metricsStore) ListWorkspaceAgentPortShares(ctx context.Context, workspaceID uuid.UUID) ([]database.WorkspaceAgentPortShare, error) {
 	start := time.Now()
 	r0, r1 := m.s.ListWorkspaceAgentPortShares(ctx, workspaceID)
 	m.queryLatencies.WithLabelValues("ListWorkspaceAgentPortShares").Observe(time.Since(start).Seconds())
+	return r0, r1
+}
+
+func (m metricsStore) OrganizationMembers(ctx context.Context, arg database.OrganizationMembersParams) ([]database.OrganizationMembersRow, error) {
+	start := time.Now()
+	r0, r1 := m.s.OrganizationMembers(ctx, arg)
+	m.queryLatencies.WithLabelValues("OrganizationMembers").Observe(time.Since(start).Seconds())
 	return r0, r1
 }
 
@@ -2174,6 +2279,13 @@ func (m metricsStore) UpdateWorkspacesDormantDeletingAtByTemplateID(ctx context.
 	return r0
 }
 
+func (m metricsStore) UpsertAnnouncementBanners(ctx context.Context, value string) error {
+	start := time.Now()
+	r0 := m.s.UpsertAnnouncementBanners(ctx, value)
+	m.queryLatencies.WithLabelValues("UpsertAnnouncementBanners").Observe(time.Since(start).Seconds())
+	return r0
+}
+
 func (m metricsStore) UpsertAppSecurityKey(ctx context.Context, value string) error {
 	start := time.Now()
 	r0 := m.s.UpsertAppSecurityKey(ctx, value)
@@ -2230,10 +2342,10 @@ func (m metricsStore) UpsertLogoURL(ctx context.Context, value string) error {
 	return r0
 }
 
-func (m metricsStore) UpsertNotificationBanners(ctx context.Context, value string) error {
+func (m metricsStore) UpsertNotificationsSettings(ctx context.Context, value string) error {
 	start := time.Now()
-	r0 := m.s.UpsertNotificationBanners(ctx, value)
-	m.queryLatencies.WithLabelValues("UpsertNotificationBanners").Observe(time.Since(start).Seconds())
+	r0 := m.s.UpsertNotificationsSettings(ctx, value)
+	m.queryLatencies.WithLabelValues("UpsertNotificationsSettings").Observe(time.Since(start).Seconds())
 	return r0
 }
 

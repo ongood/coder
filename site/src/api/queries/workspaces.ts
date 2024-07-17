@@ -5,15 +5,19 @@ import type {
   UseMutationOptions,
 } from "react-query";
 import { type DeleteWorkspaceOptions, API } from "api/api";
+import { DetailedError, isApiValidationError } from "api/errors";
 import type {
   CreateWorkspaceRequest,
   ProvisionerLogLevel,
+  UsageAppName,
   Workspace,
   WorkspaceBuild,
   WorkspaceBuildParameter,
   WorkspacesRequest,
   WorkspacesResponse,
 } from "api/typesGenerated";
+import type { ConnectionStatus } from "pages/TerminalPage/types";
+import { disabledRefetchOptions } from "./util";
 import { workspaceBuildsKey } from "./workspaceBuilds";
 
 export const workspaceByOwnerAndNameKey = (owner: string, name: string) => [
@@ -33,14 +37,6 @@ export const workspaceByOwnerAndName = (owner: string, name: string) => {
   };
 };
 
-type AutoCreateWorkspaceOptions = {
-  templateName: string;
-  versionId?: string;
-  organizationId: string;
-  defaultBuildParameters?: WorkspaceBuildParameter[];
-  defaultName: string;
-};
-
 type CreateWorkspaceMutationVariables = CreateWorkspaceRequest & {
   userId: string;
   organizationId: string;
@@ -58,19 +54,45 @@ export const createWorkspace = (queryClient: QueryClient) => {
   };
 };
 
+type AutoCreateWorkspaceOptions = {
+  organizationId: string;
+  templateName: string;
+  workspaceName: string;
+  /**
+   * If provided, the auto-create workspace feature will attempt to find a
+   * matching workspace. If found, it will return the existing workspace instead
+   * of creating a new one. Its value supports [advanced filtering queries for
+   * workspaces](https://coder.com/docs/workspaces#workspace-filtering). If
+   * multiple values are returned, the first one will be returned.
+   */
+  match: string | null;
+  templateVersionId?: string;
+  buildParameters?: WorkspaceBuildParameter[];
+};
+
 export const autoCreateWorkspace = (queryClient: QueryClient) => {
   return {
     mutationFn: async ({
-      templateName,
-      versionId,
       organizationId,
-      defaultBuildParameters,
-      defaultName,
+      templateName,
+      workspaceName,
+      templateVersionId,
+      buildParameters,
+      match,
     }: AutoCreateWorkspaceOptions) => {
+      if (match) {
+        const matchWorkspace = await findMatchWorkspace(
+          `owner:me template:${templateName} ${match}`,
+        );
+        if (matchWorkspace) {
+          return matchWorkspace;
+        }
+      }
+
       let templateVersionParameters;
 
-      if (versionId) {
-        templateVersionParameters = { template_version_id: versionId };
+      if (templateVersionId) {
+        templateVersionParameters = { template_version_id: templateVersionId };
       } else {
         const template = await API.getTemplateByName(
           organizationId,
@@ -81,8 +103,8 @@ export const autoCreateWorkspace = (queryClient: QueryClient) => {
 
       return API.createWorkspace(organizationId, "me", {
         ...templateVersionParameters,
-        name: defaultName,
-        rich_parameter_values: defaultBuildParameters,
+        name: workspaceName,
+        rich_parameter_values: buildParameters,
       });
     },
     onSuccess: async () => {
@@ -90,6 +112,27 @@ export const autoCreateWorkspace = (queryClient: QueryClient) => {
     },
   };
 };
+
+async function findMatchWorkspace(q: string): Promise<Workspace | undefined> {
+  try {
+    const { workspaces } = await API.getWorkspaces({ q, limit: 1 });
+    const matchWorkspace = workspaces.at(0);
+    if (matchWorkspace) {
+      return matchWorkspace;
+    }
+  } catch (err) {
+    if (isApiValidationError(err)) {
+      const firstValidationErrorDetail =
+        err.response.data.validations?.[0].detail;
+      throw new DetailedError(
+        "Invalid match value",
+        firstValidationErrorDetail,
+      );
+    }
+
+    throw err;
+  }
+}
 
 export function workspacesKey(config: WorkspacesRequest = {}) {
   const { q, limit } = config;
@@ -281,5 +324,72 @@ export const toggleFavorite = (
         ),
       });
     },
+  };
+};
+
+export const buildLogsKey = (workspaceId: string) => [
+  "workspaces",
+  workspaceId,
+  "logs",
+];
+
+export const buildLogs = (workspace: Workspace) => {
+  return {
+    queryKey: buildLogsKey(workspace.id),
+    queryFn: () => API.getWorkspaceBuildLogs(workspace.latest_build.id),
+  };
+};
+
+export const agentLogsKey = (workspaceId: string, agentId: string) => [
+  "workspaces",
+  workspaceId,
+  "agents",
+  agentId,
+  "logs",
+];
+
+export const agentLogs = (workspaceId: string, agentId: string) => {
+  return {
+    queryKey: agentLogsKey(workspaceId, agentId),
+    queryFn: () => API.getWorkspaceAgentLogs(agentId),
+    ...disabledRefetchOptions,
+  };
+};
+
+// workspace usage options
+export interface WorkspaceUsageOptions {
+  usageApp: UsageAppName;
+  connectionStatus: ConnectionStatus;
+  workspaceId: string | undefined;
+  agentId: string | undefined;
+}
+
+export const workspaceUsage = (options: WorkspaceUsageOptions) => {
+  return {
+    queryKey: [
+      "workspaces",
+      options.workspaceId,
+      "agents",
+      options.agentId,
+      "usage",
+      options.usageApp,
+    ],
+    enabled:
+      options.workspaceId !== undefined &&
+      options.agentId !== undefined &&
+      options.connectionStatus === "connected",
+    queryFn: () => {
+      if (options.workspaceId === undefined || options.agentId === undefined) {
+        return Promise.reject();
+      }
+
+      return API.postWorkspaceUsage(options.workspaceId, {
+        agent_id: options.agentId,
+        app_name: options.usageApp,
+      });
+    },
+    // ...disabledRefetchOptions,
+    refetchInterval: 60000,
+    refetchIntervalInBackground: true,
   };
 };

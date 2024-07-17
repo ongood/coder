@@ -19,6 +19,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/exp/slices"
 	"golang.org/x/sync/errgroup"
+	"golang.org/x/xerrors"
 
 	"github.com/coder/coder/v2/coderd/audit"
 	"github.com/coder/coder/v2/coderd/coderdtest"
@@ -70,8 +71,14 @@ func TestFirstUser(t *testing.T) {
 
 	t.Run("Create", func(t *testing.T) {
 		t.Parallel()
+		ctx := testutil.Context(t, testutil.WaitShort)
 		client := coderdtest.New(t, nil)
 		_ = coderdtest.CreateFirstUser(t, client)
+		u, err := client.User(ctx, codersdk.Me)
+		require.NoError(t, err)
+		assert.Equal(t, coderdtest.FirstUserParams.Name, u.Name)
+		assert.Equal(t, coderdtest.FirstUserParams.Email, u.Email)
+		assert.Equal(t, coderdtest.FirstUserParams.Username, u.Username)
 	})
 
 	t.Run("Trial", func(t *testing.T) {
@@ -96,6 +103,7 @@ func TestFirstUser(t *testing.T) {
 		req := codersdk.CreateFirstUserRequest{
 			Email:    "testuser@coder.com",
 			Username: "testuser",
+			Name:     "Test User",
 			Password: "SomeSecurePassword!",
 			Trial:    true,
 		}
@@ -525,7 +533,7 @@ func TestPostUsers(t *testing.T) {
 
 		require.Len(t, auditor.AuditLogs(), numLogs)
 		require.Equal(t, database.AuditActionCreate, auditor.AuditLogs()[numLogs-1].Action)
-		require.Equal(t, database.AuditActionLogin, auditor.AuditLogs()[numLogs-2].Action)
+		require.Equal(t, database.AuditActionLogin, auditor.AuditLogs()[numLogs-3].Action)
 
 		require.Len(t, user.OrganizationIDs, 1)
 		assert.Equal(t, firstUser.OrganizationID, user.OrganizationIDs[0])
@@ -692,7 +700,7 @@ func TestUpdateUserProfile(t *testing.T) {
 		require.Equal(t, http.StatusConflict, apiErr.StatusCode())
 	})
 
-	t.Run("UpdateUser", func(t *testing.T) {
+	t.Run("UpdateSelf", func(t *testing.T) {
 		t.Parallel()
 		auditor := audit.NewMock()
 		client := coderdtest.New(t, &coderdtest.Options{Auditor: auditor})
@@ -704,15 +712,48 @@ func TestUpdateUserProfile(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), testutil.WaitLong)
 		defer cancel()
 
-		_, _ = client.User(ctx, codersdk.Me)
-		userProfile, err := client.UpdateUserProfile(ctx, codersdk.Me, codersdk.UpdateUserProfileRequest{
-			Username: "newusername",
-			Name:     "Mr User",
-		})
+		me, err := client.User(ctx, codersdk.Me)
 		require.NoError(t, err)
-		require.Equal(t, userProfile.Username, "newusername")
-		require.Equal(t, userProfile.Name, "Mr User")
+
+		userProfile, err := client.UpdateUserProfile(ctx, codersdk.Me, codersdk.UpdateUserProfileRequest{
+			Username: me.Username + "1",
+			Name:     me.Name + "1",
+		})
 		numLogs++ // add an audit log for user update
+
+		require.NoError(t, err)
+		require.Equal(t, me.Username+"1", userProfile.Username)
+		require.Equal(t, me.Name+"1", userProfile.Name)
+
+		require.Len(t, auditor.AuditLogs(), numLogs)
+		require.Equal(t, database.AuditActionWrite, auditor.AuditLogs()[numLogs-1].Action)
+	})
+
+	t.Run("UpdateSelfAsMember", func(t *testing.T) {
+		t.Parallel()
+		auditor := audit.NewMock()
+		client := coderdtest.New(t, &coderdtest.Options{Auditor: auditor})
+		numLogs := len(auditor.AuditLogs())
+
+		firstUser := coderdtest.CreateFirstUser(t, client)
+		numLogs++ // add an audit log for login
+
+		memberClient, memberUser := coderdtest.CreateAnotherUser(t, client, firstUser.OrganizationID)
+		numLogs++ // add an audit log for user creation
+
+		ctx, cancel := context.WithTimeout(context.Background(), testutil.WaitLong)
+		defer cancel()
+
+		userProfile, err := memberClient.UpdateUserProfile(ctx, codersdk.Me, codersdk.UpdateUserProfileRequest{
+			Username: memberUser.Username + "1",
+			Name:     memberUser.Name + "1",
+		})
+		numLogs++ // add an audit log for user update
+		numLogs++ // add an audit log for API key creation
+
+		require.NoError(t, err)
+		require.Equal(t, memberUser.Username+"1", userProfile.Username)
+		require.Equal(t, memberUser.Name+"1", userProfile.Name)
 
 		require.Len(t, auditor.AuditLogs(), numLogs)
 		require.Equal(t, database.AuditActionWrite, auditor.AuditLogs()[numLogs-1].Action)
@@ -786,6 +827,7 @@ func TestUpdateUserPassword(t *testing.T) {
 		})
 		require.NoError(t, err, "member should login successfully with the new password")
 	})
+
 	t.Run("MemberCanUpdateOwnPassword", func(t *testing.T) {
 		t.Parallel()
 		auditor := audit.NewMock()
@@ -813,6 +855,7 @@ func TestUpdateUserPassword(t *testing.T) {
 		require.Len(t, auditor.AuditLogs(), numLogs)
 		require.Equal(t, database.AuditActionWrite, auditor.AuditLogs()[numLogs-1].Action)
 	})
+
 	t.Run("MemberCantUpdateOwnPasswordWithoutOldPassword", func(t *testing.T) {
 		t.Parallel()
 		client := coderdtest.New(t, nil)
@@ -827,6 +870,41 @@ func TestUpdateUserPassword(t *testing.T) {
 		})
 		require.Error(t, err, "member should not be able to update own password without providing old password")
 	})
+
+	t.Run("AuditorCantTellIfPasswordIncorrect", func(t *testing.T) {
+		t.Parallel()
+		auditor := audit.NewMock()
+		adminClient := coderdtest.New(t, &coderdtest.Options{Auditor: auditor})
+
+		adminUser := coderdtest.CreateFirstUser(t, adminClient)
+
+		auditorClient, _ := coderdtest.CreateAnotherUser(t, adminClient,
+			adminUser.OrganizationID,
+			rbac.RoleAuditor(),
+		)
+
+		_, memberUser := coderdtest.CreateAnotherUser(t, adminClient, adminUser.OrganizationID)
+		numLogs := len(auditor.AuditLogs())
+
+		ctx, cancel := context.WithTimeout(context.Background(), testutil.WaitLong)
+		defer cancel()
+
+		err := auditorClient.UpdateUserPassword(ctx, memberUser.ID.String(), codersdk.UpdateUserPasswordRequest{
+			Password: "MySecurePassword!",
+		})
+		numLogs++ // add an audit log for user update
+
+		require.Error(t, err, "auditors shouldn't be able to update passwords")
+		var httpErr *codersdk.Error
+		require.True(t, xerrors.As(err, &httpErr))
+		// ensure that the error we get is "not found" and not "bad request"
+		require.Equal(t, http.StatusNotFound, httpErr.StatusCode())
+
+		require.Len(t, auditor.AuditLogs(), numLogs)
+		require.Equal(t, database.AuditActionWrite, auditor.AuditLogs()[numLogs-1].Action)
+		require.Equal(t, int32(http.StatusNotFound), auditor.AuditLogs()[numLogs-1].StatusCode)
+	})
+
 	t.Run("AdminCanUpdateOwnPasswordWithoutOldPassword", func(t *testing.T) {
 		t.Parallel()
 		auditor := audit.NewMock()
@@ -929,12 +1007,12 @@ func TestGrantSiteRoles(t *testing.T) {
 	admin := coderdtest.New(t, nil)
 	first := coderdtest.CreateFirstUser(t, admin)
 	member, _ := coderdtest.CreateAnotherUser(t, admin, first.OrganizationID)
-	orgAdmin, _ := coderdtest.CreateAnotherUser(t, admin, first.OrganizationID, rbac.RoleOrgAdmin(first.OrganizationID))
+	orgAdmin, _ := coderdtest.CreateAnotherUser(t, admin, first.OrganizationID, rbac.ScopedRoleOrgAdmin(first.OrganizationID))
 	randOrg, err := admin.CreateOrganization(ctx, codersdk.CreateOrganizationRequest{
 		Name: "random",
 	})
 	require.NoError(t, err)
-	_, randOrgUser := coderdtest.CreateAnotherUser(t, admin, randOrg.ID, rbac.RoleOrgAdmin(randOrg.ID))
+	_, randOrgUser := coderdtest.CreateAnotherUser(t, admin, randOrg.ID, rbac.ScopedRoleOrgAdmin(randOrg.ID))
 	userAdmin, _ := coderdtest.CreateAnotherUser(t, admin, first.OrganizationID, rbac.RoleUserAdmin())
 
 	const newUser = "newUser"
@@ -953,7 +1031,7 @@ func TestGrantSiteRoles(t *testing.T) {
 			Name:         "OrgRoleInSite",
 			Client:       admin,
 			AssignToUser: codersdk.Me,
-			Roles:        []string{rbac.RoleOrgAdmin(first.OrganizationID)},
+			Roles:        []string{rbac.RoleOrgAdmin()},
 			Error:        true,
 			StatusCode:   http.StatusBadRequest,
 		},
@@ -961,7 +1039,7 @@ func TestGrantSiteRoles(t *testing.T) {
 			Name:         "UserNotExists",
 			Client:       admin,
 			AssignToUser: uuid.NewString(),
-			Roles:        []string{rbac.RoleOwner()},
+			Roles:        []string{codersdk.RoleOwner},
 			Error:        true,
 			StatusCode:   http.StatusBadRequest,
 		},
@@ -987,7 +1065,7 @@ func TestGrantSiteRoles(t *testing.T) {
 			Client:       admin,
 			OrgID:        first.OrganizationID,
 			AssignToUser: codersdk.Me,
-			Roles:        []string{rbac.RoleOwner()},
+			Roles:        []string{codersdk.RoleOwner},
 			Error:        true,
 			StatusCode:   http.StatusBadRequest,
 		},
@@ -996,7 +1074,7 @@ func TestGrantSiteRoles(t *testing.T) {
 			Client:       orgAdmin,
 			OrgID:        randOrg.ID,
 			AssignToUser: randOrgUser.ID.String(),
-			Roles:        []string{rbac.RoleOrgMember(randOrg.ID)},
+			Roles:        []string{rbac.RoleOrgMember()},
 			Error:        true,
 			StatusCode:   http.StatusNotFound,
 		},
@@ -1014,9 +1092,9 @@ func TestGrantSiteRoles(t *testing.T) {
 			Client:       orgAdmin,
 			OrgID:        first.OrganizationID,
 			AssignToUser: newUser,
-			Roles:        []string{rbac.RoleOrgAdmin(first.OrganizationID)},
+			Roles:        []string{rbac.RoleOrgAdmin()},
 			ExpectedRoles: []string{
-				rbac.RoleOrgAdmin(first.OrganizationID),
+				rbac.RoleOrgAdmin(),
 			},
 			Error: false,
 		},
@@ -1024,9 +1102,9 @@ func TestGrantSiteRoles(t *testing.T) {
 			Name:         "UserAdminMakeMember",
 			Client:       userAdmin,
 			AssignToUser: newUser,
-			Roles:        []string{rbac.RoleMember()},
+			Roles:        []string{codersdk.RoleMember},
 			ExpectedRoles: []string{
-				rbac.RoleMember(),
+				codersdk.RoleMember,
 			},
 			Error: false,
 		},
@@ -1091,7 +1169,7 @@ func TestInitialRoles(t *testing.T) {
 	roles, err := client.UserRoles(ctx, codersdk.Me)
 	require.NoError(t, err)
 	require.ElementsMatch(t, roles.Roles, []string{
-		rbac.RoleOwner(),
+		codersdk.RoleOwner,
 	}, "should be a member and admin")
 
 	require.ElementsMatch(t, roles.OrganizationRoles[first.OrganizationID], []string{}, "should be a member")
@@ -1256,12 +1334,12 @@ func TestUsersFilter(t *testing.T) {
 	users := make([]codersdk.User, 0)
 	users = append(users, firstUser)
 	for i := 0; i < 15; i++ {
-		roles := []string{}
+		roles := []rbac.RoleIdentifier{}
 		if i%2 == 0 {
 			roles = append(roles, rbac.RoleTemplateAdmin(), rbac.RoleUserAdmin())
 		}
 		if i%3 == 0 {
-			roles = append(roles, "auditor")
+			roles = append(roles, rbac.RoleAuditor())
 		}
 		userClient, userData := coderdtest.CreateAnotherUser(t, client, first.OrganizationID, roles...)
 		// Set the last seen for each user to a unique day
@@ -1346,12 +1424,12 @@ func TestUsersFilter(t *testing.T) {
 		{
 			Name: "Admins",
 			Filter: codersdk.UsersRequest{
-				Role:   rbac.RoleOwner(),
+				Role:   codersdk.RoleOwner,
 				Status: codersdk.UserStatusSuspended + "," + codersdk.UserStatusActive,
 			},
 			FilterF: func(_ codersdk.UsersRequest, u codersdk.User) bool {
 				for _, r := range u.Roles {
-					if r.Name == rbac.RoleOwner() {
+					if r.Name == codersdk.RoleOwner {
 						return true
 					}
 				}
@@ -1366,7 +1444,7 @@ func TestUsersFilter(t *testing.T) {
 			},
 			FilterF: func(_ codersdk.UsersRequest, u codersdk.User) bool {
 				for _, r := range u.Roles {
-					if r.Name == rbac.RoleOwner() {
+					if r.Name == codersdk.RoleOwner {
 						return true
 					}
 				}
@@ -1376,7 +1454,7 @@ func TestUsersFilter(t *testing.T) {
 		{
 			Name: "Members",
 			Filter: codersdk.UsersRequest{
-				Role:   rbac.RoleMember(),
+				Role:   codersdk.RoleMember,
 				Status: codersdk.UserStatusSuspended + "," + codersdk.UserStatusActive,
 			},
 			FilterF: func(_ codersdk.UsersRequest, u codersdk.User) bool {
@@ -1390,7 +1468,7 @@ func TestUsersFilter(t *testing.T) {
 			},
 			FilterF: func(_ codersdk.UsersRequest, u codersdk.User) bool {
 				for _, r := range u.Roles {
-					if r.Name == rbac.RoleOwner() {
+					if r.Name == codersdk.RoleOwner {
 						return (strings.ContainsAny(u.Username, "iI") || strings.ContainsAny(u.Email, "iI")) &&
 							u.Status == codersdk.UserStatusActive
 					}
@@ -1405,7 +1483,7 @@ func TestUsersFilter(t *testing.T) {
 			},
 			FilterF: func(_ codersdk.UsersRequest, u codersdk.User) bool {
 				for _, r := range u.Roles {
-					if r.Name == rbac.RoleOwner() {
+					if r.Name == codersdk.RoleOwner {
 						return (strings.ContainsAny(u.Username, "iI") || strings.ContainsAny(u.Email, "iI")) &&
 							u.Status == codersdk.UserStatusActive
 					}
@@ -1453,7 +1531,7 @@ func TestUsersFilter(t *testing.T) {
 					exp = append(exp, made)
 				}
 			}
-			require.ElementsMatch(t, exp, matched.Users, "expected workspaces returned")
+			require.ElementsMatch(t, exp, matched.Users, "expected users returned")
 		})
 	}
 }

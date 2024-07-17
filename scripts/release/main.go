@@ -242,6 +242,7 @@ func (r *releaseCommand) promoteVersionToStable(ctx context.Context, inv *serpen
 	updatedBody := removeMainlineBlurb(newStable.GetBody())
 	updatedBody = addStableSince(time.Now().UTC(), updatedBody)
 	updatedNewStable.Body = github.String(updatedBody)
+	updatedNewStable.MakeLatest = github.String("true")
 	updatedNewStable.Prerelease = github.Bool(false)
 	updatedNewStable.Draft = github.Bool(false)
 	if !r.dryRun {
@@ -280,7 +281,7 @@ func addStableSince(date time.Time, body string) string {
 // Example:
 //
 //	> [!NOTE]
-//	> This is a mainline Coder release. We advise enterprise customers without a staging environment to install our [latest stable release](https://github.com/coder/coder/releases/latest) while we refine this version. Learn more about our [Release Schedule](https://coder.com/docs/v2/latest/install/releases).
+//	> This is a mainline Coder release. We advise enterprise customers without a staging environment to install our [latest stable release](https://github.com/coder/coder/releases/latest) while we refine this version. Learn more about our [Release Schedule](https://coder.com/docs/install/releases).
 func removeMainlineBlurb(body string) string {
 	lines := strings.Split(body, "\n")
 
