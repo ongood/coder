@@ -148,7 +148,7 @@ require (
 	github.com/justinas/nosurf v1.1.1
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
 	github.com/kirsle/configdir v0.0.0-20170128060238-e45d2f54772f
-	github.com/klauspost/compress v1.17.6
+	github.com/klauspost/compress v1.17.9
 	github.com/lib/pq v1.10.9
 	github.com/mattn/go-isatty v0.0.20
 	github.com/mitchellh/go-wordwrap v1.0.1
@@ -161,9 +161,9 @@ require (
 	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8
 	github.com/pkg/diff v0.0.0-20210226163009-20ebb0f2a09e
 	github.com/pkg/sftp v1.13.6
-	github.com/prometheus/client_golang v1.18.0
-	github.com/prometheus/client_model v0.6.0
-	github.com/prometheus/common v0.47.0
+	github.com/prometheus/client_golang v1.20.2
+	github.com/prometheus/client_model v0.6.1
+	github.com/prometheus/common v0.55.0
 	github.com/quasilyte/go-ruleguard/dsl v0.3.21
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/skratchdot/open-golang v0.0.0-20200116055534-eef842397966
@@ -188,21 +188,21 @@ require (
 	go.uber.org/atomic v1.11.0
 	go.uber.org/goleak v1.2.1
 	go4.org/netipx v0.0.0-20230728180743-ad4cb58a6516
-	golang.org/x/crypto v0.22.0
+	golang.org/x/crypto v0.24.0
 	golang.org/x/exp v0.0.0-20240222234643-814bf88cf225
 	golang.org/x/mod v0.17.0
-	golang.org/x/net v0.24.0
-	golang.org/x/oauth2 v0.19.0
+	golang.org/x/net v0.26.0
+	golang.org/x/oauth2 v0.21.0
 	golang.org/x/sync v0.7.0
-	golang.org/x/sys v0.19.0
-	golang.org/x/term v0.19.0
-	golang.org/x/text v0.14.0
-	golang.org/x/tools v0.20.0
+	golang.org/x/sys v0.22.0
+	golang.org/x/term v0.21.0
+	golang.org/x/text v0.16.0
+	golang.org/x/tools v0.21.1-0.20240508182429-e35e4ccd0d2d
 	golang.org/x/xerrors v0.0.0-20231012003039-104605ab7028
 	golang.zx2c4.com/wireguard v0.0.0-20230704135630-469159ecf7d1
 	google.golang.org/api v0.176.1
 	google.golang.org/grpc v1.63.2
-	google.golang.org/protobuf v1.33.0
+	google.golang.org/protobuf v1.34.2
 	gopkg.in/DataDog/dd-trace-go.v1 v1.61.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	gopkg.in/yaml.v3 v3.0.1
@@ -228,7 +228,9 @@ require (
 	github.com/alecthomas/chroma/v2 v2.13.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.11.1 // indirect
 	github.com/go-jose/go-jose/v4 v4.0.1 // indirect
+	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/mitchellh/hashstructure v1.1.0 // indirect
+	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/pion/transport/v2 v2.0.0 // indirect
 	github.com/tdewolff/test v1.0.11-0.20240106005702-7de5f7df4739 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.49.0 // indirect
@@ -277,7 +279,7 @@ require (
 	github.com/bep/godartsass v1.2.0 // indirect
 	github.com/bep/godartsass/v2 v2.0.0 // indirect
 	github.com/bep/golibsass v1.1.1 // indirect
-	github.com/cespare/xxhash/v2 v2.2.0 // indirect
+	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	// In later at least v0.7.1, lipgloss changes its terminal detection
 	// which breaks most of our CLI golden files tests.
 	github.com/charmbracelet/lipgloss v0.8.0 // indirect
@@ -379,7 +381,7 @@ require (
 	github.com/pierrec/lz4/v4 v4.1.18 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
-	github.com/prometheus/procfs v0.12.0 // indirect
+	github.com/prometheus/procfs v0.15.1 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475 // indirect
 	github.com/riandyrn/otelchi v0.5.1 // indirect
 	github.com/richardartoul/molecule v1.0.1-0.20221107223329-32cfee06a052 // indirect
