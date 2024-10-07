@@ -142,7 +142,7 @@ jobs:
 
       # Check for any typos
       - name: Check for typos
-        uses: crate-ci/typos@v1.20.10
+        uses: crate-ci/typos@v1.25.0
         with:
           config: .github/workflows/typos.toml
 
@@ -470,7 +470,7 @@ jobs:
       # the check to pass. This is desired in PRs, but not in mainline.
       - name: Publish to Chromatic (non-mainline)
         if: github.ref != 'refs/heads/main' && github.repository_owner == 'coder'
-        uses: chromaui/action@v10
+        uses: chromaui/action@v11
         env:
           NODE_OPTIONS: "--max_old_space_size=4096"
           STORYBOOK: true
@@ -501,7 +501,7 @@ jobs:
       # infinitely "in progress" in mainline unless we re-review each build.
       - name: Publish to Chromatic (mainline)
         if: github.ref == 'refs/heads/main' && github.repository_owner == 'coder'
-        uses: chromaui/action@v10
+        uses: chromaui/action@v11
         env:
           NODE_OPTIONS: "--max_old_space_size=4096"
           STORYBOOK: true
@@ -861,7 +861,7 @@ jobs:
       - name: "Dependency Review"
         id: review
         # TODO: Replace this with the latest release once https://github.com/actions/dependency-review-action/pull/761 is merged.
-        uses: actions/dependency-review-action@49fbbe0acb033b7824f26d00b005d7d598d76301
+        uses: actions/dependency-review-action@3e334b7ca7ffb970f87176830a03bae8956b56cb
         with:
           allow-licenses: Apache-2.0, BSD-2-Clause, BSD-3-Clause, CC0-1.0, ISC, MIT, MIT-0, MPL-2.0
           allow-dependencies-licenses: "pkg:golang/github.com/pelletier/go-toml/v2"
