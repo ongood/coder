@@ -39,6 +39,11 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
+      - name: Remove unused Docker images and containers
+        run: |
+          docker system prune -f
+          docker rmi $(docker images -q) || true
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
