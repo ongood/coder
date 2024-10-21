@@ -1,77 +1,75 @@
-import {
-  createContext,
-  type FC,
-  type PropsWithChildren,
-  useState,
-} from "react";
-import { useQuery } from "react-query";
 import { appearance } from "api/queries/appearance";
 import { entitlements } from "api/queries/entitlements";
 import { experiments } from "api/queries/experiments";
+import { organizations } from "api/queries/organizations";
 import type {
-  AppearanceConfig,
-  Entitlements,
-  Experiments,
+	AppearanceConfig,
+	Entitlements,
+	Experiments,
+	Organization,
 } from "api/typesGenerated";
+import { ErrorAlert } from "components/Alert/ErrorAlert";
 import { Loader } from "components/Loader/Loader";
-import { useAuthenticated } from "contexts/auth/RequireAuth";
-import { useEffectEvent } from "hooks/hookPolyfills";
 import { useEmbeddedMetadata } from "hooks/useEmbeddedMetadata";
+import { type FC, type PropsWithChildren, createContext } from "react";
+import { useQuery } from "react-query";
+import { selectFeatureVisibility } from "./entitlements";
 
 export interface DashboardValue {
-  organizationId: string;
-  setOrganizationId: (id: string) => void;
-  entitlements: Entitlements;
-  experiments: Experiments;
-  appearance: AppearanceConfig;
+	entitlements: Entitlements;
+	experiments: Experiments;
+	appearance: AppearanceConfig;
+	organizations: readonly Organization[];
+	showOrganizations: boolean;
 }
 
 export const DashboardContext = createContext<DashboardValue | undefined>(
-  undefined,
+	undefined,
 );
 
 export const DashboardProvider: FC<PropsWithChildren> = ({ children }) => {
-  const { metadata } = useEmbeddedMetadata();
-  const { user, organizationIds } = useAuthenticated();
-  const entitlementsQuery = useQuery(entitlements(metadata.entitlements));
-  const experimentsQuery = useQuery(experiments(metadata.experiments));
-  const appearanceQuery = useQuery(appearance(metadata.appearance));
+	const { metadata } = useEmbeddedMetadata();
+	const entitlementsQuery = useQuery(entitlements(metadata.entitlements));
+	const experimentsQuery = useQuery(experiments(metadata.experiments));
+	const appearanceQuery = useQuery(appearance(metadata.appearance));
+	const organizationsQuery = useQuery(organizations());
 
-  const isLoading =
-    !entitlementsQuery.data || !appearanceQuery.data || !experimentsQuery.data;
+	const error =
+		entitlementsQuery.error ||
+		appearanceQuery.error ||
+		experimentsQuery.error ||
+		organizationsQuery.error;
 
-  const lastUsedOrganizationId = localStorage.getItem(
-    `user:${user.id}.lastUsedOrganizationId`,
-  );
-  const [activeOrganizationId, setActiveOrganizationId] = useState(() =>
-    lastUsedOrganizationId && organizationIds.includes(lastUsedOrganizationId)
-      ? lastUsedOrganizationId
-      : organizationIds[0],
-  );
+	if (error) {
+		return <ErrorAlert error={error} />;
+	}
 
-  const setOrganizationId = useEffectEvent((id: string) => {
-    if (!organizationIds.includes(id)) {
-      throw new ReferenceError("Invalid organization ID");
-    }
-    localStorage.setItem(`user:${user.id}.lastUsedOrganizationId`, id);
-    setActiveOrganizationId(id);
-  });
+	const isLoading =
+		!entitlementsQuery.data ||
+		!appearanceQuery.data ||
+		!experimentsQuery.data ||
+		!organizationsQuery.data;
 
-  if (isLoading) {
-    return <Loader fullscreen />;
-  }
+	if (isLoading) {
+		return <Loader fullscreen />;
+	}
 
-  return (
-    <DashboardContext.Provider
-      value={{
-        organizationId: activeOrganizationId,
-        setOrganizationId: setOrganizationId,
-        entitlements: entitlementsQuery.data,
-        experiments: experimentsQuery.data,
-        appearance: appearanceQuery.data,
-      }}
-    >
-      {children}
-    </DashboardContext.Provider>
-  );
+	const hasMultipleOrganizations = organizationsQuery.data.length > 1;
+	const organizationsEnabled =
+		experimentsQuery.data.includes("multi-organization") &&
+		selectFeatureVisibility(entitlementsQuery.data).multiple_organizations;
+
+	return (
+		<DashboardContext.Provider
+			value={{
+				entitlements: entitlementsQuery.data,
+				experiments: experimentsQuery.data,
+				appearance: appearanceQuery.data,
+				organizations: organizationsQuery.data,
+				showOrganizations: hasMultipleOrganizations || organizationsEnabled,
+			}}
+		>
+			{children}
+		</DashboardContext.Provider>
+	);
 };

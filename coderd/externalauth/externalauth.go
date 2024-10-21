@@ -23,7 +23,6 @@ import (
 
 	"github.com/coder/coder/v2/coderd/database"
 	"github.com/coder/coder/v2/coderd/database/dbtime"
-	"github.com/coder/coder/v2/coderd/httpapi"
 	"github.com/coder/coder/v2/coderd/promoauth"
 	"github.com/coder/coder/v2/codersdk"
 	"github.com/coder/retry"
@@ -154,7 +153,7 @@ func (c *Config) RefreshToken(ctx context.Context, db database.Store, externalAu
 	retryCtx, retryCtxCancel := context.WithTimeout(ctx, time.Second)
 	defer retryCtxCancel()
 validate:
-	valid, _, err := c.ValidateToken(ctx, token)
+	valid, user, err := c.ValidateToken(ctx, token)
 	if err != nil {
 		return externalAuthLink, xerrors.Errorf("validate external auth token: %w", err)
 	}
@@ -189,7 +188,22 @@ validate:
 			return updatedAuthLink, xerrors.Errorf("update external auth link: %w", err)
 		}
 		externalAuthLink = updatedAuthLink
+
+		// Update the associated users github.com username if the token is for github.com.
+		if IsGithubDotComURL(c.AuthCodeURL("")) && user != nil {
+			err = db.UpdateUserGithubComUserID(ctx, database.UpdateUserGithubComUserIDParams{
+				ID: externalAuthLink.UserID,
+				GithubComUserID: sql.NullInt64{
+					Int64: user.ID,
+					Valid: true,
+				},
+			})
+			if err != nil {
+				return externalAuthLink, xerrors.Errorf("update user github com user id: %w", err)
+			}
+		}
 	}
+
 	return externalAuthLink, nil
 }
 
@@ -233,6 +247,7 @@ func (c *Config) ValidateToken(ctx context.Context, link *oauth2.Token) (bool, *
 		err = json.NewDecoder(res.Body).Decode(&ghUser)
 		if err == nil {
 			user = &codersdk.ExternalAuthUser{
+				ID:         ghUser.GetID(),
 				Login:      ghUser.GetLogin(),
 				AvatarURL:  ghUser.GetAvatarURL(),
 				ProfileURL: ghUser.GetHTMLURL(),
@@ -291,6 +306,7 @@ func (c *Config) AppInstallations(ctx context.Context, token string) ([]codersdk
 				ID:           int(installation.GetID()),
 				ConfigureURL: installation.GetHTMLURL(),
 				Account: codersdk.ExternalAuthUser{
+					ID:         account.GetID(),
 					Login:      account.GetLogin(),
 					AvatarURL:  account.GetAvatarURL(),
 					ProfileURL: account.GetHTMLURL(),
@@ -469,7 +485,7 @@ func ConvertConfig(instrument *promoauth.Factory, entries []codersdk.ExternalAut
 		// apply their client secret and ID, and have the UI appear nicely.
 		applyDefaultsToConfig(&entry)
 
-		valid := httpapi.NameValid(entry.ID)
+		valid := codersdk.NameValid(entry.ID)
 		if valid != nil {
 			return nil, xerrors.Errorf("external auth provider %q doesn't have a valid id: %w", entry.ID, valid)
 		}
@@ -946,4 +962,14 @@ type roundTripper func(req *http.Request) (*http.Response, error)
 
 func (r roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	return r(req)
+}
+
+// IsGithubDotComURL returns true if the given URL is a github.com URL.
+func IsGithubDotComURL(str string) bool {
+	str = strings.ToLower(str)
+	ghURL, err := url.Parse(str)
+	if err != nil {
+		return false
+	}
+	return ghURL.Host == "github.com"
 }

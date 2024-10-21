@@ -12,10 +12,14 @@ import (
 	"sync"
 	"time"
 
+	"github.com/coder/coder/v2/buildinfo"
 	"github.com/coder/coder/v2/coderd/appearance"
 	"github.com/coder/coder/v2/coderd/database"
+	"github.com/coder/coder/v2/coderd/entitlements"
+	"github.com/coder/coder/v2/coderd/idpsync"
 	agplportsharing "github.com/coder/coder/v2/coderd/portsharing"
 	"github.com/coder/coder/v2/coderd/rbac/policy"
+	"github.com/coder/coder/v2/enterprise/coderd/enidpsync"
 	"github.com/coder/coder/v2/enterprise/coderd/portsharing"
 
 	"golang.org/x/xerrors"
@@ -26,6 +30,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 
 	"cdr.dev/slog"
+
 	"github.com/coder/coder/v2/coderd"
 	agplaudit "github.com/coder/coder/v2/coderd/audit"
 	agpldbauthz "github.com/coder/coder/v2/coderd/database/dbauthz"
@@ -72,6 +77,9 @@ func New(ctx context.Context, options *Options) (_ *API, err error) {
 		// from when an additional replica was started.
 		options.ReplicaErrorGracePeriod = time.Minute
 	}
+	if options.Entitlements == nil {
+		options.Entitlements = entitlements.New()
+	}
 
 	ctx, cancelFunc := context.WithCancel(ctx)
 
@@ -101,7 +109,13 @@ func New(ctx context.Context, options *Options) (_ *API, err error) {
 		}
 		return nil, xerrors.Errorf("init database encryption: %w", err)
 	}
+
 	options.Database = cryptDB
+
+	if options.IDPSync == nil {
+		options.IDPSync = enidpsync.NewSync(options.Logger, options.RuntimeConfig, options.Entitlements, idpsync.FromDeploymentValues(options.DeploymentValues))
+	}
+
 	api := &API{
 		ctx:     ctx,
 		cancel:  cancelFunc,
@@ -109,6 +123,10 @@ func New(ctx context.Context, options *Options) (_ *API, err error) {
 		provisionerDaemonAuth: &provisionerDaemonAuth{
 			psk:        options.ProvisionerDaemonPSK,
 			authorizer: options.Authorizer,
+			db:         options.Database,
+		},
+		licenseMetricsCollector: &license.MetricsCollector{
+			Entitlements: options.Entitlements,
 		},
 	}
 	// This must happen before coderd initialization!
@@ -127,8 +145,6 @@ func New(ctx context.Context, options *Options) (_ *API, err error) {
 		}
 		return c.Subject, c.Trial, nil
 	}
-	api.AGPL.Options.SetUserGroups = api.setUserGroups
-	api.AGPL.Options.SetUserSiteRoles = api.setUserSiteRoles
 	api.AGPL.SiteHandler.RegionsFetcher = func(ctx context.Context) (any, error) {
 		// If the user can read the workspace proxy resource, return that.
 		// If not, always default to the regions.
@@ -144,6 +160,7 @@ func New(ctx context.Context, options *Options) (_ *API, err error) {
 		DERPMapUpdateFrequency:  api.Options.DERPMapUpdateFrequency,
 		DERPMapFn:               api.AGPL.DERPMap,
 		NetworkTelemetryHandler: api.AGPL.NetworkTelemetryBatcher.Handler,
+		ResumeTokenProvider:     api.AGPL.CoordinatorResumeTokenProvider,
 	})
 	if err != nil {
 		api.Logger.Fatal(api.ctx, "failed to initialize tailnet client service", slog.Error(err))
@@ -238,6 +255,65 @@ func New(ctx context.Context, options *Options) (_ *API, err error) {
 				r.Delete("/", api.deleteWorkspaceProxy)
 			})
 		})
+
+		r.Group(func(r chi.Router) {
+			r.Use(
+				apiKeyMiddleware,
+				api.RequireFeatureMW(codersdk.FeatureMultipleOrganizations),
+				httpmw.RequireExperiment(api.AGPL.Experiments, codersdk.ExperimentMultiOrganization),
+			)
+			r.Post("/organizations", api.postOrganizations)
+		})
+
+		r.Group(func(r chi.Router) {
+			r.Use(
+				apiKeyMiddleware,
+				api.RequireFeatureMW(codersdk.FeatureMultipleOrganizations),
+				httpmw.RequireExperiment(api.AGPL.Experiments, codersdk.ExperimentMultiOrganization),
+				httpmw.ExtractOrganizationParam(api.Database),
+			)
+			r.Patch("/organizations/{organization}", api.patchOrganization)
+			r.Delete("/organizations/{organization}", api.deleteOrganization)
+		})
+
+		r.Group(func(r chi.Router) {
+			r.Use(
+				apiKeyMiddleware,
+				api.RequireFeatureMW(codersdk.FeatureCustomRoles),
+				httpmw.RequireExperiment(api.AGPL.Experiments, codersdk.ExperimentCustomRoles),
+				httpmw.ExtractOrganizationParam(api.Database),
+			)
+			r.Post("/organizations/{organization}/members/roles", api.postOrgRoles)
+			r.Put("/organizations/{organization}/members/roles", api.putOrgRoles)
+			r.Delete("/organizations/{organization}/members/roles/{roleName}", api.deleteOrgRole)
+		})
+
+		r.Group(func(r chi.Router) {
+			r.Use(
+				apiKeyMiddleware,
+				httpmw.ExtractOrganizationParam(api.Database),
+			)
+			r.Route("/organizations/{organization}/settings", func(r chi.Router) {
+				r.Get("/idpsync/groups", api.groupIDPSyncSettings)
+				r.Patch("/idpsync/groups", api.patchGroupIDPSyncSettings)
+				r.Get("/idpsync/roles", api.roleIDPSyncSettings)
+				r.Patch("/idpsync/roles", api.patchRoleIDPSyncSettings)
+			})
+		})
+
+		r.Group(func(r chi.Router) {
+			r.Use(
+				apiKeyMiddleware,
+				httpmw.ExtractOrganizationParam(api.Database),
+				// Intentionally using ExtractUser instead of ExtractMember.
+				// It is possible for a member to be removed from an org, in which
+				// case their orphaned workspaces still exist. We only need
+				// the user_id for the query.
+				httpmw.ExtractUserParam(api.Database),
+			)
+			r.Get("/organizations/{organization}/members/{user}/workspace-quota", api.workspaceQuota)
+		})
+
 		r.Route("/organizations/{organization}/groups", func(r chi.Router) {
 			r.Use(
 				apiKeyMiddleware,
@@ -263,6 +339,7 @@ func New(ctx context.Context, options *Options) (_ *API, err error) {
 			)
 			r.Get("/", api.provisionerKeys)
 			r.Post("/", api.postProvisionerKey)
+			r.Get("/daemons", api.provisionerKeyDaemons)
 			r.Route("/{provisionerkey}", func(r chi.Router) {
 				r.Use(
 					httpmw.ExtractProvisionerKeyParam(options.Database),
@@ -284,9 +361,11 @@ func New(ctx context.Context, options *Options) (_ *API, err error) {
 				api.provisionerDaemonsEnabledMW,
 				apiKeyMiddlewareOptional,
 				httpmw.ExtractProvisionerDaemonAuthenticated(httpmw.ExtractProvisionerAuthConfig{
-					DB:       api.Database,
-					Optional: true,
-				}, api.ProvisionerDaemonPSK),
+					DB:              api.Database,
+					Optional:        true,
+					PSK:             api.ProvisionerDaemonPSK,
+					MultiOrgEnabled: api.AGPL.Experiments.Enabled(codersdk.ExperimentMultiOrganization),
+				}),
 				// Either a user auth or provisioner auth is required
 				// to move forward.
 				httpmw.RequireAPIKeyOrProvisionerDaemonAuth(),
@@ -305,15 +384,20 @@ func New(ctx context.Context, options *Options) (_ *API, err error) {
 			r.Get("/", api.templateACL)
 			r.Patch("/", api.patchTemplateACL)
 		})
-		r.Route("/groups/{group}", func(r chi.Router) {
+		r.Route("/groups", func(r chi.Router) {
 			r.Use(
 				api.templateRBACEnabledMW,
 				apiKeyMiddleware,
-				httpmw.ExtractGroupParam(api.Database),
 			)
-			r.Get("/", api.group)
-			r.Patch("/", api.patchGroup)
-			r.Delete("/", api.deleteGroup)
+			r.Get("/", api.groups)
+			r.Route("/{group}", func(r chi.Router) {
+				r.Use(
+					httpmw.ExtractGroupParam(api.Database),
+				)
+				r.Get("/", api.group)
+				r.Patch("/", api.patchGroup)
+				r.Delete("/", api.deleteGroup)
+			})
 		})
 		r.Route("/workspace-quota", func(r chi.Router) {
 			r.Use(
@@ -321,7 +405,7 @@ func New(ctx context.Context, options *Options) (_ *API, err error) {
 			)
 			r.Route("/{user}", func(r chi.Router) {
 				r.Use(httpmw.ExtractUserParam(options.Database))
-				r.Get("/", api.workspaceQuota)
+				r.Get("/", api.workspaceQuotaByUser)
 			})
 		})
 		r.Route("/appearance", func(r chi.Router) {
@@ -343,7 +427,6 @@ func New(ctx context.Context, options *Options) (_ *API, err error) {
 				r.Put("/", api.putAppearance)
 			})
 		})
-
 		r.Route("/users/{user}/quiet-hours", func(r chi.Router) {
 			r.Use(
 				api.autostopRequirementEnabledMW,
@@ -363,6 +446,15 @@ func New(ctx context.Context, options *Options) (_ *API, err error) {
 			r.Post("/jfrog/xray-scan", api.postJFrogXrayScan)
 			r.Get("/jfrog/xray-scan", api.jFrogXrayScan)
 		})
+
+		// The /notifications base route is mounted by the AGPL router, so we can't group it here.
+		// Additionally, because we have a static route for /notifications/templates/system which conflicts
+		// with the below route, we need to register this route without any mounts or groups to make both work.
+		r.With(
+			apiKeyMiddleware,
+			httpmw.RequireExperiment(api.AGPL.Experiments, codersdk.ExperimentNotifications),
+			httpmw.ExtractNotificationTemplateParam(options.Database),
+		).Put("/notifications/templates/{notification_template}/method", api.updateNotificationTemplateMethod)
 	})
 
 	if len(options.SCIMAPIKey) != 0 {
@@ -428,7 +520,7 @@ func New(ctx context.Context, options *Options) (_ *API, err error) {
 	}
 	api.AGPL.WorkspaceProxiesFetchUpdater.Store(&fetchUpdater)
 
-	err = api.PrometheusRegistry.Register(&api.licenseMetricsCollector)
+	err = api.PrometheusRegistry.Register(api.licenseMetricsCollector)
 	if err != nil {
 		return nil, xerrors.Errorf("unable to register license metrics collector")
 	}
@@ -488,13 +580,9 @@ type API struct {
 	// ProxyHealth checks the reachability of all workspace proxies.
 	ProxyHealth *proxyhealth.ProxyHealth
 
-	entitlementsUpdateMu sync.Mutex
-	entitlementsMu       sync.RWMutex
-	entitlements         codersdk.Entitlements
-
 	provisionerDaemonAuth *provisionerDaemonAuth
 
-	licenseMetricsCollector license.MetricsCollector
+	licenseMetricsCollector *license.MetricsCollector
 	tailnetService          *tailnet.ClientService
 }
 
@@ -504,30 +592,11 @@ type API struct {
 // This header is used by the CLI to display warnings to the user without having
 // to make additional requests!
 func (api *API) writeEntitlementWarningsHeader(a rbac.Subject, header http.Header) {
-	roles, err := a.Roles.Expand()
+	err := api.AGPL.HTTPAuth.Authorizer.Authorize(api.ctx, a, policy.ActionRead, rbac.ResourceDeploymentConfig)
 	if err != nil {
 		return
 	}
-	nonMemberRoles := 0
-	for _, role := range roles {
-		// The member role is implied, and not assignable.
-		// If there is no display name, then the role is also unassigned.
-		// This is not the ideal logic, but works for now.
-		if role.Identifier == rbac.RoleMember() || (role.DisplayName == "") {
-			continue
-		}
-		nonMemberRoles++
-	}
-	if nonMemberRoles == 0 {
-		// Don't show entitlement warnings if the user
-		// has no roles. This is a normal user!
-		return
-	}
-	api.entitlementsMu.RLock()
-	defer api.entitlementsMu.RUnlock()
-	for _, warning := range api.entitlements.Warnings {
-		header.Add(codersdk.EntitlementsWarningHeader, warning)
-	}
+	api.Entitlements.WriteEntitlementWarningHeaders(header)
 }
 
 func (api *API) Close() error {
@@ -549,9 +618,6 @@ func (api *API) Close() error {
 }
 
 func (api *API) updateEntitlements(ctx context.Context) error {
-	api.entitlementsUpdateMu.Lock()
-	defer api.entitlementsUpdateMu.Unlock()
-
 	replicas := api.replicaManager.AllPrimary()
 	agedReplicas := make([]database.Replica, 0, len(replicas))
 	for _, replica := range replicas {
@@ -567,9 +633,9 @@ func (api *API) updateEntitlements(ctx context.Context) error {
 		agedReplicas = append(agedReplicas, replica)
 	}
 
-	entitlements, err := license.Entitlements(
+	reloadedEntitlements, err := license.Entitlements(
 		ctx, api.Database,
-		api.Logger, len(agedReplicas), len(api.ExternalAuthConfigs), api.LicenseKeys, map[codersdk.FeatureName]bool{
+		len(agedReplicas), len(api.ExternalAuthConfigs), api.LicenseKeys, map[codersdk.FeatureName]bool{
 			codersdk.FeatureAuditLog:                   api.AuditLogging,
 			codersdk.FeatureBrowserOnly:                api.BrowserOnly,
 			codersdk.FeatureSCIM:                       len(api.SCIMAPIKey) != 0,
@@ -582,35 +648,29 @@ func (api *API) updateEntitlements(ctx context.Context) error {
 			codersdk.FeatureUserRoleManagement:         true,
 			codersdk.FeatureAccessControl:              true,
 			codersdk.FeatureControlSharedPorts:         true,
-			codersdk.FeatureMultipleOrganizations:      true,
 		})
 	if err != nil {
 		return err
 	}
 
-	if entitlements.RequireTelemetry && !api.DeploymentValues.Telemetry.Enable.Value() {
+	if reloadedEntitlements.RequireTelemetry && !api.DeploymentValues.Telemetry.Enable.Value() {
 		// We can't fail because then the user couldn't remove the offending
 		// license w/o a restart.
 		//
 		// We don't simply append to entitlement.Errors since we don't want any
 		// enterprise features enabled.
-		api.entitlements.Errors = []string{
-			"License requires telemetry but telemetry is disabled",
-		}
+		api.Entitlements.Update(func(entitlements *codersdk.Entitlements) {
+			entitlements.Errors = []string{
+				"License requires telemetry but telemetry is disabled",
+			}
+		})
+
 		api.Logger.Error(ctx, "license requires telemetry enabled")
 		return nil
 	}
 
 	featureChanged := func(featureName codersdk.FeatureName) (initial, changed, enabled bool) {
-		if api.entitlements.Features == nil {
-			return true, false, entitlements.Features[featureName].Enabled
-		}
-		oldFeature := api.entitlements.Features[featureName]
-		newFeature := entitlements.Features[featureName]
-		if oldFeature.Enabled != newFeature.Enabled {
-			return false, true, newFeature.Enabled
-		}
-		return false, false, newFeature.Enabled
+		return api.Entitlements.FeatureChanged(featureName, reloadedEntitlements.Features[featureName])
 	}
 
 	shouldUpdate := func(initial, changed, enabled bool) bool {
@@ -649,7 +709,7 @@ func (api *API) updateEntitlements(ctx context.Context) error {
 
 	if initial, changed, enabled := featureChanged(codersdk.FeatureAdvancedTemplateScheduling); shouldUpdate(initial, changed, enabled) {
 		if enabled {
-			templateStore := schedule.NewEnterpriseTemplateScheduleStore(api.AGPL.UserQuietHoursScheduleStore)
+			templateStore := schedule.NewEnterpriseTemplateScheduleStore(api.AGPL.UserQuietHoursScheduleStore, api.NotificationsEnqueuer, api.Logger.Named("template.schedule-store"))
 			templateStoreInterface := agplschedule.TemplateScheduleStore(templateStore)
 			api.AGPL.TemplateScheduleStore.Store(&templateStoreInterface)
 
@@ -748,10 +808,13 @@ func (api *API) updateEntitlements(ctx context.Context) error {
 			f := newAppearanceFetcher(
 				api.Database,
 				api.DeploymentValues.Support.Links.Value,
+				api.DeploymentValues.DocsURL.String(),
+				buildinfo.Version(),
 			)
 			api.AGPL.AppearanceFetcher.Store(&f)
 		} else {
-			api.AGPL.AppearanceFetcher.Store(&appearance.DefaultFetcher)
+			f := appearance.NewDefaultFetcher(api.DeploymentValues.DocsURL.String())
+			api.AGPL.AppearanceFetcher.Store(&f)
 		}
 	}
 
@@ -763,31 +826,17 @@ func (api *API) updateEntitlements(ctx context.Context) error {
 		api.AGPL.PortSharer.Store(&ps)
 	}
 
-	if initial, changed, enabled := featureChanged(codersdk.FeatureCustomRoles); shouldUpdate(initial, changed, enabled) {
-		var handler coderd.CustomRoleHandler = &enterpriseCustomRoleHandler{API: api, Enabled: enabled}
-		api.AGPL.CustomRoleHandler.Store(&handler)
-	}
-
-	if initial, changed, enabled := featureChanged(codersdk.FeatureMultipleOrganizations); shouldUpdate(initial, changed, enabled) {
-		var handler coderd.CustomRoleHandler = &enterpriseCustomRoleHandler{API: api, Enabled: enabled}
-		api.AGPL.CustomRoleHandler.Store(&handler)
-	}
-
 	// External token encryption is soft-enforced
-	featureExternalTokenEncryption := entitlements.Features[codersdk.FeatureExternalTokenEncryption]
+	featureExternalTokenEncryption := reloadedEntitlements.Features[codersdk.FeatureExternalTokenEncryption]
 	featureExternalTokenEncryption.Enabled = len(api.ExternalTokenEncryption) > 0
 	if featureExternalTokenEncryption.Enabled && featureExternalTokenEncryption.Entitlement != codersdk.EntitlementEntitled {
 		msg := fmt.Sprintf("%s is enabled (due to setting external token encryption keys) but your license is not entitled to this feature.", codersdk.FeatureExternalTokenEncryption.Humanize())
 		api.Logger.Warn(ctx, msg)
-		entitlements.Warnings = append(entitlements.Warnings, msg)
+		reloadedEntitlements.Warnings = append(reloadedEntitlements.Warnings, msg)
 	}
-	entitlements.Features[codersdk.FeatureExternalTokenEncryption] = featureExternalTokenEncryption
+	reloadedEntitlements.Features[codersdk.FeatureExternalTokenEncryption] = featureExternalTokenEncryption
 
-	api.entitlementsMu.Lock()
-	defer api.entitlementsMu.Unlock()
-	api.entitlements = entitlements
-	api.licenseMetricsCollector.Entitlements.Store(&entitlements)
-	api.AGPL.SiteHandler.Entitlements.Store(&entitlements)
+	api.Entitlements.Replace(reloadedEntitlements)
 	return nil
 }
 
@@ -967,10 +1016,7 @@ func derpMapper(logger slog.Logger, proxyHealth *proxyhealth.ProxyHealth) func(*
 // @Router /entitlements [get]
 func (api *API) serveEntitlements(rw http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	api.entitlementsMu.RLock()
-	entitlements := api.entitlements
-	api.entitlementsMu.RUnlock()
-	httpapi.Write(ctx, rw, http.StatusOK, entitlements)
+	httpapi.Write(ctx, rw, http.StatusOK, api.Entitlements.AsJSON())
 }
 
 func (api *API) runEntitlementsLoop(ctx context.Context) {

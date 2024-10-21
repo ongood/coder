@@ -988,7 +988,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "file",
-                        "description": "File to be uploaded",
+                        "description": "File to be uploaded. If using tar format, file must conform to ustar (pax may cause problems).",
                         "name": "file",
                         "in": "formData",
                         "required": true
@@ -1029,6 +1029,57 @@ const docTemplate = `{
                 "responses": {
                     "200": {
                         "description": "OK"
+                    }
+                }
+            }
+        },
+        "/groups": {
+            "get": {
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Enterprise"
+                ],
+                "summary": "Get groups",
+                "operationId": "get-groups",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Organization ID or name",
+                        "name": "organization",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "User ID or name",
+                        "name": "has_member",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Comma separated list of group IDs",
+                        "name": "group_ids",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/codersdk.Group"
+                            }
+                        }
                     }
                 }
             }
@@ -1547,6 +1598,34 @@ const docTemplate = `{
                 }
             }
         },
+        "/notifications/dispatch-methods": {
+            "get": {
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Get notification dispatch methods",
+                "operationId": "get-notification-dispatch-methods",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/codersdk.NotificationMethodsResponse"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/notifications/settings": {
             "get": {
                 "security": [
@@ -1558,7 +1637,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "General"
+                    "Notifications"
                 ],
                 "summary": "Get notifications settings",
                 "operationId": "get-notifications-settings",
@@ -1584,7 +1663,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "General"
+                    "Notifications"
                 ],
                 "summary": "Update notifications settings",
                 "operationId": "update-notifications-settings",
@@ -1608,6 +1687,68 @@ const docTemplate = `{
                     },
                     "304": {
                         "description": "Not Modified"
+                    }
+                }
+            }
+        },
+        "/notifications/templates/system": {
+            "get": {
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Get system notification templates",
+                "operationId": "get-system-notification-templates",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/codersdk.NotificationTemplate"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/notifications/templates/{notification_template}/method": {
+            "put": {
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Enterprise"
+                ],
+                "summary": "Update notification template dispatch method",
+                "operationId": "update-notification-template-dispatch-method",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Notification template UUID",
+                        "name": "notification_template",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    },
+                    "304": {
+                        "description": "Not modified"
                     }
                 }
             }
@@ -2037,6 +2178,32 @@ const docTemplate = `{
             }
         },
         "/organizations": {
+            "get": {
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Organizations"
+                ],
+                "summary": "Get organizations",
+                "operationId": "get-organizations",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/codersdk.Organization"
+                            }
+                        }
+                    }
+                }
+            },
             "post": {
                 "security": [
                     {
@@ -2384,11 +2551,14 @@ const docTemplate = `{
                     }
                 }
             },
-            "patch": {
+            "put": {
                 "security": [
                     {
                         "CoderSessionToken": []
                     }
+                ],
+                "consumes": [
+                    "application/json"
                 ],
                 "produces": [
                     "application/json"
@@ -2404,6 +2574,108 @@ const docTemplate = `{
                         "format": "uuid",
                         "description": "Organization ID",
                         "name": "organization",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Upsert role request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.CustomRoleRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/codersdk.Role"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Members"
+                ],
+                "summary": "Insert a custom organization role",
+                "operationId": "insert-a-custom-organization-role",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Organization ID",
+                        "name": "organization",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Insert role request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.CustomRoleRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/codersdk.Role"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/organizations/{organization}/members/roles/{roleName}": {
+            "delete": {
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Members"
+                ],
+                "summary": "Delete a custom organization role",
+                "operationId": "delete-a-custom-organization-role",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Organization ID",
+                        "name": "organization",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Role name",
+                        "name": "roleName",
                         "in": "path",
                         "required": true
                     }
@@ -2548,6 +2820,48 @@ const docTemplate = `{
                 }
             }
         },
+        "/organizations/{organization}/members/{user}/workspace-quota": {
+            "get": {
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Enterprise"
+                ],
+                "summary": "Get workspace quota by user",
+                "operationId": "get-workspace-quota-by-user",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID, name, or me",
+                        "name": "user",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Organization ID",
+                        "name": "organization",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.WorkspaceQuota"
+                        }
+                    }
+                }
+            }
+        },
         "/organizations/{organization}/members/{user}/workspaces": {
             "post": {
                 "security": [
@@ -2567,6 +2881,7 @@ const docTemplate = `{
                 ],
                 "summary": "Create user workspace by organization",
                 "operationId": "create-user-workspace-by-organization",
+                "deprecated": true,
                 "parameters": [
                     {
                         "type": "string",
@@ -2739,6 +3054,43 @@ const docTemplate = `{
                 }
             }
         },
+        "/organizations/{organization}/provisionerkeys/daemons": {
+            "get": {
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Enterprise"
+                ],
+                "summary": "List provisioner key daemons",
+                "operationId": "list-provisioner-key-daemons",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Organization ID",
+                        "name": "organization",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/codersdk.ProvisionerKeyDaemons"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/organizations/{organization}/provisionerkeys/{provisionerkey}": {
             "delete": {
                 "security": [
@@ -2770,6 +3122,142 @@ const docTemplate = `{
                 "responses": {
                     "204": {
                         "description": "No Content"
+                    }
+                }
+            }
+        },
+        "/organizations/{organization}/settings/idpsync/groups": {
+            "get": {
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Enterprise"
+                ],
+                "summary": "Get group IdP Sync settings by organization",
+                "operationId": "get-group-idp-sync-settings-by-organization",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Organization ID",
+                        "name": "organization",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.GroupSyncSettings"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Enterprise"
+                ],
+                "summary": "Update group IdP Sync settings by organization",
+                "operationId": "update-group-idp-sync-settings-by-organization",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Organization ID",
+                        "name": "organization",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.GroupSyncSettings"
+                        }
+                    }
+                }
+            }
+        },
+        "/organizations/{organization}/settings/idpsync/roles": {
+            "get": {
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Enterprise"
+                ],
+                "summary": "Get role IdP Sync settings by organization",
+                "operationId": "get-role-idp-sync-settings-by-organization",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Organization ID",
+                        "name": "organization",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.RoleSyncSettings"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Enterprise"
+                ],
+                "summary": "Update role IdP Sync settings by organization",
+                "operationId": "update-role-idp-sync-settings-by-organization",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Organization ID",
+                        "name": "organization",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.RoleSyncSettings"
+                        }
                     }
                 }
             }
@@ -2871,6 +3359,7 @@ const docTemplate = `{
                 ],
                 "summary": "Get template examples by organization",
                 "operationId": "get-template-examples-by-organization",
+                "deprecated": true,
                 "parameters": [
                     {
                         "type": "string",
@@ -3286,6 +3775,34 @@ const docTemplate = `{
                             "type": "array",
                             "items": {
                                 "$ref": "#/definitions/codersdk.Template"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/templates/examples": {
+            "get": {
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Templates"
+                ],
+                "summary": "Get template examples",
+                "operationId": "get-template-examples",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/codersdk.TemplateExample"
                             }
                         }
                     }
@@ -4538,7 +5055,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/codersdk.CreateUserRequest"
+                            "$ref": "#/definitions/codersdk.CreateUserRequestWithOrgs"
                         }
                     }
                 ],
@@ -4818,8 +5335,8 @@ const docTemplate = `{
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No Content"
+                    "200": {
+                        "description": "OK"
                     }
                 }
             }
@@ -5327,6 +5844,90 @@ const docTemplate = `{
                 }
             }
         },
+        "/users/{user}/notifications/preferences": {
+            "get": {
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Get user notification preferences",
+                "operationId": "get-user-notification-preferences",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID, name, or me",
+                        "name": "user",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/codersdk.NotificationPreference"
+                            }
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Update user notification preferences",
+                "operationId": "update-user-notification-preferences",
+                "parameters": [
+                    {
+                        "description": "Preferences",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.UpdateUserNotificationPreferences"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "User ID, name, or me",
+                        "name": "user",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/codersdk.NotificationPreference"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/users/{user}/organizations": {
             "get": {
                 "security": [
@@ -5819,6 +6420,53 @@ const docTemplate = `{
                 }
             }
         },
+        "/users/{user}/workspaces": {
+            "post": {
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ],
+                "description": "Create a new workspace using a template. The request must\nspecify either the Template ID or the Template Version ID,\nnot both. If the Template ID is specified, the active version\nof the template will be used.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Workspaces"
+                ],
+                "summary": "Create user workspace",
+                "operationId": "create-user-workspace",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Username, UUID, or me",
+                        "name": "user",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Create workspace request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.CreateWorkspaceRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.Workspace"
+                        }
+                    }
+                }
+            }
+        },
         "/workspace-quota/{user}": {
             "get": {
                 "security": [
@@ -5832,8 +6480,9 @@ const docTemplate = `{
                 "tags": [
                     "Enterprise"
                 ],
-                "summary": "Get workspace quota by user",
-                "operationId": "get-workspace-quota-by-user",
+                "summary": "Get workspace quota by user deprecated",
+                "operationId": "get-workspace-quota-by-user-deprecated",
+                "deprecated": true,
                 "parameters": [
                     {
                         "type": "string",
@@ -7744,6 +8393,41 @@ const docTemplate = `{
                 }
             }
         },
+        "/workspaces/{workspace}/timings": {
+            "get": {
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Workspaces"
+                ],
+                "summary": "Get workspace timings by ID",
+                "operationId": "get-workspace-timings-by-id",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Workspace ID",
+                        "name": "workspace",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.WorkspaceTimings"
+                        }
+                    }
+                }
+            }
+        },
         "/workspaces/{workspace}/ttl": {
             "put": {
                 "security": [
@@ -8206,6 +8890,9 @@ const docTemplate = `{
                 "application_name": {
                     "type": "string"
                 },
+                "docs_url": {
+                    "type": "string"
+                },
                 "logo_url": {
                     "type": "string"
                 },
@@ -8342,7 +9029,11 @@ const docTemplate = `{
                 "is_deleted": {
                     "type": "boolean"
                 },
+                "organization": {
+                    "$ref": "#/definitions/codersdk.MinimalOrganization"
+                },
                 "organization_id": {
+                    "description": "Deprecated: Use 'organization.id' instead.",
                     "type": "string",
                     "format": "uuid"
                 },
@@ -8452,6 +9143,10 @@ const docTemplate = `{
             "description": "AuthorizationObject can represent a \"set\" of objects, such as: all workspaces in an organization, all workspaces owned by me, all workspaces across the entire product.",
             "type": "object",
             "properties": {
+                "any_org": {
+                    "description": "AnyOrgOwner (optional) will disregard the org_owner when checking for permissions.\nThis cannot be set to true if the OrganizationID is set.",
+                    "type": "boolean"
+                },
                 "organization_id": {
                     "description": "OrganizationID (optional) adds the set constraint to all resources owned by a given organization.",
                     "type": "string"
@@ -8534,6 +9229,10 @@ const docTemplate = `{
                 },
                 "external_url": {
                     "description": "ExternalURL references the current Coder version.\nFor production builds, this will link directly to a release. For development builds, this will link to a commit.",
+                    "type": "string"
+                },
+                "provisioner_api_version": {
+                    "description": "ProvisionerAPIVersion is the current version of the Provisioner API",
                     "type": "string"
                 },
                 "telemetry": {
@@ -8786,6 +9485,14 @@ const docTemplate = `{
                     "description": "Icon is a relative path or external URL that specifies\nan icon to be displayed in the dashboard.",
                     "type": "string"
                 },
+                "max_port_share_level": {
+                    "description": "MaxPortShareLevel allows optionally specifying the maximum port share level\nfor workspaces created from the template.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/codersdk.WorkspaceAgentPortShareLevel"
+                        }
+                    ]
+                },
                 "name": {
                     "description": "Name is the name of the template.",
                     "type": "string"
@@ -8964,17 +9671,13 @@ const docTemplate = `{
                 }
             }
         },
-        "codersdk.CreateUserRequest": {
+        "codersdk.CreateUserRequestWithOrgs": {
             "type": "object",
             "required": [
                 "email",
                 "username"
             ],
             "properties": {
-                "disable_login": {
-                    "description": "DisableLogin sets the user's login type to 'none'. This prevents the user\nfrom being able to use a password or any other authentication method to login.\nDeprecated: Set UserLoginType=LoginTypeDisabled instead.",
-                    "type": "boolean"
-                },
                 "email": {
                     "type": "string",
                     "format": "email"
@@ -8990,9 +9693,13 @@ const docTemplate = `{
                 "name": {
                     "type": "string"
                 },
-                "organization_id": {
-                    "type": "string",
-                    "format": "uuid"
+                "organization_ids": {
+                    "description": "OrganizationIDs is a list of organization IDs that the user should be a member of.",
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "uuid"
+                    }
                 },
                 "password": {
                     "type": "string"
@@ -9110,6 +9817,36 @@ const docTemplate = `{
                 },
                 "ttl_ms": {
                     "type": "integer"
+                }
+            }
+        },
+        "codersdk.CustomRoleRequest": {
+            "type": "object",
+            "properties": {
+                "display_name": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "organization_permissions": {
+                    "description": "OrganizationPermissions are specific to the organization the role belongs to.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/codersdk.Permission"
+                    }
+                },
+                "site_permissions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/codersdk.Permission"
+                    }
+                },
+                "user_permissions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/codersdk.Permission"
+                    }
                 }
             }
         },
@@ -9729,6 +10466,9 @@ const docTemplate = `{
                 "avatar_url": {
                     "type": "string"
                 },
+                "id": {
+                    "type": "integer"
+                },
                 "login": {
                     "type": "string"
                 },
@@ -9821,15 +10561,25 @@ const docTemplate = `{
                 "name": {
                     "type": "string"
                 },
+                "organization_display_name": {
+                    "type": "string"
+                },
                 "organization_id": {
                     "type": "string",
                     "format": "uuid"
+                },
+                "organization_name": {
+                    "type": "string"
                 },
                 "quota_allowance": {
                     "type": "integer"
                 },
                 "source": {
                     "$ref": "#/definitions/codersdk.GroupSource"
+                },
+                "total_member_count": {
+                    "description": "How many members are in this group. Shows the total count,\neven if the user is not authorized to read group member details.\nMay be greater than ` + "`" + `len(Group.Members)` + "`" + `.",
+                    "type": "integer"
                 }
             }
         },
@@ -9843,6 +10593,44 @@ const docTemplate = `{
                 "GroupSourceUser",
                 "GroupSourceOIDC"
             ]
+        },
+        "codersdk.GroupSyncSettings": {
+            "type": "object",
+            "properties": {
+                "auto_create_missing_groups": {
+                    "description": "AutoCreateMissing controls whether groups returned by the OIDC provider\nare automatically created in Coder if they are missing.",
+                    "type": "boolean"
+                },
+                "field": {
+                    "description": "Field selects the claim field to be used as the created user's\ngroups. If the group field is the empty string, then no group updates\nwill ever come from the OIDC provider.",
+                    "type": "string"
+                },
+                "legacy_group_name_mapping": {
+                    "description": "LegacyNameMapping is deprecated. It remaps an IDP group name to\na Coder group name. Since configuration is now done at runtime,\ngroup IDs are used to account for group renames.\nFor legacy configurations, this config option has to remain.\nDeprecated: Use Mapping instead.",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "mapping": {
+                    "description": "Mapping maps from an OIDC group --\u003e Coder group ID",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "regex_filter": {
+                    "description": "RegexFilter is a regular expression that filters the groups returned by\nthe OIDC provider. Any group not matched by this regex will be ignored.\nIf the group filter is nil, then no group filtering will occur.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/regexp.Regexp"
+                        }
+                    ]
+                }
+            }
         },
         "codersdk.Healthcheck": {
             "type": "object",
@@ -10076,6 +10864,27 @@ const docTemplate = `{
                 }
             }
         },
+        "codersdk.MinimalOrganization": {
+            "type": "object",
+            "required": [
+                "id"
+            ],
+            "properties": {
+                "display_name": {
+                    "type": "string"
+                },
+                "icon": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
         "codersdk.MinimalUser": {
             "type": "object",
             "required": [
@@ -10092,6 +10901,66 @@ const docTemplate = `{
                     "format": "uuid"
                 },
                 "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "codersdk.NotificationMethodsResponse": {
+            "type": "object",
+            "properties": {
+                "available": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "default": {
+                    "type": "string"
+                }
+            }
+        },
+        "codersdk.NotificationPreference": {
+            "type": "object",
+            "properties": {
+                "disabled": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "updated_at": {
+                    "type": "string",
+                    "format": "date-time"
+                }
+            }
+        },
+        "codersdk.NotificationTemplate": {
+            "type": "object",
+            "properties": {
+                "actions": {
+                    "type": "string"
+                },
+                "body_template": {
+                    "type": "string"
+                },
+                "group": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "method": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "title_template": {
                     "type": "string"
                 }
             }
@@ -10153,9 +11022,42 @@ const docTemplate = `{
                 }
             }
         },
+        "codersdk.NotificationsEmailAuthConfig": {
+            "type": "object",
+            "properties": {
+                "identity": {
+                    "description": "Identity for PLAIN auth.",
+                    "type": "string"
+                },
+                "password": {
+                    "description": "Password for LOGIN/PLAIN auth.",
+                    "type": "string"
+                },
+                "password_file": {
+                    "description": "File from which to load the password for LOGIN/PLAIN auth.",
+                    "type": "string"
+                },
+                "username": {
+                    "description": "Username for LOGIN/PLAIN auth.",
+                    "type": "string"
+                }
+            }
+        },
         "codersdk.NotificationsEmailConfig": {
             "type": "object",
             "properties": {
+                "auth": {
+                    "description": "Authentication details.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/codersdk.NotificationsEmailAuthConfig"
+                        }
+                    ]
+                },
+                "force_tls": {
+                    "description": "ForceTLS causes a TLS connection to be attempted.",
+                    "type": "boolean"
+                },
                 "from": {
                     "description": "The sender's address.",
                     "type": "string"
@@ -10171,6 +11073,43 @@ const docTemplate = `{
                             "$ref": "#/definitions/serpent.HostPort"
                         }
                     ]
+                },
+                "tls": {
+                    "description": "TLS details.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/codersdk.NotificationsEmailTLSConfig"
+                        }
+                    ]
+                }
+            }
+        },
+        "codersdk.NotificationsEmailTLSConfig": {
+            "type": "object",
+            "properties": {
+                "ca_file": {
+                    "description": "CAFile specifies the location of the CA certificate to use.",
+                    "type": "string"
+                },
+                "cert_file": {
+                    "description": "CertFile specifies the location of the certificate to use.",
+                    "type": "string"
+                },
+                "insecure_skip_verify": {
+                    "description": "InsecureSkipVerify skips target certificate validation.",
+                    "type": "boolean"
+                },
+                "key_file": {
+                    "description": "KeyFile specifies the location of the key to use.",
+                    "type": "string"
+                },
+                "server_name": {
+                    "description": "ServerName to verify the hostname for the targets.",
+                    "type": "string"
+                },
+                "start_tls": {
+                    "description": "StartTLS attempts to upgrade plain connections to TLS.",
+                    "type": "boolean"
                 }
             }
         },
@@ -10400,6 +11339,15 @@ const docTemplate = `{
                 "name_field": {
                     "type": "string"
                 },
+                "organization_assign_default": {
+                    "type": "boolean"
+                },
+                "organization_field": {
+                    "type": "string"
+                },
+                "organization_mapping": {
+                    "type": "object"
+                },
                 "scopes": {
                     "type": "array",
                     "items": {
@@ -10411,6 +11359,9 @@ const docTemplate = `{
                 },
                 "signups_disabled_text": {
                     "type": "string"
+                },
+                "skip_issuer_checks": {
+                    "type": "boolean"
                 },
                 "user_role_field": {
                     "type": "string"
@@ -10503,6 +11454,9 @@ const docTemplate = `{
                 "created_at": {
                     "type": "string",
                     "format": "date-time"
+                },
+                "email": {
+                    "type": "string"
                 },
                 "global_roles": {
                     "type": "array",
@@ -10723,6 +11677,10 @@ const docTemplate = `{
                     "type": "string",
                     "format": "uuid"
                 },
+                "key_id": {
+                    "type": "string",
+                    "format": "uuid"
+                },
                 "last_seen_at": {
                     "type": "string",
                     "format": "date-time"
@@ -10897,6 +11855,26 @@ const docTemplate = `{
                 "organization": {
                     "type": "string",
                     "format": "uuid"
+                },
+                "tags": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "codersdk.ProvisionerKeyDaemons": {
+            "type": "object",
+            "properties": {
+                "daemons": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/codersdk.ProvisionerDaemon"
+                    }
+                },
+                "key": {
+                    "$ref": "#/definitions/codersdk.ProvisionerKey"
                 }
             }
         },
@@ -10917,6 +11895,35 @@ const docTemplate = `{
             "x-enum-varnames": [
                 "ProvisionerStorageMethodFile"
             ]
+        },
+        "codersdk.ProvisionerTiming": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "ended_at": {
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "job_id": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "resource": {
+                    "type": "string"
+                },
+                "source": {
+                    "type": "string"
+                },
+                "stage": {
+                    "type": "string"
+                },
+                "started_at": {
+                    "type": "string",
+                    "format": "date-time"
+                }
+            }
         },
         "codersdk.ProxyHealthReport": {
             "type": "object",
@@ -11023,12 +12030,17 @@ const docTemplate = `{
                 "assign_org_role",
                 "assign_role",
                 "audit_log",
+                "crypto_key",
                 "debug_info",
                 "deployment_config",
                 "deployment_stats",
                 "file",
                 "group",
+                "group_member",
+                "idpsync_settings",
                 "license",
+                "notification_preference",
+                "notification_template",
                 "oauth2_app",
                 "oauth2_app_code_token",
                 "oauth2_app_secret",
@@ -11051,12 +12063,17 @@ const docTemplate = `{
                 "ResourceAssignOrgRole",
                 "ResourceAssignRole",
                 "ResourceAuditLog",
+                "ResourceCryptoKey",
                 "ResourceDebugInfo",
                 "ResourceDeploymentConfig",
                 "ResourceDeploymentStats",
                 "ResourceFile",
                 "ResourceGroup",
+                "ResourceGroupMember",
+                "ResourceIdpsyncSettings",
                 "ResourceLicense",
+                "ResourceNotificationPreference",
+                "ResourceNotificationTemplate",
                 "ResourceOauth2App",
                 "ResourceOauth2AppCodeToken",
                 "ResourceOauth2AppSecret",
@@ -11133,6 +12150,10 @@ const docTemplate = `{
                 },
                 "theme_preference": {
                     "type": "string"
+                },
+                "updated_at": {
+                    "type": "string",
+                    "format": "date-time"
                 },
                 "username": {
                     "type": "string"
@@ -11328,6 +12349,25 @@ const docTemplate = `{
                 }
             }
         },
+        "codersdk.RoleSyncSettings": {
+            "type": "object",
+            "properties": {
+                "field": {
+                    "description": "Field selects the claim field to be used as the created user's\ngroups. If the group field is the empty string, then no group updates\nwill ever come from the OIDC provider.",
+                    "type": "string"
+                },
+                "mapping": {
+                    "description": "Mapping maps from an OIDC group --\u003e Coder organization role",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "codersdk.SSHConfig": {
             "type": "object",
             "properties": {
@@ -11379,7 +12419,10 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "default_duration": {
-                    "description": "DefaultDuration is for api keys, not tokens.",
+                    "description": "DefaultDuration is only for browser, workspace app and oauth sessions.",
+                    "type": "integer"
+                },
+                "default_token_lifetime": {
                     "type": "integer"
                 },
                 "disable_expiry_refresh": {
@@ -11949,6 +12992,10 @@ const docTemplate = `{
                 "theme_preference": {
                     "type": "string"
                 },
+                "updated_at": {
+                    "type": "string",
+                    "format": "date-time"
+                },
                 "username": {
                     "type": "string"
                 }
@@ -12317,6 +13364,17 @@ const docTemplate = `{
                 }
             }
         },
+        "codersdk.UpdateUserNotificationPreferences": {
+            "type": "object",
+            "properties": {
+                "template_disabled_map": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "boolean"
+                    }
+                }
+            }
+        },
         "codersdk.UpdateUserPasswordRequest": {
             "type": "object",
             "required": [
@@ -12517,6 +13575,10 @@ const docTemplate = `{
                 },
                 "theme_preference": {
                     "type": "string"
+                },
+                "updated_at": {
+                    "type": "string",
+                    "format": "date-time"
                 },
                 "username": {
                     "type": "string"
@@ -13198,6 +14260,13 @@ const docTemplate = `{
                 "cron": {
                     "type": "string"
                 },
+                "display_name": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string",
+                    "format": "uuid"
+                },
                 "log_path": {
                     "type": "string"
                 },
@@ -13272,6 +14341,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/codersdk.Healthcheck"
                         }
                     ]
+                },
+                "hidden": {
+                    "type": "boolean"
                 },
                 "icon": {
                     "description": "Icon is a relative path or external URL that specifies\nan icon to be displayed in the dashboard.",
@@ -13706,6 +14778,17 @@ const docTemplate = `{
                 "WorkspaceStatusDeleting",
                 "WorkspaceStatusDeleted"
             ]
+        },
+        "codersdk.WorkspaceTimings": {
+            "type": "object",
+            "properties": {
+                "provisioner_timings": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/codersdk.ProvisionerTiming"
+                    }
+                }
+            }
         },
         "codersdk.WorkspaceTransition": {
             "type": "string",
@@ -14410,6 +15493,10 @@ const docTemplate = `{
                     "description": "AccessToken is the token that authorizes and authenticates\nthe requests.",
                     "type": "string"
                 },
+                "expires_in": {
+                    "description": "ExpiresIn is the OAuth2 wire format \"expires_in\" field,\nwhich specifies how many seconds later the token expires,\nrelative to an unknown time base approximately around \"now\".\nIt is the application's responsibility to populate\n` + "`" + `Expiry` + "`" + ` from ` + "`" + `ExpiresIn` + "`" + ` when required.",
+                    "type": "integer"
+                },
                 "expiry": {
                     "description": "Expiry is the optional expiration time of the access token.\n\nIf zero, TokenSource implementations will reuse the same\ntoken forever and RefreshToken or equivalent\nmechanisms for that TokenSource will not be used.",
                     "type": "string"
@@ -14423,6 +15510,9 @@ const docTemplate = `{
                     "type": "string"
                 }
             }
+        },
+        "regexp.Regexp": {
+            "type": "object"
         },
         "serpent.Annotations": {
             "type": "object",

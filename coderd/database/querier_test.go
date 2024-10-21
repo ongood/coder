@@ -12,13 +12,19 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/require"
 
+	"cdr.dev/slog/sloggers/slogtest"
+	"github.com/coder/coder/v2/coderd/coderdtest"
 	"github.com/coder/coder/v2/coderd/database"
 	"github.com/coder/coder/v2/coderd/database/db2sdk"
+	"github.com/coder/coder/v2/coderd/database/dbauthz"
 	"github.com/coder/coder/v2/coderd/database/dbgen"
+	"github.com/coder/coder/v2/coderd/database/dbtestutil"
 	"github.com/coder/coder/v2/coderd/database/dbtime"
 	"github.com/coder/coder/v2/coderd/database/migrations"
+	"github.com/coder/coder/v2/coderd/rbac"
 	"github.com/coder/coder/v2/testutil"
 )
 
@@ -91,6 +97,518 @@ func TestGetDeploymentWorkspaceAgentStats(t *testing.T) {
 		require.Equal(t, 1.5, stats.WorkspaceConnectionLatency50)
 		require.Equal(t, 1.95, stats.WorkspaceConnectionLatency95)
 		require.Equal(t, int64(1), stats.SessionCountVSCode)
+	})
+}
+
+func TestGetDeploymentWorkspaceAgentUsageStats(t *testing.T) {
+	t.Parallel()
+
+	t.Run("Aggregates", func(t *testing.T) {
+		t.Parallel()
+
+		db, _ := dbtestutil.NewDB(t)
+		authz := rbac.NewAuthorizer(prometheus.NewRegistry())
+		db = dbauthz.New(db, authz, slogtest.Make(t, &slogtest.Options{}), coderdtest.AccessControlStorePointer())
+		ctx := context.Background()
+		agentID := uuid.New()
+		// Since the queries exclude the current minute
+		insertTime := dbtime.Now().Add(-time.Minute)
+
+		// Old stats
+		dbgen.WorkspaceAgentStat(t, db, database.WorkspaceAgentStat{
+			CreatedAt:                 insertTime.Add(-time.Minute),
+			AgentID:                   agentID,
+			TxBytes:                   1,
+			RxBytes:                   1,
+			ConnectionMedianLatencyMS: 1,
+			// Should be ignored
+			SessionCountSSH:    4,
+			SessionCountVSCode: 3,
+		})
+		dbgen.WorkspaceAgentStat(t, db, database.WorkspaceAgentStat{
+			CreatedAt:          insertTime.Add(-time.Minute),
+			AgentID:            agentID,
+			SessionCountVSCode: 1,
+			Usage:              true,
+		})
+		dbgen.WorkspaceAgentStat(t, db, database.WorkspaceAgentStat{
+			CreatedAt:                   insertTime.Add(-time.Minute),
+			AgentID:                     agentID,
+			SessionCountReconnectingPTY: 1,
+			Usage:                       true,
+		})
+
+		// Latest stats
+		dbgen.WorkspaceAgentStat(t, db, database.WorkspaceAgentStat{
+			CreatedAt:                 insertTime,
+			AgentID:                   agentID,
+			TxBytes:                   1,
+			RxBytes:                   1,
+			ConnectionMedianLatencyMS: 2,
+			// Should be ignored
+			SessionCountSSH:    3,
+			SessionCountVSCode: 1,
+		})
+		dbgen.WorkspaceAgentStat(t, db, database.WorkspaceAgentStat{
+			CreatedAt:          insertTime,
+			AgentID:            agentID,
+			SessionCountVSCode: 1,
+			Usage:              true,
+		})
+		dbgen.WorkspaceAgentStat(t, db, database.WorkspaceAgentStat{
+			CreatedAt:       insertTime,
+			AgentID:         agentID,
+			SessionCountSSH: 1,
+			Usage:           true,
+		})
+
+		stats, err := db.GetDeploymentWorkspaceAgentUsageStats(ctx, dbtime.Now().Add(-time.Hour))
+		require.NoError(t, err)
+
+		require.Equal(t, int64(2), stats.WorkspaceTxBytes)
+		require.Equal(t, int64(2), stats.WorkspaceRxBytes)
+		require.Equal(t, 1.5, stats.WorkspaceConnectionLatency50)
+		require.Equal(t, 1.95, stats.WorkspaceConnectionLatency95)
+		require.Equal(t, int64(1), stats.SessionCountVSCode)
+		require.Equal(t, int64(1), stats.SessionCountSSH)
+		require.Equal(t, int64(0), stats.SessionCountReconnectingPTY)
+		require.Equal(t, int64(0), stats.SessionCountJetBrains)
+	})
+
+	t.Run("NoUsage", func(t *testing.T) {
+		t.Parallel()
+
+		db, _ := dbtestutil.NewDB(t)
+		authz := rbac.NewAuthorizer(prometheus.NewRegistry())
+		db = dbauthz.New(db, authz, slogtest.Make(t, &slogtest.Options{}), coderdtest.AccessControlStorePointer())
+		ctx := context.Background()
+		agentID := uuid.New()
+		// Since the queries exclude the current minute
+		insertTime := dbtime.Now().Add(-time.Minute)
+
+		dbgen.WorkspaceAgentStat(t, db, database.WorkspaceAgentStat{
+			CreatedAt:                 insertTime,
+			AgentID:                   agentID,
+			TxBytes:                   3,
+			RxBytes:                   4,
+			ConnectionMedianLatencyMS: 2,
+			// Should be ignored
+			SessionCountSSH:    3,
+			SessionCountVSCode: 1,
+		})
+
+		stats, err := db.GetDeploymentWorkspaceAgentUsageStats(ctx, dbtime.Now().Add(-time.Hour))
+		require.NoError(t, err)
+
+		require.Equal(t, int64(3), stats.WorkspaceTxBytes)
+		require.Equal(t, int64(4), stats.WorkspaceRxBytes)
+		require.Equal(t, int64(0), stats.SessionCountVSCode)
+		require.Equal(t, int64(0), stats.SessionCountSSH)
+		require.Equal(t, int64(0), stats.SessionCountReconnectingPTY)
+		require.Equal(t, int64(0), stats.SessionCountJetBrains)
+	})
+}
+
+func TestGetWorkspaceAgentUsageStats(t *testing.T) {
+	t.Parallel()
+
+	t.Run("Aggregates", func(t *testing.T) {
+		t.Parallel()
+
+		db, _ := dbtestutil.NewDB(t)
+		authz := rbac.NewAuthorizer(prometheus.NewRegistry())
+		db = dbauthz.New(db, authz, slogtest.Make(t, &slogtest.Options{}), coderdtest.AccessControlStorePointer())
+		ctx := context.Background()
+		// Since the queries exclude the current minute
+		insertTime := dbtime.Now().Add(-time.Minute)
+
+		agentID1 := uuid.New()
+		agentID2 := uuid.New()
+		workspaceID1 := uuid.New()
+		workspaceID2 := uuid.New()
+		templateID1 := uuid.New()
+		templateID2 := uuid.New()
+		userID1 := uuid.New()
+		userID2 := uuid.New()
+
+		// Old workspace 1 stats
+		dbgen.WorkspaceAgentStat(t, db, database.WorkspaceAgentStat{
+			CreatedAt:                 insertTime.Add(-time.Minute),
+			AgentID:                   agentID1,
+			WorkspaceID:               workspaceID1,
+			TemplateID:                templateID1,
+			UserID:                    userID1,
+			TxBytes:                   1,
+			RxBytes:                   1,
+			ConnectionMedianLatencyMS: 1,
+			// Should be ignored
+			SessionCountVSCode: 3,
+			SessionCountSSH:    1,
+		})
+		dbgen.WorkspaceAgentStat(t, db, database.WorkspaceAgentStat{
+			CreatedAt:          insertTime.Add(-time.Minute),
+			AgentID:            agentID1,
+			WorkspaceID:        workspaceID1,
+			TemplateID:         templateID1,
+			UserID:             userID1,
+			SessionCountVSCode: 1,
+			Usage:              true,
+		})
+
+		// Latest workspace 1 stats
+		dbgen.WorkspaceAgentStat(t, db, database.WorkspaceAgentStat{
+			CreatedAt:                 insertTime,
+			AgentID:                   agentID1,
+			WorkspaceID:               workspaceID1,
+			TemplateID:                templateID1,
+			UserID:                    userID1,
+			TxBytes:                   2,
+			RxBytes:                   2,
+			ConnectionMedianLatencyMS: 1,
+			// Should be ignored
+			SessionCountVSCode: 3,
+			SessionCountSSH:    4,
+		})
+		dbgen.WorkspaceAgentStat(t, db, database.WorkspaceAgentStat{
+			CreatedAt:          insertTime,
+			AgentID:            agentID1,
+			WorkspaceID:        workspaceID1,
+			TemplateID:         templateID1,
+			UserID:             userID1,
+			SessionCountVSCode: 1,
+			Usage:              true,
+		})
+		dbgen.WorkspaceAgentStat(t, db, database.WorkspaceAgentStat{
+			CreatedAt:             insertTime,
+			AgentID:               agentID1,
+			WorkspaceID:           workspaceID1,
+			TemplateID:            templateID1,
+			UserID:                userID1,
+			SessionCountJetBrains: 1,
+			Usage:                 true,
+		})
+
+		// Latest workspace 2 stats
+		dbgen.WorkspaceAgentStat(t, db, database.WorkspaceAgentStat{
+			CreatedAt:                 insertTime,
+			AgentID:                   agentID2,
+			WorkspaceID:               workspaceID2,
+			TemplateID:                templateID2,
+			UserID:                    userID2,
+			TxBytes:                   4,
+			RxBytes:                   8,
+			ConnectionMedianLatencyMS: 1,
+		})
+		dbgen.WorkspaceAgentStat(t, db, database.WorkspaceAgentStat{
+			CreatedAt:                 insertTime,
+			AgentID:                   agentID2,
+			WorkspaceID:               workspaceID2,
+			TemplateID:                templateID2,
+			UserID:                    userID2,
+			TxBytes:                   2,
+			RxBytes:                   3,
+			ConnectionMedianLatencyMS: 1,
+			// Should be ignored
+			SessionCountVSCode: 3,
+			SessionCountSSH:    4,
+		})
+		dbgen.WorkspaceAgentStat(t, db, database.WorkspaceAgentStat{
+			CreatedAt:       insertTime,
+			AgentID:         agentID2,
+			WorkspaceID:     workspaceID2,
+			TemplateID:      templateID2,
+			UserID:          userID2,
+			SessionCountSSH: 1,
+			Usage:           true,
+		})
+		dbgen.WorkspaceAgentStat(t, db, database.WorkspaceAgentStat{
+			CreatedAt:             insertTime,
+			AgentID:               agentID2,
+			WorkspaceID:           workspaceID2,
+			TemplateID:            templateID2,
+			UserID:                userID2,
+			SessionCountJetBrains: 1,
+			Usage:                 true,
+		})
+
+		reqTime := dbtime.Now().Add(-time.Hour)
+		stats, err := db.GetWorkspaceAgentUsageStats(ctx, reqTime)
+		require.NoError(t, err)
+
+		ws1Stats, ws2Stats := stats[0], stats[1]
+		if ws1Stats.WorkspaceID != workspaceID1 {
+			ws1Stats, ws2Stats = ws2Stats, ws1Stats
+		}
+		require.Equal(t, int64(3), ws1Stats.WorkspaceTxBytes)
+		require.Equal(t, int64(3), ws1Stats.WorkspaceRxBytes)
+		require.Equal(t, int64(1), ws1Stats.SessionCountVSCode)
+		require.Equal(t, int64(1), ws1Stats.SessionCountJetBrains)
+		require.Equal(t, int64(0), ws1Stats.SessionCountSSH)
+		require.Equal(t, int64(0), ws1Stats.SessionCountReconnectingPTY)
+
+		require.Equal(t, int64(6), ws2Stats.WorkspaceTxBytes)
+		require.Equal(t, int64(11), ws2Stats.WorkspaceRxBytes)
+		require.Equal(t, int64(1), ws2Stats.SessionCountSSH)
+		require.Equal(t, int64(1), ws2Stats.SessionCountJetBrains)
+		require.Equal(t, int64(0), ws2Stats.SessionCountVSCode)
+		require.Equal(t, int64(0), ws2Stats.SessionCountReconnectingPTY)
+	})
+
+	t.Run("NoUsage", func(t *testing.T) {
+		t.Parallel()
+
+		db, _ := dbtestutil.NewDB(t)
+		authz := rbac.NewAuthorizer(prometheus.NewRegistry())
+		db = dbauthz.New(db, authz, slogtest.Make(t, &slogtest.Options{}), coderdtest.AccessControlStorePointer())
+		ctx := context.Background()
+		// Since the queries exclude the current minute
+		insertTime := dbtime.Now().Add(-time.Minute)
+
+		agentID := uuid.New()
+
+		dbgen.WorkspaceAgentStat(t, db, database.WorkspaceAgentStat{
+			CreatedAt:                 insertTime,
+			AgentID:                   agentID,
+			TxBytes:                   3,
+			RxBytes:                   4,
+			ConnectionMedianLatencyMS: 2,
+			// Should be ignored
+			SessionCountSSH:    3,
+			SessionCountVSCode: 1,
+		})
+
+		stats, err := db.GetWorkspaceAgentUsageStats(ctx, dbtime.Now().Add(-time.Hour))
+		require.NoError(t, err)
+
+		require.Len(t, stats, 1)
+		require.Equal(t, int64(3), stats[0].WorkspaceTxBytes)
+		require.Equal(t, int64(4), stats[0].WorkspaceRxBytes)
+		require.Equal(t, int64(0), stats[0].SessionCountVSCode)
+		require.Equal(t, int64(0), stats[0].SessionCountSSH)
+		require.Equal(t, int64(0), stats[0].SessionCountReconnectingPTY)
+		require.Equal(t, int64(0), stats[0].SessionCountJetBrains)
+	})
+}
+
+func TestGetWorkspaceAgentUsageStatsAndLabels(t *testing.T) {
+	t.Parallel()
+
+	t.Run("Aggregates", func(t *testing.T) {
+		t.Parallel()
+
+		db, _ := dbtestutil.NewDB(t)
+		ctx := context.Background()
+		insertTime := dbtime.Now()
+
+		// Insert user, agent, template, workspace
+		user1 := dbgen.User(t, db, database.User{})
+		org := dbgen.Organization(t, db, database.Organization{})
+		job1 := dbgen.ProvisionerJob(t, db, nil, database.ProvisionerJob{
+			OrganizationID: org.ID,
+		})
+		resource1 := dbgen.WorkspaceResource(t, db, database.WorkspaceResource{
+			JobID: job1.ID,
+		})
+		agent1 := dbgen.WorkspaceAgent(t, db, database.WorkspaceAgent{
+			ResourceID: resource1.ID,
+		})
+		template1 := dbgen.Template(t, db, database.Template{
+			OrganizationID: org.ID,
+			CreatedBy:      user1.ID,
+		})
+		workspace1 := dbgen.Workspace(t, db, database.Workspace{
+			OwnerID:        user1.ID,
+			OrganizationID: org.ID,
+			TemplateID:     template1.ID,
+		})
+		user2 := dbgen.User(t, db, database.User{})
+		job2 := dbgen.ProvisionerJob(t, db, nil, database.ProvisionerJob{
+			OrganizationID: org.ID,
+		})
+		resource2 := dbgen.WorkspaceResource(t, db, database.WorkspaceResource{
+			JobID: job2.ID,
+		})
+		agent2 := dbgen.WorkspaceAgent(t, db, database.WorkspaceAgent{
+			ResourceID: resource2.ID,
+		})
+		template2 := dbgen.Template(t, db, database.Template{
+			CreatedBy:      user1.ID,
+			OrganizationID: org.ID,
+		})
+		workspace2 := dbgen.Workspace(t, db, database.Workspace{
+			OwnerID:        user2.ID,
+			OrganizationID: org.ID,
+			TemplateID:     template2.ID,
+		})
+
+		// Old workspace 1 stats
+		dbgen.WorkspaceAgentStat(t, db, database.WorkspaceAgentStat{
+			CreatedAt:                 insertTime.Add(-time.Minute),
+			AgentID:                   agent1.ID,
+			WorkspaceID:               workspace1.ID,
+			TemplateID:                template1.ID,
+			UserID:                    user1.ID,
+			TxBytes:                   1,
+			RxBytes:                   1,
+			ConnectionMedianLatencyMS: 1,
+			// Should be ignored
+			SessionCountVSCode: 3,
+			SessionCountSSH:    1,
+		})
+		dbgen.WorkspaceAgentStat(t, db, database.WorkspaceAgentStat{
+			CreatedAt:          insertTime.Add(-time.Minute),
+			AgentID:            agent1.ID,
+			WorkspaceID:        workspace1.ID,
+			TemplateID:         template1.ID,
+			UserID:             user1.ID,
+			SessionCountVSCode: 1,
+			Usage:              true,
+		})
+
+		// Latest workspace 1 stats
+		dbgen.WorkspaceAgentStat(t, db, database.WorkspaceAgentStat{
+			CreatedAt:                 insertTime,
+			AgentID:                   agent1.ID,
+			WorkspaceID:               workspace1.ID,
+			TemplateID:                template1.ID,
+			UserID:                    user1.ID,
+			TxBytes:                   2,
+			RxBytes:                   2,
+			ConnectionMedianLatencyMS: 1,
+			// Should be ignored
+			SessionCountVSCode: 4,
+			SessionCountSSH:    3,
+		})
+		dbgen.WorkspaceAgentStat(t, db, database.WorkspaceAgentStat{
+			CreatedAt:             insertTime,
+			AgentID:               agent1.ID,
+			WorkspaceID:           workspace1.ID,
+			TemplateID:            template1.ID,
+			UserID:                user1.ID,
+			SessionCountJetBrains: 1,
+			Usage:                 true,
+		})
+		dbgen.WorkspaceAgentStat(t, db, database.WorkspaceAgentStat{
+			CreatedAt:                   insertTime,
+			AgentID:                     agent1.ID,
+			WorkspaceID:                 workspace1.ID,
+			TemplateID:                  template1.ID,
+			UserID:                      user1.ID,
+			SessionCountReconnectingPTY: 1,
+			Usage:                       true,
+		})
+
+		// Latest workspace 2 stats
+		dbgen.WorkspaceAgentStat(t, db, database.WorkspaceAgentStat{
+			CreatedAt:                 insertTime,
+			AgentID:                   agent2.ID,
+			WorkspaceID:               workspace2.ID,
+			TemplateID:                template2.ID,
+			UserID:                    user2.ID,
+			TxBytes:                   4,
+			RxBytes:                   8,
+			ConnectionMedianLatencyMS: 1,
+		})
+		dbgen.WorkspaceAgentStat(t, db, database.WorkspaceAgentStat{
+			CreatedAt:          insertTime,
+			AgentID:            agent2.ID,
+			WorkspaceID:        workspace2.ID,
+			TemplateID:         template2.ID,
+			UserID:             user2.ID,
+			SessionCountVSCode: 1,
+			Usage:              true,
+		})
+		dbgen.WorkspaceAgentStat(t, db, database.WorkspaceAgentStat{
+			CreatedAt:       insertTime,
+			AgentID:         agent2.ID,
+			WorkspaceID:     workspace2.ID,
+			TemplateID:      template2.ID,
+			UserID:          user2.ID,
+			SessionCountSSH: 1,
+			Usage:           true,
+		})
+
+		stats, err := db.GetWorkspaceAgentUsageStatsAndLabels(ctx, insertTime.Add(-time.Hour))
+		require.NoError(t, err)
+
+		require.Len(t, stats, 2)
+		require.Contains(t, stats, database.GetWorkspaceAgentUsageStatsAndLabelsRow{
+			Username:                    user1.Username,
+			AgentName:                   agent1.Name,
+			WorkspaceName:               workspace1.Name,
+			TxBytes:                     3,
+			RxBytes:                     3,
+			SessionCountJetBrains:       1,
+			SessionCountReconnectingPTY: 1,
+			ConnectionMedianLatencyMS:   1,
+		})
+
+		require.Contains(t, stats, database.GetWorkspaceAgentUsageStatsAndLabelsRow{
+			Username:                  user2.Username,
+			AgentName:                 agent2.Name,
+			WorkspaceName:             workspace2.Name,
+			RxBytes:                   8,
+			TxBytes:                   4,
+			SessionCountVSCode:        1,
+			SessionCountSSH:           1,
+			ConnectionMedianLatencyMS: 1,
+		})
+	})
+
+	t.Run("NoUsage", func(t *testing.T) {
+		t.Parallel()
+
+		db, _ := dbtestutil.NewDB(t)
+		ctx := context.Background()
+		insertTime := dbtime.Now()
+		// Insert user, agent, template, workspace
+		user := dbgen.User(t, db, database.User{})
+		org := dbgen.Organization(t, db, database.Organization{})
+		job := dbgen.ProvisionerJob(t, db, nil, database.ProvisionerJob{
+			OrganizationID: org.ID,
+		})
+		resource := dbgen.WorkspaceResource(t, db, database.WorkspaceResource{
+			JobID: job.ID,
+		})
+		agent := dbgen.WorkspaceAgent(t, db, database.WorkspaceAgent{
+			ResourceID: resource.ID,
+		})
+		template := dbgen.Template(t, db, database.Template{
+			OrganizationID: org.ID,
+			CreatedBy:      user.ID,
+		})
+		workspace := dbgen.Workspace(t, db, database.Workspace{
+			OwnerID:        user.ID,
+			OrganizationID: org.ID,
+			TemplateID:     template.ID,
+		})
+
+		dbgen.WorkspaceAgentStat(t, db, database.WorkspaceAgentStat{
+			CreatedAt:                 insertTime.Add(-time.Minute),
+			AgentID:                   agent.ID,
+			WorkspaceID:               workspace.ID,
+			TemplateID:                template.ID,
+			UserID:                    user.ID,
+			RxBytes:                   4,
+			TxBytes:                   5,
+			ConnectionMedianLatencyMS: 1,
+			// Should be ignored
+			SessionCountVSCode: 3,
+			SessionCountSSH:    1,
+		})
+
+		stats, err := db.GetWorkspaceAgentUsageStatsAndLabels(ctx, insertTime.Add(-time.Hour))
+		require.NoError(t, err)
+
+		require.Len(t, stats, 1)
+		require.Contains(t, stats, database.GetWorkspaceAgentUsageStatsAndLabelsRow{
+			Username:                  user.Username,
+			AgentName:                 agent.Name,
+			WorkspaceName:             workspace.Name,
+			RxBytes:                   4,
+			TxBytes:                   5,
+			ConnectionMedianLatencyMS: 1,
+		})
 	})
 }
 
@@ -510,7 +1028,7 @@ func TestDefaultOrg(t *testing.T) {
 	ctx := context.Background()
 
 	// Should start with the default org
-	all, err := db.GetOrganizations(ctx)
+	all, err := db.GetOrganizations(ctx, database.GetOrganizationsParams{})
 	require.NoError(t, err)
 	require.Len(t, all, 1)
 	require.True(t, all[0].IsDefault, "first org should always be default")
@@ -537,6 +1055,90 @@ func TestAuditLogDefaultLimit(t *testing.T) {
 	// The length should match the default limit of the SQL query.
 	// Updating the sql query requires changing the number below to match.
 	require.Len(t, rows, 100)
+}
+
+func TestWorkspaceQuotas(t *testing.T) {
+	t.Parallel()
+	orgMemberIDs := func(o database.OrganizationMember) uuid.UUID {
+		return o.UserID
+	}
+	groupMemberIDs := func(m database.GroupMember) uuid.UUID {
+		return m.UserID
+	}
+
+	t.Run("CorruptedEveryone", func(t *testing.T) {
+		t.Parallel()
+
+		ctx := testutil.Context(t, testutil.WaitLong)
+
+		db, _ := dbtestutil.NewDB(t)
+		// Create an extra org as a distraction
+		distract := dbgen.Organization(t, db, database.Organization{})
+		_, err := db.InsertAllUsersGroup(ctx, distract.ID)
+		require.NoError(t, err)
+
+		_, err = db.UpdateGroupByID(ctx, database.UpdateGroupByIDParams{
+			QuotaAllowance: 15,
+			ID:             distract.ID,
+		})
+		require.NoError(t, err)
+
+		// Create an org with 2 users
+		org := dbgen.Organization(t, db, database.Organization{})
+
+		everyoneGroup, err := db.InsertAllUsersGroup(ctx, org.ID)
+		require.NoError(t, err)
+
+		// Add a quota to the everyone group
+		_, err = db.UpdateGroupByID(ctx, database.UpdateGroupByIDParams{
+			QuotaAllowance: 50,
+			ID:             everyoneGroup.ID,
+		})
+		require.NoError(t, err)
+
+		// Add people to the org
+		one := dbgen.User(t, db, database.User{})
+		two := dbgen.User(t, db, database.User{})
+		memOne := dbgen.OrganizationMember(t, db, database.OrganizationMember{
+			OrganizationID: org.ID,
+			UserID:         one.ID,
+		})
+		memTwo := dbgen.OrganizationMember(t, db, database.OrganizationMember{
+			OrganizationID: org.ID,
+			UserID:         two.ID,
+		})
+
+		// Fetch the 'Everyone' group members
+		everyoneMembers, err := db.GetGroupMembersByGroupID(ctx, org.ID)
+		require.NoError(t, err)
+
+		require.ElementsMatch(t, db2sdk.List(everyoneMembers, groupMemberIDs),
+			db2sdk.List([]database.OrganizationMember{memOne, memTwo}, orgMemberIDs))
+
+		// Check the quota is correct.
+		allowance, err := db.GetQuotaAllowanceForUser(ctx, database.GetQuotaAllowanceForUserParams{
+			UserID:         one.ID,
+			OrganizationID: org.ID,
+		})
+		require.NoError(t, err)
+		require.Equal(t, int64(50), allowance)
+
+		// Now try to corrupt the DB
+		// Insert rows into the everyone group
+		err = db.InsertGroupMember(ctx, database.InsertGroupMemberParams{
+			UserID:  memOne.UserID,
+			GroupID: org.ID,
+		})
+		require.NoError(t, err)
+
+		// Ensure allowance remains the same
+		allowance, err = db.GetQuotaAllowanceForUser(ctx, database.GetQuotaAllowanceForUserParams{
+			UserID:         one.ID,
+			OrganizationID: org.ID,
+		})
+		require.NoError(t, err)
+		require.Equal(t, int64(50), allowance)
+	})
 }
 
 // TestReadCustomRoles tests the input params returns the correct set of roles.
@@ -573,7 +1175,7 @@ func TestReadCustomRoles(t *testing.T) {
 			orgID = uuid.NullUUID{}
 		}
 
-		role, err := db.UpsertCustomRole(ctx, database.UpsertCustomRoleParams{
+		role, err := db.InsertCustomRole(ctx, database.InsertCustomRoleParams{
 			Name:           fmt.Sprintf("role-%d", i),
 			OrganizationID: orgID,
 		})
@@ -767,6 +1369,170 @@ func TestReadCustomRoles(t *testing.T) {
 	}
 }
 
+func TestAuthorizedAuditLogs(t *testing.T) {
+	t.Parallel()
+
+	var allLogs []database.AuditLog
+	db, _ := dbtestutil.NewDB(t)
+	authz := rbac.NewAuthorizer(prometheus.NewRegistry())
+	db = dbauthz.New(db, authz, slogtest.Make(t, &slogtest.Options{}), coderdtest.AccessControlStorePointer())
+
+	siteWideIDs := []uuid.UUID{uuid.New(), uuid.New()}
+	for _, id := range siteWideIDs {
+		allLogs = append(allLogs, dbgen.AuditLog(t, db, database.AuditLog{
+			ID:             id,
+			OrganizationID: uuid.Nil,
+		}))
+	}
+
+	// This map is a simple way to insert a given number of organizations
+	// and audit logs for each organization.
+	// map[orgID][]AuditLogID
+	orgAuditLogs := map[uuid.UUID][]uuid.UUID{
+		uuid.New(): {uuid.New(), uuid.New()},
+		uuid.New(): {uuid.New(), uuid.New()},
+	}
+	orgIDs := make([]uuid.UUID, 0, len(orgAuditLogs))
+	for orgID := range orgAuditLogs {
+		orgIDs = append(orgIDs, orgID)
+	}
+	for orgID, ids := range orgAuditLogs {
+		dbgen.Organization(t, db, database.Organization{
+			ID: orgID,
+		})
+		for _, id := range ids {
+			allLogs = append(allLogs, dbgen.AuditLog(t, db, database.AuditLog{
+				ID:             id,
+				OrganizationID: orgID,
+			}))
+		}
+	}
+
+	// Now fetch all the logs
+	ctx := testutil.Context(t, testutil.WaitLong)
+	auditorRole, err := rbac.RoleByName(rbac.RoleAuditor())
+	require.NoError(t, err)
+
+	memberRole, err := rbac.RoleByName(rbac.RoleMember())
+	require.NoError(t, err)
+
+	orgAuditorRoles := func(t *testing.T, orgID uuid.UUID) rbac.Role {
+		t.Helper()
+
+		role, err := rbac.RoleByName(rbac.ScopedRoleOrgAuditor(orgID))
+		require.NoError(t, err)
+		return role
+	}
+
+	t.Run("NoAccess", func(t *testing.T) {
+		t.Parallel()
+
+		// Given: A user who is a member of 0 organizations
+		memberCtx := dbauthz.As(ctx, rbac.Subject{
+			FriendlyName: "member",
+			ID:           uuid.NewString(),
+			Roles:        rbac.Roles{memberRole},
+			Scope:        rbac.ScopeAll,
+		})
+
+		// When: The user queries for audit logs
+		logs, err := db.GetAuditLogsOffset(memberCtx, database.GetAuditLogsOffsetParams{})
+		require.NoError(t, err)
+		// Then: No logs returned
+		require.Len(t, logs, 0, "no logs should be returned")
+	})
+
+	t.Run("SiteWideAuditor", func(t *testing.T) {
+		t.Parallel()
+
+		// Given: A site wide auditor
+		siteAuditorCtx := dbauthz.As(ctx, rbac.Subject{
+			FriendlyName: "owner",
+			ID:           uuid.NewString(),
+			Roles:        rbac.Roles{auditorRole},
+			Scope:        rbac.ScopeAll,
+		})
+
+		// When: the auditor queries for audit logs
+		logs, err := db.GetAuditLogsOffset(siteAuditorCtx, database.GetAuditLogsOffsetParams{})
+		require.NoError(t, err)
+		// Then: All logs are returned
+		require.ElementsMatch(t, auditOnlyIDs(allLogs), auditOnlyIDs(logs))
+	})
+
+	t.Run("SingleOrgAuditor", func(t *testing.T) {
+		t.Parallel()
+
+		orgID := orgIDs[0]
+		// Given: An organization scoped auditor
+		orgAuditCtx := dbauthz.As(ctx, rbac.Subject{
+			FriendlyName: "org-auditor",
+			ID:           uuid.NewString(),
+			Roles:        rbac.Roles{orgAuditorRoles(t, orgID)},
+			Scope:        rbac.ScopeAll,
+		})
+
+		// When: The auditor queries for audit logs
+		logs, err := db.GetAuditLogsOffset(orgAuditCtx, database.GetAuditLogsOffsetParams{})
+		require.NoError(t, err)
+		// Then: Only the logs for the organization are returned
+		require.ElementsMatch(t, orgAuditLogs[orgID], auditOnlyIDs(logs))
+	})
+
+	t.Run("TwoOrgAuditors", func(t *testing.T) {
+		t.Parallel()
+
+		first := orgIDs[0]
+		second := orgIDs[1]
+		// Given: A user who is an auditor for two organizations
+		multiOrgAuditCtx := dbauthz.As(ctx, rbac.Subject{
+			FriendlyName: "org-auditor",
+			ID:           uuid.NewString(),
+			Roles:        rbac.Roles{orgAuditorRoles(t, first), orgAuditorRoles(t, second)},
+			Scope:        rbac.ScopeAll,
+		})
+
+		// When: The user queries for audit logs
+		logs, err := db.GetAuditLogsOffset(multiOrgAuditCtx, database.GetAuditLogsOffsetParams{})
+		require.NoError(t, err)
+		// Then: All logs for both organizations are returned
+		require.ElementsMatch(t, append(orgAuditLogs[first], orgAuditLogs[second]...), auditOnlyIDs(logs))
+	})
+
+	t.Run("ErroneousOrg", func(t *testing.T) {
+		t.Parallel()
+
+		// Given: A user who is an auditor for an organization that has 0 logs
+		userCtx := dbauthz.As(ctx, rbac.Subject{
+			FriendlyName: "org-auditor",
+			ID:           uuid.NewString(),
+			Roles:        rbac.Roles{orgAuditorRoles(t, uuid.New())},
+			Scope:        rbac.ScopeAll,
+		})
+
+		// When: The user queries for audit logs
+		logs, err := db.GetAuditLogsOffset(userCtx, database.GetAuditLogsOffsetParams{})
+		require.NoError(t, err)
+		// Then: No logs are returned
+		require.Len(t, logs, 0, "no logs should be returned")
+	})
+}
+
+func auditOnlyIDs[T database.AuditLog | database.GetAuditLogsOffsetRow](logs []T) []uuid.UUID {
+	ids := make([]uuid.UUID, 0, len(logs))
+	for _, log := range logs {
+		switch log := any(log).(type) {
+		case database.AuditLog:
+			ids = append(ids, log.ID)
+		case database.GetAuditLogsOffsetRow:
+			ids = append(ids, log.AuditLog.ID)
+		default:
+			panic("unreachable")
+		}
+	}
+	return ids
+}
+
 type tvArgs struct {
 	Status database.ProvisionerJobStatus
 	// CreateWorkspace is true if we should create a workspace for the template version
@@ -957,9 +1723,106 @@ func TestExpectOne(t *testing.T) {
 		dbgen.Organization(t, db, database.Organization{})
 
 		// Organizations is an easy table without foreign key dependencies
-		_, err = database.ExpectOne(db.GetOrganizations(ctx))
+		_, err = database.ExpectOne(db.GetOrganizations(ctx, database.GetOrganizationsParams{}))
 		require.ErrorContains(t, err, "too many rows returned")
 	})
+}
+
+func TestGroupRemovalTrigger(t *testing.T) {
+	t.Parallel()
+
+	db, _ := dbtestutil.NewDB(t)
+
+	orgA := dbgen.Organization(t, db, database.Organization{})
+	_, err := db.InsertAllUsersGroup(context.Background(), orgA.ID)
+	require.NoError(t, err)
+
+	orgB := dbgen.Organization(t, db, database.Organization{})
+	_, err = db.InsertAllUsersGroup(context.Background(), orgB.ID)
+	require.NoError(t, err)
+
+	orgs := []database.Organization{orgA, orgB}
+
+	user := dbgen.User(t, db, database.User{})
+	extra := dbgen.User(t, db, database.User{})
+	users := []database.User{user, extra}
+
+	groupA1 := dbgen.Group(t, db, database.Group{
+		OrganizationID: orgA.ID,
+	})
+	groupA2 := dbgen.Group(t, db, database.Group{
+		OrganizationID: orgA.ID,
+	})
+
+	groupB1 := dbgen.Group(t, db, database.Group{
+		OrganizationID: orgB.ID,
+	})
+	groupB2 := dbgen.Group(t, db, database.Group{
+		OrganizationID: orgB.ID,
+	})
+
+	groups := []database.Group{groupA1, groupA2, groupB1, groupB2}
+
+	// Add users to all organizations
+	for _, u := range users {
+		for _, o := range orgs {
+			dbgen.OrganizationMember(t, db, database.OrganizationMember{
+				OrganizationID: o.ID,
+				UserID:         u.ID,
+			})
+		}
+	}
+
+	// Add users to all groups
+	for _, u := range users {
+		for _, g := range groups {
+			dbgen.GroupMember(t, db, database.GroupMemberTable{
+				GroupID: g.ID,
+				UserID:  u.ID,
+			})
+		}
+	}
+
+	// Verify user is in all groups
+	ctx := testutil.Context(t, testutil.WaitLong)
+	onlyGroupIDs := func(row database.GetGroupsRow) uuid.UUID {
+		return row.Group.ID
+	}
+	userGroups, err := db.GetGroups(ctx, database.GetGroupsParams{
+		HasMemberID: user.ID,
+	})
+	require.NoError(t, err)
+	require.ElementsMatch(t, []uuid.UUID{
+		orgA.ID, orgB.ID, // Everyone groups
+		groupA1.ID, groupA2.ID, groupB1.ID, groupB2.ID, // Org groups
+	}, db2sdk.List(userGroups, onlyGroupIDs))
+
+	// Remove the user from org A
+	err = db.DeleteOrganizationMember(ctx, database.DeleteOrganizationMemberParams{
+		OrganizationID: orgA.ID,
+		UserID:         user.ID,
+	})
+	require.NoError(t, err)
+
+	// Verify user is no longer in org A groups
+	userGroups, err = db.GetGroups(ctx, database.GetGroupsParams{
+		HasMemberID: user.ID,
+	})
+	require.NoError(t, err)
+	require.ElementsMatch(t, []uuid.UUID{
+		orgB.ID,                // Everyone group
+		groupB1.ID, groupB2.ID, // Org groups
+	}, db2sdk.List(userGroups, onlyGroupIDs))
+
+	// Verify extra user is unchanged
+	extraUserGroups, err := db.GetGroups(ctx, database.GetGroupsParams{
+		HasMemberID: extra.ID,
+	})
+	require.NoError(t, err)
+	require.ElementsMatch(t, []uuid.UUID{
+		orgA.ID, orgB.ID, // Everyone groups
+		groupA1.ID, groupA2.ID, groupB1.ID, groupB2.ID, // Org groups
+	}, db2sdk.List(extraUserGroups, onlyGroupIDs))
 }
 
 func requireUsersMatch(t testing.TB, expected []database.User, found []database.GetUsersRow, msg string) {

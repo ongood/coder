@@ -2,28 +2,28 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { PageHeader, PageHeaderSubtitle, PageHeaderTitle } from "./PageHeader";
 
 const meta: Meta<typeof PageHeader> = {
-  title: "components/PageHeader",
-  component: PageHeader,
+	title: "components/PageHeader",
+	component: PageHeader,
 };
 
 export default meta;
 type Story = StoryObj<typeof PageHeader>;
 
 export const WithTitle: Story = {
-  args: {
-    children: <PageHeaderTitle>模板</PageHeaderTitle>,
-  },
+	args: {
+		children: <PageHeaderTitle>模板</PageHeaderTitle>,
+	},
 };
 
 export const WithSubtitle: Story = {
-  args: {
-    children: (
-      <>
-        <PageHeaderTitle>模板</PageHeaderTitle>
-        <PageHeaderSubtitle>
-        从模板创建新的工作区
-        </PageHeaderSubtitle>
-      </>
-    ),
-  },
+	args: {
+		children: (
+			<>
+				<PageHeaderTitle>模板</PageHeaderTitle>
+				<PageHeaderSubtitle>
+				    从模板创建新的工作区
+				</PageHeaderSubtitle>
+			</>
+		),
+	},
 };

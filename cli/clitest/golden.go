@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
 	"github.com/coder/coder/v2/cli/config"
@@ -183,11 +184,11 @@ func prepareTestData(t *testing.T) (*codersdk.Client, map[string]string) {
 		IncludeProvisionerDaemon: true,
 	})
 	firstUser := coderdtest.CreateFirstUser(t, rootClient)
-	secondUser, err := rootClient.CreateUser(ctx, codersdk.CreateUserRequest{
-		Email:          "testuser2@coder.com",
-		Username:       "testuser2",
-		Password:       coderdtest.FirstUserParams.Password,
-		OrganizationID: firstUser.OrganizationID,
+	secondUser, err := rootClient.CreateUserWithOrgs(ctx, codersdk.CreateUserRequestWithOrgs{
+		Email:           "testuser2@coder.com",
+		Username:        "testuser2",
+		Password:        coderdtest.FirstUserParams.Password,
+		OrganizationIDs: []uuid.UUID{firstUser.OrganizationID},
 	})
 	require.NoError(t, err)
 	version := coderdtest.CreateTemplateVersion(t, rootClient, firstUser.OrganizationID, nil)
@@ -195,7 +196,7 @@ func prepareTestData(t *testing.T) (*codersdk.Client, map[string]string) {
 	template := coderdtest.CreateTemplate(t, rootClient, firstUser.OrganizationID, version.ID, func(req *codersdk.CreateTemplateRequest) {
 		req.Name = "test-template"
 	})
-	workspace := coderdtest.CreateWorkspace(t, rootClient, firstUser.OrganizationID, template.ID, func(req *codersdk.CreateWorkspaceRequest) {
+	workspace := coderdtest.CreateWorkspace(t, rootClient, template.ID, func(req *codersdk.CreateWorkspaceRequest) {
 		req.Name = "test-workspace"
 	})
 	workspaceBuild := coderdtest.AwaitWorkspaceBuildJobCompleted(t, rootClient, workspace.LatestBuild.ID)

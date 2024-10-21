@@ -4,16 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"sync"
-	"time"
+	"text/template"
 
 	"github.com/google/uuid"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/xerrors"
 
+	"github.com/coder/coder/v2/coderd/database/dbtime"
 	"github.com/coder/coder/v2/coderd/notifications/dispatch"
 	"github.com/coder/coder/v2/coderd/notifications/render"
 	"github.com/coder/coder/v2/coderd/notifications/types"
 	"github.com/coder/coder/v2/codersdk"
+	"github.com/coder/quartz"
 
 	"cdr.dev/slog"
 
@@ -28,28 +30,35 @@ type notifier struct {
 	log   slog.Logger
 	store Store
 
-	tick     *time.Ticker
+	tick     *quartz.Ticker
 	stopOnce sync.Once
 	quit     chan any
 	done     chan any
 
-	method   database.NotificationMethod
 	handlers map[database.NotificationMethod]Handler
 	metrics  *Metrics
+	helpers  template.FuncMap
+
+	// clock is for testing
+	clock quartz.Clock
 }
 
-func newNotifier(cfg codersdk.NotificationsConfig, id uuid.UUID, log slog.Logger, db Store, hr map[database.NotificationMethod]Handler, method database.NotificationMethod, metrics *Metrics) *notifier {
+func newNotifier(cfg codersdk.NotificationsConfig, id uuid.UUID, log slog.Logger, db Store,
+	hr map[database.NotificationMethod]Handler, helpers template.FuncMap, metrics *Metrics, clock quartz.Clock,
+) *notifier {
+	tick := clock.NewTicker(cfg.FetchInterval.Value(), "notifier", "fetchInterval")
 	return &notifier{
 		id:       id,
 		cfg:      cfg,
 		log:      log.Named("notifier").With(slog.F("notifier_id", id)),
 		quit:     make(chan any),
 		done:     make(chan any),
-		tick:     time.NewTicker(cfg.FetchInterval.Value()),
+		tick:     tick,
 		store:    db,
 		handlers: hr,
-		method:   method,
+		helpers:  helpers,
 		metrics:  metrics,
+		clock:    clock,
 	}
 }
 
@@ -144,6 +153,12 @@ func (n *notifier) process(ctx context.Context, success chan<- dispatchResult, f
 
 	var eg errgroup.Group
 	for _, msg := range msgs {
+		// If a notification template has been disabled by the user after a notification was enqueued, mark it as inhibited
+		if msg.Disabled {
+			failure <- n.newInhibitedDispatch(msg)
+			continue
+		}
+
 		// A message failing to be prepared correctly should not affect other messages.
 		deliverFn, err := n.prepare(ctx, msg)
 		if err != nil {
@@ -209,10 +224,10 @@ func (n *notifier) prepare(ctx context.Context, msg database.AcquireNotification
 	}
 
 	var title, body string
-	if title, err = render.GoTemplate(msg.TitleTemplate, payload, nil); err != nil {
+	if title, err = render.GoTemplate(msg.TitleTemplate, payload, n.helpers); err != nil {
 		return nil, xerrors.Errorf("render title: %w", err)
 	}
-	if body, err = render.GoTemplate(msg.BodyTemplate, payload, nil); err != nil {
+	if body, err = render.GoTemplate(msg.BodyTemplate, payload, n.helpers); err != nil {
 		return nil, xerrors.Errorf("render body: %w", err)
 	}
 
@@ -234,17 +249,17 @@ func (n *notifier) deliver(ctx context.Context, msg database.AcquireNotification
 	logger := n.log.With(slog.F("msg_id", msg.ID), slog.F("method", msg.Method), slog.F("attempt", msg.AttemptCount+1))
 
 	if msg.AttemptCount > 0 {
-		n.metrics.RetryCount.WithLabelValues(string(n.method), msg.TemplateID.String()).Inc()
+		n.metrics.RetryCount.WithLabelValues(string(msg.Method), msg.TemplateID.String()).Inc()
 	}
 
-	n.metrics.InflightDispatches.WithLabelValues(string(n.method), msg.TemplateID.String()).Inc()
-	n.metrics.QueuedSeconds.WithLabelValues(string(n.method)).Observe(msg.QueuedSeconds)
+	n.metrics.InflightDispatches.WithLabelValues(string(msg.Method), msg.TemplateID.String()).Inc()
+	n.metrics.QueuedSeconds.WithLabelValues(string(msg.Method)).Observe(msg.QueuedSeconds)
 
-	start := time.Now()
+	start := n.clock.Now()
 	retryable, err := deliver(ctx, msg.ID)
 
-	n.metrics.DispatcherSendSeconds.WithLabelValues(string(n.method)).Observe(time.Since(start).Seconds())
-	n.metrics.InflightDispatches.WithLabelValues(string(n.method), msg.TemplateID.String()).Dec()
+	n.metrics.DispatcherSendSeconds.WithLabelValues(string(msg.Method)).Observe(n.clock.Since(start).Seconds())
+	n.metrics.InflightDispatches.WithLabelValues(string(msg.Method), msg.TemplateID.String()).Dec()
 
 	if err != nil {
 		// Don't try to accumulate message responses if the context has been canceled.
@@ -281,12 +296,12 @@ func (n *notifier) deliver(ctx context.Context, msg database.AcquireNotification
 }
 
 func (n *notifier) newSuccessfulDispatch(msg database.AcquireNotificationMessagesRow) dispatchResult {
-	n.metrics.DispatchAttempts.WithLabelValues(string(n.method), msg.TemplateID.String(), ResultSuccess).Inc()
+	n.metrics.DispatchAttempts.WithLabelValues(string(msg.Method), msg.TemplateID.String(), ResultSuccess).Inc()
 
 	return dispatchResult{
 		notifier: n.id,
 		msg:      msg.ID,
-		ts:       time.Now(),
+		ts:       dbtime.Time(n.clock.Now().UTC()),
 	}
 }
 
@@ -301,14 +316,24 @@ func (n *notifier) newFailedDispatch(msg database.AcquireNotificationMessagesRow
 		result = ResultPermFail
 	}
 
-	n.metrics.DispatchAttempts.WithLabelValues(string(n.method), msg.TemplateID.String(), result).Inc()
+	n.metrics.DispatchAttempts.WithLabelValues(string(msg.Method), msg.TemplateID.String(), result).Inc()
 
 	return dispatchResult{
 		notifier:  n.id,
 		msg:       msg.ID,
-		ts:        time.Now(),
+		ts:        dbtime.Time(n.clock.Now().UTC()),
 		err:       err,
 		retryable: retryable,
+	}
+}
+
+func (n *notifier) newInhibitedDispatch(msg database.AcquireNotificationMessagesRow) dispatchResult {
+	return dispatchResult{
+		notifier:  n.id,
+		msg:       msg.ID,
+		ts:        dbtime.Time(n.clock.Now().UTC()),
+		retryable: false,
+		inhibited: true,
 	}
 }
 

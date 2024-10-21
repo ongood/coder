@@ -12,6 +12,8 @@ import (
 	"github.com/google/uuid"
 	"golang.org/x/xerrors"
 
+	"cdr.dev/slog"
+
 	"github.com/coder/coder/v2/coderd/audit"
 	"github.com/coder/coder/v2/coderd/database"
 	"github.com/coder/coder/v2/coderd/database/db2sdk"
@@ -20,6 +22,7 @@ import (
 	"github.com/coder/coder/v2/coderd/gitsshkey"
 	"github.com/coder/coder/v2/coderd/httpapi"
 	"github.com/coder/coder/v2/coderd/httpmw"
+	"github.com/coder/coder/v2/coderd/notifications"
 	"github.com/coder/coder/v2/coderd/rbac"
 	"github.com/coder/coder/v2/coderd/rbac/policy"
 	"github.com/coder/coder/v2/coderd/searchquery"
@@ -183,13 +186,13 @@ func (api *API) postFirstUser(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	//nolint:gocritic // needed to create first user
-	user, organizationID, err := api.CreateUser(dbauthz.AsSystemRestricted(ctx), api.Database, CreateUserRequest{
-		CreateUserRequest: codersdk.CreateUserRequest{
-			Email:          createUser.Email,
-			Username:       createUser.Username,
-			Name:           createUser.Name,
-			Password:       createUser.Password,
-			OrganizationID: defaultOrg.ID,
+	user, err := api.CreateUser(dbauthz.AsSystemRestricted(ctx), api.Database, CreateUserRequest{
+		CreateUserRequestWithOrgs: codersdk.CreateUserRequestWithOrgs{
+			Email:           createUser.Email,
+			Username:        createUser.Username,
+			Name:            createUser.Name,
+			Password:        createUser.Password,
+			OrganizationIDs: []uuid.UUID{defaultOrg.ID},
 		},
 		LoginType: database.LoginTypePassword,
 	})
@@ -237,7 +240,7 @@ func (api *API) postFirstUser(rw http.ResponseWriter, r *http.Request) {
 
 	httpapi.Write(ctx, rw, http.StatusCreated, codersdk.CreateFirstUserResponse{
 		UserID:         user.ID,
-		OrganizationID: organizationID,
+		OrganizationID: defaultOrg.ID,
 	})
 }
 
@@ -339,7 +342,7 @@ func (api *API) GetUsers(rw http.ResponseWriter, r *http.Request) ([]database.Us
 // @Accept json
 // @Produce json
 // @Tags Users
-// @Param request body codersdk.CreateUserRequest true "Create user request"
+// @Param request body codersdk.CreateUserRequestWithOrgs true "Create user request"
 // @Success 201 {object} codersdk.User
 // @Router /users [post]
 func (api *API) postUser(rw http.ResponseWriter, r *http.Request) {
@@ -353,15 +356,11 @@ func (api *API) postUser(rw http.ResponseWriter, r *http.Request) {
 	})
 	defer commitAudit()
 
-	var req codersdk.CreateUserRequest
+	var req codersdk.CreateUserRequestWithOrgs
 	if !httpapi.Read(ctx, rw, r, &req) {
 		return
 	}
 
-	if req.UserLoginType == "" && req.DisableLogin {
-		// Handle the deprecated field
-		req.UserLoginType = codersdk.LoginTypeNone
-	}
 	if req.UserLoginType == "" {
 		// Default to password auth
 		req.UserLoginType = codersdk.LoginTypePassword
@@ -379,6 +378,20 @@ func (api *API) postUser(rw http.ResponseWriter, r *http.Request) {
 	if api.DeploymentValues.DisablePasswordAuth && req.UserLoginType == codersdk.LoginTypePassword {
 		httpapi.Write(ctx, rw, http.StatusForbidden, codersdk.Response{
 			Message: "基于密码的认证已禁用！无法为新用户提供密码认证。",
+		})
+		return
+	}
+
+	if len(req.OrganizationIDs) == 0 {
+		httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
+			Message: "No organization specified to place the user as a member of. It is required to specify at least one organization id to place the user in.",
+			Detail:  "required at least 1 value for the array 'organization_ids'",
+			Validations: []codersdk.ValidationError{
+				{
+					Field:  "organization_ids",
+					Detail: "Missing values, this cannot be empty",
+				},
+			},
 		})
 		return
 	}
@@ -403,44 +416,33 @@ func (api *API) postUser(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.OrganizationID != uuid.Nil {
-		// If an organization was provided, make sure it exists.
-		_, err := api.Database.GetOrganizationByID(ctx, req.OrganizationID)
-		if err != nil {
-			if httpapi.Is404Error(err) {
+	// If an organization was provided, make sure it exists.
+	for i, orgID := range req.OrganizationIDs {
+		var orgErr error
+		if orgID != uuid.Nil {
+			_, orgErr = api.Database.GetOrganizationByID(ctx, orgID)
+		} else {
+			var defaultOrg database.Organization
+			defaultOrg, orgErr = api.Database.GetDefaultOrganization(ctx)
+			if orgErr == nil {
+				// converts uuid.Nil --> default org.ID
+				req.OrganizationIDs[i] = defaultOrg.ID
+			}
+		}
+		if orgErr != nil {
+			if httpapi.Is404Error(orgErr) {
 				httpapi.Write(ctx, rw, http.StatusNotFound, codersdk.Response{
-					Message: fmt.Sprintf("Organization does not exist with the provided id %q.", req.OrganizationID),
+					Message: fmt.Sprintf("Organization does not exist with the provided id %q.", orgID),
 				})
 				return
 			}
 
 			httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
 				Message: "获取组织时出现内部错误。",
-				Detail:  err.Error(),
+				Detail:  orgErr.Error(),
 			})
 			return
 		}
-	} else {
-		// If no organization is provided, add the user to the default
-		defaultOrg, err := api.Database.GetDefaultOrganization(ctx)
-		if err != nil {
-			if httpapi.Is404Error(err) {
-				httpapi.Write(ctx, rw, http.StatusNotFound,
-					codersdk.Response{
-						Message: "Resource not found or you do not have access to this resource",
-						Detail:  "Organization not found",
-					},
-				)
-				return
-			}
-			httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-				Message: "Internal error fetching orgs.",
-				Detail:  err.Error(),
-			})
-			return
-		}
-
-		req.OrganizationID = defaultOrg.ID
 	}
 
 	var loginType database.LoginType
@@ -461,6 +463,12 @@ func (api *API) postUser(rw http.ResponseWriter, r *http.Request) {
 		}
 		loginType = database.LoginTypePassword
 	case codersdk.LoginTypeOIDC:
+		if api.OIDCConfig == nil {
+			httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
+				Message: "You must configure OIDC before creating OIDC users.",
+			})
+			return
+		}
 		loginType = database.LoginTypeOIDC
 	case codersdk.LoginTypeGithub:
 		loginType = database.LoginTypeGithub
@@ -468,11 +476,12 @@ func (api *API) postUser(rw http.ResponseWriter, r *http.Request) {
 		httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
 			Message: fmt.Sprintf("手动创建新用户时不支持登录类型 %q。", req.UserLoginType),
 		})
+		return
 	}
 
-	user, _, err := api.CreateUser(ctx, api.Database, CreateUserRequest{
-		CreateUserRequest: req,
-		LoginType:         loginType,
+	user, err := api.CreateUser(ctx, api.Database, CreateUserRequest{
+		CreateUserRequestWithOrgs: req,
+		LoginType:                 loginType,
 	})
 	if dbauthz.IsNotAuthorizedError(err) {
 		httpapi.Write(ctx, rw, http.StatusForbidden, codersdk.Response{
@@ -495,7 +504,7 @@ func (api *API) postUser(rw http.ResponseWriter, r *http.Request) {
 		Users: []telemetry.User{telemetry.ConvertUser(user)},
 	})
 
-	httpapi.Write(ctx, rw, http.StatusCreated, db2sdk.User(user, []uuid.UUID{req.OrganizationID}))
+	httpapi.Write(ctx, rw, http.StatusCreated, db2sdk.User(user, req.OrganizationIDs))
 }
 
 // @Summary Delete user
@@ -503,7 +512,7 @@ func (api *API) postUser(rw http.ResponseWriter, r *http.Request) {
 // @Security CoderSessionToken
 // @Tags Users
 // @Param user path string true "User ID, name, or me"
-// @Success 204
+// @Success 200
 // @Router /users/{user} [delete]
 func (api *API) deleteUser(rw http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -557,7 +566,30 @@ func (api *API) deleteUser(rw http.ResponseWriter, r *http.Request) {
 	}
 	user.Deleted = true
 	aReq.New = user
-	rw.WriteHeader(http.StatusNoContent)
+
+	userAdmins, err := findUserAdmins(ctx, api.Database)
+	if err != nil {
+		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
+			Message: "Internal error fetching user admins.",
+			Detail:  err.Error(),
+		})
+		return
+	}
+
+	for _, u := range userAdmins {
+		if _, err := api.NotificationsEnqueuer.Enqueue(ctx, u.ID, notifications.TemplateUserAccountDeleted,
+			map[string]string{
+				"deleted_account_name": user.Username,
+			}, "api-users-delete",
+			user.ID,
+		); err != nil {
+			api.Logger.Warn(ctx, "unable to notify about deleted user", slog.F("deleted_user", user.Username), slog.Error(err))
+		}
+	}
+
+	httpapi.Write(ctx, rw, http.StatusOK, codersdk.Response{
+		Message: "User has been deleted!",
+	})
 }
 
 // Returns the parameterized user requested. All validation
@@ -812,7 +844,7 @@ func (api *API) putUserStatus(status database.UserStatus) func(rw http.ResponseW
 			}
 		}
 
-		suspendedUser, err := api.Database.UpdateUserStatus(ctx, database.UpdateUserStatusParams{
+		targetUser, err := api.Database.UpdateUserStatus(ctx, database.UpdateUserStatusParams{
 			ID:        user.ID,
 			Status:    status,
 			UpdatedAt: dbtime.Now(),
@@ -824,7 +856,12 @@ func (api *API) putUserStatus(status database.UserStatus) func(rw http.ResponseW
 			})
 			return
 		}
-		aReq.New = suspendedUser
+		aReq.New = targetUser
+
+		err = api.notifyUserStatusChanged(ctx, user, status)
+		if err != nil {
+			api.Logger.Warn(ctx, "unable to notify about changed user's status", slog.F("affected_user", user.Username), slog.Error(err))
+		}
 
 		organizations, err := userOrganizationIDs(ctx, api, user)
 		if err != nil {
@@ -834,9 +871,52 @@ func (api *API) putUserStatus(status database.UserStatus) func(rw http.ResponseW
 			})
 			return
 		}
-
-		httpapi.Write(ctx, rw, http.StatusOK, db2sdk.User(suspendedUser, organizations))
+		httpapi.Write(ctx, rw, http.StatusOK, db2sdk.User(targetUser, organizations))
 	}
+}
+
+func (api *API) notifyUserStatusChanged(ctx context.Context, user database.User, status database.UserStatus) error {
+	var key string
+	var adminTemplateID, personalTemplateID uuid.UUID
+	switch status {
+	case database.UserStatusSuspended:
+		key = "suspended_account_name"
+		adminTemplateID = notifications.TemplateUserAccountSuspended
+		personalTemplateID = notifications.TemplateYourAccountSuspended
+	case database.UserStatusActive:
+		key = "activated_account_name"
+		adminTemplateID = notifications.TemplateUserAccountActivated
+		personalTemplateID = notifications.TemplateYourAccountActivated
+	default:
+		api.Logger.Error(ctx, "user status is not supported", slog.F("username", user.Username), slog.F("user_status", string(status)))
+		return xerrors.Errorf("unable to notify admins as the user's status is unsupported")
+	}
+
+	userAdmins, err := findUserAdmins(ctx, api.Database)
+	if err != nil {
+		api.Logger.Error(ctx, "unable to find user admins", slog.Error(err))
+	}
+
+	// Send notifications to user admins and affected user
+	for _, u := range userAdmins {
+		if _, err := api.NotificationsEnqueuer.Enqueue(ctx, u.ID, adminTemplateID,
+			map[string]string{
+				key: user.Username,
+			}, "api-put-user-status",
+			user.ID,
+		); err != nil {
+			api.Logger.Warn(ctx, "unable to notify about changed user's status", slog.F("affected_user", user.Username), slog.Error(err))
+		}
+	}
+	if _, err := api.NotificationsEnqueuer.Enqueue(ctx, user.ID, personalTemplateID,
+		map[string]string{
+			key: user.Username,
+		}, "api-put-user-status",
+		user.ID,
+	); err != nil {
+		api.Logger.Warn(ctx, "unable to notify user about status change of their account", slog.F("affected_user", user.Username), slog.Error(err))
+	}
+	return nil
 }
 
 // @Summary Update user appearance settings
@@ -1082,7 +1162,7 @@ func (api *API) putUserRoles(rw http.ResponseWriter, r *http.Request) {
 	defer commitAudit()
 	aReq.Old = user
 
-	if user.LoginType == database.LoginTypeOIDC && api.OIDCConfig.RoleSyncEnabled() {
+	if user.LoginType == database.LoginTypeOIDC && api.IDPSync.SiteRoleSyncEnabled() {
 		httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
 			Message: "当角色同步已启用时，无法修改 OIDC 用户的角色。",
 			Detail:  "在 OIDC 配置中设置了 'User Role Field'。所有角色更改必须来自 OIDC 身份提供者。",
@@ -1167,12 +1247,7 @@ func (api *API) organizationsByUser(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	publicOrganizations := make([]codersdk.Organization, 0, len(organizations))
-	for _, organization := range organizations {
-		publicOrganizations = append(publicOrganizations, convertOrganization(organization))
-	}
-
-	httpapi.Write(ctx, rw, http.StatusOK, publicOrganizations)
+	httpapi.Write(ctx, rw, http.StatusOK, db2sdk.List(organizations, db2sdk.Organization))
 }
 
 // @Summary Get organization by user and organization name
@@ -1200,34 +1275,31 @@ func (api *API) organizationByUserAndName(rw http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	httpapi.Write(ctx, rw, http.StatusOK, convertOrganization(organization))
+	httpapi.Write(ctx, rw, http.StatusOK, db2sdk.Organization(organization))
 }
 
 type CreateUserRequest struct {
-	codersdk.CreateUserRequest
-	LoginType database.LoginType
+	codersdk.CreateUserRequestWithOrgs
+	LoginType         database.LoginType
+	SkipNotifications bool
 }
 
-func (api *API) CreateUser(ctx context.Context, store database.Store, req CreateUserRequest) (database.User, uuid.UUID, error) {
+func (api *API) CreateUser(ctx context.Context, store database.Store, req CreateUserRequest) (database.User, error) {
 	// Ensure the username is valid. It's the caller's responsibility to ensure
 	// the username is valid and unique.
-	if usernameValid := httpapi.NameValid(req.Username); usernameValid != nil {
-		return database.User{}, uuid.Nil, xerrors.Errorf("无效的用户名 %q: %w", req.Username, usernameValid)
+	if usernameValid := codersdk.NameValid(req.Username); usernameValid != nil {
+		return database.User{}, xerrors.Errorf("无效的用户名 %q: %w", req.Username, usernameValid)
 	}
 
 	var user database.User
-	return user, req.OrganizationID, store.InTx(func(tx database.Store) error {
+	err := store.InTx(func(tx database.Store) error {
 		orgRoles := make([]string, 0)
-		// Organization is required to know where to allocate the user.
-		if req.OrganizationID == uuid.Nil {
-			return xerrors.Errorf("organization ID must be provided")
-		}
 
 		params := database.InsertUserParams{
 			ID:             uuid.New(),
 			Email:          req.Email,
 			Username:       req.Username,
-			Name:           httpapi.NormalizeRealUsername(req.Name),
+			Name:           codersdk.NormalizeRealUsername(req.Name),
 			CreatedAt:      dbtime.Now(),
 			UpdatedAt:      dbtime.Now(),
 			HashedPassword: []byte{},
@@ -1264,19 +1336,62 @@ func (api *API) CreateUser(ctx context.Context, store database.Store, req Create
 		if err != nil {
 			return xerrors.Errorf("插入用户的 gitsshkey: %w", err)
 		}
-		_, err = tx.InsertOrganizationMember(ctx, database.InsertOrganizationMemberParams{
-			OrganizationID: req.OrganizationID,
-			UserID:         user.ID,
-			CreatedAt:      dbtime.Now(),
-			UpdatedAt:      dbtime.Now(),
-			// By default give them membership to the organization.
-			Roles: orgRoles,
-		})
-		if err != nil {
-			return xerrors.Errorf("创建组织成员: %w", err)
+
+		for _, orgID := range req.OrganizationIDs {
+			_, err = tx.InsertOrganizationMember(ctx, database.InsertOrganizationMemberParams{
+				OrganizationID: orgID,
+				UserID:         user.ID,
+				CreatedAt:      dbtime.Now(),
+				UpdatedAt:      dbtime.Now(),
+				// By default give them membership to the organization.
+				Roles: orgRoles,
+			})
+			if err != nil {
+				return xerrors.Errorf("create organization member for %q: %w", orgID.String(), err)
+			}
 		}
+
 		return nil
 	}, nil)
+	if err != nil || req.SkipNotifications {
+		return user, err
+	}
+
+	userAdmins, err := findUserAdmins(ctx, store)
+	if err != nil {
+		return user, xerrors.Errorf("find user admins: %w", err)
+	}
+
+	for _, u := range userAdmins {
+		if _, err := api.NotificationsEnqueuer.Enqueue(ctx, u.ID, notifications.TemplateUserAccountCreated,
+			map[string]string{
+				"created_account_name": user.Username,
+			}, "api-users-create",
+			user.ID,
+		); err != nil {
+			api.Logger.Warn(ctx, "unable to notify about created user", slog.F("created_user", user.Username), slog.Error(err))
+		}
+	}
+	return user, err
+}
+
+// findUserAdmins fetches all users with user admin permission including owners.
+func findUserAdmins(ctx context.Context, store database.Store) ([]database.GetUsersRow, error) {
+	// Notice: we can't scrape the user information in parallel as pq
+	// fails with: unexpected describe rows response: 'D'
+	owners, err := store.GetUsers(ctx, database.GetUsersParams{
+		RbacRole: []string{codersdk.RoleOwner},
+	})
+	if err != nil {
+		return nil, xerrors.Errorf("get owners: %w", err)
+	}
+	userAdmins, err := store.GetUsers(ctx, database.GetUsersParams{
+		RbacRole: []string{codersdk.RoleUserAdmin},
+	})
+	if err != nil {
+		return nil, xerrors.Errorf("get user admins: %w", err)
+	}
+	return append(owners, userAdmins...), nil
 }
 
 func convertUsers(users []database.User, organizationIDsByUserID map[uuid.UUID][]uuid.UUID) []codersdk.User {
@@ -1293,9 +1408,12 @@ func userOrganizationIDs(ctx context.Context, api *API, user database.User) ([]u
 	if err != nil {
 		return []uuid.UUID{}, err
 	}
+
+	// If you are in no orgs, then return an empty list.
 	if len(organizationIDsByMemberIDsRows) == 0 {
-		return []uuid.UUID{}, xerrors.Errorf("user %q 必须至少是一个组织的成员", user.Email)
+		return []uuid.UUID{}, nil
 	}
+
 	member := organizationIDsByMemberIDsRows[0]
 	return member.OrganizationIDs, nil
 }

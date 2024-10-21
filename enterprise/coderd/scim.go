@@ -25,11 +25,7 @@ import (
 
 func (api *API) scimEnabledMW(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-		api.entitlementsMu.RLock()
-		scim := api.entitlements.Features[codersdk.FeatureSCIM].Enabled
-		api.entitlementsMu.RUnlock()
-
-		if !scim {
+		if !api.Entitlements.Enabled(codersdk.FeatureSCIM) {
 			httpapi.RouteNotFound(rw)
 			return
 		}
@@ -210,7 +206,7 @@ func (api *API) scimPostUser(rw http.ResponseWriter, r *http.Request) {
 	// The username is a required property in Coder. We make a best-effort
 	// attempt at using what the claims provide, but if that fails we will
 	// generate a random username.
-	usernameValid := httpapi.NameValid(sUser.UserName)
+	usernameValid := codersdk.NameValid(sUser.UserName)
 	if usernameValid != nil {
 		// If no username is provided, we can default to use the email address.
 		// This will be converted in the from function below, so it's safe
@@ -218,27 +214,34 @@ func (api *API) scimPostUser(rw http.ResponseWriter, r *http.Request) {
 		if sUser.UserName == "" {
 			sUser.UserName = email
 		}
-		sUser.UserName = httpapi.UsernameFrom(sUser.UserName)
+		sUser.UserName = codersdk.UsernameFrom(sUser.UserName)
 	}
 
-	// TODO: This is a temporary solution that does not support multi-org
-	// 	deployments. This assumption places all new SCIM users into the
-	//	default organization.
-	//nolint:gocritic
-	defaultOrganization, err := api.Database.GetDefaultOrganization(dbauthz.AsSystemRestricted(ctx))
-	if err != nil {
-		_ = handlerutil.WriteError(rw, err)
-		return
+	// If organization sync is enabled, the user's organizations will be
+	// corrected on login. If including the default org, then always assign
+	// the default org, regardless if sync is enabled or not.
+	// This is to preserve single org deployment behavior.
+	organizations := []uuid.UUID{}
+	if api.IDPSync.AssignDefaultOrganization() {
+		//nolint:gocritic // SCIM operations are a system user
+		defaultOrganization, err := api.Database.GetDefaultOrganization(dbauthz.AsSystemRestricted(ctx))
+		if err != nil {
+			_ = handlerutil.WriteError(rw, err)
+			return
+		}
+		organizations = append(organizations, defaultOrganization.ID)
 	}
 
 	//nolint:gocritic // needed for SCIM
-	dbUser, _, err = api.AGPL.CreateUser(dbauthz.AsSystemRestricted(ctx), api.Database, agpl.CreateUserRequest{
-		CreateUserRequest: codersdk.CreateUserRequest{
-			Username:       sUser.UserName,
-			Email:          email,
-			OrganizationID: defaultOrganization.ID,
+	dbUser, err = api.AGPL.CreateUser(dbauthz.AsSystemRestricted(ctx), api.Database, agpl.CreateUserRequest{
+		CreateUserRequestWithOrgs: codersdk.CreateUserRequestWithOrgs{
+			Username:        sUser.UserName,
+			Email:           email,
+			OrganizationIDs: organizations,
 		},
 		LoginType: database.LoginTypeOIDC,
+		// Do not send notifications to user admins as SCIM endpoint might be called sequentially to all users.
+		SkipNotifications: true,
 	})
 	if err != nil {
 		_ = handlerutil.WriteError(rw, err)
@@ -272,13 +275,14 @@ func (api *API) scimPatchUser(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	auditor := *api.AGPL.Auditor.Load()
-	aReq, commitAudit := audit.InitRequest[database.User](rw, &audit.RequestParams{
+	aReq, commitAudit := audit.InitRequestWithCancel[database.User](rw, &audit.RequestParams{
 		Audit:   auditor,
 		Log:     api.Logger,
 		Request: r,
 		Action:  database.AuditActionWrite,
 	})
-	defer commitAudit()
+
+	defer commitAudit(true)
 
 	id := chi.URLParam(r, "id")
 
@@ -307,23 +311,39 @@ func (api *API) scimPatchUser(rw http.ResponseWriter, r *http.Request) {
 
 	var status database.UserStatus
 	if sUser.Active {
-		// The user will get transitioned to Active after logging in.
-		status = database.UserStatusDormant
+		switch dbUser.Status {
+		case database.UserStatusActive:
+			// Keep the user active
+			status = database.UserStatusActive
+		case database.UserStatusDormant, database.UserStatusSuspended:
+			// Move (or keep) as dormant
+			status = database.UserStatusDormant
+		default:
+			// If the status is unknown, just move them to dormant.
+			// The user will get transitioned to Active after logging in.
+			status = database.UserStatusDormant
+		}
 	} else {
 		status = database.UserStatusSuspended
 	}
 
-	//nolint:gocritic // needed for SCIM
-	userNew, err := api.Database.UpdateUserStatus(dbauthz.AsSystemRestricted(r.Context()), database.UpdateUserStatusParams{
-		ID:        dbUser.ID,
-		Status:    status,
-		UpdatedAt: dbtime.Now(),
-	})
-	if err != nil {
-		_ = handlerutil.WriteError(rw, err)
-		return
+	if dbUser.Status != status {
+		//nolint:gocritic // needed for SCIM
+		userNew, err := api.Database.UpdateUserStatus(dbauthz.AsSystemRestricted(r.Context()), database.UpdateUserStatusParams{
+			ID:        dbUser.ID,
+			Status:    status,
+			UpdatedAt: dbtime.Now(),
+		})
+		if err != nil {
+			_ = handlerutil.WriteError(rw, err)
+			return
+		}
+		dbUser = userNew
+	} else {
+		// Do not push an audit log if there is no change.
+		commitAudit(false)
 	}
-	aReq.New = userNew
 
+	aReq.New = dbUser
 	httpapi.Write(ctx, rw, http.StatusOK, sUser)
 }

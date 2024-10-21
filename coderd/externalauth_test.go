@@ -207,12 +207,12 @@ func TestExternalAuthManagement(t *testing.T) {
 		const gitlabID = "fake-gitlab"
 
 		githubCalled := false
-		githubApp := oidctest.NewFakeIDP(t, oidctest.WithServing(), oidctest.WithRefresh(func(email string) error {
+		githubApp := oidctest.NewFakeIDP(t, oidctest.WithServing(), oidctest.WithRefresh(func(_ string) error {
 			githubCalled = true
 			return nil
 		}))
 		gitlabCalled := false
-		gitlab := oidctest.NewFakeIDP(t, oidctest.WithServing(), oidctest.WithRefresh(func(email string) error {
+		gitlab := oidctest.NewFakeIDP(t, oidctest.WithServing(), oidctest.WithRefresh(func(_ string) error {
 			gitlabCalled = true
 			return nil
 		}))
@@ -429,7 +429,7 @@ func TestExternalAuthCallback(t *testing.T) {
 		})
 		template := coderdtest.CreateTemplate(t, client, user.OrganizationID, version.ID)
 		coderdtest.AwaitTemplateVersionJobCompleted(t, client, version.ID)
-		workspace := coderdtest.CreateWorkspace(t, client, user.OrganizationID, template.ID)
+		workspace := coderdtest.CreateWorkspace(t, client, template.ID)
 		coderdtest.AwaitWorkspaceBuildJobCompleted(t, client, workspace.LatestBuild.ID)
 
 		agentClient := agentsdk.New(client.URL)
@@ -461,7 +461,7 @@ func TestExternalAuthCallback(t *testing.T) {
 		})
 		template := coderdtest.CreateTemplate(t, client, user.OrganizationID, version.ID)
 		coderdtest.AwaitTemplateVersionJobCompleted(t, client, version.ID)
-		workspace := coderdtest.CreateWorkspace(t, client, user.OrganizationID, template.ID)
+		workspace := coderdtest.CreateWorkspace(t, client, template.ID)
 		coderdtest.AwaitWorkspaceBuildJobCompleted(t, client, workspace.LatestBuild.ID)
 
 		agentClient := agentsdk.New(client.URL)
@@ -508,6 +508,35 @@ func TestExternalAuthCallback(t *testing.T) {
 		resp = coderdtest.RequestExternalAuthCallback(t, "github", client)
 		require.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
 	})
+
+	t.Run("CustomRedirect", func(t *testing.T) {
+		t.Parallel()
+		client := coderdtest.New(t, &coderdtest.Options{
+			IncludeProvisionerDaemon: true,
+			ExternalAuthConfigs: []*externalauth.Config{{
+				InstrumentedOAuth2Config: &testutil.OAuth2Config{},
+				ID:                       "github",
+				Regex:                    regexp.MustCompile(`github\.com`),
+				Type:                     codersdk.EnhancedExternalAuthProviderGitHub.String(),
+			}},
+		})
+		maliciousHost := "https://malicious.com"
+		expectedURI := "/some/path?param=1"
+		_ = coderdtest.CreateFirstUser(t, client)
+		resp := coderdtest.RequestExternalAuthCallback(t, "github", client, func(req *http.Request) {
+			req.AddCookie(&http.Cookie{
+				Name:  codersdk.OAuth2RedirectCookie,
+				Value: maliciousHost + expectedURI,
+			})
+		})
+		require.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
+		location, err := resp.Location()
+		require.NoError(t, err)
+		require.Equal(t, expectedURI, location.RequestURI())
+		require.Equal(t, client.URL.Host, location.Host)
+		require.NotContains(t, location.String(), maliciousHost)
+	})
+
 	t.Run("ValidateURL", func(t *testing.T) {
 		t.Parallel()
 		ctx := testutil.Context(t, testutil.WaitLong)
@@ -533,7 +562,7 @@ func TestExternalAuthCallback(t *testing.T) {
 		})
 		template := coderdtest.CreateTemplate(t, client, user.OrganizationID, version.ID)
 		coderdtest.AwaitTemplateVersionJobCompleted(t, client, version.ID)
-		workspace := coderdtest.CreateWorkspace(t, client, user.OrganizationID, template.ID)
+		workspace := coderdtest.CreateWorkspace(t, client, template.ID)
 		coderdtest.AwaitWorkspaceBuildJobCompleted(t, client, workspace.LatestBuild.ID)
 
 		agentClient := agentsdk.New(client.URL)
@@ -595,7 +624,7 @@ func TestExternalAuthCallback(t *testing.T) {
 		})
 		template := coderdtest.CreateTemplate(t, client, user.OrganizationID, version.ID)
 		coderdtest.AwaitTemplateVersionJobCompleted(t, client, version.ID)
-		workspace := coderdtest.CreateWorkspace(t, client, user.OrganizationID, template.ID)
+		workspace := coderdtest.CreateWorkspace(t, client, template.ID)
 		coderdtest.AwaitWorkspaceBuildJobCompleted(t, client, workspace.LatestBuild.ID)
 
 		agentClient := agentsdk.New(client.URL)
@@ -642,7 +671,7 @@ func TestExternalAuthCallback(t *testing.T) {
 		})
 		template := coderdtest.CreateTemplate(t, client, user.OrganizationID, version.ID)
 		coderdtest.AwaitTemplateVersionJobCompleted(t, client, version.ID)
-		workspace := coderdtest.CreateWorkspace(t, client, user.OrganizationID, template.ID)
+		workspace := coderdtest.CreateWorkspace(t, client, template.ID)
 		coderdtest.AwaitWorkspaceBuildJobCompleted(t, client, workspace.LatestBuild.ID)
 
 		agentClient := agentsdk.New(client.URL)

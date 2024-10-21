@@ -28,9 +28,10 @@ var (
 	// ResourceAssignOrgRole
 	// Valid Actions
 	//  - "ActionAssign" :: ability to assign org scoped roles
-	//  - "ActionCreate" :: ability to create/delete/edit custom roles within an organization
+	//  - "ActionCreate" :: ability to create/delete custom roles within an organization
 	//  - "ActionDelete" :: ability to delete org scoped roles
 	//  - "ActionRead" :: view what roles are assignable
+	//  - "ActionUpdate" :: ability to edit custom roles within an organization
 	ResourceAssignOrgRole = Object{
 		Type: "assign_org_role",
 	}
@@ -41,6 +42,7 @@ var (
 	//  - "ActionCreate" :: ability to create/delete/edit custom roles
 	//  - "ActionDelete" :: ability to unassign roles
 	//  - "ActionRead" :: view what roles are assignable
+	//  - "ActionUpdate" :: ability to edit custom roles
 	ResourceAssignRole = Object{
 		Type: "assign_role",
 	}
@@ -51,6 +53,16 @@ var (
 	//  - "ActionRead" :: read audit logs
 	ResourceAuditLog = Object{
 		Type: "audit_log",
+	}
+
+	// ResourceCryptoKey
+	// Valid Actions
+	//  - "ActionCreate" :: create crypto keys
+	//  - "ActionDelete" :: delete crypto keys
+	//  - "ActionRead" :: read crypto keys
+	//  - "ActionUpdate" :: update crypto keys
+	ResourceCryptoKey = Object{
+		Type: "crypto_key",
 	}
 
 	// ResourceDebugInfo
@@ -93,6 +105,21 @@ var (
 		Type: "group",
 	}
 
+	// ResourceGroupMember
+	// Valid Actions
+	//  - "ActionRead" :: read group members
+	ResourceGroupMember = Object{
+		Type: "group_member",
+	}
+
+	// ResourceIdpsyncSettings
+	// Valid Actions
+	//  - "ActionRead" :: read IdP sync settings
+	//  - "ActionUpdate" :: update IdP sync settings
+	ResourceIdpsyncSettings = Object{
+		Type: "idpsync_settings",
+	}
+
 	// ResourceLicense
 	// Valid Actions
 	//  - "ActionCreate" :: create a license
@@ -100,6 +127,22 @@ var (
 	//  - "ActionRead" :: read licenses
 	ResourceLicense = Object{
 		Type: "license",
+	}
+
+	// ResourceNotificationPreference
+	// Valid Actions
+	//  - "ActionRead" :: read notification preferences
+	//  - "ActionUpdate" :: update notification preferences
+	ResourceNotificationPreference = Object{
+		Type: "notification_preference",
+	}
+
+	// ResourceNotificationTemplate
+	// Valid Actions
+	//  - "ActionRead" :: read notification templates
+	//  - "ActionUpdate" :: update notification templates
+	ResourceNotificationTemplate = Object{
+		Type: "notification_template",
 	}
 
 	// ResourceOauth2App
@@ -266,12 +309,17 @@ func AllResources() []Objecter {
 		ResourceAssignOrgRole,
 		ResourceAssignRole,
 		ResourceAuditLog,
+		ResourceCryptoKey,
 		ResourceDebugInfo,
 		ResourceDeploymentConfig,
 		ResourceDeploymentStats,
 		ResourceFile,
 		ResourceGroup,
+		ResourceGroupMember,
+		ResourceIdpsyncSettings,
 		ResourceLicense,
+		ResourceNotificationPreference,
+		ResourceNotificationTemplate,
 		ResourceOauth2App,
 		ResourceOauth2AppCodeToken,
 		ResourceOauth2AppSecret,

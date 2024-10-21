@@ -37,6 +37,9 @@ import (
 	"tailscale.com/util/singleflight"
 
 	"cdr.dev/slog"
+	"github.com/coder/coder/v2/coderd/entitlements"
+	"github.com/coder/coder/v2/coderd/idpsync"
+	"github.com/coder/coder/v2/coderd/runtimeconfig"
 	"github.com/coder/quartz"
 	"github.com/coder/serpent"
 
@@ -133,6 +136,7 @@ type Options struct {
 	Logger           slog.Logger
 	Database         database.Store
 	Pubsub           pubsub.Pubsub
+	RuntimeConfig    *runtimeconfig.Manager
 
 	// CacheDir is used for caching files served by the API.
 	CacheDir string
@@ -157,6 +161,9 @@ type Options struct {
 	TrialGenerator                 func(ctx context.Context, body codersdk.LicensorTrialRequest) error
 	// RefreshEntitlements is used to set correct entitlements after creating first user and generating trial license.
 	RefreshEntitlements func(ctx context.Context) error
+	// Entitlements can come from the enterprise caller if enterprise code is
+	// included.
+	Entitlements *entitlements.Set
 	// PostAuthAdditionalHeadersFunc is used to add additional headers to the response
 	// after a successful authentication.
 	// This is somewhat janky, but seemingly the only reasonable way to add a header
@@ -174,14 +181,15 @@ type Options struct {
 	NetworkTelemetryBatchFrequency time.Duration
 	NetworkTelemetryBatchMaxSize   int
 	SwaggerEndpoint                bool
-	SetUserGroups                  func(ctx context.Context, logger slog.Logger, tx database.Store, userID uuid.UUID, orgGroupNames map[uuid.UUID][]string, createMissingGroups bool) error
-	SetUserSiteRoles               func(ctx context.Context, logger slog.Logger, tx database.Store, userID uuid.UUID, roles []string) error
 	TemplateScheduleStore          *atomic.Pointer[schedule.TemplateScheduleStore]
 	UserQuietHoursScheduleStore    *atomic.Pointer[schedule.UserQuietHoursScheduleStore]
 	AccessControlStore             *atomic.Pointer[dbauthz.AccessControlStore]
 	// AppSecurityKey is the crypto key used to sign and encrypt tokens related to
 	// workspace applications. It consists of both a signing and encryption key.
 	AppSecurityKey workspaceapps.SecurityKey
+	// CoordinatorResumeTokenProvider is used to provide and validate resume
+	// tokens issued by and passed to the coordinator DRPC API.
+	CoordinatorResumeTokenProvider tailnet.ResumeTokenProvider
 
 	HealthcheckFunc              func(ctx context.Context, apiKey string) *healthsdk.HealthcheckReport
 	HealthcheckTimeout           time.Duration
@@ -236,6 +244,9 @@ type Options struct {
 	WorkspaceUsageTracker *workspacestats.UsageTracker
 	// NotificationsEnqueuer handles enqueueing notifications for delivery by SMTP, webhook, etc.
 	NotificationsEnqueuer notifications.Enqueuer
+
+	// IDPSync holds all configured values for syncing external IDP users into Coder.
+	IDPSync idpsync.IDPSync
 }
 
 // @title Coder API
@@ -259,6 +270,9 @@ type Options struct {
 func New(options *Options) *API {
 	if options == nil {
 		options = &Options{}
+	}
+	if options.Entitlements == nil {
+		options.Entitlements = entitlements.New()
 	}
 	if options.NewTicker == nil {
 		options.NewTicker = func(duration time.Duration) (tick <-chan time.Time, done func()) {
@@ -294,6 +308,10 @@ func New(options *Options) *API {
 		options.Logger.Named("authz_querier"),
 		options.AccessControlStore,
 	)
+
+	if options.IDPSync == nil {
+		options.IDPSync = idpsync.NewAGPLSync(options.Logger, options.RuntimeConfig, idpsync.FromDeploymentValues(options.DeploymentValues))
+	}
 
 	experiments := ReadExperiments(
 		options.Logger, options.DeploymentValues.Experiments.Value(),
@@ -354,24 +372,6 @@ func New(options *Options) *API {
 	if options.TracerProvider == nil {
 		options.TracerProvider = trace.NewNoopTracerProvider()
 	}
-	if options.SetUserGroups == nil {
-		options.SetUserGroups = func(ctx context.Context, logger slog.Logger, _ database.Store, userID uuid.UUID, orgGroupNames map[uuid.UUID][]string, createMissingGroups bool) error {
-			logger.Warn(ctx, "attempted to assign OIDC groups without enterprise license",
-				slog.F("user_id", userID),
-				slog.F("groups", orgGroupNames),
-				slog.F("create_missing_groups", createMissingGroups),
-			)
-			return nil
-		}
-	}
-	if options.SetUserSiteRoles == nil {
-		options.SetUserSiteRoles = func(ctx context.Context, logger slog.Logger, _ database.Store, userID uuid.UUID, roles []string) error {
-			logger.Warn(ctx, "attempted to assign OIDC user roles without enterprise license",
-				slog.F("user_id", userID), slog.F("roles", roles),
-			)
-			return nil
-		}
-	}
 	if options.TemplateScheduleStore == nil {
 		options.TemplateScheduleStore = &atomic.Pointer[schedule.TemplateScheduleStore]{}
 	}
@@ -407,6 +407,7 @@ func New(options *Options) *API {
 			TemplateBuildTimes: options.MetricsCacheRefreshInterval,
 			DeploymentStats:    options.AgentStatsRefreshInterval,
 		},
+		experiments.Enabled(codersdk.ExperimentWorkspaceUsage),
 	)
 
 	oauthConfigs := &httpmw.OAuth2Configs{
@@ -464,7 +465,6 @@ func New(options *Options) *API {
 		TemplateScheduleStore:       options.TemplateScheduleStore,
 		UserQuietHoursScheduleStore: options.UserQuietHoursScheduleStore,
 		AccessControlStore:          options.AccessControlStore,
-		CustomRoleHandler:           atomic.Pointer[CustomRoleHandler]{},
 		Experiments:                 experiments,
 		healthCheckGroup:            &singleflight.Group[string, *healthsdk.HealthcheckReport]{},
 		Acquirer: provisionerdserver.NewAcquirer(
@@ -476,19 +476,19 @@ func New(options *Options) *API {
 		dbRolluper: options.DatabaseRolluper,
 	}
 
-	var customRoleHandler CustomRoleHandler = &agplCustomRoleHandler{}
-	api.CustomRoleHandler.Store(&customRoleHandler)
-	api.AppearanceFetcher.Store(&appearance.DefaultFetcher)
+	f := appearance.NewDefaultFetcher(api.DeploymentValues.DocsURL.String())
+	api.AppearanceFetcher.Store(&f)
 	api.PortSharer.Store(&portsharing.DefaultPortSharer)
 	buildInfo := codersdk.BuildInfoResponse{
-		ExternalURL:     buildinfo.ExternalURL(),
-		Version:         buildinfo.Version(),
-		AgentAPIVersion: AgentAPIVersionREST,
-		DashboardURL:    api.AccessURL.String(),
-		WorkspaceProxy:  false,
-		UpgradeMessage:  api.DeploymentValues.CLIUpgradeMessage.String(),
-		DeploymentID:    api.DeploymentID,
-		Telemetry:       api.Telemetry.Enabled(),
+		ExternalURL:           buildinfo.ExternalURL(),
+		Version:               buildinfo.Version(),
+		AgentAPIVersion:       AgentAPIVersionREST,
+		ProvisionerAPIVersion: proto.CurrentVersion.String(),
+		DashboardURL:          api.AccessURL.String(),
+		WorkspaceProxy:        false,
+		UpgradeMessage:        api.DeploymentValues.CLIUpgradeMessage.String(),
+		DeploymentID:          api.DeploymentID,
+		Telemetry:             api.Telemetry.Enabled(),
 	}
 	api.SiteHandler = site.New(&site.Options{
 		BinFS:             binFS,
@@ -499,6 +499,7 @@ func New(options *Options) *API {
 		DocsURL:           options.DeploymentValues.DocsURL.String(),
 		AppearanceFetcher: &api.AppearanceFetcher,
 		BuildInfo:         buildInfo,
+		Entitlements:      options.Entitlements,
 	})
 	api.SiteHandler.Experiments.Store(&experiments)
 
@@ -586,12 +587,16 @@ func New(options *Options) *API {
 		api.Options.NetworkTelemetryBatchMaxSize,
 		api.handleNetworkTelemetry,
 	)
+	if options.CoordinatorResumeTokenProvider == nil {
+		panic("CoordinatorResumeTokenProvider is nil")
+	}
 	api.TailnetClientService, err = tailnet.NewClientService(tailnet.ClientServiceOptions{
 		Logger:                  api.Logger.Named("tailnetclient"),
 		CoordPtr:                &api.TailnetCoordinator,
 		DERPMapUpdateFrequency:  api.Options.DERPMapUpdateFrequency,
 		DERPMapFn:               api.DERPMap,
 		NetworkTelemetryHandler: api.NetworkTelemetryBatcher.Handler,
+		ResumeTokenProvider:     api.Options.CoordinatorResumeTokenProvider,
 	})
 	if err != nil {
 		api.Logger.Fatal(api.ctx, "failed to initialize tailnet client service", slog.Error(err))
@@ -616,6 +621,9 @@ func New(options *Options) *API {
 		options.WorkspaceAppsStatsCollectorOptions.Reporter = api.statsReporter
 	}
 
+	if options.AppSecurityKey.IsZero() {
+		api.Logger.Fatal(api.ctx, "app security key cannot be zero")
+	}
 	api.workspaceAppServer = &workspaceapps.Server{
 		Logger: workspaceAppsLogger,
 
@@ -864,19 +872,17 @@ func New(options *Options) *API {
 			r.Use(
 				apiKeyMiddleware,
 			)
-			r.Post("/", api.postOrganizations)
+			r.Get("/", api.organizations)
 			r.Route("/{organization}", func(r chi.Router) {
 				r.Use(
 					httpmw.ExtractOrganizationParam(options.Database),
 				)
 				r.Get("/", api.organization)
-				r.Patch("/", api.patchOrganization)
-				r.Delete("/", api.deleteOrganization)
 				r.Post("/templateversions", api.postTemplateVersionsByOrganization)
 				r.Route("/templates", func(r chi.Router) {
 					r.Post("/", api.postTemplateByOrganization)
 					r.Get("/", api.templatesByOrganization())
-					r.Get("/examples", api.templateExamples)
+					r.Get("/examples", api.templateExamplesByOrganization)
 					r.Route("/{templatename}", func(r chi.Router) {
 						r.Get("/", api.templateByOrganizationAndName)
 						r.Route("/versions/{templateversionname}", func(r chi.Router) {
@@ -889,8 +895,6 @@ func New(options *Options) *API {
 					r.Get("/", api.listMembers)
 					r.Route("/roles", func(r chi.Router) {
 						r.Get("/", api.assignableOrgRoles)
-						r.With(httpmw.RequireExperiment(api.Experiments, codersdk.ExperimentCustomRoles)).
-							Patch("/", api.patchOrgRoles)
 					})
 
 					r.Route("/{user}", func(r chi.Router) {
@@ -922,6 +926,7 @@ func New(options *Options) *API {
 				apiKeyMiddleware,
 			)
 			r.Get("/", api.fetchTemplates(nil))
+			r.Get("/examples", api.templateExamples)
 			r.Route("/{template}", func(r chi.Router) {
 				r.Use(
 					httpmw.ExtractTemplateParam(options.Database),
@@ -1045,12 +1050,19 @@ func New(options *Options) *API {
 						r.Get("/", api.organizationsByUser)
 						r.Get("/{organizationname}", api.organizationByUserAndName)
 					})
+					r.Post("/workspaces", api.postUserWorkspaces)
 					r.Route("/workspace/{workspacename}", func(r chi.Router) {
 						r.Get("/", api.workspaceByOwnerAndName)
 						r.Get("/builds/{buildnumber}", api.workspaceBuildByBuildNumber)
 					})
 					r.Get("/gitsshkey", api.gitSSHKey)
 					r.Put("/gitsshkey", api.regenerateGitSSHKey)
+					r.Route("/notifications", func(r chi.Router) {
+						r.Route("/preferences", func(r chi.Router) {
+							r.Get("/", api.userNotificationPreferences)
+							r.Put("/", api.putUserNotificationPreferences)
+						})
+					})
 				})
 			})
 		})
@@ -1137,6 +1149,7 @@ func New(options *Options) *API {
 					r.Post("/", api.postWorkspaceAgentPortShare)
 					r.Delete("/", api.deleteWorkspaceAgentPortShare)
 				})
+				r.Get("/timings", api.workspaceTimings)
 			})
 		})
 		r.Route("/workspacebuilds/{workspacebuild}", func(r chi.Router) {
@@ -1244,9 +1257,16 @@ func New(options *Options) *API {
 			})
 		})
 		r.Route("/notifications", func(r chi.Router) {
-			r.Use(apiKeyMiddleware)
+			r.Use(
+				apiKeyMiddleware,
+				httpmw.RequireExperiment(api.Experiments, codersdk.ExperimentNotifications),
+			)
 			r.Get("/settings", api.notificationsSettings)
 			r.Put("/settings", api.putNotificationsSettings)
+			r.Route("/templates", func(r chi.Router) {
+				r.Get("/system", api.systemNotificationTemplates)
+			})
+			r.Get("/dispatch-methods", api.notificationDispatchMethods)
 		})
 	})
 
@@ -1328,8 +1348,6 @@ type API struct {
 	// passed to dbauthz.
 	AccessControlStore *atomic.Pointer[dbauthz.AccessControlStore]
 	PortSharer         atomic.Pointer[portsharing.PortSharer]
-	// CustomRoleHandler is the AGPL/Enterprise implementation for custom roles.
-	CustomRoleHandler atomic.Pointer[CustomRoleHandler]
 
 	HTTPAuth *HTTPAuthorizer
 
@@ -1465,6 +1483,11 @@ func (api *API) CreateInMemoryTaggedProvisionerDaemon(dialCtx context.Context, n
 		dbTypes = append(dbTypes, database.ProvisionerType(tp))
 	}
 
+	keyID, err := uuid.Parse(string(codersdk.ProvisionerKeyIDBuiltIn))
+	if err != nil {
+		return nil, xerrors.Errorf("failed to parse built-in provisioner key ID: %w", err)
+	}
+
 	//nolint:gocritic // in-memory provisioners are owned by system
 	daemon, err := api.Database.UpsertProvisionerDaemon(dbauthz.AsSystemRestricted(dialCtx), database.UpsertProvisionerDaemonParams{
 		Name:           name,
@@ -1475,13 +1498,14 @@ func (api *API) CreateInMemoryTaggedProvisionerDaemon(dialCtx context.Context, n
 		LastSeenAt:     sql.NullTime{Time: dbtime.Now(), Valid: true},
 		Version:        buildinfo.Version(),
 		APIVersion:     proto.CurrentVersion.String(),
+		KeyID:          keyID,
 	})
 	if err != nil {
 		return nil, xerrors.Errorf("failed to create in-memory provisioner daemon: %w", err)
 	}
 
 	mux := drpcmux.New()
-	api.Logger.Info(dialCtx, "starting in-memory provisioner daemon", slog.F("name", name))
+	api.Logger.Debug(dialCtx, "starting in-memory provisioner daemon", slog.F("name", name))
 	logger := api.Logger.Named(fmt.Sprintf("inmem-provisionerd-%s", name))
 	srv, err := provisionerdserver.NewServer(
 		api.ctx, // use the same ctx as the API

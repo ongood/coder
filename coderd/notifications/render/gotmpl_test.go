@@ -42,10 +42,11 @@ func TestGoTemplate(t *testing.T) {
 			name: "render workspace URL",
 			in: `[{
 				"label": "View workspace",
-				"url": "{{ base_url }}/@{{.UserName}}/{{.Labels.name}}"
+				"url": "{{ base_url }}/@{{.UserUsername}}/{{.Labels.name}}"
 			}]`,
 			payload: types.MessagePayload{
-				UserName: "johndoe",
+				UserName:     "John Doe",
+				UserUsername: "johndoe",
 				Labels: map[string]string{
 					"name": "my-workspace",
 				},
@@ -54,6 +55,15 @@ func TestGoTemplate(t *testing.T) {
 				"label": "View workspace",
 				"url": "https://mocked-server-address/@johndoe/my-workspace"
 			}]`,
+		},
+		{
+			name: "render notification template ID",
+			in:   `{{ .NotificationTemplateID }}`,
+			payload: types.MessagePayload{
+				NotificationTemplateID: "4e19c0ac-94e1-4532-9515-d1801aa283b2",
+			},
+			expectedOutput: "4e19c0ac-94e1-4532-9515-d1801aa283b2",
+			expectedErr:    nil,
 		},
 	}
 

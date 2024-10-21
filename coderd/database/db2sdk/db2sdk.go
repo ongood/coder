@@ -151,11 +151,41 @@ func ReducedUser(user database.User) codersdk.ReducedUser {
 		Email:           user.Email,
 		Name:            user.Name,
 		CreatedAt:       user.CreatedAt,
+		UpdatedAt:       user.UpdatedAt,
 		LastSeenAt:      user.LastSeenAt,
 		Status:          codersdk.UserStatus(user.Status),
 		LoginType:       codersdk.LoginType(user.LoginType),
 		ThemePreference: user.ThemePreference,
 	}
+}
+
+func UserFromGroupMember(member database.GroupMember) database.User {
+	return database.User{
+		ID:                 member.UserID,
+		Email:              member.UserEmail,
+		Username:           member.UserUsername,
+		HashedPassword:     member.UserHashedPassword,
+		CreatedAt:          member.UserCreatedAt,
+		UpdatedAt:          member.UserUpdatedAt,
+		Status:             member.UserStatus,
+		RBACRoles:          member.UserRbacRoles,
+		LoginType:          member.UserLoginType,
+		AvatarURL:          member.UserAvatarUrl,
+		Deleted:            member.UserDeleted,
+		LastSeenAt:         member.UserLastSeenAt,
+		QuietHoursSchedule: member.UserQuietHoursSchedule,
+		ThemePreference:    member.UserThemePreference,
+		Name:               member.UserName,
+		GithubComUserID:    member.UserGithubComUserID,
+	}
+}
+
+func ReducedUserFromGroupMember(member database.GroupMember) codersdk.ReducedUser {
+	return ReducedUser(UserFromGroupMember(member))
+}
+
+func ReducedUsersFromGroupMembers(members []database.GroupMember) []codersdk.ReducedUser {
+	return List(members, ReducedUserFromGroupMember)
 }
 
 func ReducedUsers(users []database.User) []codersdk.ReducedUser {
@@ -178,16 +208,19 @@ func Users(users []database.User, organizationIDs map[uuid.UUID][]uuid.UUID) []c
 	})
 }
 
-func Group(group database.Group, members []database.User) codersdk.Group {
+func Group(row database.GetGroupsRow, members []database.GroupMember, totalMemberCount int) codersdk.Group {
 	return codersdk.Group{
-		ID:             group.ID,
-		Name:           group.Name,
-		DisplayName:    group.DisplayName,
-		OrganizationID: group.OrganizationID,
-		AvatarURL:      group.AvatarURL,
-		Members:        ReducedUsers(members),
-		QuotaAllowance: int(group.QuotaAllowance),
-		Source:         codersdk.GroupSource(group.Source),
+		ID:                      row.Group.ID,
+		Name:                    row.Group.Name,
+		DisplayName:             row.Group.DisplayName,
+		OrganizationID:          row.Group.OrganizationID,
+		AvatarURL:               row.Group.AvatarURL,
+		Members:                 ReducedUsersFromGroupMembers(members),
+		TotalMemberCount:        totalMemberCount,
+		QuotaAllowance:          int(row.Group.QuotaAllowance),
+		Source:                  codersdk.GroupSource(row.Group.Source),
+		OrganizationName:        row.OrganizationName,
+		OrganizationDisplayName: row.OrganizationDisplayName,
 	}
 }
 
@@ -484,6 +517,7 @@ func Apps(dbApps []database.WorkspaceApp, agent database.WorkspaceAgent, ownerNa
 				Threshold: dbApp.HealthcheckThreshold,
 			},
 			Health: codersdk.WorkspaceAppHealth(dbApp.Health),
+			Hidden: dbApp.Hidden,
 		})
 	}
 	return apps
@@ -499,11 +533,36 @@ func ProvisionerDaemon(dbDaemon database.ProvisionerDaemon) codersdk.Provisioner
 		Tags:           dbDaemon.Tags,
 		Version:        dbDaemon.Version,
 		APIVersion:     dbDaemon.APIVersion,
+		KeyID:          dbDaemon.KeyID,
 	}
 	for _, provisionerType := range dbDaemon.Provisioners {
 		result.Provisioners = append(result.Provisioners, codersdk.ProvisionerType(provisionerType))
 	}
 	return result
+}
+
+func RecentProvisionerDaemons(now time.Time, staleInterval time.Duration, daemons []database.ProvisionerDaemon) []codersdk.ProvisionerDaemon {
+	results := []codersdk.ProvisionerDaemon{}
+
+	for _, daemon := range daemons {
+		// Daemon never connected, skip.
+		if !daemon.LastSeenAt.Valid {
+			continue
+		}
+		// Daemon has gone away, skip.
+		if now.Sub(daemon.LastSeenAt.Time) > staleInterval {
+			continue
+		}
+
+		results = append(results, ProvisionerDaemon(daemon))
+	}
+
+	// Ensure stable order for display and for tests
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].Name < results[j].Name
+	})
+
+	return results
 }
 
 func SlimRole(role rbac.Role) codersdk.SlimRole {
@@ -583,5 +642,20 @@ func RBACPermission(permission rbac.Permission) codersdk.Permission {
 		Negate:       permission.Negate,
 		ResourceType: codersdk.RBACResource(permission.ResourceType),
 		Action:       codersdk.RBACAction(permission.Action),
+	}
+}
+
+func Organization(organization database.Organization) codersdk.Organization {
+	return codersdk.Organization{
+		MinimalOrganization: codersdk.MinimalOrganization{
+			ID:          organization.ID,
+			Name:        organization.Name,
+			DisplayName: organization.DisplayName,
+			Icon:        organization.Icon,
+		},
+		Description: organization.Description,
+		CreatedAt:   organization.CreatedAt,
+		UpdatedAt:   organization.UpdatedAt,
+		IsDefault:   organization.IsDefault,
 	}
 }

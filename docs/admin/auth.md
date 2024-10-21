@@ -19,7 +19,7 @@ First,
 GitHub will ask you for the following Coder parameters:
 
 - **Homepage URL**: Set to your Coder deployments
-  [`CODER_ACCESS_URL`](../cli/server.md#--access-url) (e.g.
+  [`CODER_ACCESS_URL`](../reference/cli/server.md#--access-url) (e.g.
   `https://coder.domain.com`)
 - **User Authorization Callback URL**: Set to `https://coder.domain.com`
 
@@ -236,7 +236,7 @@ authentication. Upon deactivation, users are
 the Coder server.
 
 ```env
-CODER_SCIM_API_KEY="your-api-key"
+CODER_SCIM_AUTH_HEADER="your-api-key"
 ```
 
 ## TLS
@@ -316,7 +316,7 @@ OIDC provider will be added to the `myCoderGroupName` group in Coder.
 > **Note:** Groups are only updated on login.
 
 [azure-gids]:
-  https://github.com/MicrosoftDocs/azure-docs/issues/59766#issuecomment-664387195
+	https://github.com/MicrosoftDocs/azure-docs/issues/59766#issuecomment-664387195
 
 ### Group allowlist
 

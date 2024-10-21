@@ -97,6 +97,9 @@ type FakeIDP struct {
 	deviceCode *syncmap.Map[string, deviceFlow]
 
 	// hooks
+	// hookWellKnown allows mutating the returned .well-known/configuration JSON.
+	// Using this can break the IDP configuration, so be careful.
+	hookWellKnown func(r *http.Request, j *ProviderJSON) error
 	// hookValidRedirectURL can be used to reject a redirect url from the
 	// IDP -> Application. Almost all IDPs have the concept of
 	// "Authorized Redirect URLs". This can be used to emulate that.
@@ -148,6 +151,12 @@ func WithAuthorizedRedirectURL(hook func(redirectURL string) error) func(*FakeID
 func WithMiddlewares(mws ...func(http.Handler) http.Handler) func(*FakeIDP) {
 	return func(f *FakeIDP) {
 		f.middlewares = append(f.middlewares, mws...)
+	}
+}
+
+func WithHookWellKnown(hook func(r *http.Request, j *ProviderJSON) error) func(*FakeIDP) {
+	return func(f *FakeIDP) {
+		f.hookWellKnown = hook
 	}
 }
 
@@ -470,7 +479,6 @@ func (f *FakeIDP) AttemptLogin(t testing.TB, client *codersdk.Client, idTokenCla
 // This is a niche case, but it is needed for testing ConvertLoginType.
 func (f *FakeIDP) LoginWithClient(t testing.TB, client *codersdk.Client, idTokenClaims jwt.MapClaims, opts ...func(r *http.Request)) (*codersdk.Client, *http.Response) {
 	t.Helper()
-
 	path := "/api/v2/users/oidc/callback"
 	if f.callbackPath != "" {
 		path = f.callbackPath
@@ -480,13 +488,23 @@ func (f *FakeIDP) LoginWithClient(t testing.TB, client *codersdk.Client, idToken
 	f.SetRedirect(t, coderOauthURL.String())
 
 	cli := f.HTTPClient(client.HTTPClient)
-	cli.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+	redirectFn := cli.CheckRedirect
+	checkRedirect := func(req *http.Request, via []*http.Request) error {
 		// Store the idTokenClaims to the specific state request. This ties
 		// the claims 1:1 with a given authentication flow.
-		state := req.URL.Query().Get("state")
-		f.stateToIDTokenClaims.Store(state, idTokenClaims)
+		if state := req.URL.Query().Get("state"); state != "" {
+			f.stateToIDTokenClaims.Store(state, idTokenClaims)
+			return nil
+		}
+		// This is mainly intended to prevent the _last_ redirect
+		// The one involving the state param is a core part of the
+		// OIDC flow and shouldn't be redirected.
+		if redirectFn != nil {
+			return redirectFn(req, via)
+		}
 		return nil
 	}
+	cli.CheckRedirect = checkRedirect
 
 	req, err := http.NewRequestWithContext(context.Background(), "GET", coderOauthURL.String(), nil)
 	require.NoError(t, err)
@@ -753,7 +771,16 @@ func (f *FakeIDP) httpHandler(t testing.TB) http.Handler {
 	mux.Get("/.well-known/openid-configuration", func(rw http.ResponseWriter, r *http.Request) {
 		f.logger.Info(r.Context(), "http OIDC config", slogRequestFields(r)...)
 
-		_ = json.NewEncoder(rw).Encode(f.provider)
+		cpy := f.provider
+		if f.hookWellKnown != nil {
+			err := f.hookWellKnown(r, &cpy)
+			if err != nil {
+				http.Error(rw, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		}
+
+		_ = json.NewEncoder(rw).Encode(cpy)
 	})
 
 	// Authorize is called when the user is redirected to the IDP to login.
@@ -1371,8 +1398,11 @@ func (f *FakeIDP) AppCredentials() (clientID string, clientSecret string) {
 	return f.clientID, f.clientSecret
 }
 
-// OIDCConfig returns the OIDC config to use for Coderd.
-func (f *FakeIDP) OIDCConfig(t testing.TB, scopes []string, opts ...func(cfg *coderd.OIDCConfig)) *coderd.OIDCConfig {
+func (f *FakeIDP) PublicKey() crypto.PublicKey {
+	return f.key.Public()
+}
+
+func (f *FakeIDP) OauthConfig(t testing.TB, scopes []string) *oauth2.Config {
 	t.Helper()
 
 	if len(scopes) == 0 {
@@ -1391,22 +1421,50 @@ func (f *FakeIDP) OIDCConfig(t testing.TB, scopes []string, opts ...func(cfg *co
 		RedirectURL: "https://redirect.com",
 		Scopes:      scopes,
 	}
+	f.cfg = oauthCfg
 
-	ctx := oidc.ClientContext(context.Background(), f.HTTPClient(nil))
+	return oauthCfg
+}
+
+func (f *FakeIDP) OIDCConfigSkipIssuerChecks(t testing.TB, scopes []string, opts ...func(cfg *coderd.OIDCConfig)) *coderd.OIDCConfig {
+	ctx := oidc.InsecureIssuerURLContext(context.Background(), f.issuer)
+
+	return f.internalOIDCConfig(ctx, t, scopes, func(config *oidc.Config) {
+		config.SkipIssuerCheck = true
+	}, opts...)
+}
+
+func (f *FakeIDP) OIDCConfig(t testing.TB, scopes []string, opts ...func(cfg *coderd.OIDCConfig)) *coderd.OIDCConfig {
+	return f.internalOIDCConfig(context.Background(), t, scopes, nil, opts...)
+}
+
+// OIDCConfig returns the OIDC config to use for Coderd.
+func (f *FakeIDP) internalOIDCConfig(ctx context.Context, t testing.TB, scopes []string, verifierOpt func(config *oidc.Config), opts ...func(cfg *coderd.OIDCConfig)) *coderd.OIDCConfig {
+	t.Helper()
+
+	oauthCfg := f.OauthConfig(t, scopes)
+
+	ctx = oidc.ClientContext(ctx, f.HTTPClient(nil))
 	p, err := oidc.NewProvider(ctx, f.provider.Issuer)
 	require.NoError(t, err, "failed to create OIDC provider")
+
+	verifierConfig := &oidc.Config{
+		ClientID: oauthCfg.ClientID,
+		SupportedSigningAlgs: []string{
+			"RS256",
+		},
+		// Todo: add support for Now()
+	}
+	if verifierOpt != nil {
+		verifierOpt(verifierConfig)
+	}
+
 	cfg := &coderd.OIDCConfig{
 		OAuth2Config: oauthCfg,
 		Provider:     p,
 		Verifier: oidc.NewVerifier(f.provider.Issuer, &oidc.StaticKeySet{
 			PublicKeys: []crypto.PublicKey{f.key.Public()},
-		}, &oidc.Config{
-			ClientID: oauthCfg.ClientID,
-			SupportedSigningAlgs: []string{
-				"RS256",
-			},
-			// Todo: add support for Now()
-		}),
+		}, verifierConfig),
 		UsernameField: "preferred_username",
 		EmailField:    "email",
 		AuthURLParams: map[string]string{"access_type": "offline"},
@@ -1419,13 +1477,12 @@ func (f *FakeIDP) OIDCConfig(t testing.TB, scopes []string, opts ...func(cfg *co
 		opt(cfg)
 	}
 
-	f.cfg = oauthCfg
 	return cfg
 }
 
 func (f *FakeIDP) getClaims(m *syncmap.Map[string, jwt.MapClaims], key string) (jwt.MapClaims, bool) {
 	v, ok := m.Load(key)
-	if !ok {
+	if !ok || v == nil {
 		if f.defaultIDClaims != nil {
 			return f.defaultIDClaims, true
 		}

@@ -2,10 +2,14 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/http"
+	"net/netip"
 	"time"
 
 	"golang.org/x/xerrors"
+	"tailscale.com/tailcfg"
 
 	"cdr.dev/slog"
 	"cdr.dev/slog/sloggers/sloghuman"
@@ -13,16 +17,19 @@ import (
 	"github.com/coder/pretty"
 
 	"github.com/coder/coder/v2/cli/cliui"
+	"github.com/coder/coder/v2/cli/cliutil"
 	"github.com/coder/coder/v2/codersdk"
+	"github.com/coder/coder/v2/codersdk/healthsdk"
 	"github.com/coder/coder/v2/codersdk/workspacesdk"
 	"github.com/coder/serpent"
 )
 
 func (r *RootCmd) ping() *serpent.Command {
 	var (
-		pingNum     int64
-		pingTimeout time.Duration
-		pingWait    time.Duration
+		pingNum          int64
+		pingTimeout      time.Duration
+		pingWait         time.Duration
+		appearanceConfig codersdk.AppearanceConfig
 	)
 
 	client := new(codersdk.Client)
@@ -33,6 +40,7 @@ func (r *RootCmd) ping() *serpent.Command {
 		Middleware: serpent.Chain(
 			serpent.RequireNArgs(1),
 			r.InitClient(client),
+			initAppearance(client, &appearanceConfig),
 		),
 		Handler: func(inv *serpent.Invocation) error {
 			ctx, cancel := context.WithCancel(inv.Context())
@@ -61,7 +69,8 @@ func (r *RootCmd) ping() *serpent.Command {
 			if !r.disableNetworkTelemetry {
 				opts.EnableTelemetry = true
 			}
-			conn, err := workspacesdk.New(client).DialAgent(ctx, workspaceAgent.ID, opts)
+			wsClient := workspacesdk.New(client)
+			conn, err := wsClient.DialAgent(ctx, workspaceAgent.ID, opts)
 			if err != nil {
 				return err
 			}
@@ -138,11 +147,57 @@ func (r *RootCmd) ping() *serpent.Command {
 				)
 
 				if n == int(pingNum) {
-					diags := conn.GetPeerDiagnostics()
-					cliui.PeerDiagnostics(inv.Stdout, diags)
-					return nil
+					break
 				}
 			}
+			diagCtx, diagCancel := context.WithTimeout(inv.Context(), 30*time.Second)
+			defer diagCancel()
+			diags := conn.GetPeerDiagnostics()
+			cliui.PeerDiagnostics(inv.Stdout, diags)
+
+			ni := conn.GetNetInfo()
+			connDiags := cliui.ConnDiags{
+				PingP2P:            didP2p,
+				DisableDirect:      r.disableDirect,
+				LocalNetInfo:       ni,
+				Verbose:            r.verbose,
+				TroubleshootingURL: appearanceConfig.DocsURL + "/networking/troubleshooting",
+			}
+
+			awsRanges, err := cliutil.FetchAWSIPRanges(diagCtx, cliutil.AWSIPRangesURL)
+			if err != nil {
+				opts.Logger.Debug(inv.Context(), "failed to retrieve AWS IP ranges", slog.Error(err))
+			}
+
+			connDiags.ClientIPIsAWS = isAWSIP(awsRanges, ni)
+
+			connInfo, err := wsClient.AgentConnectionInfoGeneric(diagCtx)
+			if err != nil || connInfo.DERPMap == nil {
+				return xerrors.Errorf("Failed to retrieve connection info from server: %w\n", err)
+			}
+			connDiags.ConnInfo = connInfo
+			ifReport, err := healthsdk.RunInterfacesReport()
+			if err == nil {
+				connDiags.LocalInterfaces = &ifReport
+			} else {
+				_, _ = fmt.Fprintf(inv.Stdout, "Failed to retrieve local interfaces report: %v\n", err)
+			}
+
+			agentNetcheck, err := conn.Netcheck(diagCtx)
+			if err == nil {
+				connDiags.AgentNetcheck = &agentNetcheck
+				connDiags.AgentIPIsAWS = isAWSIP(awsRanges, agentNetcheck.NetInfo)
+			} else {
+				var sdkErr *codersdk.Error
+				if errors.As(err, &sdkErr) && sdkErr.StatusCode() == http.StatusNotFound {
+					_, _ = fmt.Fprint(inv.Stdout, "Could not generate full connection report as the workspace agent is outdated\n")
+				} else {
+					_, _ = fmt.Fprintf(inv.Stdout, "Failed to retrieve connection report from agent: %v\n", err)
+				}
+			}
+
+			connDiags.Write(inv.Stdout)
+			return nil
 		},
 	}
 
@@ -169,4 +224,23 @@ func (r *RootCmd) ping() *serpent.Command {
 		},
 	}
 	return cmd
+}
+
+func isAWSIP(awsRanges *cliutil.AWSIPRanges, ni *tailcfg.NetInfo) bool {
+	if awsRanges == nil {
+		return false
+	}
+	if ni.GlobalV4 != "" {
+		ip, err := netip.ParseAddr(ni.GlobalV4)
+		if err == nil && awsRanges.CheckIP(ip) {
+			return true
+		}
+	}
+	if ni.GlobalV6 != "" {
+		ip, err := netip.ParseAddr(ni.GlobalV6)
+		if err == nil && awsRanges.CheckIP(ip) {
+			return true
+		}
+	}
+	return false
 }

@@ -38,6 +38,7 @@ const (
 type ProvisionerDaemon struct {
 	ID             uuid.UUID         `json:"id" format:"uuid"`
 	OrganizationID uuid.UUID         `json:"organization_id" format:"uuid"`
+	KeyID          uuid.UUID         `json:"key_id" format:"uuid"`
 	CreatedAt      time.Time         `json:"created_at" format:"date-time"`
 	LastSeenAt     NullTime          `json:"last_seen_at,omitempty" format:"date-time"`
 	Name           string            `json:"name"`
@@ -189,6 +190,8 @@ type ServeProvisionerDaemonRequest struct {
 	Tags map[string]string `json:"tags"`
 	// PreSharedKey is an authentication key to use on the API instead of the normal session token from the client.
 	PreSharedKey string `json:"pre_shared_key"`
+	// ProvisionerKey is an authentication key to use on the API instead of the normal session token from the client.
+	ProvisionerKey string `json:"provisioner_key"`
 }
 
 // ServeProvisionerDaemon returns the gRPC service for a provisioner daemon
@@ -223,8 +226,15 @@ func (c *Client) ServeProvisionerDaemon(ctx context.Context, req ServeProvisione
 	headers := http.Header{}
 
 	headers.Set(BuildVersionHeader, buildinfo.Version())
-	if req.PreSharedKey == "" {
-		// use session token if we don't have a PSK.
+
+	if req.ProvisionerKey != "" {
+		headers.Set(ProvisionerDaemonKey, req.ProvisionerKey)
+	}
+	if req.PreSharedKey != "" {
+		headers.Set(ProvisionerDaemonPSK, req.PreSharedKey)
+	}
+	if req.ProvisionerKey == "" && req.PreSharedKey == "" {
+		// use session token if we don't have a PSK or provisioner key.
 		jar, err := cookiejar.New(nil)
 		if err != nil {
 			return nil, xerrors.Errorf("create cookie jar: %w", err)
@@ -234,8 +244,6 @@ func (c *Client) ServeProvisionerDaemon(ctx context.Context, req ServeProvisione
 			Value: c.SessionToken(),
 		}})
 		httpClient.Jar = jar
-	} else {
-		headers.Set(ProvisionerDaemonPSK, req.PreSharedKey)
 	}
 
 	conn, res, err := websocket.Dial(ctx, serverURL.String(), &websocket.DialOptions{
@@ -267,15 +275,42 @@ func (c *Client) ServeProvisionerDaemon(ctx context.Context, req ServeProvisione
 }
 
 type ProvisionerKey struct {
-	ID             uuid.UUID `json:"id" format:"uuid"`
-	CreatedAt      time.Time `json:"created_at" format:"date-time"`
-	OrganizationID uuid.UUID `json:"organization" format:"uuid"`
-	Name           string    `json:"name"`
+	ID             uuid.UUID         `json:"id" table:"-" format:"uuid"`
+	CreatedAt      time.Time         `json:"created_at" table:"created at" format:"date-time"`
+	OrganizationID uuid.UUID         `json:"organization" table:"organization id" format:"uuid"`
+	Name           string            `json:"name" table:"name,default_sort"`
+	Tags           map[string]string `json:"tags" table:"tags"`
 	// HashedSecret - never include the access token in the API response
 }
 
+type ProvisionerKeyDaemons struct {
+	Key     ProvisionerKey      `json:"key"`
+	Daemons []ProvisionerDaemon `json:"daemons"`
+}
+
+const (
+	ProvisionerKeyIDBuiltIn  = "00000000-0000-0000-0000-000000000001"
+	ProvisionerKeyIDUserAuth = "00000000-0000-0000-0000-000000000002"
+	ProvisionerKeyIDPSK      = "00000000-0000-0000-0000-000000000003"
+)
+
+const (
+	ProvisionerKeyNameBuiltIn  = "built-in"
+	ProvisionerKeyNameUserAuth = "user-auth"
+	ProvisionerKeyNamePSK      = "psk"
+)
+
+func ReservedProvisionerKeyNames() []string {
+	return []string{
+		ProvisionerKeyNameBuiltIn,
+		ProvisionerKeyNameUserAuth,
+		ProvisionerKeyNamePSK,
+	}
+}
+
 type CreateProvisionerKeyRequest struct {
-	Name string `json:"name"`
+	Name string            `json:"name"`
+	Tags map[string]string `json:"tags"`
 }
 
 type CreateProvisionerKeyResponse struct {
@@ -315,6 +350,24 @@ func (c *Client) ListProvisionerKeys(ctx context.Context, organizationID uuid.UU
 		return nil, ReadBodyAsError(res)
 	}
 	var resp []ProvisionerKey
+	return resp, json.NewDecoder(res.Body).Decode(&resp)
+}
+
+// ListProvisionerKeyDaemons lists all provisioner keys with their associated daemons for an organization.
+func (c *Client) ListProvisionerKeyDaemons(ctx context.Context, organizationID uuid.UUID) ([]ProvisionerKeyDaemons, error) {
+	res, err := c.Request(ctx, http.MethodGet,
+		fmt.Sprintf("/api/v2/organizations/%s/provisionerkeys/daemons", organizationID.String()),
+		nil,
+	)
+	if err != nil {
+		return nil, xerrors.Errorf("make request: %w", err)
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		return nil, ReadBodyAsError(res)
+	}
+	var resp []ProvisionerKeyDaemons
 	return resp, json.NewDecoder(res.Body).Decode(&resp)
 }
 

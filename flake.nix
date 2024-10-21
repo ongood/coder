@@ -40,10 +40,31 @@
         # From https://nixos.wiki/wiki/Google_Cloud_SDK
         gdk = pkgs.google-cloud-sdk.withExtraComponents ([ pkgs.google-cloud-sdk.components.gke-gcloud-auth-plugin ]);
 
+        proto_gen_go_1_30 = pkgs.buildGoModule rec {
+          name = "protoc-gen-go";
+          owner = "protocolbuffers";
+          repo = "protobuf-go";
+          rev = "v1.30.0"; 
+          src = pkgs.fetchFromGitHub {
+            owner = "protocolbuffers";
+            repo = "protobuf-go";
+            rev = rev;
+            # Updated with ./scripts/update-flake.sh`.
+            sha256 = "sha256-GTZQ40uoi62Im2F4YvlZWiSNNJ4fEAkRojYa0EYz9HU=";
+          };
+          subPackages = [ "cmd/protoc-gen-go" ];
+          vendorHash = null;
+          proxyVendor = true;
+          preBuild = ''
+            export GOPROXY=https://proxy.golang.org,direct
+            go mod download
+          '';
+        };
+
         # The minimal set of packages to build Coder.
         devShellPackages = with pkgs; [
-          # google-chrome is not available on OSX
-          (if pkgs.stdenv.hostPlatform.isDarwin then null else google-chrome)
+          # google-chrome is not available on OSX and aarch64 linux
+          (if pkgs.stdenv.hostPlatform.isDarwin || pkgs.stdenv.hostPlatform.isAarch64 then null else google-chrome)
           # strace is not available on OSX
           (if pkgs.stdenv.hostPlatform.isDarwin then null else strace)
           bat
@@ -80,7 +101,7 @@
           playwright-driver.browsers
           postgresql_16
           protobuf
-          protoc-gen-go
+          proto_gen_go_1_30
           ripgrep
           # This doesn't build on latest nixpkgs (July 10 2024)
           (pinnedPkgs.sapling)
@@ -117,7 +138,7 @@
             name = "coder-${osArch}";
             # Updated with ./scripts/update-flake.sh`.
             # This should be updated whenever go.mod changes!
-            vendorHash = "sha256-HXDei93ALEImIMgX3Ez829jmJJsf46GwaqPDlleQFmk=";
+            vendorHash = "sha256-kPXRp7l05iJd4IdvQeOFOgg2UNzBcloy3tA9Meep9VI=";
             proxyVendor = true;
             src = ./.;
             nativeBuildInputs = with pkgs; [ getopt openssl zstd ];
@@ -151,6 +172,7 @@
           '';
         };
         packages = {
+          proto_gen_go = proto_gen_go_1_30;  
           all = pkgs.buildEnv {
             name = "all-packages";
             paths = devShellPackages;

@@ -10,6 +10,7 @@ import (
 
 	"github.com/coder/coder/v2/coderd"
 	"github.com/coder/coder/v2/coderd/coderdtest/oidctest"
+	"github.com/coder/coder/v2/coderd/notifications"
 	"github.com/coder/coder/v2/coderd/rbac/policy"
 	"github.com/coder/serpent"
 
@@ -219,11 +220,11 @@ func TestPostLogin(t *testing.T) {
 
 		// With a user account.
 		const password = "SomeSecurePassword!"
-		user, err := client.CreateUser(ctx, codersdk.CreateUserRequest{
-			Email:          "test+user-@coder.com",
-			Username:       "user",
-			Password:       password,
-			OrganizationID: first.OrganizationID,
+		user, err := client.CreateUserWithOrgs(ctx, codersdk.CreateUserRequestWithOrgs{
+			Email:           "test+user-@coder.com",
+			Username:        "user",
+			Password:        password,
+			OrganizationIDs: []uuid.UUID{first.OrganizationID},
 		})
 		require.NoError(t, err)
 
@@ -298,8 +299,8 @@ func TestPostLogin(t *testing.T) {
 		apiKey, err := client.APIKeyByID(ctx, owner.UserID.String(), split[0])
 		require.NoError(t, err, "fetch api key")
 
-		require.True(t, apiKey.ExpiresAt.After(time.Now().Add(time.Hour*24*29)), "default tokens lasts more than 29 days")
-		require.True(t, apiKey.ExpiresAt.Before(time.Now().Add(time.Hour*24*31)), "default tokens lasts less than 31 days")
+		require.True(t, apiKey.ExpiresAt.After(time.Now().Add(time.Hour*24*6)), "default tokens lasts more than 6 days")
+		require.True(t, apiKey.ExpiresAt.Before(time.Now().Add(time.Hour*24*8)), "default tokens lasts less than 8 days")
 		require.Greater(t, apiKey.LifetimeSeconds, key.LifetimeSeconds, "token should have longer lifetime")
 	})
 }
@@ -316,11 +317,11 @@ func TestDeleteUser(t *testing.T) {
 		err := client.DeleteUser(context.Background(), another.ID)
 		require.NoError(t, err)
 		// Attempt to create a user with the same email and username, and delete them again.
-		another, err = client.CreateUser(context.Background(), codersdk.CreateUserRequest{
-			Email:          another.Email,
-			Username:       another.Username,
-			Password:       "SomeSecurePassword!",
-			OrganizationID: user.OrganizationID,
+		another, err = client.CreateUserWithOrgs(context.Background(), codersdk.CreateUserRequestWithOrgs{
+			Email:           another.Email,
+			Username:        another.Username,
+			Password:        "SomeSecurePassword!",
+			OrganizationIDs: []uuid.UUID{user.OrganizationID},
 		})
 		require.NoError(t, err)
 		err = client.DeleteUser(context.Background(), another.ID)
@@ -355,7 +356,7 @@ func TestDeleteUser(t *testing.T) {
 		version := coderdtest.CreateTemplateVersion(t, client, user.OrganizationID, nil)
 		coderdtest.AwaitTemplateVersionJobCompleted(t, client, version.ID)
 		template := coderdtest.CreateTemplate(t, client, user.OrganizationID, version.ID)
-		coderdtest.CreateWorkspace(t, anotherClient, user.OrganizationID, template.ID)
+		coderdtest.CreateWorkspace(t, anotherClient, template.ID)
 		err := client.DeleteUser(context.Background(), another.ID)
 		var apiErr *codersdk.Error
 		require.ErrorAs(t, err, &apiErr)
@@ -370,6 +371,194 @@ func TestDeleteUser(t *testing.T) {
 		require.Error(t, err, "should not be able to delete self")
 		require.ErrorAs(t, err, &apiErr, "should be a coderd error")
 		require.Equal(t, http.StatusForbidden, apiErr.StatusCode(), "should be forbidden")
+	})
+}
+
+func TestNotifyUserStatusChanged(t *testing.T) {
+	t.Parallel()
+
+	type expectedNotification struct {
+		TemplateID uuid.UUID
+		UserID     uuid.UUID
+	}
+
+	verifyNotificationDispatched := func(notifyEnq *testutil.FakeNotificationsEnqueuer, expectedNotifications []expectedNotification, member codersdk.User, label string) {
+		require.Equal(t, len(expectedNotifications), len(notifyEnq.Sent))
+
+		// Validate that each expected notification is present in notifyEnq.Sent
+		for _, expected := range expectedNotifications {
+			found := false
+			for _, sent := range notifyEnq.Sent {
+				if sent.TemplateID == expected.TemplateID &&
+					sent.UserID == expected.UserID &&
+					slices.Contains(sent.Targets, member.ID) &&
+					sent.Labels[label] == member.Username {
+					found = true
+					break
+				}
+			}
+			require.True(t, found, "Expected notification not found: %+v", expected)
+		}
+	}
+
+	t.Run("Account suspended", func(t *testing.T) {
+		t.Parallel()
+
+		notifyEnq := &testutil.FakeNotificationsEnqueuer{}
+		adminClient := coderdtest.New(t, &coderdtest.Options{
+			NotificationsEnqueuer: notifyEnq,
+		})
+		firstUser := coderdtest.CreateFirstUser(t, adminClient)
+
+		ctx, cancel := context.WithTimeout(context.Background(), testutil.WaitLong)
+		defer cancel()
+
+		_, userAdmin := coderdtest.CreateAnotherUser(t, adminClient, firstUser.OrganizationID, rbac.RoleUserAdmin())
+
+		member, err := adminClient.CreateUserWithOrgs(ctx, codersdk.CreateUserRequestWithOrgs{
+			OrganizationIDs: []uuid.UUID{firstUser.OrganizationID},
+			Email:           "another@user.org",
+			Username:        "someone-else",
+			Password:        "SomeSecurePassword!",
+		})
+		require.NoError(t, err)
+
+		notifyEnq.Clear()
+
+		// when
+		_, err = adminClient.UpdateUserStatus(context.Background(), member.Username, codersdk.UserStatusSuspended)
+		require.NoError(t, err)
+
+		// then
+		verifyNotificationDispatched(notifyEnq, []expectedNotification{
+			{TemplateID: notifications.TemplateUserAccountSuspended, UserID: firstUser.UserID},
+			{TemplateID: notifications.TemplateUserAccountSuspended, UserID: userAdmin.ID},
+			{TemplateID: notifications.TemplateYourAccountSuspended, UserID: member.ID},
+		}, member, "suspended_account_name")
+	})
+
+	t.Run("Account reactivated", func(t *testing.T) {
+		t.Parallel()
+
+		// given
+		notifyEnq := &testutil.FakeNotificationsEnqueuer{}
+		adminClient := coderdtest.New(t, &coderdtest.Options{
+			NotificationsEnqueuer: notifyEnq,
+		})
+		firstUser := coderdtest.CreateFirstUser(t, adminClient)
+
+		ctx, cancel := context.WithTimeout(context.Background(), testutil.WaitLong)
+		defer cancel()
+
+		_, userAdmin := coderdtest.CreateAnotherUser(t, adminClient, firstUser.OrganizationID, rbac.RoleUserAdmin())
+
+		member, err := adminClient.CreateUserWithOrgs(ctx, codersdk.CreateUserRequestWithOrgs{
+			OrganizationIDs: []uuid.UUID{firstUser.OrganizationID},
+			Email:           "another@user.org",
+			Username:        "someone-else",
+			Password:        "SomeSecurePassword!",
+		})
+		require.NoError(t, err)
+
+		_, err = adminClient.UpdateUserStatus(context.Background(), member.Username, codersdk.UserStatusSuspended)
+		require.NoError(t, err)
+
+		notifyEnq.Clear()
+
+		// when
+		_, err = adminClient.UpdateUserStatus(context.Background(), member.Username, codersdk.UserStatusActive)
+		require.NoError(t, err)
+
+		// then
+		verifyNotificationDispatched(notifyEnq, []expectedNotification{
+			{TemplateID: notifications.TemplateUserAccountActivated, UserID: firstUser.UserID},
+			{TemplateID: notifications.TemplateUserAccountActivated, UserID: userAdmin.ID},
+			{TemplateID: notifications.TemplateYourAccountActivated, UserID: member.ID},
+		}, member, "activated_account_name")
+	})
+}
+
+func TestNotifyDeletedUser(t *testing.T) {
+	t.Parallel()
+
+	t.Run("OwnerNotified", func(t *testing.T) {
+		t.Parallel()
+
+		// given
+		notifyEnq := &testutil.FakeNotificationsEnqueuer{}
+		adminClient := coderdtest.New(t, &coderdtest.Options{
+			NotificationsEnqueuer: notifyEnq,
+		})
+		firstUser := coderdtest.CreateFirstUser(t, adminClient)
+
+		ctx, cancel := context.WithTimeout(context.Background(), testutil.WaitLong)
+		defer cancel()
+
+		user, err := adminClient.CreateUserWithOrgs(ctx, codersdk.CreateUserRequestWithOrgs{
+			OrganizationIDs: []uuid.UUID{firstUser.OrganizationID},
+			Email:           "another@user.org",
+			Username:        "someone-else",
+			Password:        "SomeSecurePassword!",
+		})
+		require.NoError(t, err)
+
+		// when
+		err = adminClient.DeleteUser(context.Background(), user.ID)
+		require.NoError(t, err)
+
+		// then
+		require.Len(t, notifyEnq.Sent, 2)
+		// notifyEnq.Sent[0] is create account event
+		require.Equal(t, notifications.TemplateUserAccountDeleted, notifyEnq.Sent[1].TemplateID)
+		require.Equal(t, firstUser.UserID, notifyEnq.Sent[1].UserID)
+		require.Contains(t, notifyEnq.Sent[1].Targets, user.ID)
+		require.Equal(t, user.Username, notifyEnq.Sent[1].Labels["deleted_account_name"])
+	})
+
+	t.Run("UserAdminNotified", func(t *testing.T) {
+		t.Parallel()
+
+		// given
+		notifyEnq := &testutil.FakeNotificationsEnqueuer{}
+		adminClient := coderdtest.New(t, &coderdtest.Options{
+			NotificationsEnqueuer: notifyEnq,
+		})
+		firstUser := coderdtest.CreateFirstUser(t, adminClient)
+
+		ctx, cancel := context.WithTimeout(context.Background(), testutil.WaitLong)
+		defer cancel()
+
+		_, userAdmin := coderdtest.CreateAnotherUser(t, adminClient, firstUser.OrganizationID, rbac.RoleUserAdmin())
+
+		member, err := adminClient.CreateUserWithOrgs(ctx, codersdk.CreateUserRequestWithOrgs{
+			OrganizationIDs: []uuid.UUID{firstUser.OrganizationID},
+			Email:           "another@user.org",
+			Username:        "someone-else",
+			Password:        "SomeSecurePassword!",
+		})
+		require.NoError(t, err)
+
+		// when
+		err = adminClient.DeleteUser(context.Background(), member.ID)
+		require.NoError(t, err)
+
+		// then
+		require.Len(t, notifyEnq.Sent, 5)
+		// notifyEnq.Sent[0]: "User admin" account created, "owner" notified
+		// notifyEnq.Sent[1]: "Member" account created, "owner" notified
+		// notifyEnq.Sent[2]: "Member" account created, "user admin" notified
+
+		// "Member" account deleted, "owner" notified
+		require.Equal(t, notifications.TemplateUserAccountDeleted, notifyEnq.Sent[3].TemplateID)
+		require.Equal(t, firstUser.UserID, notifyEnq.Sent[3].UserID)
+		require.Contains(t, notifyEnq.Sent[3].Targets, member.ID)
+		require.Equal(t, member.Username, notifyEnq.Sent[3].Labels["deleted_account_name"])
+
+		// "Member" account deleted, "user admin" notified
+		require.Equal(t, notifications.TemplateUserAccountDeleted, notifyEnq.Sent[4].TemplateID)
+		require.Equal(t, userAdmin.ID, notifyEnq.Sent[4].UserID)
+		require.Contains(t, notifyEnq.Sent[4].Targets, member.ID)
+		require.Equal(t, member.Username, notifyEnq.Sent[4].Labels["deleted_account_name"])
 	})
 }
 
@@ -436,7 +625,7 @@ func TestPostUsers(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), testutil.WaitLong)
 		defer cancel()
 
-		_, err := client.CreateUser(ctx, codersdk.CreateUserRequest{})
+		_, err := client.CreateUserWithOrgs(ctx, codersdk.CreateUserRequestWithOrgs{})
 		require.Error(t, err)
 	})
 
@@ -450,11 +639,11 @@ func TestPostUsers(t *testing.T) {
 
 		me, err := client.User(ctx, codersdk.Me)
 		require.NoError(t, err)
-		_, err = client.CreateUser(ctx, codersdk.CreateUserRequest{
-			Email:          me.Email,
-			Username:       me.Username,
-			Password:       "MySecurePassword!",
-			OrganizationID: uuid.New(),
+		_, err = client.CreateUserWithOrgs(ctx, codersdk.CreateUserRequestWithOrgs{
+			Email:           me.Email,
+			Username:        me.Username,
+			Password:        "MySecurePassword!",
+			OrganizationIDs: []uuid.UUID{uuid.New()},
 		})
 		var apiErr *codersdk.Error
 		require.ErrorAs(t, err, &apiErr)
@@ -469,74 +658,15 @@ func TestPostUsers(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), testutil.WaitLong)
 		defer cancel()
 
-		_, err := client.CreateUser(ctx, codersdk.CreateUserRequest{
-			OrganizationID: uuid.New(),
-			Email:          "another@user.org",
-			Username:       "someone-else",
-			Password:       "SomeSecurePassword!",
+		_, err := client.CreateUserWithOrgs(ctx, codersdk.CreateUserRequestWithOrgs{
+			OrganizationIDs: []uuid.UUID{uuid.New()},
+			Email:           "another@user.org",
+			Username:        "someone-else",
+			Password:        "SomeSecurePassword!",
 		})
 		var apiErr *codersdk.Error
 		require.ErrorAs(t, err, &apiErr)
 		require.Equal(t, http.StatusNotFound, apiErr.StatusCode())
-	})
-
-	t.Run("OrganizationNoAccess", func(t *testing.T) {
-		t.Parallel()
-		client := coderdtest.New(t, nil)
-		first := coderdtest.CreateFirstUser(t, client)
-		notInOrg, _ := coderdtest.CreateAnotherUser(t, client, first.OrganizationID)
-		other, _ := coderdtest.CreateAnotherUser(t, client, first.OrganizationID, rbac.RoleOwner(), rbac.RoleMember())
-
-		ctx, cancel := context.WithTimeout(context.Background(), testutil.WaitLong)
-		defer cancel()
-
-		org, err := other.CreateOrganization(ctx, codersdk.CreateOrganizationRequest{
-			Name: "another",
-		})
-		require.NoError(t, err)
-
-		_, err = notInOrg.CreateUser(ctx, codersdk.CreateUserRequest{
-			Email:          "some@domain.com",
-			Username:       "anotheruser",
-			Password:       "SomeSecurePassword!",
-			OrganizationID: org.ID,
-		})
-		var apiErr *codersdk.Error
-		require.ErrorAs(t, err, &apiErr)
-		require.Equal(t, http.StatusNotFound, apiErr.StatusCode())
-	})
-
-	t.Run("CreateWithoutOrg", func(t *testing.T) {
-		t.Parallel()
-		auditor := audit.NewMock()
-		client := coderdtest.New(t, &coderdtest.Options{Auditor: auditor})
-		firstUser := coderdtest.CreateFirstUser(t, client)
-
-		ctx, cancel := context.WithTimeout(context.Background(), testutil.WaitLong)
-		defer cancel()
-
-		// Add an extra org to try and confuse user creation
-		_, err := client.CreateOrganization(ctx, codersdk.CreateOrganizationRequest{
-			Name: "foobar",
-		})
-		require.NoError(t, err)
-
-		numLogs := len(auditor.AuditLogs())
-
-		user, err := client.CreateUser(ctx, codersdk.CreateUserRequest{
-			Email:    "another@user.org",
-			Username: "someone-else",
-			Password: "SomeSecurePassword!",
-		})
-		require.NoError(t, err)
-		numLogs++ // add an audit log for user create
-
-		require.Len(t, auditor.AuditLogs(), numLogs)
-		require.Equal(t, database.AuditActionCreate, auditor.AuditLogs()[numLogs-1].Action)
-		require.Equal(t, database.AuditActionLogin, auditor.AuditLogs()[numLogs-3].Action)
-
-		require.Len(t, user.OrganizationIDs, 1)
-		assert.Equal(t, firstUser.OrganizationID, user.OrganizationIDs[0])
 	})
 
 	t.Run("Create", func(t *testing.T) {
@@ -552,11 +682,11 @@ func TestPostUsers(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), testutil.WaitLong)
 		defer cancel()
 
-		user, err := client.CreateUser(ctx, codersdk.CreateUserRequest{
-			OrganizationID: firstUser.OrganizationID,
-			Email:          "another@user.org",
-			Username:       "someone-else",
-			Password:       "SomeSecurePassword!",
+		user, err := client.CreateUserWithOrgs(ctx, codersdk.CreateUserRequestWithOrgs{
+			OrganizationIDs: []uuid.UUID{firstUser.OrganizationID},
+			Email:           "another@user.org",
+			Username:        "someone-else",
+			Password:        "SomeSecurePassword!",
 		})
 		require.NoError(t, err)
 
@@ -605,12 +735,12 @@ func TestPostUsers(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), testutil.WaitLong)
 		defer cancel()
 
-		user, err := client.CreateUser(ctx, codersdk.CreateUserRequest{
-			OrganizationID: first.OrganizationID,
-			Email:          "another@user.org",
-			Username:       "someone-else",
-			Password:       "",
-			UserLoginType:  codersdk.LoginTypeNone,
+		user, err := client.CreateUserWithOrgs(ctx, codersdk.CreateUserRequestWithOrgs{
+			OrganizationIDs: []uuid.UUID{first.OrganizationID},
+			Email:           "another@user.org",
+			Username:        "someone-else",
+			Password:        "",
+			UserLoginType:   codersdk.LoginTypeNone,
 		})
 		require.NoError(t, err)
 
@@ -637,12 +767,12 @@ func TestPostUsers(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), testutil.WaitLong)
 		defer cancel()
 
-		_, err := client.CreateUser(ctx, codersdk.CreateUserRequest{
-			OrganizationID: first.OrganizationID,
-			Email:          email,
-			Username:       "someone-else",
-			Password:       "",
-			UserLoginType:  codersdk.LoginTypeOIDC,
+		_, err := client.CreateUserWithOrgs(ctx, codersdk.CreateUserRequestWithOrgs{
+			OrganizationIDs: []uuid.UUID{first.OrganizationID},
+			Email:           email,
+			Username:        "someone-else",
+			Password:        "",
+			UserLoginType:   codersdk.LoginTypeOIDC,
 		})
 		require.NoError(t, err)
 
@@ -654,6 +784,99 @@ func TestPostUsers(t *testing.T) {
 		found, err := userClient.User(ctx, "me")
 		require.NoError(t, err)
 		require.Equal(t, found.LoginType, codersdk.LoginTypeOIDC)
+	})
+}
+
+func TestNotifyCreatedUser(t *testing.T) {
+	t.Parallel()
+
+	t.Run("OwnerNotified", func(t *testing.T) {
+		t.Parallel()
+
+		// given
+		notifyEnq := &testutil.FakeNotificationsEnqueuer{}
+		adminClient := coderdtest.New(t, &coderdtest.Options{
+			NotificationsEnqueuer: notifyEnq,
+		})
+		firstUser := coderdtest.CreateFirstUser(t, adminClient)
+
+		ctx, cancel := context.WithTimeout(context.Background(), testutil.WaitLong)
+		defer cancel()
+
+		// when
+		user, err := adminClient.CreateUserWithOrgs(ctx, codersdk.CreateUserRequestWithOrgs{
+			OrganizationIDs: []uuid.UUID{firstUser.OrganizationID},
+			Email:           "another@user.org",
+			Username:        "someone-else",
+			Password:        "SomeSecurePassword!",
+		})
+		require.NoError(t, err)
+
+		// then
+		require.Len(t, notifyEnq.Sent, 1)
+		require.Equal(t, notifications.TemplateUserAccountCreated, notifyEnq.Sent[0].TemplateID)
+		require.Equal(t, firstUser.UserID, notifyEnq.Sent[0].UserID)
+		require.Contains(t, notifyEnq.Sent[0].Targets, user.ID)
+		require.Equal(t, user.Username, notifyEnq.Sent[0].Labels["created_account_name"])
+	})
+
+	t.Run("UserAdminNotified", func(t *testing.T) {
+		t.Parallel()
+
+		// given
+		notifyEnq := &testutil.FakeNotificationsEnqueuer{}
+		adminClient := coderdtest.New(t, &coderdtest.Options{
+			NotificationsEnqueuer: notifyEnq,
+		})
+		firstUser := coderdtest.CreateFirstUser(t, adminClient)
+
+		ctx, cancel := context.WithTimeout(context.Background(), testutil.WaitLong)
+		defer cancel()
+
+		userAdmin, err := adminClient.CreateUserWithOrgs(ctx, codersdk.CreateUserRequestWithOrgs{
+			OrganizationIDs: []uuid.UUID{firstUser.OrganizationID},
+			Email:           "user-admin@user.org",
+			Username:        "mr-user-admin",
+			Password:        "SomeSecurePassword!",
+		})
+		require.NoError(t, err)
+
+		_, err = adminClient.UpdateUserRoles(ctx, userAdmin.Username, codersdk.UpdateRoles{
+			Roles: []string{
+				rbac.RoleUserAdmin().String(),
+			},
+		})
+		require.NoError(t, err)
+
+		// when
+		member, err := adminClient.CreateUserWithOrgs(ctx, codersdk.CreateUserRequestWithOrgs{
+			OrganizationIDs: []uuid.UUID{firstUser.OrganizationID},
+			Email:           "another@user.org",
+			Username:        "someone-else",
+			Password:        "SomeSecurePassword!",
+		})
+		require.NoError(t, err)
+
+		// then
+		require.Len(t, notifyEnq.Sent, 3)
+
+		// "User admin" account created, "owner" notified
+		require.Equal(t, notifications.TemplateUserAccountCreated, notifyEnq.Sent[0].TemplateID)
+		require.Equal(t, firstUser.UserID, notifyEnq.Sent[0].UserID)
+		require.Contains(t, notifyEnq.Sent[0].Targets, userAdmin.ID)
+		require.Equal(t, userAdmin.Username, notifyEnq.Sent[0].Labels["created_account_name"])
+
+		// "Member" account created, "owner" notified
+		require.Equal(t, notifications.TemplateUserAccountCreated, notifyEnq.Sent[1].TemplateID)
+		require.Equal(t, firstUser.UserID, notifyEnq.Sent[1].UserID)
+		require.Contains(t, notifyEnq.Sent[1].Targets, member.ID)
+		require.Equal(t, member.Username, notifyEnq.Sent[1].Labels["created_account_name"])
+
+		// "Member" account created, "user admin" notified
+		require.Equal(t, notifications.TemplateUserAccountCreated, notifyEnq.Sent[1].TemplateID)
+		require.Equal(t, userAdmin.ID, notifyEnq.Sent[2].UserID)
+		require.Contains(t, notifyEnq.Sent[2].Targets, member.ID)
+		require.Equal(t, member.Username, notifyEnq.Sent[2].Labels["created_account_name"])
 	})
 }
 
@@ -685,11 +908,11 @@ func TestUpdateUserProfile(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), testutil.WaitLong)
 		defer cancel()
 
-		existentUser, err := client.CreateUser(ctx, codersdk.CreateUserRequest{
-			Email:          "bruno@coder.com",
-			Username:       "bruno",
-			Password:       "SomeSecurePassword!",
-			OrganizationID: user.OrganizationID,
+		existentUser, err := client.CreateUserWithOrgs(ctx, codersdk.CreateUserRequestWithOrgs{
+			Email:           "bruno@coder.com",
+			Username:        "bruno",
+			Password:        "SomeSecurePassword!",
+			OrganizationIDs: []uuid.UUID{user.OrganizationID},
 		})
 		require.NoError(t, err)
 		_, err = client.UpdateUserProfile(ctx, codersdk.Me, codersdk.UpdateUserProfileRequest{
@@ -767,11 +990,11 @@ func TestUpdateUserProfile(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), testutil.WaitLong)
 		defer cancel()
 
-		_, err := client.CreateUser(ctx, codersdk.CreateUserRequest{
-			Email:          "john@coder.com",
-			Username:       "john",
-			Password:       "SomeSecurePassword!",
-			OrganizationID: user.OrganizationID,
+		_, err := client.CreateUserWithOrgs(ctx, codersdk.CreateUserRequestWithOrgs{
+			Email:           "john@coder.com",
+			Username:        "john",
+			Password:        "SomeSecurePassword!",
+			OrganizationIDs: []uuid.UUID{user.OrganizationID},
 		})
 		require.NoError(t, err)
 		_, err = client.UpdateUserProfile(ctx, codersdk.Me, codersdk.UpdateUserProfileRequest{
@@ -809,11 +1032,11 @@ func TestUpdateUserPassword(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), testutil.WaitLong)
 		defer cancel()
 
-		member, err := client.CreateUser(ctx, codersdk.CreateUserRequest{
-			Email:          "coder@coder.com",
-			Username:       "coder",
-			Password:       "SomeStrongPassword!",
-			OrganizationID: owner.OrganizationID,
+		member, err := client.CreateUserWithOrgs(ctx, codersdk.CreateUserRequestWithOrgs{
+			Email:           "coder@coder.com",
+			Username:        "coder",
+			Password:        "SomeStrongPassword!",
+			OrganizationIDs: []uuid.UUID{owner.OrganizationID},
 		})
 		require.NoError(t, err, "create member")
 		err = client.UpdateUserPassword(ctx, member.ID.String(), codersdk.UpdateUserPasswordRequest{
@@ -990,175 +1213,6 @@ func TestUpdateUserPassword(t *testing.T) {
 	})
 }
 
-func TestGrantSiteRoles(t *testing.T) {
-	t.Parallel()
-
-	requireStatusCode := func(t *testing.T, err error, statusCode int) {
-		t.Helper()
-		var e *codersdk.Error
-		require.ErrorAs(t, err, &e, "error is codersdk error")
-		require.Equal(t, statusCode, e.StatusCode(), "correct status code")
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), testutil.WaitLong)
-	t.Cleanup(cancel)
-	var err error
-
-	admin := coderdtest.New(t, nil)
-	first := coderdtest.CreateFirstUser(t, admin)
-	member, _ := coderdtest.CreateAnotherUser(t, admin, first.OrganizationID)
-	orgAdmin, _ := coderdtest.CreateAnotherUser(t, admin, first.OrganizationID, rbac.ScopedRoleOrgAdmin(first.OrganizationID))
-	randOrg, err := admin.CreateOrganization(ctx, codersdk.CreateOrganizationRequest{
-		Name: "random",
-	})
-	require.NoError(t, err)
-	_, randOrgUser := coderdtest.CreateAnotherUser(t, admin, randOrg.ID, rbac.ScopedRoleOrgAdmin(randOrg.ID))
-	userAdmin, _ := coderdtest.CreateAnotherUser(t, admin, first.OrganizationID, rbac.RoleUserAdmin())
-
-	const newUser = "newUser"
-
-	testCases := []struct {
-		Name          string
-		Client        *codersdk.Client
-		OrgID         uuid.UUID
-		AssignToUser  string
-		Roles         []string
-		ExpectedRoles []string
-		Error         bool
-		StatusCode    int
-	}{
-		{
-			Name:         "OrgRoleInSite",
-			Client:       admin,
-			AssignToUser: codersdk.Me,
-			Roles:        []string{rbac.RoleOrgAdmin()},
-			Error:        true,
-			StatusCode:   http.StatusBadRequest,
-		},
-		{
-			Name:         "UserNotExists",
-			Client:       admin,
-			AssignToUser: uuid.NewString(),
-			Roles:        []string{codersdk.RoleOwner},
-			Error:        true,
-			StatusCode:   http.StatusBadRequest,
-		},
-		{
-			Name:         "MemberCannotUpdateRoles",
-			Client:       member,
-			AssignToUser: first.UserID.String(),
-			Roles:        []string{},
-			Error:        true,
-			StatusCode:   http.StatusBadRequest,
-		},
-		{
-			// Cannot update your own roles
-			Name:         "AdminOnSelf",
-			Client:       admin,
-			AssignToUser: first.UserID.String(),
-			Roles:        []string{},
-			Error:        true,
-			StatusCode:   http.StatusBadRequest,
-		},
-		{
-			Name:         "SiteRoleInOrg",
-			Client:       admin,
-			OrgID:        first.OrganizationID,
-			AssignToUser: codersdk.Me,
-			Roles:        []string{codersdk.RoleOwner},
-			Error:        true,
-			StatusCode:   http.StatusBadRequest,
-		},
-		{
-			Name:         "RoleInNotMemberOrg",
-			Client:       orgAdmin,
-			OrgID:        randOrg.ID,
-			AssignToUser: randOrgUser.ID.String(),
-			Roles:        []string{rbac.RoleOrgMember()},
-			Error:        true,
-			StatusCode:   http.StatusNotFound,
-		},
-		{
-			Name:         "AdminUpdateOrgSelf",
-			Client:       admin,
-			OrgID:        first.OrganizationID,
-			AssignToUser: first.UserID.String(),
-			Roles:        []string{},
-			Error:        true,
-			StatusCode:   http.StatusBadRequest,
-		},
-		{
-			Name:         "OrgAdminPromote",
-			Client:       orgAdmin,
-			OrgID:        first.OrganizationID,
-			AssignToUser: newUser,
-			Roles:        []string{rbac.RoleOrgAdmin()},
-			ExpectedRoles: []string{
-				rbac.RoleOrgAdmin(),
-			},
-			Error: false,
-		},
-		{
-			Name:         "UserAdminMakeMember",
-			Client:       userAdmin,
-			AssignToUser: newUser,
-			Roles:        []string{codersdk.RoleMember},
-			ExpectedRoles: []string{
-				codersdk.RoleMember,
-			},
-			Error: false,
-		},
-	}
-
-	for _, c := range testCases {
-		c := c
-		t.Run(c.Name, func(t *testing.T) {
-			t.Parallel()
-			ctx, cancel := context.WithTimeout(context.Background(), testutil.WaitLong)
-			defer cancel()
-
-			var err error
-			if c.AssignToUser == newUser {
-				orgID := first.OrganizationID
-				if c.OrgID != uuid.Nil {
-					orgID = c.OrgID
-				}
-				_, newUser := coderdtest.CreateAnotherUser(t, admin, orgID)
-				c.AssignToUser = newUser.ID.String()
-			}
-
-			var newRoles []codersdk.SlimRole
-			if c.OrgID != uuid.Nil {
-				// Org assign
-				var mem codersdk.OrganizationMember
-				mem, err = c.Client.UpdateOrganizationMemberRoles(ctx, c.OrgID, c.AssignToUser, codersdk.UpdateRoles{
-					Roles: c.Roles,
-				})
-				newRoles = mem.Roles
-			} else {
-				// Site assign
-				var user codersdk.User
-				user, err = c.Client.UpdateUserRoles(ctx, c.AssignToUser, codersdk.UpdateRoles{
-					Roles: c.Roles,
-				})
-				newRoles = user.Roles
-			}
-
-			if c.Error {
-				require.Error(t, err)
-				requireStatusCode(t, err, c.StatusCode)
-			} else {
-				require.NoError(t, err)
-				roles := make([]string, 0, len(newRoles))
-				for _, r := range newRoles {
-					roles = append(roles, r.Name)
-				}
-				require.ElementsMatch(t, roles, c.ExpectedRoles)
-			}
-		})
-	}
-}
-
 // TestInitialRoles ensures the starting roles for the first user are correct.
 func TestInitialRoles(t *testing.T) {
 	t.Parallel()
@@ -1239,11 +1293,11 @@ func TestActivateDormantUser(t *testing.T) {
 	me := coderdtest.CreateFirstUser(t, client)
 	ctx, cancel := context.WithTimeout(context.Background(), testutil.WaitLong)
 	defer cancel()
-	anotherUser, err := client.CreateUser(ctx, codersdk.CreateUserRequest{
-		Email:          "coder@coder.com",
-		Username:       "coder",
-		Password:       "SomeStrongPassword!",
-		OrganizationID: me.OrganizationID,
+	anotherUser, err := client.CreateUserWithOrgs(ctx, codersdk.CreateUserRequestWithOrgs{
+		Email:           "coder@coder.com",
+		Username:        "coder",
+		Password:        "SomeStrongPassword!",
+		OrganizationIDs: []uuid.UUID{me.OrganizationID},
 	})
 	require.NoError(t, err)
 
@@ -1546,11 +1600,11 @@ func TestGetUsers(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), testutil.WaitLong)
 		defer cancel()
 
-		client.CreateUser(ctx, codersdk.CreateUserRequest{
-			Email:          "alice@email.com",
-			Username:       "alice",
-			Password:       "MySecurePassword!",
-			OrganizationID: user.OrganizationID,
+		client.CreateUserWithOrgs(ctx, codersdk.CreateUserRequestWithOrgs{
+			Email:           "alice@email.com",
+			Username:        "alice",
+			Password:        "MySecurePassword!",
+			OrganizationIDs: []uuid.UUID{user.OrganizationID},
 		})
 		// No params is all users
 		res, err := client.Users(ctx, codersdk.UsersRequest{})
@@ -1572,11 +1626,11 @@ func TestGetUsers(t *testing.T) {
 		active = append(active, firstUser)
 
 		// Alice will be suspended
-		alice, err := client.CreateUser(ctx, codersdk.CreateUserRequest{
-			Email:          "alice@email.com",
-			Username:       "alice",
-			Password:       "MySecurePassword!",
-			OrganizationID: first.OrganizationID,
+		alice, err := client.CreateUserWithOrgs(ctx, codersdk.CreateUserRequestWithOrgs{
+			Email:           "alice@email.com",
+			Username:        "alice",
+			Password:        "MySecurePassword!",
+			OrganizationIDs: []uuid.UUID{first.OrganizationID},
 		})
 		require.NoError(t, err)
 
@@ -1584,11 +1638,11 @@ func TestGetUsers(t *testing.T) {
 		require.NoError(t, err)
 
 		// Tom will be active
-		tom, err := client.CreateUser(ctx, codersdk.CreateUserRequest{
-			Email:          "tom@email.com",
-			Username:       "tom",
-			Password:       "MySecurePassword!",
-			OrganizationID: first.OrganizationID,
+		tom, err := client.CreateUserWithOrgs(ctx, codersdk.CreateUserRequestWithOrgs{
+			Email:           "tom@email.com",
+			Username:        "tom",
+			Password:        "MySecurePassword!",
+			OrganizationIDs: []uuid.UUID{first.OrganizationID},
 		})
 		require.NoError(t, err)
 
@@ -1615,11 +1669,11 @@ func TestGetUsersPagination(t *testing.T) {
 	_, err := client.User(ctx, first.UserID.String())
 	require.NoError(t, err, "")
 
-	_, err = client.CreateUser(ctx, codersdk.CreateUserRequest{
-		Email:          "alice@email.com",
-		Username:       "alice",
-		Password:       "MySecurePassword!",
-		OrganizationID: first.OrganizationID,
+	_, err = client.CreateUserWithOrgs(ctx, codersdk.CreateUserRequestWithOrgs{
+		Email:           "alice@email.com",
+		Username:        "alice",
+		Password:        "MySecurePassword!",
+		OrganizationIDs: []uuid.UUID{first.OrganizationID},
 	})
 	require.NoError(t, err)
 
@@ -1696,11 +1750,11 @@ func TestWorkspacesByUser(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), testutil.WaitLong)
 		defer cancel()
 
-		newUser, err := client.CreateUser(ctx, codersdk.CreateUserRequest{
-			Email:          "test@coder.com",
-			Username:       "someone",
-			Password:       "MySecurePassword!",
-			OrganizationID: user.OrganizationID,
+		newUser, err := client.CreateUserWithOrgs(ctx, codersdk.CreateUserRequestWithOrgs{
+			Email:           "test@coder.com",
+			Username:        "someone",
+			Password:        "MySecurePassword!",
+			OrganizationIDs: []uuid.UUID{user.OrganizationID},
 		})
 		require.NoError(t, err)
 		auth, err := client.LoginWithPassword(ctx, codersdk.LoginWithPasswordRequest{
@@ -1714,7 +1768,7 @@ func TestWorkspacesByUser(t *testing.T) {
 		version := coderdtest.CreateTemplateVersion(t, client, user.OrganizationID, nil)
 		coderdtest.AwaitTemplateVersionJobCompleted(t, client, version.ID)
 		template := coderdtest.CreateTemplate(t, client, user.OrganizationID, version.ID)
-		coderdtest.CreateWorkspace(t, client, user.OrganizationID, template.ID)
+		coderdtest.CreateWorkspace(t, client, template.ID)
 
 		res, err := newUserClient.Workspaces(ctx, codersdk.WorkspaceFilter{Owner: codersdk.Me})
 		require.NoError(t, err)
@@ -1736,11 +1790,11 @@ func TestDormantUser(t *testing.T) {
 	defer cancel()
 
 	// Create a new user
-	newUser, err := client.CreateUser(ctx, codersdk.CreateUserRequest{
-		Email:          "test@coder.com",
-		Username:       "someone",
-		Password:       "MySecurePassword!",
-		OrganizationID: user.OrganizationID,
+	newUser, err := client.CreateUserWithOrgs(ctx, codersdk.CreateUserRequestWithOrgs{
+		Email:           "test@coder.com",
+		Username:        "someone",
+		Password:        "MySecurePassword!",
+		OrganizationIDs: []uuid.UUID{user.OrganizationID},
 	})
 	require.NoError(t, err)
 
@@ -1787,11 +1841,11 @@ func TestSuspendedPagination(t *testing.T) {
 	for i := 0; i < total; i++ {
 		email := fmt.Sprintf("%d@coder.com", i)
 		username := fmt.Sprintf("user%d", i)
-		user, err := client.CreateUser(ctx, codersdk.CreateUserRequest{
-			Email:          email,
-			Username:       username,
-			Password:       "MySecurePassword!",
-			OrganizationID: orgID,
+		user, err := client.CreateUserWithOrgs(ctx, codersdk.CreateUserRequestWithOrgs{
+			Email:           email,
+			Username:        username,
+			Password:        "MySecurePassword!",
+			OrganizationIDs: []uuid.UUID{orgID},
 		})
 		require.NoError(t, err)
 		users = append(users, user)

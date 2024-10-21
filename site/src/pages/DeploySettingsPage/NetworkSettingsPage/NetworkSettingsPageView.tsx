@@ -1,52 +1,52 @@
-import type { FC } from "react";
 import type { SerpentOption } from "api/typesGenerated";
-import { Badges, EnabledBadge, DisabledBadge } from "components/Badges/Badges";
+import { Badges, DisabledBadge, EnabledBadge } from "components/Badges/Badges";
+import { SettingsHeader } from "components/SettingsHeader/SettingsHeader";
 import { Stack } from "components/Stack/Stack";
+import type { FC } from "react";
 import {
-  deploymentGroupHasParent,
-  useDeploymentOptions,
+	deploymentGroupHasParent,
+	useDeploymentOptions,
 } from "utils/deployOptions";
 import { docs } from "utils/docs";
-import { Header } from "../Header";
 import OptionsTable from "../OptionsTable";
 
 export type NetworkSettingsPageViewProps = {
-  options: SerpentOption[];
+	options: SerpentOption[];
 };
 
 export const NetworkSettingsPageView: FC<NetworkSettingsPageViewProps> = ({
-  options: options,
+	options,
 }) => (
-  <Stack direction="column" spacing={6}>
-    <div>
-      <Header
-        title="网络"
-        description="配置您的部署连接性。"
-        docsHref={docs("/networking")}
-      />
-      <OptionsTable
-        options={options.filter((o) =>
-          deploymentGroupHasParent(o.group, "Networking"),
-        )}
-      />
-    </div>
+	<Stack direction="column" spacing={6}>
+		<div>
+			<SettingsHeader
+				title="Network"
+				description="Configure your deployment connectivity."
+				docsHref={docs("/networking")}
+			/>
+			<OptionsTable
+				options={options.filter((o) =>
+					deploymentGroupHasParent(o.group, "Networking"),
+				)}
+			/>
+		</div>
 
-    <div>
-      <Header
-        title="端口转发"
-        secondary
-        description="端口转发允许开发人员从本地计算机安全地访问其 Coder 工作区中的进程。"
-        docsHref={docs("/networking/port-forwarding")}
-      />
+		<div>
+			<SettingsHeader
+				title="Port Forwarding"
+				secondary
+				description="Port forwarding lets developers securely access processes on their Coder workspace from a local machine."
+				docsHref={docs("/networking/port-forwarding")}
+			/>
 
-      <Badges>
-        {useDeploymentOptions(options, "Wildcard Access URL")[0].value !==
-        "" ? (
-          <EnabledBadge />
-        ) : (
-          <DisabledBadge />
-        )}
-      </Badges>
-    </div>
-  </Stack>
+			<Badges>
+				{useDeploymentOptions(options, "Wildcard Access URL")[0].value !==
+				"" ? (
+					<EnabledBadge />
+				) : (
+					<DisabledBadge />
+				)}
+			</Badges>
+		</div>
+	</Stack>
 );

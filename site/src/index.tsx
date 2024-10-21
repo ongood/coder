@@ -10,7 +10,8 @@ console.info(`    ▄█▀    ▀█▄
 
 const element = document.getElementById("root");
 if (element === null) {
-  throw new Error("root element is null");
+	throw new Error("root element is null");
 }
+
 const root = createRoot(element);
 root.render(<App />);

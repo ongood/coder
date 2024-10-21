@@ -51,6 +51,7 @@ type ReducedUser struct {
 	Name        string    `json:"name"`
 	Email       string    `json:"email" validate:"required" table:"email" format:"email"`
 	CreatedAt   time.Time `json:"created_at" validate:"required" table:"created at" format:"date-time"`
+	UpdatedAt   time.Time `json:"updated_at" table:"updated at" format:"date-time"`
 	LastSeenAt  time.Time `json:"last_seen_at" format:"date-time"`
 
 	Status          UserStatus `json:"status" table:"status" enums:"active,suspended"`
@@ -112,6 +113,11 @@ type CreateFirstUserResponse struct {
 	OrganizationID uuid.UUID `json:"organization_id" format:"uuid"`
 }
 
+// CreateUserRequest
+// Deprecated: Use CreateUserRequestWithOrgs instead. This will be removed.
+// TODO: When removing, we should rename CreateUserRequestWithOrgs -> CreateUserRequest
+// Then alias CreateUserRequestWithOrgs to CreateUserRequest.
+// @typescript-ignore CreateUserRequest
 type CreateUserRequest struct {
 	Email    string `json:"email" validate:"required,email" format:"email"`
 	Username string `json:"username" validate:"required,username"`
@@ -124,6 +130,45 @@ type CreateUserRequest struct {
 	// Deprecated: Set UserLoginType=LoginTypeDisabled instead.
 	DisableLogin   bool      `json:"disable_login"`
 	OrganizationID uuid.UUID `json:"organization_id" validate:"" format:"uuid"`
+}
+
+type CreateUserRequestWithOrgs struct {
+	Email    string `json:"email" validate:"required,email" format:"email"`
+	Username string `json:"username" validate:"required,username"`
+	Name     string `json:"name" validate:"user_real_name"`
+	Password string `json:"password"`
+	// UserLoginType defaults to LoginTypePassword.
+	UserLoginType LoginType `json:"login_type"`
+	// OrganizationIDs is a list of organization IDs that the user should be a member of.
+	OrganizationIDs []uuid.UUID `json:"organization_ids" validate:"" format:"uuid"`
+}
+
+// UnmarshalJSON implements the unmarshal for the legacy param "organization_id".
+// To accommodate multiple organizations, the field has been switched to a slice.
+// The previous field will just be appended to the slice.
+// Note in the previous behavior, omitting the field would result in the
+// default org being applied, but that is no longer the case.
+// TODO: Remove this method in it's entirety after some period of time.
+// This will be released in v1.16.0, and is associated with the multiple orgs
+// feature.
+func (r *CreateUserRequestWithOrgs) UnmarshalJSON(data []byte) error {
+	// By using a type alias, we prevent an infinite recursion when unmarshalling.
+	// This allows us to use the default unmarshal behavior of the original type.
+	type AliasedReq CreateUserRequestWithOrgs
+	type DeprecatedCreateUserRequest struct {
+		AliasedReq
+		OrganizationID *uuid.UUID `json:"organization_id" format:"uuid"`
+	}
+	var dep DeprecatedCreateUserRequest
+	err := json.Unmarshal(data, &dep)
+	if err != nil {
+		return err
+	}
+	*r = CreateUserRequestWithOrgs(dep.AliasedReq)
+	if dep.OrganizationID != nil {
+		r.OrganizationIDs = append(r.OrganizationIDs, *dep.OrganizationID)
+	}
+	return nil
 }
 
 type UpdateUserProfileRequest struct {
@@ -287,8 +332,26 @@ func (c *Client) CreateFirstUser(ctx context.Context, req CreateFirstUserRequest
 	return resp, json.NewDecoder(res.Body).Decode(&resp)
 }
 
-// CreateUser creates a new user.
+// CreateUser
+// Deprecated: Use CreateUserWithOrgs instead. This will be removed.
+// TODO: When removing, we should rename CreateUserWithOrgs -> CreateUser
+// with an alias of CreateUserWithOrgs.
 func (c *Client) CreateUser(ctx context.Context, req CreateUserRequest) (User, error) {
+	if req.DisableLogin {
+		req.UserLoginType = LoginTypeNone
+	}
+	return c.CreateUserWithOrgs(ctx, CreateUserRequestWithOrgs{
+		Email:           req.Email,
+		Username:        req.Username,
+		Name:            req.Name,
+		Password:        req.Password,
+		UserLoginType:   req.UserLoginType,
+		OrganizationIDs: []uuid.UUID{req.OrganizationID},
+	})
+}
+
+// CreateUserWithOrgs creates a new user.
+func (c *Client) CreateUserWithOrgs(ctx context.Context, req CreateUserRequestWithOrgs) (User, error) {
 	res, err := c.Request(ctx, http.MethodPost, "/api/v2/users", req)
 	if err != nil {
 		return User{}, err
@@ -308,7 +371,9 @@ func (c *Client) DeleteUser(ctx context.Context, id uuid.UUID) error {
 		return err
 	}
 	defer res.Body.Close()
-	if res.StatusCode != http.StatusNoContent {
+	// Check for a 200 or a 204 response. 2.14.0 accidentally included a 204 response,
+	// which was a breaking change, and reverted in 2.14.1.
+	if res.StatusCode != http.StatusOK && res.StatusCode != http.StatusNoContent {
 		return ReadBodyAsError(res)
 	}
 	return nil

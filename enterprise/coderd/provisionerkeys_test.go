@@ -33,7 +33,7 @@ func TestProvisionerKeys(t *testing.T) {
 	})
 	orgAdmin, _ := coderdtest.CreateAnotherUser(t, client, owner.OrganizationID, rbac.ScopedRoleOrgAdmin(owner.OrganizationID))
 	member, _ := coderdtest.CreateAnotherUser(t, client, owner.OrganizationID)
-	otherOrg := coderdtest.CreateOrganization(t, client, coderdtest.CreateOrganizationOptions{})
+	otherOrg := coderdenttest.CreateOrganization(t, client, coderdenttest.CreateOrganizationOptions{})
 	outsideOrgAdmin, _ := coderdtest.CreateAnotherUser(t, client, otherOrg.ID, rbac.ScopedRoleOrgAdmin(otherOrg.ID))
 
 	// member cannot create a provisioner key
@@ -64,14 +64,32 @@ func TestProvisionerKeys(t *testing.T) {
 	err = outsideOrgAdmin.DeleteProvisionerKey(ctx, owner.OrganizationID, "key")
 	require.ErrorContains(t, err, "Resource not found")
 
+	// org admin cannot create reserved provisioner keys
+	_, err = orgAdmin.CreateProvisionerKey(ctx, owner.OrganizationID, codersdk.CreateProvisionerKeyRequest{
+		Name: codersdk.ProvisionerKeyNameBuiltIn,
+	})
+	require.ErrorContains(t, err, "reserved")
+	_, err = orgAdmin.CreateProvisionerKey(ctx, owner.OrganizationID, codersdk.CreateProvisionerKeyRequest{
+		Name: codersdk.ProvisionerKeyNameUserAuth,
+	})
+	require.ErrorContains(t, err, "reserved")
+	_, err = orgAdmin.CreateProvisionerKey(ctx, owner.OrganizationID, codersdk.CreateProvisionerKeyRequest{
+		Name: codersdk.ProvisionerKeyNamePSK,
+	})
+	require.ErrorContains(t, err, "reserved")
+
 	// org admin can list provisioner keys and get an empty list
 	keys, err := orgAdmin.ListProvisionerKeys(ctx, owner.OrganizationID)
 	require.NoError(t, err, "org admin list provisioner keys")
 	require.Len(t, keys, 0, "org admin list provisioner keys")
 
+	tags := map[string]string{
+		"my": "way",
+	}
 	// org admin can create a provisioner key
 	_, err = orgAdmin.CreateProvisionerKey(ctx, owner.OrganizationID, codersdk.CreateProvisionerKeyRequest{
 		Name: "Key", // case insensitive
+		Tags: tags,
 	})
 	require.NoError(t, err, "org admin create provisioner key")
 
@@ -97,6 +115,8 @@ func TestProvisionerKeys(t *testing.T) {
 	keys, err = orgAdmin.ListProvisionerKeys(ctx, owner.OrganizationID)
 	require.NoError(t, err, "org admin list provisioner keys")
 	require.Len(t, keys, 1, "org admin list provisioner keys")
+	require.Equal(t, "key", keys[0].Name, "org admin list provisioner keys name matches")
+	require.EqualValues(t, tags, keys[0].Tags, "org admin list provisioner keys tags match")
 
 	// org admin can delete a provisioner key
 	err = orgAdmin.DeleteProvisionerKey(ctx, owner.OrganizationID, "key") // using lowercase here works
@@ -105,4 +125,12 @@ func TestProvisionerKeys(t *testing.T) {
 	// org admin cannot delete a provisioner key that doesn't exist
 	err = orgAdmin.DeleteProvisionerKey(ctx, owner.OrganizationID, "key")
 	require.ErrorContains(t, err, "Resource not found")
+
+	// org admin cannot delete reserved provisioner keys
+	err = orgAdmin.DeleteProvisionerKey(ctx, owner.OrganizationID, codersdk.ProvisionerKeyNameBuiltIn)
+	require.ErrorContains(t, err, "reserved")
+	err = orgAdmin.DeleteProvisionerKey(ctx, owner.OrganizationID, codersdk.ProvisionerKeyNameUserAuth)
+	require.ErrorContains(t, err, "reserved")
+	err = orgAdmin.DeleteProvisionerKey(ctx, owner.OrganizationID, codersdk.ProvisionerKeyNamePSK)
+	require.ErrorContains(t, err, "reserved")
 }

@@ -8,10 +8,13 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"golang.org/x/mod/semver"
 	"golang.org/x/xerrors"
 
@@ -32,6 +35,27 @@ const (
 	EntitlementGracePeriod Entitlement = "grace_period"
 	EntitlementNotEntitled Entitlement = "not_entitled"
 )
+
+// Entitled returns if the entitlement can be used. So this is true if it
+// is entitled or still in it's grace period.
+func (e Entitlement) Entitled() bool {
+	return e == EntitlementEntitled || e == EntitlementGracePeriod
+}
+
+// Weight converts the enum types to a numerical value for easier
+// comparisons. Easier than sets of if statements.
+func (e Entitlement) Weight() int {
+	switch e {
+	case EntitlementEntitled:
+		return 2
+	case EntitlementGracePeriod:
+		return 1
+	case EntitlementNotEntitled:
+		return -1
+	default:
+		return -2
+	}
+}
 
 // FeatureName represents the internal name of a feature.
 // To add a new feature, add it to this set of enums as well as the FeatureNames
@@ -94,8 +118,11 @@ func (n FeatureName) Humanize() string {
 }
 
 // AlwaysEnable returns if the feature is always enabled if entitled.
-// Warning: We don't know if we need this functionality.
-// This method may disappear at any time.
+// This is required because some features are only enabled if they are entitled
+// and not required.
+// E.g: "multiple-organizations" is disabled by default in AGPL and enterprise
+// deployments. This feature should only be enabled for premium deployments
+// when it is entitled.
 func (n FeatureName) AlwaysEnable() bool {
 	return map[FeatureName]bool{
 		FeatureMultipleExternalAuth:       true,
@@ -104,7 +131,57 @@ func (n FeatureName) AlwaysEnable() bool {
 		FeatureWorkspaceBatchActions:      true,
 		FeatureHighAvailability:           true,
 		FeatureCustomRoles:                true,
+		FeatureMultipleOrganizations:      true,
 	}[n]
+}
+
+// Enterprise returns true if the feature is an enterprise feature.
+func (n FeatureName) Enterprise() bool {
+	switch n {
+	// Add all features that should be excluded in the Enterprise feature set.
+	case FeatureMultipleOrganizations, FeatureCustomRoles:
+		return false
+	default:
+		return true
+	}
+}
+
+// FeatureSet represents a grouping of features. Rather than manually
+// assigning features al-la-carte when making a license, a set can be specified.
+// Sets are dynamic in the sense a feature can be added to a set, granting the
+// feature to existing licenses out in the wild.
+// If features were granted al-la-carte, we would need to reissue the existing
+// old licenses to include the new feature.
+type FeatureSet string
+
+const (
+	FeatureSetNone       FeatureSet = ""
+	FeatureSetEnterprise FeatureSet = "enterprise"
+	FeatureSetPremium    FeatureSet = "premium"
+)
+
+func (set FeatureSet) Features() []FeatureName {
+	switch FeatureSet(strings.ToLower(string(set))) {
+	case FeatureSetEnterprise:
+		// Enterprise is the set 'AllFeatures' minus some select features.
+
+		// Copy the list of all features
+		enterpriseFeatures := make([]FeatureName, len(FeatureNames))
+		copy(enterpriseFeatures, FeatureNames)
+		// Remove the selection
+		enterpriseFeatures = slices.DeleteFunc(enterpriseFeatures, func(f FeatureName) bool {
+			return !f.Enterprise()
+		})
+
+		return enterpriseFeatures
+	case FeatureSetPremium:
+		premiumFeatures := make([]FeatureName, len(FeatureNames))
+		copy(premiumFeatures, FeatureNames)
+		// FeatureSetPremium is just all features.
+		return premiumFeatures
+	}
+	// By default, return an empty set.
+	return []FeatureName{}
 }
 
 type Feature struct {
@@ -112,6 +189,89 @@ type Feature struct {
 	Enabled     bool        `json:"enabled"`
 	Limit       *int64      `json:"limit,omitempty"`
 	Actual      *int64      `json:"actual,omitempty"`
+}
+
+// Compare compares two features and returns an integer representing
+// if the first feature (f) is greater than, equal to, or less than the second
+// feature (b). "Greater than" means the first feature has more functionality
+// than the second feature. It is assumed the features are for the same FeatureName.
+//
+// A feature is considered greater than another feature if:
+// 1. Graceful & capable > Entitled & not capable
+// 2. The entitlement is greater
+// 3. The limit is greater
+// 4. Enabled is greater than disabled
+// 5. The actual is greater
+func (f Feature) Compare(b Feature) int {
+	if !f.Capable() || !b.Capable() {
+		// If either is incapable, then it is possible a grace period
+		// feature can be "greater" than an entitled.
+		// If either is "NotEntitled" then we can defer to a strict entitlement
+		// check.
+		if f.Entitlement.Weight() >= 0 && b.Entitlement.Weight() >= 0 {
+			if f.Capable() && !b.Capable() {
+				return 1
+			}
+			if b.Capable() && !f.Capable() {
+				return -1
+			}
+		}
+	}
+
+	// Strict entitlement check. Higher is better
+	entitlementDifference := f.Entitlement.Weight() - b.Entitlement.Weight()
+	if entitlementDifference != 0 {
+		return entitlementDifference
+	}
+
+	// If the entitlement is the same, then we can compare the limits.
+	if f.Limit == nil && b.Limit != nil {
+		return -1
+	}
+	if f.Limit != nil && b.Limit == nil {
+		return 1
+	}
+	if f.Limit != nil && b.Limit != nil {
+		difference := *f.Limit - *b.Limit
+		if difference != 0 {
+			return int(difference)
+		}
+	}
+
+	// Enabled is better than disabled.
+	if f.Enabled && !b.Enabled {
+		return 1
+	}
+	if !f.Enabled && b.Enabled {
+		return -1
+	}
+
+	// Higher actual is better
+	if f.Actual == nil && b.Actual != nil {
+		return -1
+	}
+	if f.Actual != nil && b.Actual == nil {
+		return 1
+	}
+	if f.Actual != nil && b.Actual != nil {
+		difference := *f.Actual - *b.Actual
+		if difference != 0 {
+			return int(difference)
+		}
+	}
+
+	return 0
+}
+
+// Capable is a helper function that returns if a given feature has a limit
+// that is greater than or equal to the actual.
+// If this condition is not true, then the feature is not capable of being used
+// since the limit is not high enough.
+func (f Feature) Capable() bool {
+	if f.Limit != nil && f.Actual != nil {
+		return *f.Limit >= *f.Actual
+	}
+	return true
 }
 
 type Entitlements struct {
@@ -122,6 +282,29 @@ type Entitlements struct {
 	Trial            bool                    `json:"trial"`
 	RequireTelemetry bool                    `json:"require_telemetry"`
 	RefreshedAt      time.Time               `json:"refreshed_at" format:"date-time"`
+}
+
+// AddFeature will add the feature to the entitlements iff it expands
+// the set of features granted by the entitlements. If it does not, it will
+// be ignored and the existing feature with the same name will remain.
+//
+// All features should be added as atomic items, and not merged in any way.
+// Merging entitlements could lead to unexpected behavior, like a larger user
+// limit in grace period merging with a smaller one in an "entitled" state. This
+// could lead to the larger limit being extended as "entitled", which is not correct.
+func (e *Entitlements) AddFeature(name FeatureName, add Feature) {
+	existing, ok := e.Features[name]
+	if !ok {
+		e.Features[name] = add
+		return
+	}
+
+	// Compare the features, keep the one that is "better"
+	comparison := add.Compare(existing)
+	if comparison > 0 {
+		e.Features[name] = add
+		return
+	}
 }
 
 func (c *Client) Entitlements(ctx context.Context) (Entitlements, error) {
@@ -271,8 +454,10 @@ type SessionLifetime struct {
 	// creation is the lifetime of the api key.
 	DisableExpiryRefresh serpent.Bool `json:"disable_expiry_refresh,omitempty" typescript:",notnull"`
 
-	// DefaultDuration is for api keys, not tokens.
+	// DefaultDuration is only for browser, workspace app and oauth sessions.
 	DefaultDuration serpent.Duration `json:"default_duration" typescript:",notnull"`
+
+	DefaultTokenDuration serpent.Duration `json:"default_token_lifetime,omitempty" typescript:",notnull"`
 
 	MaximumTokenDuration serpent.Duration `json:"max_token_lifetime,omitempty" typescript:",notnull"`
 }
@@ -330,28 +515,32 @@ type OIDCConfig struct {
 	ClientID     serpent.String `json:"client_id" typescript:",notnull"`
 	ClientSecret serpent.String `json:"client_secret" typescript:",notnull"`
 	// ClientKeyFile & ClientCertFile are used in place of ClientSecret for PKI auth.
-	ClientKeyFile       serpent.String                      `json:"client_key_file" typescript:",notnull"`
-	ClientCertFile      serpent.String                      `json:"client_cert_file" typescript:",notnull"`
-	EmailDomain         serpent.StringArray                 `json:"email_domain" typescript:",notnull"`
-	IssuerURL           serpent.String                      `json:"issuer_url" typescript:",notnull"`
-	Scopes              serpent.StringArray                 `json:"scopes" typescript:",notnull"`
-	IgnoreEmailVerified serpent.Bool                        `json:"ignore_email_verified" typescript:",notnull"`
-	UsernameField       serpent.String                      `json:"username_field" typescript:",notnull"`
-	NameField           serpent.String                      `json:"name_field" typescript:",notnull"`
-	EmailField          serpent.String                      `json:"email_field" typescript:",notnull"`
-	AuthURLParams       serpent.Struct[map[string]string]   `json:"auth_url_params" typescript:",notnull"`
-	IgnoreUserInfo      serpent.Bool                        `json:"ignore_user_info" typescript:",notnull"`
-	GroupAutoCreate     serpent.Bool                        `json:"group_auto_create" typescript:",notnull"`
-	GroupRegexFilter    serpent.Regexp                      `json:"group_regex_filter" typescript:",notnull"`
-	GroupAllowList      serpent.StringArray                 `json:"group_allow_list" typescript:",notnull"`
-	GroupField          serpent.String                      `json:"groups_field" typescript:",notnull"`
-	GroupMapping        serpent.Struct[map[string]string]   `json:"group_mapping" typescript:",notnull"`
-	UserRoleField       serpent.String                      `json:"user_role_field" typescript:",notnull"`
-	UserRoleMapping     serpent.Struct[map[string][]string] `json:"user_role_mapping" typescript:",notnull"`
-	UserRolesDefault    serpent.StringArray                 `json:"user_roles_default" typescript:",notnull"`
-	SignInText          serpent.String                      `json:"sign_in_text" typescript:",notnull"`
-	IconURL             serpent.URL                         `json:"icon_url" typescript:",notnull"`
-	SignupsDisabledText serpent.String                      `json:"signups_disabled_text" typescript:",notnull"`
+	ClientKeyFile             serpent.String                         `json:"client_key_file" typescript:",notnull"`
+	ClientCertFile            serpent.String                         `json:"client_cert_file" typescript:",notnull"`
+	EmailDomain               serpent.StringArray                    `json:"email_domain" typescript:",notnull"`
+	IssuerURL                 serpent.String                         `json:"issuer_url" typescript:",notnull"`
+	Scopes                    serpent.StringArray                    `json:"scopes" typescript:",notnull"`
+	IgnoreEmailVerified       serpent.Bool                           `json:"ignore_email_verified" typescript:",notnull"`
+	UsernameField             serpent.String                         `json:"username_field" typescript:",notnull"`
+	NameField                 serpent.String                         `json:"name_field" typescript:",notnull"`
+	EmailField                serpent.String                         `json:"email_field" typescript:",notnull"`
+	AuthURLParams             serpent.Struct[map[string]string]      `json:"auth_url_params" typescript:",notnull"`
+	IgnoreUserInfo            serpent.Bool                           `json:"ignore_user_info" typescript:",notnull"`
+	OrganizationField         serpent.String                         `json:"organization_field" typescript:",notnull"`
+	OrganizationMapping       serpent.Struct[map[string][]uuid.UUID] `json:"organization_mapping" typescript:",notnull"`
+	OrganizationAssignDefault serpent.Bool                           `json:"organization_assign_default" typescript:",notnull"`
+	GroupAutoCreate           serpent.Bool                           `json:"group_auto_create" typescript:",notnull"`
+	GroupRegexFilter          serpent.Regexp                         `json:"group_regex_filter" typescript:",notnull"`
+	GroupAllowList            serpent.StringArray                    `json:"group_allow_list" typescript:",notnull"`
+	GroupField                serpent.String                         `json:"groups_field" typescript:",notnull"`
+	GroupMapping              serpent.Struct[map[string]string]      `json:"group_mapping" typescript:",notnull"`
+	UserRoleField             serpent.String                         `json:"user_role_field" typescript:",notnull"`
+	UserRoleMapping           serpent.Struct[map[string][]string]    `json:"user_role_mapping" typescript:",notnull"`
+	UserRolesDefault          serpent.StringArray                    `json:"user_roles_default" typescript:",notnull"`
+	SignInText                serpent.String                         `json:"sign_in_text" typescript:",notnull"`
+	IconURL                   serpent.URL                            `json:"icon_url" typescript:",notnull"`
+	SignupsDisabledText       serpent.String                         `json:"signups_disabled_text" typescript:",notnull"`
+	SkipIssuerChecks          serpent.Bool                           `json:"skip_issuer_checks" typescript:",notnull"`
 }
 
 type TelemetryConfig struct {
@@ -505,23 +694,46 @@ type NotificationsEmailConfig struct {
 	// The hostname identifying the SMTP server.
 	Hello serpent.String `json:"hello" typescript:",notnull"`
 
-	// TODO: Auth and Headers
-	//// Authentication details.
-	// Auth struct {
-	//	// Username for CRAM-MD5/LOGIN/PLAIN auth; authentication is disabled if this is left blank.
-	//	Username serpent.String `json:"username" typescript:",notnull"`
-	//	// Password to use for LOGIN/PLAIN auth.
-	//	Password serpent.String `json:"password" typescript:",notnull"`
-	//	// File from which to load the password to use for LOGIN/PLAIN auth.
-	//	PasswordFile serpent.String `json:"password_file" typescript:",notnull"`
-	//	// Secret to use for CRAM-MD5 auth.
-	//	Secret serpent.String `json:"secret" typescript:",notnull"`
-	//	// Identity used for PLAIN auth.
-	//	Identity serpent.String `json:"identity" typescript:",notnull"`
-	// } `json:"auth" typescript:",notnull"`
-	// // Additional headers to use in the SMTP request.
-	// Headers map[string]string `json:"headers" typescript:",notnull"`
-	// TODO: TLS
+	// Authentication details.
+	Auth NotificationsEmailAuthConfig `json:"auth" typescript:",notnull"`
+	// TLS details.
+	TLS NotificationsEmailTLSConfig `json:"tls" typescript:",notnull"`
+	// ForceTLS causes a TLS connection to be attempted.
+	ForceTLS serpent.Bool `json:"force_tls" typescript:",notnull"`
+}
+
+type NotificationsEmailAuthConfig struct {
+	// Identity for PLAIN auth.
+	Identity serpent.String `json:"identity" typescript:",notnull"`
+	// Username for LOGIN/PLAIN auth.
+	Username serpent.String `json:"username" typescript:",notnull"`
+	// Password for LOGIN/PLAIN auth.
+	Password serpent.String `json:"password" typescript:",notnull"`
+	// File from which to load the password for LOGIN/PLAIN auth.
+	PasswordFile serpent.String `json:"password_file" typescript:",notnull"`
+}
+
+func (c *NotificationsEmailAuthConfig) Empty() bool {
+	return reflect.ValueOf(*c).IsZero()
+}
+
+type NotificationsEmailTLSConfig struct {
+	// StartTLS attempts to upgrade plain connections to TLS.
+	StartTLS serpent.Bool `json:"start_tls" typescript:",notnull"`
+	// ServerName to verify the hostname for the targets.
+	ServerName serpent.String `json:"server_name" typescript:",notnull"`
+	// InsecureSkipVerify skips target certificate validation.
+	InsecureSkipVerify serpent.Bool `json:"insecure_skip_verify" typescript:",notnull"`
+	// CAFile specifies the location of the CA certificate to use.
+	CAFile serpent.String `json:"ca_file" typescript:",notnull"`
+	// CertFile specifies the location of the certificate to use.
+	CertFile serpent.String `json:"cert_file" typescript:",notnull"`
+	// KeyFile specifies the location of the key to use.
+	KeyFile serpent.String `json:"key_file" typescript:",notnull"`
+}
+
+func (c *NotificationsEmailTLSConfig) Empty() bool {
+	return reflect.ValueOf(*c).IsZero()
 }
 
 type NotificationsWebhookConfig struct {
@@ -562,6 +774,42 @@ func DefaultCacheDir() string {
 		defaultCacheDir = dir
 	}
 	return filepath.Join(defaultCacheDir, "coder")
+}
+
+func DefaultSupportLinks(docsURL string) []LinkConfig {
+	version := buildinfo.Version()
+	buildInfo := fmt.Sprintf("Version: [`%s`](%s)", version, buildinfo.ExternalURL())
+
+	return []LinkConfig{
+		{
+			Name:   "Documentation",
+			Target: docsURL,
+			Icon:   "docs",
+		},
+		{
+			Name:   "Report a bug",
+			Target: "https://github.com/coder/coder/issues/new?labels=needs+grooming&body=" + buildInfo,
+			Icon:   "bug",
+		},
+		{
+			Name:   "Join the Coder Discord",
+			Target: "https://coder.com/chat?utm_source=coder&utm_medium=coder&utm_campaign=server-footer",
+			Icon:   "chat",
+		},
+		{
+			Name:   "Star the Repo",
+			Target: "https://github.com/coder/coder",
+			Icon:   "star",
+		},
+	}
+}
+
+func DefaultDocsURL() string {
+	version := strings.Split(buildinfo.Version(), "-")[0]
+	if version == "v0.0.0" {
+		return "https://coder.com/docs"
+	}
+	return "https://coder.com/docs/@" + version
 }
 
 // DeploymentConfig contains both the deployment values and how they're set.
@@ -667,13 +915,27 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 			Description: "O当服务器启动变得复杂时，可以使用 YAML 配置文件.",
 		}
 		deploymentGroupNotifications = serpent.Group{
-			Name: "Notifications",
-			YAML: "notifications",
+			Name:        "Notifications",
+			YAML:        "notifications",
+			Description: "Configure how notifications are processed and delivered.",
 		}
 		deploymentGroupNotificationsEmail = serpent.Group{
-			Name:   "Email",
-			Parent: &deploymentGroupNotifications,
-			YAML:   "email",
+			Name:        "Email",
+			Parent:      &deploymentGroupNotifications,
+			Description: "Configure how email notifications are sent.",
+			YAML:        "email",
+		}
+		deploymentGroupNotificationsEmailAuth = serpent.Group{
+			Name:        "Email Authentication",
+			Parent:      &deploymentGroupNotificationsEmail,
+			Description: "Configure SMTP authentication options.",
+			YAML:        "emailAuth",
+		}
+		deploymentGroupNotificationsEmailTLS = serpent.Group{
+			Name:        "Email TLS",
+			Parent:      &deploymentGroupNotificationsEmail,
+			Description: "Configure TLS for your SMTP server target.",
+			YAML:        "emailTLS",
 		}
 		deploymentGroupNotificationsWebhook = serpent.Group{
 			Name:   "Webhook",
@@ -760,6 +1022,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 			Name:        "Docs URL",
 			Description: "O指定自定义文档 URL.",
 			Value:       &c.DocsURL,
+			Default:     DefaultDocsURL(),
 			Flag:        "docs-url",
 			Env:         "CODER_DOCS_URL",
 			Group:       &deploymentGroupNetworking,
@@ -1312,6 +1575,42 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 			YAML:        "ignoreUserInfo",
 		},
 		{
+			Name: "OIDC Organization Field",
+			Description: "This field must be set if using the organization sync feature." +
+				" Set to the claim to be used for organizations.",
+			Flag: "oidc-organization-field",
+			Env:  "CODER_OIDC_ORGANIZATION_FIELD",
+			// Empty value means sync is disabled
+			Default: "",
+			Value:   &c.OIDC.OrganizationField,
+			Group:   &deploymentGroupOIDC,
+			YAML:    "organizationField",
+		},
+		{
+			Name: "OIDC Assign Default Organization",
+			Description: "If set to true, users will always be added to the default organization. " +
+				"If organization sync is enabled, then the default org is always added to the user's set of expected" +
+				"organizations.",
+			Flag: "oidc-organization-assign-default",
+			Env:  "CODER_OIDC_ORGANIZATION_ASSIGN_DEFAULT",
+			// Single org deployments should always have this enabled.
+			Default: "true",
+			Value:   &c.OIDC.OrganizationAssignDefault,
+			Group:   &deploymentGroupOIDC,
+			YAML:    "organizationAssignDefault",
+		},
+		{
+			Name: "OIDC Organization Sync Mapping",
+			Description: "A map of OIDC claims and the organizations in Coder it should map to. " +
+				"This is required because organization IDs must be used within Coder.",
+			Flag:    "oidc-organization-mapping",
+			Env:     "CODER_OIDC_ORGANIZATION_MAPPING",
+			Default: "{}",
+			Value:   &c.OIDC.OrganizationMapping,
+			Group:   &deploymentGroupOIDC,
+			YAML:    "organizationMapping",
+		},
+		{
 			Name:        "OIDC Group Field",
 			Description: "O如果使用组同步功能且范围名称不是'groups'，则必须设置此字段。设置为用于组的声明.",
 			Flag:        "oidc-group-field",
@@ -1425,6 +1724,16 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 			Value:       &c.OIDC.SignupsDisabledText,
 			Group:       &deploymentGroupOIDC,
 			YAML:        "signupsDisabledText",
+		},
+		{
+			Name: "Skip OIDC issuer checks (not recommended)",
+			Description: "OIDC issuer urls must match in the request, the id_token 'iss' claim, and in the well-known configuration. " +
+				"This flag disables that requirement, and can lead to an insecure OIDC configuration. It is not recommended to use this flag.",
+			Flag:  "dangerous-oidc-skip-issuer-checks",
+			Env:   "CODER_DANGEROUS_OIDC_SKIP_ISSUER_CHECKS",
+			Value: &c.OIDC.SkipIssuerChecks,
+			Group: &deploymentGroupOIDC,
+			YAML:  "dangerousSkipIssuerChecks",
 		},
 		// Telemetry settings
 		{
@@ -1719,6 +2028,16 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 			Annotations: serpent.Annotations{}.Mark(annotationFormatDuration, "true"),
 		},
 		{
+			Name:        "Default Token Lifetime",
+			Description: "The default lifetime duration for API tokens. This value is used when creating a token without specifying a duration, such as when authenticating the CLI or an IDE plugin.",
+			Flag:        "default-token-lifetime",
+			Env:         "CODER_DEFAULT_TOKEN_LIFETIME",
+			Default:     (7 * 24 * time.Hour).String(),
+			Value:       &c.Sessions.DefaultTokenDuration,
+			YAML:        "defaultTokenLifetime",
+			Annotations: serpent.Annotations{}.Mark(annotationFormatDuration, "true"),
+		},
+		{
 			Name:        "Enable swagger endpoint",
 			Description: "O通过/swagger公开Swagger端点.",
 			Flag:        "swagger-enable",
@@ -1748,13 +2067,14 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 			Annotations: serpent.Annotations{}.Mark(annotationExternalProxies, "true"),
 		},
 		{
-			Name:        "Cache Directory",
-			Description: "O用于缓存临时文件的目录。如果未指定并且$CACHE_DIRECTORY已设置，将与systemd兼容.",
-			Flag:        "cache-dir",
-			Env:         "CODER_CACHE_DIRECTORY",
-			Default:     DefaultCacheDir(),
-			Value:       &c.CacheDir,
-			YAML:        "cacheDir",
+			Name: "Cache Directory",
+			Description: "The directory to cache temporary files. If unspecified and $CACHE_DIRECTORY is set, it will be used for compatibility with systemd. " +
+				"This directory is NOT safe to be configured as a shared directory across coderd/provisionerd replicas.",
+			Flag:    "cache-dir",
+			Env:     "CODER_CACHE_DIRECTORY",
+			Default: DefaultCacheDir(),
+			Value:   &c.CacheDir,
+			YAML:    "cacheDir",
 		},
 		{
 			Name:        "In Memory Database",
@@ -2107,7 +2427,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 			Value:       &c.Notifications.DispatchTimeout,
 			Default:     time.Minute.String(),
 			Group:       &deploymentGroupNotifications,
-			YAML:        "dispatch-timeout",
+			YAML:        "dispatchTimeout",
 			Annotations: serpent.Annotations{}.Mark(annotationFormatDuration, "true"),
 		},
 		{
@@ -2140,13 +2460,113 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 			YAML:        "hello",
 		},
 		{
+			Name:        "Notifications: Email: Force TLS",
+			Description: "Force a TLS connection to the configured SMTP smarthost.",
+			Flag:        "notifications-email-force-tls",
+			Env:         "CODER_NOTIFICATIONS_EMAIL_FORCE_TLS",
+			Default:     "false",
+			Value:       &c.Notifications.SMTP.ForceTLS,
+			Group:       &deploymentGroupNotificationsEmail,
+			YAML:        "forceTLS",
+		},
+		{
+			Name:        "Notifications: Email Auth: Identity",
+			Description: "Identity to use with PLAIN authentication.",
+			Flag:        "notifications-email-auth-identity",
+			Env:         "CODER_NOTIFICATIONS_EMAIL_AUTH_IDENTITY",
+			Value:       &c.Notifications.SMTP.Auth.Identity,
+			Group:       &deploymentGroupNotificationsEmailAuth,
+			YAML:        "identity",
+		},
+		{
+			Name:        "Notifications: Email Auth: Username",
+			Description: "Username to use with PLAIN/LOGIN authentication.",
+			Flag:        "notifications-email-auth-username",
+			Env:         "CODER_NOTIFICATIONS_EMAIL_AUTH_USERNAME",
+			Value:       &c.Notifications.SMTP.Auth.Username,
+			Group:       &deploymentGroupNotificationsEmailAuth,
+			YAML:        "username",
+		},
+		{
+			Name:        "Notifications: Email Auth: Password",
+			Description: "Password to use with PLAIN/LOGIN authentication.",
+			Flag:        "notifications-email-auth-password",
+			Env:         "CODER_NOTIFICATIONS_EMAIL_AUTH_PASSWORD",
+			Annotations: serpent.Annotations{}.Mark(annotationSecretKey, "true"),
+			Value:       &c.Notifications.SMTP.Auth.Password,
+			Group:       &deploymentGroupNotificationsEmailAuth,
+		},
+		{
+			Name:        "Notifications: Email Auth: Password File",
+			Description: "File from which to load password for use with PLAIN/LOGIN authentication.",
+			Flag:        "notifications-email-auth-password-file",
+			Env:         "CODER_NOTIFICATIONS_EMAIL_AUTH_PASSWORD_FILE",
+			Value:       &c.Notifications.SMTP.Auth.PasswordFile,
+			Group:       &deploymentGroupNotificationsEmailAuth,
+			YAML:        "passwordFile",
+		},
+		{
+			Name:        "Notifications: Email TLS: StartTLS",
+			Description: "Enable STARTTLS to upgrade insecure SMTP connections using TLS.",
+			Flag:        "notifications-email-tls-starttls",
+			Env:         "CODER_NOTIFICATIONS_EMAIL_TLS_STARTTLS",
+			Value:       &c.Notifications.SMTP.TLS.StartTLS,
+			Group:       &deploymentGroupNotificationsEmailTLS,
+			YAML:        "startTLS",
+		},
+		{
+			Name:        "Notifications: Email TLS: Server Name",
+			Description: "Server name to verify against the target certificate.",
+			Flag:        "notifications-email-tls-server-name",
+			Env:         "CODER_NOTIFICATIONS_EMAIL_TLS_SERVERNAME",
+			Value:       &c.Notifications.SMTP.TLS.ServerName,
+			Group:       &deploymentGroupNotificationsEmailTLS,
+			YAML:        "serverName",
+		},
+		{
+			Name:        "Notifications: Email TLS: Skip Certificate Verification (Insecure)",
+			Description: "Skip verification of the target server's certificate (insecure).",
+			Flag:        "notifications-email-tls-skip-verify",
+			Env:         "CODER_NOTIFICATIONS_EMAIL_TLS_SKIPVERIFY",
+			Value:       &c.Notifications.SMTP.TLS.InsecureSkipVerify,
+			Group:       &deploymentGroupNotificationsEmailTLS,
+			YAML:        "insecureSkipVerify",
+		},
+		{
+			Name:        "Notifications: Email TLS: Certificate Authority File",
+			Description: "CA certificate file to use.",
+			Flag:        "notifications-email-tls-ca-cert-file",
+			Env:         "CODER_NOTIFICATIONS_EMAIL_TLS_CACERTFILE",
+			Value:       &c.Notifications.SMTP.TLS.CAFile,
+			Group:       &deploymentGroupNotificationsEmailTLS,
+			YAML:        "caCertFile",
+		},
+		{
+			Name:        "Notifications: Email TLS: Certificate File",
+			Description: "Certificate file to use.",
+			Flag:        "notifications-email-tls-cert-file",
+			Env:         "CODER_NOTIFICATIONS_EMAIL_TLS_CERTFILE",
+			Value:       &c.Notifications.SMTP.TLS.CertFile,
+			Group:       &deploymentGroupNotificationsEmailTLS,
+			YAML:        "certFile",
+		},
+		{
+			Name:        "Notifications: Email TLS: Certificate Key File",
+			Description: "Certificate key file to use.",
+			Flag:        "notifications-email-tls-cert-key-file",
+			Env:         "CODER_NOTIFICATIONS_EMAIL_TLS_CERTKEYFILE",
+			Value:       &c.Notifications.SMTP.TLS.KeyFile,
+			Group:       &deploymentGroupNotificationsEmailTLS,
+			YAML:        "certKeyFile",
+		},
+		{
 			Name:        "Notifications: Webhook: Endpoint",
 			Description: "The endpoint to which to send webhooks.",
 			Flag:        "notifications-webhook-endpoint",
 			Env:         "CODER_NOTIFICATIONS_WEBHOOK_ENDPOINT",
 			Value:       &c.Notifications.Webhook.Endpoint,
 			Group:       &deploymentGroupNotificationsWebhook,
-			YAML:        "hello",
+			YAML:        "endpoint",
 		},
 		{
 			Name:        "Notifications: Max Send Attempts",
@@ -2156,7 +2576,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 			Value:       &c.Notifications.MaxSendAttempts,
 			Default:     "5",
 			Group:       &deploymentGroupNotifications,
-			YAML:        "max-send-attempts",
+			YAML:        "maxSendAttempts",
 		},
 		{
 			Name:        "Notifications: Retry Interval",
@@ -2166,7 +2586,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 			Value:       &c.Notifications.RetryInterval,
 			Default:     (time.Minute * 5).String(),
 			Group:       &deploymentGroupNotifications,
-			YAML:        "retry-interval",
+			YAML:        "retryInterval",
 			Annotations: serpent.Annotations{}.Mark(annotationFormatDuration, "true"),
 			Hidden:      true, // Hidden because most operators should not need to modify this.
 		},
@@ -2181,7 +2601,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 			Value:       &c.Notifications.StoreSyncInterval,
 			Default:     (time.Second * 2).String(),
 			Group:       &deploymentGroupNotifications,
-			YAML:        "store-sync-interval",
+			YAML:        "storeSyncInterval",
 			Annotations: serpent.Annotations{}.Mark(annotationFormatDuration, "true"),
 			Hidden:      true, // Hidden because most operators should not need to modify this.
 		},
@@ -2196,7 +2616,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 			Value:   &c.Notifications.StoreSyncBufferSize,
 			Default: "50",
 			Group:   &deploymentGroupNotifications,
-			YAML:    "store-sync-buffer-size",
+			YAML:    "storeSyncBufferSize",
 			Hidden:  true, // Hidden because most operators should not need to modify this.
 		},
 		{
@@ -2211,7 +2631,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 			Value:       &c.Notifications.LeasePeriod,
 			Default:     (time.Minute * 2).String(),
 			Group:       &deploymentGroupNotifications,
-			YAML:        "lease-period",
+			YAML:        "leasePeriod",
 			Annotations: serpent.Annotations{}.Mark(annotationFormatDuration, "true"),
 			Hidden:      true, // Hidden because most operators should not need to modify this.
 		},
@@ -2223,7 +2643,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 			Value:       &c.Notifications.LeaseCount,
 			Default:     "20",
 			Group:       &deploymentGroupNotifications,
-			YAML:        "lease-count",
+			YAML:        "leaseCount",
 			Hidden:      true, // Hidden because most operators should not need to modify this.
 		},
 		{
@@ -2234,7 +2654,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 			Value:       &c.Notifications.FetchInterval,
 			Default:     (time.Second * 15).String(),
 			Group:       &deploymentGroupNotifications,
-			YAML:        "fetch-interval",
+			YAML:        "fetchInterval",
 			Annotations: serpent.Annotations{}.Mark(annotationFormatDuration, "true"),
 			Hidden:      true, // Hidden because most operators should not need to modify this.
 		},
@@ -2338,6 +2758,7 @@ func (c *Client) DeploymentStats(ctx context.Context) (DeploymentStats, error) {
 type AppearanceConfig struct {
 	ApplicationName string `json:"application_name"`
 	LogoURL         string `json:"logo_url"`
+	DocsURL         string `json:"docs_url"`
 	// Deprecated: ServiceBanner has been replaced by AnnouncementBanners.
 	ServiceBanner       BannerConfig   `json:"service_banner"`
 	AnnouncementBanners []BannerConfig `json:"announcement_banners"`
@@ -2407,6 +2828,8 @@ type BuildInfoResponse struct {
 	// AgentAPIVersion is the current version of the Agent API (back versions
 	// MAY still be supported).
 	AgentAPIVersion string `json:"agent_api_version"`
+	// ProvisionerAPIVersion is the current version of the Provisioner API
+	ProvisionerAPIVersion string `json:"provisioner_api_version"`
 
 	// UpgradeMessage is the message displayed to users when an outdated client
 	// is detected.

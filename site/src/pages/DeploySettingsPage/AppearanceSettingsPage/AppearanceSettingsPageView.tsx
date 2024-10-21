@@ -1,155 +1,164 @@
 import Button from "@mui/material/Button";
 import InputAdornment from "@mui/material/InputAdornment";
 import TextField from "@mui/material/TextField";
-import { useFormik } from "formik";
-import type { FC } from "react";
 import type { UpdateAppearanceConfig } from "api/typesGenerated";
 import {
-  Badges,
-  DisabledBadge,
-  EnterpriseBadge,
-  EntitledBadge,
+	Badges,
+	EnterpriseBadge,
+	PremiumBadge,
 } from "components/Badges/Badges";
 import { PopoverPaywall } from "components/Paywall/PopoverPaywall";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
 } from "components/Popover/Popover";
+import { SettingsHeader } from "components/SettingsHeader/SettingsHeader";
+import { useFormik } from "formik";
+import type { FC } from "react";
 import { getFormHelpers } from "utils/formUtils";
 import { Fieldset } from "../Fieldset";
-import { Header } from "../Header";
 import { AnnouncementBannerSettings } from "./AnnouncementBannerSettings";
 
 export type AppearanceSettingsPageViewProps = {
-  appearance: UpdateAppearanceConfig;
-  isEntitled: boolean;
-  onSaveAppearance: (
-    newConfig: Partial<UpdateAppearanceConfig>,
-  ) => Promise<void>;
+	appearance: UpdateAppearanceConfig;
+	isEntitled: boolean;
+	isPremium: boolean;
+	onSaveAppearance: (
+		newConfig: Partial<UpdateAppearanceConfig>,
+	) => Promise<void>;
 };
 
 export const AppearanceSettingsPageView: FC<
-  AppearanceSettingsPageViewProps
-> = ({ appearance, isEntitled, onSaveAppearance }) => {
-  const applicationNameForm = useFormik<{
-    application_name: string;
-  }>({
-    initialValues: {
-      application_name: appearance.application_name,
-    },
-    onSubmit: (values) => onSaveAppearance(values),
-  });
-  const applicationNameFieldHelpers = getFormHelpers(applicationNameForm);
+	AppearanceSettingsPageViewProps
+> = ({ appearance, isEntitled, isPremium, onSaveAppearance }) => {
+	const applicationNameForm = useFormik<{
+		application_name: string;
+	}>({
+		initialValues: {
+			application_name: appearance.application_name,
+		},
+		onSubmit: (values) => onSaveAppearance(values),
+	});
+	const applicationNameFieldHelpers = getFormHelpers(applicationNameForm);
 
-  const logoForm = useFormik<{
-    logo_url: string;
-  }>({
-    initialValues: {
-      logo_url: appearance.logo_url,
-    },
-    onSubmit: (values) => onSaveAppearance(values),
-  });
-  const logoFieldHelpers = getFormHelpers(logoForm);
+	const logoForm = useFormik<{
+		logo_url: string;
+	}>({
+		initialValues: {
+			logo_url: appearance.logo_url,
+		},
+		onSubmit: (values) => onSaveAppearance(values),
+	});
+	const logoFieldHelpers = getFormHelpers(logoForm);
 
-  return (
-    <>
-      <Header
-        title="自定义界面"
-        description="自定义Coder部署的界面。"
-      />
+	return (
+		<>
+			<SettingsHeader
+				title="Appearance"
+				description="Customize the look and feel of your Coder deployment."
+			/>
 
-      <Badges>
-        {isEntitled ? <EntitledBadge /> : <DisabledBadge />}
-        <Popover mode="hover">
-          <PopoverTrigger>
-            <span>
-              <EnterpriseBadge />
-            </span>
-          </PopoverTrigger>
-          <PopoverContent css={{ transform: "translateY(-28px)" }}>
-            <PopoverPaywall
-              message="Appearance"
-              description="With an Enterprise license, you can customize the appearance of your deployment."
-              documentationLink="https://coder.com/docs/admin/appearance"
-            />
-          </PopoverContent>
-        </Popover>
-      </Badges>
+			<Badges>
+				<Popover mode="hover">
+					{isEntitled && !isPremium ? (
+						<EnterpriseBadge />
+					) : (
+						<PopoverTrigger>
+							<span>
+								<PremiumBadge />
+							</span>
+						</PopoverTrigger>
+					)}
 
-      <Fieldset
-        title="应用名称"
-        subtitle="在登录页面上指定自定义应用程序名称。"
-        validation={!isEntitled ? "此功能仅适用于企业版。" : ""}
-        onSubmit={applicationNameForm.handleSubmit}
-        button={!isEntitled && <Button disabled>提交</Button>}
-      >
-        <TextField
-          {...applicationNameFieldHelpers("application_name")}
-          defaultValue={appearance.application_name}
-          fullWidth
-          placeholder='留空显示 "Coder"。'
-          disabled={!isEntitled}
-          inputProps={{
-            "aria-label": "Application name",
-          }}
-        />
-      </Fieldset>
+					<PopoverContent css={{ transform: "translateY(-28px)" }}>
+						<PopoverPaywall
+							message="Appearance"
+							description="With a Premium license, you can customize the appearance and branding of your deployment."
+							documentationLink="https://coder.com/docs/admin/appearance"
+						/>
+					</PopoverContent>
+				</Popover>
+			</Badges>
 
-      <Fieldset
-        title="Logo URL"
-        subtitle="指定您的标志的自定义 URL，以在登录页面和仪表板左上角显示。"
-        validation={
-          isEntitled
-            ? "我们建议使用长宽比为3:1的透明图像。"
-            : "这是企业版独有的功能。"
-        }
-        onSubmit={logoForm.handleSubmit}
-        button={!isEntitled && <Button disabled>提交</Button>}
-      >
-        <TextField
-          {...logoFieldHelpers("logo_url")}
-          defaultValue={appearance.logo_url}
-          fullWidth
-          placeholder="留空以显示Coder徽标。"
-          disabled={!isEntitled}
-          InputProps={{
-            endAdornment: (
-              <InputAdornment
-                position="end"
-                css={{
-                  width: 24,
-                  height: 24,
+			<Fieldset
+				title="Application name"
+				subtitle="Specify a custom application name to be displayed on the login page."
+				validation={!isEntitled ? "This is an Enterprise only feature." : ""}
+				onSubmit={applicationNameForm.handleSubmit}
+				button={!isEntitled && <Button disabled>Submit</Button>}
+			>
+				<TextField
+					{...applicationNameFieldHelpers("application_name")}
+					defaultValue={appearance.application_name}
+					fullWidth
+					placeholder='Leave empty to display "Coder".'
+					disabled={!isEntitled}
+					inputProps={{
+						"aria-label": "Application name",
+					}}
+				/>
+			</Fieldset>
 
-                  "& img": {
-                    maxWidth: "100%",
-                  },
-                }}
-              >
-                <img
-                  alt=""
-                  src={logoForm.values.logo_url}
-                  // This prevent browser to display the ugly error icon if the
-                  // image path is wrong or user didn't finish typing the url
-                  onError={(e) => (e.currentTarget.style.display = "none")}
-                  onLoad={(e) => (e.currentTarget.style.display = "inline")}
-                />
-              </InputAdornment>
-            ),
-          }}
-          inputProps={{
-            "aria-label": "Logo URL",
-          }}
-        />
-      </Fieldset>
+			<Fieldset
+				title="Logo URL"
+				subtitle="Specify a custom URL for your logo to be displayed on the sign in page and in the top left
+          corner of the dashboard."
+				validation={
+					isEntitled
+						? "We recommend a transparent image with 3:1 aspect ratio."
+						: "This is an Enterprise only feature."
+				}
+				onSubmit={logoForm.handleSubmit}
+				button={!isEntitled && <Button disabled>Submit</Button>}
+			>
+				<TextField
+					{...logoFieldHelpers("logo_url")}
+					defaultValue={appearance.logo_url}
+					fullWidth
+					placeholder="Leave empty to display the Coder logo."
+					disabled={!isEntitled}
+					InputProps={{
+						endAdornment: (
+							<InputAdornment
+								position="end"
+								css={{
+									width: 24,
+									height: 24,
 
-      <AnnouncementBannerSettings
-        isEntitled={isEntitled}
-        announcementBanners={appearance.announcement_banners || []}
-        onSubmit={(announcementBanners) =>
-          onSaveAppearance({ announcement_banners: announcementBanners })
-        }
-      />
-    </>
-  );
+									"& img": {
+										maxWidth: "100%",
+									},
+								}}
+							>
+								<img
+									alt=""
+									src={logoForm.values.logo_url}
+									// This prevent browser to display the ugly error icon if the
+									// image path is wrong or user didn't finish typing the url
+									onError={(e) => {
+										e.currentTarget.style.display = "none";
+									}}
+									onLoad={(e) => {
+										e.currentTarget.style.display = "inline";
+									}}
+								/>
+							</InputAdornment>
+						),
+					}}
+					inputProps={{
+						"aria-label": "Logo URL",
+					}}
+				/>
+			</Fieldset>
+
+			<AnnouncementBannerSettings
+				isEntitled={isEntitled}
+				announcementBanners={appearance.announcement_banners || []}
+				onSubmit={(announcementBanners) =>
+					onSaveAppearance({ announcement_banners: announcementBanners })
+				}
+			/>
+		</>
+	);
 };
