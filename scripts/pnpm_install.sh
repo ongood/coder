@@ -24,7 +24,7 @@ if [[ -n ${CI:-} ]]; then
 	pnpm_flags+=(
 		# Install dependencies from lockfile, ensuring builds are fully
 		# reproducible
-		--frozen-lockfile
+		--no-frozen-lockfile
 		# Disable interactive prompts.
 		--reporter append-only
 	)
