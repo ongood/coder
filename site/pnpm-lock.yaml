@@ -205,8 +205,8 @@ importers:
         specifier: 4.7.1
         version: 4.7.1
       uuid:
-        specifier: 9.0.0
-        version: 9.0.0
+        specifier: 9.0.1
+        version: 9.0.1
       yup:
         specifier: 1.4.0
         version: 1.4.0
@@ -4075,6 +4075,7 @@ packages:
   eslint@8.52.0:
     resolution: {integrity: sha512-zh/JHnaixqHZsolRB/w9/02akBk9EPrOs9JwcTP2ek7yL5bVvXuRariiaAjjoJ5DvuwQ1WAE/HsMz+w17YgBCg==}
     engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
+    deprecated: This version is no longer supported. Please see https://eslint.org/version-support for other options.
     hasBin: true
 
   espree@9.6.1:
@@ -6749,8 +6750,8 @@ packages:
     resolution: {integrity: sha512-pMZTvIkT1d+TFGvDOqodOclx0QWkkgi6Tdoa8gC8ffGAAqz9pzPTZWAybbsHHoED/ztMtkv/VoYTYyShUn81hA==}
     engines: {node: '>= 0.4.0'}
 
-  uuid@9.0.0:
-    resolution: {integrity: sha512-MXcSTerfPa4uqyzStbRoTgt5XIe3x5+42+q1sDuy3R5MDk66URdLMOZe5aPX/SQd+kuYAh0FdP/pO28IkQyTeg==}
+  uuid@9.0.1:
+    resolution: {integrity: sha512-b+1eJOlsR9K8HJpow9Ok3fiWOWSIcIzXodvv0rQjVoOVNpWMpxf1wZNpt4y9h10odCNrqnYp1OBzRktckBe3sA==}
     hasBin: true
 
   v8-compile-cache-lib@3.0.1:
@@ -9274,7 +9275,7 @@ snapshots:
       '@types/uuid': 9.0.2
       dequal: 2.0.3
       polished: 4.2.2
-      uuid: 9.0.0
+      uuid: 9.0.1
 
   '@storybook/addon-backgrounds@8.1.11':
     dependencies:
@@ -14779,7 +14780,7 @@ snapshots:
 
   utils-merge@1.0.1: {}
 
-  uuid@9.0.0: {}
+  uuid@9.0.1: {}
 
   v8-compile-cache-lib@3.0.1: {}
 
