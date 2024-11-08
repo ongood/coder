@@ -807,7 +807,7 @@ jobs:
           echo "Required checks have passed"
 
   build:
-    # This builds and publishes ghcr.io/coder/coder-preview:main for each commit
+    # This builds and publishes ghcr.io/ongood/coder-preview:main for each commit
     # to main branch.
     needs: changes
     if: github.ref == 'refs/heads/main' && needs.changes.outputs.docs-only == 'false' && !github.event.pull_request.head.repo.fork
@@ -817,7 +817,7 @@ jobs:
     env:
       DOCKER_CLI_EXPERIMENTAL: "enabled"
     outputs:
-      IMAGE: ghcr.io/coder/coder-preview:${{ steps.build-docker.outputs.tag }}
+      IMAGE: ghcr.io/ongood/coder-preview:${{ steps.build-docker.outputs.tag }}
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@91182cccc01eb5e619899d80e4e971d6181294a7 # v2.10.1
@@ -866,7 +866,7 @@ jobs:
       - name: Build Linux Docker images
         id: build-docker
         env:
-          CODER_IMAGE_BASE: ghcr.io/coder/coder-preview
+          CODER_IMAGE_BASE: ghcr.io/ongood/coder-preview
           CODER_IMAGE_TAG_PREFIX: main
           DOCKER_CLI_EXPERIMENTAL: "enabled"
         run: |
@@ -897,7 +897,7 @@ jobs:
             for t in "${tags[@]}"; do
                 ./scripts/build_docker_multiarch.sh \
                     --push \
-                    --target "ghcr.io/coder/coder-preview:$t" \
+                    --target "ghcr.io/ongood/coder-preview:$t" \
                     --version $version \
                     $(cat build/coder_"$version"_linux_{amd64,arm64,armv7}.tag)
             done

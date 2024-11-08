@@ -101,7 +101,7 @@ variable "provisionerd_chart_version" {
 
 variable "provisionerd_image_repo" {
   description = "Repository to use for Provisionerd image."
-  default     = "ghcr.io/coder/coder"
+  default     = "ghcr.io/ongood/coder"
 }
 
 variable "provisionerd_image_tag" {
@@ -116,7 +116,7 @@ variable "coder_chart_version" {
 
 variable "coder_image_repo" {
   description = "Repository to use for Coder image."
-  default     = "ghcr.io/coder/coder"
+  default     = "ghcr.io/ongood/coder"
 }
 
 variable "coder_image_tag" {

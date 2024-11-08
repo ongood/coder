@@ -167,7 +167,7 @@ gh_auth() {
 # specified.
 #
 # Usage: maybedryrun 1 gh release create ...
-# Usage: maybedryrun 0 docker push ghcr.io/coder/coder:latest
+# Usage: maybedryrun 0 docker push ghcr.io/ongood/coder:latest
 maybedryrun() {
 	if [[ "$1" == 1 ]]; then
 		shift

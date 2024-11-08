@@ -31,7 +31,7 @@ Compare: [` + "`" + `v2.10.1...v2.10.2` + "`" + `](https://github.com/coder/code
 
 ## Container image
 
-- ` + "`" + `docker pull ghcr.io/coder/coder:v2.10.2` + "`" + `
+- ` + "`" + `docker pull ghcr.io/ongood/coder:v2.10.2` + "`" + `
 
 ## Install/upgrade
 
@@ -47,7 +47,7 @@ Compare: [` + "`" + `v2.10.1...v2.10.2` + "`" + `](https://github.com/coder/code
 
 ## Container image
 
-- ` + "`" + `docker pull ghcr.io/coder/coder:v2.10.2` + "`" + `
+- ` + "`" + `docker pull ghcr.io/ongood/coder:v2.10.2` + "`" + `
 
 ## Install/upgrade
 
@@ -69,7 +69,7 @@ Compare: [` + "`" + `v2.10.1...v2.10.2` + "`" + `](https://github.com/coder/code
 
 ## Container image
 
-- ` + "`" + `docker pull ghcr.io/coder/coder:v2.10.2` + "`" + `
+- ` + "`" + `docker pull ghcr.io/ongood/coder:v2.10.2` + "`" + `
 
 ## Install/upgrade
 
@@ -85,7 +85,7 @@ Compare: [` + "`" + `v2.10.1...v2.10.2` + "`" + `](https://github.com/coder/code
 
 ## Container image
 
-- ` + "`" + `docker pull ghcr.io/coder/coder:v2.10.2` + "`" + `
+- ` + "`" + `docker pull ghcr.io/ongood/coder:v2.10.2` + "`" + `
 
 ## Install/upgrade
 
