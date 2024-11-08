@@ -4,6 +4,14 @@ SELECT
 FROM
 	provisioner_daemons;
 
+-- name: GetProvisionerDaemonsByOrganization :many
+SELECT
+	*
+FROM
+	provisioner_daemons
+WHERE
+	organization_id = @organization_id;
+
 -- name: DeleteOldProvisionerDaemons :exec
 -- Delete provisioner daemons that have been created at least a week ago
 -- and have not connected to coderd since a week.
@@ -25,7 +33,8 @@ INSERT INTO
 		last_seen_at,
 		"version",
 		organization_id,
-		api_version
+		api_version,
+		key_id
 	)
 VALUES (
 	gen_random_uuid(),
@@ -36,17 +45,16 @@ VALUES (
 	@last_seen_at,
 	@version,
 	@organization_id,
-	@api_version
-) ON CONFLICT("name", LOWER(COALESCE(tags ->> 'owner'::text, ''::text))) DO UPDATE SET
+	@api_version,
+	@key_id
+) ON CONFLICT("organization_id", "name", LOWER(COALESCE(tags ->> 'owner'::text, ''::text))) DO UPDATE SET
 	provisioners = @provisioners,
 	tags = @tags,
 	last_seen_at = @last_seen_at,
 	"version" = @version,
 	api_version = @api_version,
-	organization_id = @organization_id
-WHERE
-	-- Only ones with the same tags are allowed clobber
-	provisioner_daemons.tags <@ @tags :: jsonb
+	organization_id = @organization_id,
+	key_id = @key_id
 RETURNING *;
 
 -- name: UpdateProvisionerDaemonLastSeenAt :exec

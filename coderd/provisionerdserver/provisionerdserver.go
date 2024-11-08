@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -25,6 +26,7 @@ import (
 	protobuf "google.golang.org/protobuf/proto"
 
 	"cdr.dev/slog"
+
 	"github.com/coder/coder/v2/coderd/apikey"
 	"github.com/coder/coder/v2/coderd/audit"
 	"github.com/coder/coder/v2/coderd/database"
@@ -32,10 +34,12 @@ import (
 	"github.com/coder/coder/v2/coderd/database/dbtime"
 	"github.com/coder/coder/v2/coderd/database/pubsub"
 	"github.com/coder/coder/v2/coderd/externalauth"
+	"github.com/coder/coder/v2/coderd/notifications"
 	"github.com/coder/coder/v2/coderd/promoauth"
 	"github.com/coder/coder/v2/coderd/schedule"
 	"github.com/coder/coder/v2/coderd/telemetry"
 	"github.com/coder/coder/v2/coderd/tracing"
+	"github.com/coder/coder/v2/coderd/wspubsub"
 	"github.com/coder/coder/v2/codersdk"
 	"github.com/coder/coder/v2/codersdk/drpc"
 	"github.com/coder/coder/v2/provisioner"
@@ -96,6 +100,7 @@ type server struct {
 	TemplateScheduleStore       *atomic.Pointer[schedule.TemplateScheduleStore]
 	UserQuietHoursScheduleStore *atomic.Pointer[schedule.UserQuietHoursScheduleStore]
 	DeploymentValues            *codersdk.DeploymentValues
+	NotificationsEnqueuer       notifications.Enqueuer
 
 	OIDCConfig promoauth.OAuth2Config
 
@@ -150,6 +155,7 @@ func NewServer(
 	userQuietHoursScheduleStore *atomic.Pointer[schedule.UserQuietHoursScheduleStore],
 	deploymentValues *codersdk.DeploymentValues,
 	options Options,
+	enqueuer notifications.Enqueuer,
 ) (proto.DRPCProvisionerDaemonServer, error) {
 	// Fail-fast if pointers are nil
 	if lifecycleCtx == nil {
@@ -198,6 +204,7 @@ func NewServer(
 		Database:                    db,
 		Pubsub:                      ps,
 		Acquirer:                    acquirer,
+		NotificationsEnqueuer:       enqueuer,
 		Telemetry:                   tel,
 		Tracer:                      tracer,
 		QuotaCommitter:              quotaCommitter,
@@ -467,8 +474,17 @@ func (s *server) acquireProtoJob(ctx context.Context, job database.ProvisionerJo
 		if err != nil {
 			return nil, failJob(fmt.Sprintf("get owner: %s", err))
 		}
-		ownerGroups, err := s.Database.GetGroupsByOrganizationAndUserID(ctx, database.GetGroupsByOrganizationAndUserIDParams{
-			UserID:         owner.ID,
+		var ownerSSHPublicKey, ownerSSHPrivateKey string
+		if ownerSSHKey, err := s.Database.GetGitSSHKey(ctx, owner.ID); err != nil {
+			if !xerrors.Is(err, sql.ErrNoRows) {
+				return nil, failJob(fmt.Sprintf("get owner ssh key: %s", err))
+			}
+		} else {
+			ownerSSHPublicKey = ownerSSHKey.PublicKey
+			ownerSSHPrivateKey = ownerSSHKey.PrivateKey
+		}
+		ownerGroups, err := s.Database.GetGroups(ctx, database.GetGroupsParams{
+			HasMemberID:    owner.ID,
 			OrganizationID: s.OrganizationID,
 		})
 		if err != nil {
@@ -476,9 +492,17 @@ func (s *server) acquireProtoJob(ctx context.Context, job database.ProvisionerJo
 		}
 		ownerGroupNames := []string{}
 		for _, group := range ownerGroups {
-			ownerGroupNames = append(ownerGroupNames, group.Name)
+			ownerGroupNames = append(ownerGroupNames, group.Group.Name)
 		}
-		err = s.Pubsub.Publish(codersdk.WorkspaceNotifyChannel(workspace.ID), []byte{})
+
+		msg, err := json.Marshal(wspubsub.WorkspaceEvent{
+			Kind:        wspubsub.WorkspaceEventKindStateChange,
+			WorkspaceID: workspace.ID,
+		})
+		if err != nil {
+			return nil, failJob(fmt.Sprintf("marshal workspace update event: %s", err))
+		}
+		err = s.Pubsub.Publish(wspubsub.WorkspaceEventChannel(workspace.OwnerID), msg)
 		if err != nil {
 			return nil, failJob(fmt.Sprintf("publish workspace update: %s", err))
 		}
@@ -550,16 +574,17 @@ func (s *server) acquireProtoJob(ctx context.Context, job database.ProvisionerJo
 				continue
 			}
 
-			link, valid, err := config.RefreshToken(ctx, s.Database, link)
-			if err != nil {
+			refreshed, err := config.RefreshToken(ctx, s.Database, link)
+			if err != nil && !externalauth.IsInvalidTokenError(err) {
 				return nil, failJob(fmt.Sprintf("refresh external auth link %q: %s", p.ID, err))
 			}
-			if !valid {
+			if err != nil {
+				// Invalid tokens are skipped
 				continue
 			}
 			externalAuthProviders = append(externalAuthProviders, &sdkproto.ExternalAuthProvider{
 				Id:          p.ID,
-				AccessToken: link.OAuthAccessToken,
+				AccessToken: refreshed.OAuthAccessToken,
 			})
 		}
 
@@ -586,6 +611,9 @@ func (s *server) acquireProtoJob(ctx context.Context, job database.ProvisionerJo
 					TemplateName:                  template.Name,
 					TemplateVersion:               templateVersion.Name,
 					WorkspaceOwnerSessionToken:    sessionToken,
+					WorkspaceOwnerSshPublicKey:    ownerSSHPublicKey,
+					WorkspaceOwnerSshPrivateKey:   ownerSSHPrivateKey,
+					WorkspaceBuildId:              workspaceBuild.ID.String(),
 				},
 				LogLevel: input.LogLevel,
 			},
@@ -817,6 +845,25 @@ func (s *server) UpdateJob(ctx context.Context, request *proto.UpdateJobRequest)
 		s.Logger.Debug(ctx, "published job logs", slog.F("job_id", parsedID))
 	}
 
+	if len(request.WorkspaceTags) > 0 {
+		templateVersion, err := s.Database.GetTemplateVersionByJobID(ctx, job.ID)
+		if err != nil {
+			s.Logger.Error(ctx, "failed to get the template version", slog.F("job_id", parsedID), slog.Error(err))
+			return nil, xerrors.Errorf("get template version by job id: %w", err)
+		}
+
+		for key, value := range request.WorkspaceTags {
+			_, err := s.Database.InsertTemplateVersionWorkspaceTag(ctx, database.InsertTemplateVersionWorkspaceTagParams{
+				TemplateVersionID: templateVersion.ID,
+				Key:               key,
+				Value:             value,
+			})
+			if err != nil {
+				return nil, xerrors.Errorf("update template version workspace tags: %w", err)
+			}
+		}
+	}
+
 	if len(request.Readme) > 0 {
 		err := s.Database.UpdateTemplateVersionDescriptionByJobID(ctx, database.UpdateTemplateVersionDescriptionByJobIDParams{
 			JobID:     job.ID,
@@ -945,10 +992,16 @@ func (s *server) FailJob(ctx context.Context, failJob *proto.FailedJob) (*proto.
 		}
 
 		var build database.WorkspaceBuild
+		var workspace database.Workspace
 		err = s.Database.InTx(func(db database.Store) error {
 			build, err = db.GetWorkspaceBuildByID(ctx, input.WorkspaceBuildID)
 			if err != nil {
 				return xerrors.Errorf("get workspace build: %w", err)
+			}
+
+			workspace, err = db.GetWorkspaceByID(ctx, build.WorkspaceID)
+			if err != nil {
+				return xerrors.Errorf("get workspace: %w", err)
 			}
 
 			if jobType.WorkspaceBuild.State != nil {
@@ -977,9 +1030,18 @@ func (s *server) FailJob(ctx context.Context, failJob *proto.FailedJob) (*proto.
 			return nil, err
 		}
 
-		err = s.Pubsub.Publish(codersdk.WorkspaceNotifyChannel(build.WorkspaceID), []byte{})
+		s.notifyWorkspaceBuildFailed(ctx, workspace, build)
+
+		msg, err := json.Marshal(wspubsub.WorkspaceEvent{
+			Kind:        wspubsub.WorkspaceEventKindStateChange,
+			WorkspaceID: workspace.ID,
+		})
 		if err != nil {
-			return nil, xerrors.Errorf("update workspace: %w", err)
+			return nil, xerrors.Errorf("marshal workspace update event: %s", err)
+		}
+		err = s.Pubsub.Publish(wspubsub.WorkspaceEventChannel(workspace.OwnerID), msg)
+		if err != nil {
+			return nil, xerrors.Errorf("publish workspace update: %w", err)
 		}
 	case *proto.FailedJob_TemplateImport_:
 	}
@@ -1017,6 +1079,7 @@ func (s *server) FailJob(ctx context.Context, failJob *proto.FailedJob) (*proto.
 				wriBytes, err := json.Marshal(buildResourceInfo)
 				if err != nil {
 					s.Logger.Error(ctx, "marshal workspace resource info for failed job", slog.Error(err))
+					wriBytes = []byte("{}")
 				}
 
 				bag := audit.BaggageFromContext(ctx)
@@ -1048,6 +1111,110 @@ func (s *server) FailJob(ctx context.Context, failJob *proto.FailedJob) (*proto.
 		return nil, xerrors.Errorf("publish end of job logs: %w", err)
 	}
 	return &proto.Empty{}, nil
+}
+
+func (s *server) notifyWorkspaceBuildFailed(ctx context.Context, workspace database.Workspace, build database.WorkspaceBuild) {
+	var reason string
+	if build.Reason.Valid() && build.Reason == database.BuildReasonInitiator {
+		s.notifyWorkspaceManualBuildFailed(ctx, workspace, build)
+		return
+	}
+	reason = string(build.Reason)
+
+	if _, err := s.NotificationsEnqueuer.Enqueue(ctx, workspace.OwnerID, notifications.TemplateWorkspaceAutobuildFailed,
+		map[string]string{
+			"name":   workspace.Name,
+			"reason": reason,
+		}, "provisionerdserver",
+		// Associate this notification with all the related entities.
+		workspace.ID, workspace.OwnerID, workspace.TemplateID, workspace.OrganizationID,
+	); err != nil {
+		s.Logger.Warn(ctx, "failed to notify of failed workspace autobuild", slog.Error(err))
+	}
+}
+
+func (s *server) notifyWorkspaceManualBuildFailed(ctx context.Context, workspace database.Workspace, build database.WorkspaceBuild) {
+	templateAdmins, template, templateVersion, workspaceOwner, err := s.prepareForNotifyWorkspaceManualBuildFailed(ctx, workspace, build)
+	if err != nil {
+		s.Logger.Error(ctx, "unable to collect data for manual build failed notification", slog.Error(err))
+		return
+	}
+
+	for _, templateAdmin := range templateAdmins {
+		templateNameLabel := template.DisplayName
+		if templateNameLabel == "" {
+			templateNameLabel = template.Name
+		}
+		labels := map[string]string{
+			"name":                     workspace.Name,
+			"template_name":            templateNameLabel,
+			"template_version_name":    templateVersion.Name,
+			"initiator":                build.InitiatorByUsername,
+			"workspace_owner_username": workspaceOwner.Username,
+			"workspace_build_number":   strconv.Itoa(int(build.BuildNumber)),
+		}
+		if _, err := s.NotificationsEnqueuer.Enqueue(ctx, templateAdmin.ID, notifications.TemplateWorkspaceManualBuildFailed,
+			labels, "provisionerdserver",
+			// Associate this notification with all the related entities.
+			workspace.ID, workspace.OwnerID, workspace.TemplateID, workspace.OrganizationID,
+		); err != nil {
+			s.Logger.Warn(ctx, "failed to notify of failed workspace manual build", slog.Error(err))
+		}
+	}
+}
+
+// prepareForNotifyWorkspaceManualBuildFailed collects data required to build notifications for template admins.
+// The template `notifications.TemplateWorkspaceManualBuildFailed` is quite detailed as it requires information about the template,
+// template version, workspace, workspace build, etc.
+func (s *server) prepareForNotifyWorkspaceManualBuildFailed(ctx context.Context, workspace database.Workspace, build database.WorkspaceBuild) ([]database.GetUsersRow,
+	database.Template, database.TemplateVersion, database.User, error,
+) {
+	users, err := s.Database.GetUsers(ctx, database.GetUsersParams{
+		RbacRole: []string{codersdk.RoleTemplateAdmin},
+	})
+	if err != nil {
+		return nil, database.Template{}, database.TemplateVersion{}, database.User{}, xerrors.Errorf("unable to fetch template admins: %w", err)
+	}
+
+	usersByIDs := map[uuid.UUID]database.GetUsersRow{}
+	var userIDs []uuid.UUID
+	for _, user := range users {
+		usersByIDs[user.ID] = user
+		userIDs = append(userIDs, user.ID)
+	}
+
+	var templateAdmins []database.GetUsersRow
+	if len(userIDs) > 0 {
+		orgIDsByMemberIDs, err := s.Database.GetOrganizationIDsByMemberIDs(ctx, userIDs)
+		if err != nil {
+			return nil, database.Template{}, database.TemplateVersion{}, database.User{}, xerrors.Errorf("unable to fetch organization IDs by member IDs: %w", err)
+		}
+
+		for _, entry := range orgIDsByMemberIDs {
+			if slices.Contains(entry.OrganizationIDs, workspace.OrganizationID) {
+				templateAdmins = append(templateAdmins, usersByIDs[entry.UserID])
+			}
+		}
+	}
+	sort.Slice(templateAdmins, func(i, j int) bool {
+		return templateAdmins[i].Username < templateAdmins[j].Username
+	})
+
+	template, err := s.Database.GetTemplateByID(ctx, workspace.TemplateID)
+	if err != nil {
+		return nil, database.Template{}, database.TemplateVersion{}, database.User{}, xerrors.Errorf("unable to fetch template: %w", err)
+	}
+
+	templateVersion, err := s.Database.GetTemplateVersionByID(ctx, build.TemplateVersionID)
+	if err != nil {
+		return nil, database.Template{}, database.TemplateVersion{}, database.User{}, xerrors.Errorf("unable to fetch template version: %w", err)
+	}
+
+	workspaceOwner, err := s.Database.GetUserByID(ctx, workspace.OwnerID)
+	if err != nil {
+		return nil, database.Template{}, database.TemplateVersion{}, database.User{}, xerrors.Errorf("unable to fetch workspace owner: %w", err)
+	}
+	return templateAdmins, template, templateVersion, workspaceOwner, nil
 }
 
 // CompleteJob is triggered by a provision daemon to mark a provisioner job as completed.
@@ -1218,9 +1385,6 @@ func (s *server) CompleteJob(ctx context.Context, completed *proto.CompletedJob)
 			return nil, xerrors.Errorf("update provisioner job: %w", err)
 		}
 		s.Logger.Debug(ctx, "marked import job as completed", slog.F("job_id", jobID))
-		if err != nil {
-			return nil, xerrors.Errorf("complete job: %w", err)
-		}
 	case *proto.CompletedJob_WorkspaceBuild_:
 		var input WorkspaceProvisionJob
 		err = json.Unmarshal(job.Input, &input)
@@ -1256,7 +1420,7 @@ func (s *server) CompleteJob(ctx context.Context, completed *proto.CompletedJob)
 				TemplateScheduleStore:       *s.TemplateScheduleStore.Load(),
 				UserQuietHoursScheduleStore: *s.UserQuietHoursScheduleStore.Load(),
 				Now:                         now,
-				Workspace:                   workspace,
+				Workspace:                   workspace.WorkspaceTable(),
 				// Allowed to be the empty string.
 				WorkspaceAutostart: workspace.AutostartSchedule.String,
 			})
@@ -1340,7 +1504,15 @@ func (s *server) CompleteJob(ctx context.Context, completed *proto.CompletedJob)
 							return
 						case <-wait:
 							// Wait for the next potential timeout to occur.
-							if err := s.Pubsub.Publish(codersdk.WorkspaceNotifyChannel(workspaceBuild.WorkspaceID), []byte{}); err != nil {
+							msg, err := json.Marshal(wspubsub.WorkspaceEvent{
+								Kind:        wspubsub.WorkspaceEventKindAgentTimeout,
+								WorkspaceID: workspace.ID,
+							})
+							if err != nil {
+								s.Logger.Error(ctx, "marshal workspace update event", slog.Error(err))
+								break
+							}
+							if err := s.Pubsub.Publish(wspubsub.WorkspaceEventChannel(workspace.OwnerID), msg); err != nil {
 								if s.lifecycleCtx.Err() != nil {
 									// If the server is shutting down, we don't want to log this error, nor wait around.
 									s.Logger.Debug(ctx, "stopping notifications due to server shutdown",
@@ -1377,8 +1549,43 @@ func (s *server) CompleteJob(ctx context.Context, completed *proto.CompletedJob)
 			return nil, xerrors.Errorf("complete job: %w", err)
 		}
 
+		// Insert timings outside transaction since it is metadata.
+		// nolint:exhaustruct // The other fields are set further down.
+		params := database.InsertProvisionerJobTimingsParams{
+			JobID: jobID,
+		}
+		for _, t := range completed.GetWorkspaceBuild().GetTimings() {
+			if t.Start == nil || t.End == nil {
+				s.Logger.Warn(ctx, "timings entry has nil start or end time", slog.F("entry", t.String()))
+				continue
+			}
+
+			var stg database.ProvisionerJobTimingStage
+			if err := stg.Scan(t.Stage); err != nil {
+				s.Logger.Warn(ctx, "failed to parse timings stage, skipping", slog.F("value", t.Stage))
+				continue
+			}
+
+			params.Stage = append(params.Stage, stg)
+			params.Source = append(params.Source, t.Source)
+			params.Resource = append(params.Resource, t.Resource)
+			params.Action = append(params.Action, t.Action)
+			params.StartedAt = append(params.StartedAt, t.Start.AsTime())
+			params.EndedAt = append(params.EndedAt, t.End.AsTime())
+		}
+		_, err = s.Database.InsertProvisionerJobTimings(ctx, params)
+		if err != nil {
+			// Don't fail the transaction for non-critical data.
+			s.Logger.Warn(ctx, "failed to update provisioner job timings", slog.F("job_id", jobID), slog.Error(err))
+		}
+
 		// audit the outcome of the workspace build
 		if getWorkspaceError == nil {
+			// If the workspace has been deleted, notify the owner about it.
+			if workspaceBuild.Transition == database.WorkspaceTransitionDelete {
+				s.notifyWorkspaceDeleted(ctx, workspace, workspaceBuild)
+			}
+
 			auditor := s.Auditor.Load()
 			auditAction := auditActionFromTransition(workspaceBuild.Transition)
 
@@ -1422,7 +1629,14 @@ func (s *server) CompleteJob(ctx context.Context, completed *proto.CompletedJob)
 			})
 		}
 
-		err = s.Pubsub.Publish(codersdk.WorkspaceNotifyChannel(workspaceBuild.WorkspaceID), []byte{})
+		msg, err := json.Marshal(wspubsub.WorkspaceEvent{
+			Kind:        wspubsub.WorkspaceEventKindStateChange,
+			WorkspaceID: workspace.ID,
+		})
+		if err != nil {
+			return nil, xerrors.Errorf("marshal workspace update event: %s", err)
+		}
+		err = s.Pubsub.Publish(wspubsub.WorkspaceEventChannel(workspace.OwnerID), msg)
 		if err != nil {
 			return nil, xerrors.Errorf("update workspace: %w", err)
 		}
@@ -1453,9 +1667,6 @@ func (s *server) CompleteJob(ctx context.Context, completed *proto.CompletedJob)
 			return nil, xerrors.Errorf("update provisioner job: %w", err)
 		}
 		s.Logger.Debug(ctx, "marked template dry-run job as completed", slog.F("job_id", jobID))
-		if err != nil {
-			return nil, xerrors.Errorf("complete job: %w", err)
-		}
 
 	default:
 		if completed.Type == nil {
@@ -1477,6 +1688,43 @@ func (s *server) CompleteJob(ctx context.Context, completed *proto.CompletedJob)
 
 	s.Logger.Debug(ctx, "stage CompleteJob done", slog.F("job_id", jobID))
 	return &proto.Empty{}, nil
+}
+
+func (s *server) notifyWorkspaceDeleted(ctx context.Context, workspace database.Workspace, build database.WorkspaceBuild) {
+	var reason string
+	initiator := build.InitiatorByUsername
+	if build.Reason.Valid() {
+		switch build.Reason {
+		case database.BuildReasonInitiator:
+			if build.InitiatorID == workspace.OwnerID {
+				// Deletions initiated by self should not notify.
+				return
+			}
+
+			reason = "initiated by user"
+		case database.BuildReasonAutodelete:
+			reason = "autodeleted due to dormancy"
+			initiator = "autobuild"
+		default:
+			reason = string(build.Reason)
+		}
+	} else {
+		reason = string(build.Reason)
+		s.Logger.Warn(ctx, "invalid build reason when sending deletion notification",
+			slog.F("reason", reason), slog.F("workspace_id", workspace.ID), slog.F("build_id", build.ID))
+	}
+
+	if _, err := s.NotificationsEnqueuer.Enqueue(ctx, workspace.OwnerID, notifications.TemplateWorkspaceDeleted,
+		map[string]string{
+			"name":      workspace.Name,
+			"reason":    reason,
+			"initiator": initiator,
+		}, "provisionerdserver",
+		// Associate this notification with all the related entities.
+		workspace.ID, workspace.OwnerID, workspace.TemplateID, workspace.OrganizationID,
+	); err != nil {
+		s.Logger.Warn(ctx, "failed to notify of workspace deletion", slog.Error(err))
+	}
 }
 
 func (s *server) startTrace(ctx context.Context, name string, opts ...trace.SpanStartOption) (context.Context, trace.Span) {
@@ -1601,6 +1849,8 @@ func InsertWorkspaceResource(ctx context.Context, db database.Store, jobID uuid.
 		logSourceIDs := make([]uuid.UUID, 0, len(prAgent.Scripts))
 		logSourceDisplayNames := make([]string, 0, len(prAgent.Scripts))
 		logSourceIcons := make([]string, 0, len(prAgent.Scripts))
+		scriptIDs := make([]uuid.UUID, 0, len(prAgent.Scripts))
+		scriptDisplayName := make([]string, 0, len(prAgent.Scripts))
 		scriptLogPaths := make([]string, 0, len(prAgent.Scripts))
 		scriptSources := make([]string, 0, len(prAgent.Scripts))
 		scriptCron := make([]string, 0, len(prAgent.Scripts))
@@ -1613,6 +1863,8 @@ func InsertWorkspaceResource(ctx context.Context, db database.Store, jobID uuid.
 			logSourceIDs = append(logSourceIDs, uuid.New())
 			logSourceDisplayNames = append(logSourceDisplayNames, script.DisplayName)
 			logSourceIcons = append(logSourceIcons, script.Icon)
+			scriptIDs = append(scriptIDs, uuid.New())
+			scriptDisplayName = append(scriptDisplayName, script.DisplayName)
 			scriptLogPaths = append(scriptLogPaths, script.LogPath)
 			scriptSources = append(scriptSources, script.Script)
 			scriptCron = append(scriptCron, script.Cron)
@@ -1644,6 +1896,8 @@ func InsertWorkspaceResource(ctx context.Context, db database.Store, jobID uuid.
 			StartBlocksLogin: scriptStartBlocksLogin,
 			RunOnStart:       scriptRunOnStart,
 			RunOnStop:        scriptRunOnStop,
+			DisplayName:      scriptDisplayName,
+			ID:               scriptIDs,
 		})
 		if err != nil {
 			return xerrors.Errorf("insert agent scripts: %w", err)
@@ -1701,6 +1955,7 @@ func InsertWorkspaceResource(ctx context.Context, db database.Store, jobID uuid.
 				HealthcheckThreshold: app.Healthcheck.Threshold,
 				Health:               health,
 				DisplayOrder:         int32(app.Order),
+				Hidden:               app.Hidden,
 			})
 			if err != nil {
 				return xerrors.Errorf("insert app: %w", err)
@@ -1740,7 +1995,7 @@ func (s *server) regenerateSessionToken(ctx context.Context, user database.User,
 		UserID:          user.ID,
 		LoginType:       user.LoginType,
 		TokenName:       workspaceSessionTokenName(workspace),
-		DefaultLifetime: s.DeploymentValues.Sessions.DefaultDuration.Value(),
+		DefaultLifetime: s.DeploymentValues.Sessions.DefaultTokenDuration.Value(),
 		LifetimeSeconds: int64(s.DeploymentValues.Sessions.MaximumTokenDuration.Value().Seconds()),
 	})
 	if err != nil {
@@ -1797,7 +2052,7 @@ func obtainOIDCAccessToken(ctx context.Context, db database.Store, oidcConfig pr
 		LoginType: database.LoginTypeOIDC,
 	})
 	if errors.Is(err, sql.ErrNoRows) {
-		err = nil
+		return "", nil
 	}
 	if err != nil {
 		return "", xerrors.Errorf("get owner oidc link: %w", err)

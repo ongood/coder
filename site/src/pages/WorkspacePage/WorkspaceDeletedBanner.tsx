@@ -1,23 +1,23 @@
 import Button from "@mui/material/Button";
-import type { FC } from "react";
 import { Alert } from "components/Alert/Alert";
+import type { FC } from "react";
 
 export interface WorkspaceDeletedBannerProps {
-  handleClick: () => void;
+	handleClick: () => void;
 }
 
 export const WorkspaceDeletedBanner: FC<WorkspaceDeletedBannerProps> = ({
-  handleClick,
+	handleClick,
 }) => {
-  const NewWorkspaceButton = (
-    <Button onClick={handleClick} size="small" variant="text">
-      创建新工作区
-    </Button>
-  );
+	const NewWorkspaceButton = (
+		<Button onClick={handleClick} size="small" variant="text">
+			Create new workspace
+		</Button>
+	);
 
-  return (
-    <Alert severity="warning" actions={NewWorkspaceButton}>
-      这个工作区已被删除，无法编辑。
-    </Alert>
-  );
+	return (
+		<Alert severity="warning" actions={NewWorkspaceButton}>
+			This workspace has been deleted and cannot be edited.
+		</Alert>
+	);
 };

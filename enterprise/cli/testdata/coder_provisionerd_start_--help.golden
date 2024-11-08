@@ -6,6 +6,9 @@ USAGE:
   Run a provisioner daemon
 
 OPTIONS:
+  -O, --org string, $CODER_ORGANIZATION
+          Select which organization (uuid or name) to use.
+
   -c, --cache-dir string, $CODER_CACHE_DIRECTORY (default: [cache dir])
           Directory to store cached data.
 
@@ -40,6 +43,7 @@ OPTIONS:
 
       --psk string, $CODER_PROVISIONER_DAEMON_PSK
           Pre-shared key to authenticate with Coder server.
+          DEPRECATED: Use --key instead.
 
   -t, --tag string-array, $CODER_PROVISIONERD_TAGS
           Tags to filter provisioner jobs by.

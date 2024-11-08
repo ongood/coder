@@ -27,6 +27,7 @@ import (
 	"cdr.dev/slog/sloggers/slogstackdriver"
 	"github.com/coder/coder/v2/agent"
 	"github.com/coder/coder/v2/agent/agentproc"
+	"github.com/coder/coder/v2/agent/agentssh"
 	"github.com/coder/coder/v2/agent/reaper"
 	"github.com/coder/coder/v2/buildinfo"
 	"github.com/coder/coder/v2/codersdk"
@@ -48,6 +49,9 @@ func (r *RootCmd) workspaceAgent() *serpent.Command {
 		slogHumanPath       string
 		slogJSONPath        string
 		slogStackdriverPath string
+		blockFileTransfer   bool
+		agentHeaderCommand  string
+		agentHeader         []string
 	)
 	cmd := &serpent.Command{
 		Use:   "agent",
@@ -174,6 +178,14 @@ func (r *RootCmd) workspaceAgent() *serpent.Command {
 			// with large payloads can take a bit. e.g. startup scripts
 			// may take a while to insert.
 			client.SDK.HTTPClient.Timeout = 30 * time.Second
+			// Attach header transport so we process --agent-header and
+			// --agent-header-command flags
+			headerTransport, err := headerTransport(ctx, r.agentURL, agentHeader, agentHeaderCommand)
+			if err != nil {
+				return xerrors.Errorf("configure header transport: %w", err)
+			}
+			headerTransport.Transport = client.SDK.HTTPClient.Transport
+			client.SDK.HTTPClient.Transport = headerTransport
 
 			// Enable pprof handler
 			// This prevents the pprof import from being accidentally deleted.
@@ -314,6 +326,8 @@ func (r *RootCmd) workspaceAgent() *serpent.Command {
 				// Intentionally set this to nil. It's mainly used
 				// for testing.
 				ModifiedProcesses: nil,
+
+				BlockFileTransfer: blockFileTransfer,
 			})
 
 			promHandler := agent.PrometheusMetricsHandler(prometheusRegistry, logger)
@@ -356,6 +370,18 @@ func (r *RootCmd) workspaceAgent() *serpent.Command {
 			Env:         "CODER_AGENT_PPROF_ADDRESS",
 			Value:       serpent.StringOf(&pprofAddress),
 			Description: "The address to serve pprof.",
+		},
+		{
+			Flag:        "agent-header-command",
+			Env:         "CODER_AGENT_HEADER_COMMAND",
+			Value:       serpent.StringOf(&agentHeaderCommand),
+			Description: "An external command that outputs additional HTTP headers added to all requests. The command must output each header as `key=value` on its own line.",
+		},
+		{
+			Flag:        "agent-header",
+			Env:         "CODER_AGENT_HEADER",
+			Value:       serpent.StringArrayOf(&agentHeader),
+			Description: "Additional HTTP headers added to all requests. Provide as " + `key=value` + ". Can be specified multiple times.",
 		},
 		{
 			Flag: "no-reap",
@@ -416,6 +442,13 @@ func (r *RootCmd) workspaceAgent() *serpent.Command {
 			Env:         "CODER_AGENT_LOGGING_STACKDRIVER",
 			Default:     "",
 			Value:       serpent.StringOf(&slogStackdriverPath),
+		},
+		{
+			Flag:        "block-file-transfer",
+			Default:     "false",
+			Env:         "CODER_AGENT_BLOCK_FILE_TRANSFER",
+			Description: fmt.Sprintf("Block file transfer using known applications: %s.", strings.Join(agentssh.BlockedFileTransferCommands, ",")),
+			Value:       serpent.BoolOf(&blockFileTransfer),
 		},
 	}
 

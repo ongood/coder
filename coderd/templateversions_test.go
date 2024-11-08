@@ -18,6 +18,7 @@ import (
 	"github.com/coder/coder/v2/coderd/database"
 	"github.com/coder/coder/v2/coderd/externalauth"
 	"github.com/coder/coder/v2/coderd/rbac"
+	"github.com/coder/coder/v2/coderd/rbac/policy"
 	"github.com/coder/coder/v2/codersdk"
 	"github.com/coder/coder/v2/examples"
 	"github.com/coder/coder/v2/provisioner/echo"
@@ -38,14 +39,14 @@ func TestTemplateVersion(t *testing.T) {
 			req.Name = "bananas"
 			req.Message = "first try"
 		})
-		authz.AssertChecked(t, rbac.ActionCreate, rbac.ResourceTemplate.InOrg(user.OrganizationID))
+		authz.AssertChecked(t, policy.ActionCreate, rbac.ResourceTemplate.InOrg(user.OrganizationID))
 
 		ctx, cancel := context.WithTimeout(context.Background(), testutil.WaitLong)
 		defer cancel()
 
 		authz.Reset()
 		tv, err := client.TemplateVersion(ctx, version.ID)
-		authz.AssertChecked(t, rbac.ActionRead, tv)
+		authz.AssertChecked(t, policy.ActionRead, tv)
 		require.NoError(t, err)
 
 		assert.Equal(t, "bananas", tv.Name)
@@ -1096,17 +1097,17 @@ func TestPreviousTemplateVersion(t *testing.T) {
 	})
 }
 
-func TestTemplateExamples(t *testing.T) {
+func TestStarterTemplates(t *testing.T) {
 	t.Parallel()
 	t.Run("OK", func(t *testing.T) {
 		t.Parallel()
 		client := coderdtest.New(t, nil)
-		user := coderdtest.CreateFirstUser(t, client)
+		_ = coderdtest.CreateFirstUser(t, client)
 
 		ctx, cancel := context.WithTimeout(context.Background(), testutil.WaitLong)
 		defer cancel()
 
-		ex, err := client.TemplateExamples(ctx, user.OrganizationID)
+		ex, err := client.StarterTemplates(ctx)
 		require.NoError(t, err)
 		ls, err := examples.List()
 		require.NoError(t, err)
@@ -1596,7 +1597,7 @@ func TestTemplateArchiveVersions(t *testing.T) {
 			req.TemplateID = template.ID
 		})
 		coderdtest.AwaitTemplateVersionJobCompleted(t, client, used.ID)
-		workspace := coderdtest.CreateWorkspace(t, client, owner.OrganizationID, uuid.Nil, func(request *codersdk.CreateWorkspaceRequest) {
+		workspace := coderdtest.CreateWorkspace(t, client, uuid.Nil, func(request *codersdk.CreateWorkspaceRequest) {
 			request.TemplateVersionID = used.ID
 		})
 		coderdtest.AwaitWorkspaceBuildJobCompleted(t, client, workspace.LatestBuild.ID)

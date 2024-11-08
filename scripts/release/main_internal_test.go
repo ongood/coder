@@ -35,7 +35,7 @@ Compare: [` + "`" + `v2.10.1...v2.10.2` + "`" + `](https://github.com/coder/code
 
 ## Install/upgrade
 
-Refer to our docs to [install](https://coder.com/docs/v2/latest/install) or [upgrade](https://coder.com/docs/v2/latest/admin/upgrade) Coder, or use a release asset below.
+Refer to our docs to [install](https://coder.com/docs/install) or [upgrade](https://coder.com/docs/admin/upgrade) Coder, or use a release asset below.
 `,
 			want: `## Changelog
 
@@ -51,7 +51,7 @@ Compare: [` + "`" + `v2.10.1...v2.10.2` + "`" + `](https://github.com/coder/code
 
 ## Install/upgrade
 
-Refer to our docs to [install](https://coder.com/docs/v2/latest/install) or [upgrade](https://coder.com/docs/v2/latest/admin/upgrade) Coder, or use a release asset below.
+Refer to our docs to [install](https://coder.com/docs/install) or [upgrade](https://coder.com/docs/admin/upgrade) Coder, or use a release asset below.
 `,
 		},
 		{
@@ -59,7 +59,7 @@ Refer to our docs to [install](https://coder.com/docs/v2/latest/install) or [upg
 			body: `## Changelog
 
 > [!NOTE]
-> This is a mainline Coder release. We advise enterprise customers without a staging environment to install our [latest stable release](https://github.com/coder/coder/releases/latest) while we refine this version. Learn more about our [Release Schedule](https://coder.com/docs/v2/latest/install/releases).
+> This is a mainline Coder release. We advise enterprise customers without a staging environment to install our [latest stable release](https://github.com/coder/coder/releases/latest) while we refine this version. Learn more about our [Release Schedule](https://coder.com/docs/install/releases).
 
 ### Chores
 
@@ -73,7 +73,7 @@ Compare: [` + "`" + `v2.10.1...v2.10.2` + "`" + `](https://github.com/coder/code
 
 ## Install/upgrade
 
-Refer to our docs to [install](https://coder.com/docs/v2/latest/install) or [upgrade](https://coder.com/docs/v2/latest/admin/upgrade) Coder, or use a release asset below.
+Refer to our docs to [install](https://coder.com/docs/install) or [upgrade](https://coder.com/docs/admin/upgrade) Coder, or use a release asset below.
 `,
 			want: `## Changelog
 
@@ -89,7 +89,7 @@ Compare: [` + "`" + `v2.10.1...v2.10.2` + "`" + `](https://github.com/coder/code
 
 ## Install/upgrade
 
-Refer to our docs to [install](https://coder.com/docs/v2/latest/install) or [upgrade](https://coder.com/docs/v2/latest/admin/upgrade) Coder, or use a release asset below.
+Refer to our docs to [install](https://coder.com/docs/install) or [upgrade](https://coder.com/docs/admin/upgrade) Coder, or use a release asset below.
 `,
 		},
 		{
@@ -97,7 +97,7 @@ Refer to our docs to [install](https://coder.com/docs/v2/latest/install) or [upg
 			body: `## Changelog
 
 > [!NOTE]
-> This is a mainline Coder release. We advise enterprise customers without a staging environment to install our [latest stable release](https://github.com/coder/coder/releases/latest) while we refine this version. Learn more about our [Release Schedule](https://coder.com/docs/v2/latest/install/releases).
+> This is a mainline Coder release. We advise enterprise customers without a staging environment to install our [latest stable release](https://github.com/coder/coder/releases/latest) while we refine this version. Learn more about our [Release Schedule](https://coder.com/docs/install/releases).
 > This is an extended note.
 > This is another extended note.
 
@@ -131,11 +131,18 @@ func Test_addStableSince(t *testing.T) {
 	date := time.Date(2024, time.April, 23, 0, 0, 0, 0, time.UTC)
 	body := "## Changelog"
 
-	expected := "> ## Stable (since April 23, 2024)\n\n## Changelog"
-	result := addStableSince(date, body)
+	want := "> ## Stable (since April 23, 2024)\n\n## Changelog"
+	got := addStableSince(date, body)
 
-	if diff := cmp.Diff(expected, result); diff != "" {
+	if diff := cmp.Diff(want, got); diff != "" {
 		require.Fail(t, "addStableSince() mismatch (-want +got):\n%s", diff)
+	}
+
+	// Test that it doesn't add twice.
+	got = addStableSince(date, got)
+
+	if diff := cmp.Diff(want, got); diff != "" {
+		require.Fail(t, "addStableSince() mismatch (-want +got):\n%s", diff, "addStableSince() should not add twice")
 	}
 }
 

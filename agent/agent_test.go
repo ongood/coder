@@ -19,6 +19,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -614,12 +615,12 @@ func TestAgent_Session_TTY_MOTD_Update(t *testing.T) {
 			// Set new banner func and wait for the agent to call it to update the
 			// banner.
 			ready := make(chan struct{}, 2)
-			client.SetServiceBannerFunc(func() (codersdk.ServiceBannerConfig, error) {
+			client.SetAnnouncementBannersFunc(func() ([]codersdk.BannerConfig, error) {
 				select {
 				case ready <- struct{}{}:
 				default:
 				}
-				return test.banner, nil
+				return []codersdk.BannerConfig{test.banner}, nil
 			})
 			<-ready
 			<-ready // Wait for two updates to ensure the value has propagated.
@@ -968,6 +969,99 @@ func TestAgent_SCP(t *testing.T) {
 	require.NoError(t, err)
 	_, err = os.Stat(tempFile)
 	require.NoError(t, err)
+}
+
+func TestAgent_FileTransferBlocked(t *testing.T) {
+	t.Parallel()
+
+	assertFileTransferBlocked := func(t *testing.T, errorMessage string) {
+		// NOTE: Checking content of the error message is flaky. Most likely there is a race condition, which results
+		// in stopping the client in different phases, and returning different errors:
+		// - client read the full error message: File transfer has been disabled.
+		// - client's stream was terminated before reading the error message: EOF
+		// - client just read the error code (Windows): Process exited with status 65
+		isErr := strings.Contains(errorMessage, agentssh.BlockedFileTransferErrorMessage) ||
+			strings.Contains(errorMessage, "EOF") ||
+			strings.Contains(errorMessage, "Process exited with status 65")
+		require.True(t, isErr, fmt.Sprintf("Message: "+errorMessage))
+	}
+
+	t.Run("SFTP", func(t *testing.T) {
+		t.Parallel()
+
+		ctx, cancel := context.WithTimeout(context.Background(), testutil.WaitLong)
+		defer cancel()
+
+		//nolint:dogsled
+		conn, _, _, _, _ := setupAgent(t, agentsdk.Manifest{}, 0, func(_ *agenttest.Client, o *agent.Options) {
+			o.BlockFileTransfer = true
+		})
+		sshClient, err := conn.SSHClient(ctx)
+		require.NoError(t, err)
+		defer sshClient.Close()
+		_, err = sftp.NewClient(sshClient)
+		require.Error(t, err)
+		assertFileTransferBlocked(t, err.Error())
+	})
+
+	t.Run("SCP with go-scp package", func(t *testing.T) {
+		t.Parallel()
+
+		ctx, cancel := context.WithTimeout(context.Background(), testutil.WaitLong)
+		defer cancel()
+
+		//nolint:dogsled
+		conn, _, _, _, _ := setupAgent(t, agentsdk.Manifest{}, 0, func(_ *agenttest.Client, o *agent.Options) {
+			o.BlockFileTransfer = true
+		})
+		sshClient, err := conn.SSHClient(ctx)
+		require.NoError(t, err)
+		defer sshClient.Close()
+		scpClient, err := scp.NewClientBySSH(sshClient)
+		require.NoError(t, err)
+		defer scpClient.Close()
+		tempFile := filepath.Join(t.TempDir(), "scp")
+		err = scpClient.CopyFile(context.Background(), strings.NewReader("hello world"), tempFile, "0755")
+		require.Error(t, err)
+		assertFileTransferBlocked(t, err.Error())
+	})
+
+	t.Run("Forbidden commands", func(t *testing.T) {
+		t.Parallel()
+
+		for _, c := range agentssh.BlockedFileTransferCommands {
+			t.Run(c, func(t *testing.T) {
+				t.Parallel()
+
+				ctx, cancel := context.WithTimeout(context.Background(), testutil.WaitLong)
+				defer cancel()
+
+				//nolint:dogsled
+				conn, _, _, _, _ := setupAgent(t, agentsdk.Manifest{}, 0, func(_ *agenttest.Client, o *agent.Options) {
+					o.BlockFileTransfer = true
+				})
+				sshClient, err := conn.SSHClient(ctx)
+				require.NoError(t, err)
+				defer sshClient.Close()
+
+				session, err := sshClient.NewSession()
+				require.NoError(t, err)
+				defer session.Close()
+
+				stdout, err := session.StdoutPipe()
+				require.NoError(t, err)
+
+				//nolint:govet // we don't need `c := c` in Go 1.22
+				err = session.Start(c)
+				require.NoError(t, err)
+				defer session.Close()
+
+				msg, err := io.ReadAll(stdout)
+				require.NoError(t, err)
+				assertFileTransferBlocked(t, string(msg))
+			})
+		}
+	})
 }
 
 func TestAgent_EnvironmentVariables(t *testing.T) {
@@ -1424,10 +1518,12 @@ func TestAgent_Lifecycle(t *testing.T) {
 			agentsdk.Manifest{
 				DERPMap: derpMap,
 				Scripts: []codersdk.WorkspaceAgentScript{{
+					ID:         uuid.New(),
 					LogPath:    "coder-startup-script.log",
 					Script:     "echo 1",
 					RunOnStart: true,
 				}, {
+					ID:        uuid.New(),
 					LogPath:   "coder-shutdown-script.log",
 					Script:    "echo " + expected,
 					RunOnStop: true,
@@ -1719,20 +1815,45 @@ func TestAgent_Dial(t *testing.T) {
 
 			go func() {
 				defer close(done)
-				c, err := l.Accept()
-				if assert.NoError(t, err, "accept connection") {
-					defer c.Close()
-					testAccept(ctx, t, c)
+				for range 2 {
+					c, err := l.Accept()
+					if assert.NoError(t, err, "accept connection") {
+						testAccept(ctx, t, c)
+						_ = c.Close()
+					}
 				}
 			}()
 
+			agentID := uuid.UUID{0, 0, 0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8}
 			//nolint:dogsled
-			agentConn, _, _, _, _ := setupAgent(t, agentsdk.Manifest{}, 0)
+			agentConn, _, _, _, _ := setupAgent(t, agentsdk.Manifest{
+				AgentID: agentID,
+			}, 0)
 			require.True(t, agentConn.AwaitReachable(ctx))
 			conn, err := agentConn.DialContext(ctx, l.Addr().Network(), l.Addr().String())
 			require.NoError(t, err)
-			defer conn.Close()
 			testDial(ctx, t, conn)
+			err = conn.Close()
+			require.NoError(t, err)
+
+			// also connect via the CoderServicePrefix, to test that we can reach the agent on this
+			// IP. This will be required for CoderVPN.
+			_, rawPort, _ := net.SplitHostPort(l.Addr().String())
+			port, _ := strconv.ParseUint(rawPort, 10, 16)
+			ipp := netip.AddrPortFrom(tailnet.CoderServicePrefix.AddrFromUUID(agentID), uint16(port))
+
+			switch l.Addr().Network() {
+			case "tcp":
+				conn, err = agentConn.Conn.DialContextTCP(ctx, ipp)
+			case "udp":
+				conn, err = agentConn.Conn.DialContextUDP(ctx, ipp)
+			default:
+				t.Fatalf("unknown network: %s", l.Addr().Network())
+			}
+			require.NoError(t, err)
+			testDial(ctx, t, conn)
+			err = conn.Close()
+			require.NoError(t, err)
 		})
 	}
 }
@@ -1785,7 +1906,7 @@ func TestAgent_UpdatedDERP(t *testing.T) {
 	// Setup a client connection.
 	newClientConn := func(derpMap *tailcfg.DERPMap, name string) *workspacesdk.AgentConn {
 		conn, err := tailnet.NewConn(&tailnet.Options{
-			Addresses: []netip.Prefix{netip.PrefixFrom(tailnet.IP(), 128)},
+			Addresses: []netip.Prefix{tailnet.TailscaleServicePrefix.RandomPrefix()},
 			DERPMap:   derpMap,
 			Logger:    logger.Named(name),
 		})
@@ -1797,13 +1918,13 @@ func TestAgent_UpdatedDERP(t *testing.T) {
 		testCtx, testCtxCancel := context.WithCancel(context.Background())
 		t.Cleanup(testCtxCancel)
 		clientID := uuid.New()
-		coordination := tailnet.NewInMemoryCoordination(
-			testCtx, logger,
-			clientID, agentID,
-			coordinator, conn)
+		ctrl := tailnet.NewSingleDestController(logger, conn, agentID)
+		coordination := ctrl.New(tailnet.NewInMemoryCoordinatorClient(logger, clientID, agentID, coordinator))
 		t.Cleanup(func() {
 			t.Logf("closing coordination %s", name)
-			err := coordination.Close()
+			cctx, ccancel := context.WithTimeout(testCtx, testutil.WaitShort)
+			defer ccancel()
+			err := coordination.Close(cctx)
 			if err != nil {
 				t.Logf("error closing in-memory coordination: %s", err.Error())
 			}
@@ -2193,15 +2314,15 @@ func setupAgentSSHClient(ctx context.Context, t *testing.T) *ssh.Client {
 func setupSSHSession(
 	t *testing.T,
 	manifest agentsdk.Manifest,
-	serviceBanner codersdk.ServiceBannerConfig,
+	banner codersdk.BannerConfig,
 	prepareFS func(fs afero.Fs),
 	opts ...func(*agenttest.Client, *agent.Options),
 ) *ssh.Session {
 	ctx, cancel := context.WithTimeout(context.Background(), testutil.WaitLong)
 	defer cancel()
 	opts = append(opts, func(c *agenttest.Client, o *agent.Options) {
-		c.SetServiceBannerFunc(func() (codersdk.ServiceBannerConfig, error) {
-			return serviceBanner, nil
+		c.SetAnnouncementBannersFunc(func() ([]codersdk.BannerConfig, error) {
+			return []codersdk.BannerConfig{banner}, nil
 		})
 	})
 	//nolint:dogsled
@@ -2275,7 +2396,7 @@ func setupAgent(t *testing.T, metadata agentsdk.Manifest, ptyTimeout time.Durati
 		_ = agnt.Close()
 	})
 	conn, err := tailnet.NewConn(&tailnet.Options{
-		Addresses: []netip.Prefix{netip.PrefixFrom(tailnet.IP(), 128)},
+		Addresses: []netip.Prefix{netip.PrefixFrom(tailnet.TailscaleServicePrefix.RandomAddr(), 128)},
 		DERPMap:   metadata.DERPMap,
 		Logger:    logger.Named("client"),
 	})
@@ -2286,12 +2407,13 @@ func setupAgent(t *testing.T, metadata agentsdk.Manifest, ptyTimeout time.Durati
 	testCtx, testCtxCancel := context.WithCancel(context.Background())
 	t.Cleanup(testCtxCancel)
 	clientID := uuid.New()
-	coordination := tailnet.NewInMemoryCoordination(
-		testCtx, logger,
-		clientID, metadata.AgentID,
-		coordinator, conn)
+	ctrl := tailnet.NewSingleDestController(logger, conn, metadata.AgentID)
+	coordination := ctrl.New(tailnet.NewInMemoryCoordinatorClient(
+		logger, clientID, metadata.AgentID, coordinator))
 	t.Cleanup(func() {
-		err := coordination.Close()
+		cctx, ccancel := context.WithTimeout(testCtx, testutil.WaitShort)
+		defer ccancel()
+		err := coordination.Close(cctx)
 		if err != nil {
 			t.Logf("error closing in-mem coordination: %s", err.Error())
 		}
@@ -2438,17 +2560,17 @@ func TestAgent_Metrics_SSH(t *testing.T) {
 	err = session.Shell()
 	require.NoError(t, err)
 
-	expected := []agentsdk.AgentMetric{
+	expected := []*proto.Stats_Metric{
 		{
 			Name:  "agent_reconnecting_pty_connections_total",
-			Type:  agentsdk.AgentMetricTypeCounter,
+			Type:  proto.Stats_Metric_COUNTER,
 			Value: 0,
 		},
 		{
 			Name:  "agent_sessions_total",
-			Type:  agentsdk.AgentMetricTypeCounter,
+			Type:  proto.Stats_Metric_COUNTER,
 			Value: 1,
-			Labels: []agentsdk.AgentMetricLabel{
+			Labels: []*proto.Stats_Metric_Label{
 				{
 					Name:  "magic_type",
 					Value: "ssh",
@@ -2461,29 +2583,45 @@ func TestAgent_Metrics_SSH(t *testing.T) {
 		},
 		{
 			Name:  "agent_ssh_server_failed_connections_total",
-			Type:  agentsdk.AgentMetricTypeCounter,
+			Type:  proto.Stats_Metric_COUNTER,
 			Value: 0,
 		},
 		{
 			Name:  "agent_ssh_server_sftp_connections_total",
-			Type:  agentsdk.AgentMetricTypeCounter,
+			Type:  proto.Stats_Metric_COUNTER,
 			Value: 0,
 		},
 		{
 			Name:  "agent_ssh_server_sftp_server_errors_total",
-			Type:  agentsdk.AgentMetricTypeCounter,
+			Type:  proto.Stats_Metric_COUNTER,
 			Value: 0,
 		},
 		{
-			Name:  "coderd_agentstats_startup_script_seconds",
-			Type:  agentsdk.AgentMetricTypeGauge,
+			Name:  "coderd_agentstats_currently_reachable_peers",
+			Type:  proto.Stats_Metric_GAUGE,
 			Value: 0,
-			Labels: []agentsdk.AgentMetricLabel{
+			Labels: []*proto.Stats_Metric_Label{
 				{
-					Name:  "success",
-					Value: "true",
+					Name:  "connection_type",
+					Value: "derp",
 				},
 			},
+		},
+		{
+			Name:  "coderd_agentstats_currently_reachable_peers",
+			Type:  proto.Stats_Metric_GAUGE,
+			Value: 1,
+			Labels: []*proto.Stats_Metric_Label{
+				{
+					Name:  "connection_type",
+					Value: "p2p",
+				},
+			},
+		},
+		{
+			Name:  "coderd_agentstats_startup_script_seconds",
+			Type:  proto.Stats_Metric_GAUGE,
+			Value: 1,
 		},
 	}
 
@@ -2493,17 +2631,33 @@ func TestAgent_Metrics_SSH(t *testing.T) {
 		if err != nil {
 			return false
 		}
-
-		if len(expected) != len(actual) {
-			return false
+		count := 0
+		for _, m := range actual {
+			count += len(m.GetMetric())
 		}
-
-		return verifyCollectedMetrics(t, expected, actual)
+		return count == len(expected)
 	}, testutil.WaitLong, testutil.IntervalFast)
 
-	require.Len(t, actual, len(expected))
-	collected := verifyCollectedMetrics(t, expected, actual)
-	require.True(t, collected, "expected metrics were not collected")
+	i := 0
+	for _, mf := range actual {
+		for _, m := range mf.GetMetric() {
+			assert.Equal(t, expected[i].Name, mf.GetName())
+			assert.Equal(t, expected[i].Type.String(), mf.GetType().String())
+			// Value is max expected
+			if expected[i].Type == proto.Stats_Metric_GAUGE {
+				assert.GreaterOrEqualf(t, expected[i].Value, m.GetGauge().GetValue(), "expected %s to be greater than or equal to %f, got %f", expected[i].Name, expected[i].Value, m.GetGauge().GetValue())
+			} else if expected[i].Type == proto.Stats_Metric_COUNTER {
+				assert.GreaterOrEqualf(t, expected[i].Value, m.GetCounter().GetValue(), "expected %s to be greater than or equal to %f, got %f", expected[i].Name, expected[i].Value, m.GetCounter().GetValue())
+			}
+			for j, lbl := range expected[i].Labels {
+				assert.Equal(t, m.GetLabel()[j], &promgo.LabelPair{
+					Name:  &lbl.Name,
+					Value: &lbl.Value,
+				})
+			}
+			i++
+		}
+	}
 
 	_ = stdin.Close()
 	err = session.Wait()
@@ -2733,28 +2887,6 @@ func TestAgent_ManageProcessPriority(t *testing.T) {
 			return strings.Contains(buf.String(), "process priority not enabled")
 		}, testutil.WaitLong, testutil.IntervalFast)
 	})
-}
-
-func verifyCollectedMetrics(t *testing.T, expected []agentsdk.AgentMetric, actual []*promgo.MetricFamily) bool {
-	t.Helper()
-
-	for i, e := range expected {
-		assert.Equal(t, e.Name, actual[i].GetName())
-		assert.Equal(t, string(e.Type), strings.ToLower(actual[i].GetType().String()))
-
-		for _, m := range actual[i].GetMetric() {
-			assert.Equal(t, e.Value, m.Counter.GetValue())
-
-			if len(m.GetLabel()) > 0 {
-				for j, lbl := range m.GetLabel() {
-					assert.Equal(t, e.Labels[j].Name, lbl.GetName())
-					assert.Equal(t, e.Labels[j].Value, lbl.GetValue())
-				}
-			}
-			m.GetLabel()
-		}
-	}
-	return true
 }
 
 type syncWriter struct {

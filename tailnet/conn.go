@@ -15,11 +15,14 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/google/uuid"
 	"golang.org/x/xerrors"
+	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 	"gvisor.dev/gvisor/pkg/tcpip"
 	"gvisor.dev/gvisor/pkg/tcpip/adapters/gonet"
 	"tailscale.com/envknob"
 	"tailscale.com/ipn/ipnstate"
 	"tailscale.com/net/connstats"
+	"tailscale.com/net/dns"
 	"tailscale.com/net/netmon"
 	"tailscale.com/net/netns"
 	"tailscale.com/net/tsdial"
@@ -29,6 +32,7 @@ import (
 	"tailscale.com/types/key"
 	tslogger "tailscale.com/types/logger"
 	"tailscale.com/types/netlogtype"
+	"tailscale.com/types/netmap"
 	"tailscale.com/wgengine"
 	"tailscale.com/wgengine/capture"
 	"tailscale.com/wgengine/magicsock"
@@ -96,6 +100,25 @@ type Options struct {
 	// CaptureHook is a callback that captures Disco packets and packets sent
 	// into the tailnet tunnel.
 	CaptureHook capture.Callback
+	// ForceNetworkUp forces the network to be considered up. magicsock will not
+	// do anything if it thinks it can't reach the internet.
+	ForceNetworkUp bool
+	// Network Telemetry Client Type: CLI | Agent | coderd
+	ClientType proto.TelemetryEvent_ClientType
+	// TelemetrySink is optional.
+	TelemetrySink TelemetrySink
+	// DNSConfigurator is optional, and is passed to the underlying wireguard
+	// engine.
+	DNSConfigurator dns.OSConfigurator
+	// Router is optional, and is passed to the underlying wireguard engine.
+	Router router.Router
+}
+
+// TelemetrySink allows tailnet.Conn to send network telemetry to the Coder
+// server.
+type TelemetrySink interface {
+	// SendTelemetryEvent sends a telemetry event to some external sink.
+	SendTelemetryEvent(event *proto.TelemetryEvent)
 }
 
 // NodeID creates a Tailscale NodeID from the last 8 bytes of a UUID. It ensures
@@ -117,6 +140,15 @@ func NewConn(options *Options) (conn *Conn, err error) {
 	}
 	if len(options.Addresses) == 0 {
 		return nil, xerrors.New("At least one IP range must be provided")
+	}
+
+	var telemetryStore *TelemetryStore
+	if options.TelemetrySink != nil {
+		var err error
+		telemetryStore, err = newTelemetryStore()
+		if err != nil {
+			return nil, xerrors.Errorf("create telemetry store: %w", err)
+		}
 	}
 
 	nodePrivateKey := key.NewNode()
@@ -152,6 +184,8 @@ func NewConn(options *Options) (conn *Conn, err error) {
 		Dialer:       dialer,
 		ListenPort:   options.ListenPort,
 		SetSubsystem: sys.Set,
+		DNS:          options.DNSConfigurator,
+		Router:       options.Router,
 	})
 	if err != nil {
 		return nil, xerrors.Errorf("create wgengine: %w", err)
@@ -174,6 +208,9 @@ func NewConn(options *Options) (conn *Conn, err error) {
 	magicConn.SetBlockEndpoints(options.BlockEndpoints)
 	if options.DERPHeader != nil {
 		magicConn.SetDERPHeader(options.DERPHeader.Clone())
+	}
+	if options.ForceNetworkUp {
+		magicConn.SetNetworkUp(true)
 	}
 
 	if v, ok := os.LookupEnv(EnvMagicsockDebugLogging); ok {
@@ -234,11 +271,10 @@ func NewConn(options *Options) (conn *Conn, err error) {
 	)
 	nodeUp.setAddresses(options.Addresses)
 	nodeUp.setBlockEndpoints(options.BlockEndpoints)
-	wireguardEngine.SetStatusCallback(nodeUp.setStatus)
-	wireguardEngine.SetNetInfoCallback(nodeUp.setNetInfo)
-	magicConn.SetDERPForcedWebsocketCallback(nodeUp.setDERPForcedWebsocket)
 
+	ctx, ctxCancel := context.WithCancel(context.Background())
 	server := &Conn{
+		id:               uuid.New(),
 		closed:           make(chan struct{}),
 		logger:           options.Logger,
 		magicConn:        magicConn,
@@ -253,12 +289,41 @@ func NewConn(options *Options) (conn *Conn, err error) {
 		wireguardEngine: wireguardEngine,
 		configMaps:      cfgMaps,
 		nodeUpdater:     nodeUp,
+		telemetrySink:   options.TelemetrySink,
+		telemetryStore:  telemetryStore,
+		createdAt:       time.Now(),
+		watchCtx:        ctx,
+		watchCancel:     ctxCancel,
 	}
 	defer func() {
 		if err != nil {
 			_ = server.Close()
 		}
 	}()
+	if server.telemetryStore != nil {
+		server.wireguardEngine.SetNetInfoCallback(func(ni *tailcfg.NetInfo) {
+			server.mutex.Lock()
+			server.lastNetInfo = ni.Clone()
+			server.mutex.Unlock()
+			server.telemetryStore.setNetInfo(ni)
+			nodeUp.setNetInfo(ni)
+			server.telemetryStore.pingPeer(server)
+		})
+		server.wireguardEngine.AddNetworkMapCallback(func(nm *netmap.NetworkMap) {
+			server.telemetryStore.updateNetworkMap(nm)
+			server.telemetryStore.pingPeer(server)
+		})
+		go server.watchConnChange()
+	} else {
+		server.wireguardEngine.SetNetInfoCallback(func(ni *tailcfg.NetInfo) {
+			server.mutex.Lock()
+			server.lastNetInfo = ni.Clone()
+			server.mutex.Unlock()
+			nodeUp.setNetInfo(ni)
+		})
+	}
+	server.wireguardEngine.SetStatusCallback(nodeUp.setStatus)
+	server.magicConn.SetDERPForcedWebsocketCallback(nodeUp.setDERPForcedWebsocket)
 
 	netStack.GetTCPHandlerForFlow = server.forwardTCP
 
@@ -270,32 +335,54 @@ func NewConn(options *Options) (conn *Conn, err error) {
 	return server, nil
 }
 
-func maskUUID(uid uuid.UUID) uuid.UUID {
-	// This is Tailscale's ephemeral service prefix. This can be changed easily
-	// later-on, because all of our nodes are ephemeral.
-	// fd7a:115c:a1e0
-	uid[0] = 0xfd
-	uid[1] = 0x7a
-	uid[2] = 0x11
-	uid[3] = 0x5c
-	uid[4] = 0xa1
-	uid[5] = 0xe0
+type ServicePrefix [6]byte
+
+var (
+	// TailscaleServicePrefix is the IPv6 prefix for all tailnet nodes since it was first added to
+	// Coder.  It is identical to the service prefix Tailscale.com uses. With the introduction of
+	// CoderVPN, we would like to stop using the Tailscale prefix so that we don't conflict with
+	// Tailscale if both are installed at the same time. However, there are a large number of agents
+	// and clients using this prefix, so we need to carefully manage deprecation and eventual
+	// removal.
+	// fd7a:115c:a1e0:://48
+	TailscaleServicePrefix ServicePrefix = [6]byte{0xfd, 0x7a, 0x11, 0x5c, 0xa1, 0xe0}
+	// CoderServicePrefix is the Coder-specific IPv6 prefix for tailnet nodes, which we are in the
+	// process of migrating to. It allows Coder to run alongside Tailscale without conflicts even
+	// if both are set up as TUN interfaces into the OS (e.g. CoderVPN).
+	// fd60:627a:a42b::/48
+	CoderServicePrefix ServicePrefix = [6]byte{0xfd, 0x60, 0x62, 0x7a, 0xa4, 0x2b}
+)
+
+// maskUUID returns a new UUID with the first 6 bytes changed to the ServicePrefix
+func (p ServicePrefix) maskUUID(uid uuid.UUID) uuid.UUID {
+	copy(uid[:], p[:])
 	return uid
 }
 
-// IP generates a random IP with a static service prefix.
-func IP() netip.Addr {
-	uid := maskUUID(uuid.New())
-	return netip.AddrFrom16(uid)
+// RandomAddr returns a random IP address in the service prefix.
+func (p ServicePrefix) RandomAddr() netip.Addr {
+	return netip.AddrFrom16(p.maskUUID(uuid.New()))
 }
 
-// IP generates a new IP from a UUID.
-func IPFromUUID(uid uuid.UUID) netip.Addr {
-	return netip.AddrFrom16(maskUUID(uid))
+// AddrFromUUID returns an IPv6 address corresponding to the given UUID in the service prefix.
+func (p ServicePrefix) AddrFromUUID(uid uuid.UUID) netip.Addr {
+	return netip.AddrFrom16(p.maskUUID(uid))
+}
+
+// PrefixFromUUID returns a single IPv6 /128 prefix corresponding to the given UUID.
+func (p ServicePrefix) PrefixFromUUID(uid uuid.UUID) netip.Prefix {
+	return netip.PrefixFrom(p.AddrFromUUID(uid), 128)
+}
+
+// RandomPrefix returns a single IPv6 /128 prefix within the service prefix.
+func (p ServicePrefix) RandomPrefix() netip.Prefix {
+	return netip.PrefixFrom(p.RandomAddr(), 128)
 }
 
 // Conn is an actively listening Wireguard connection.
 type Conn struct {
+	// Unique ID used for telemetry.
+	id     uuid.UUID
 	mutex  sync.Mutex
 	closed chan struct{}
 	logger slog.Logger
@@ -310,8 +397,25 @@ type Conn struct {
 	wireguardRouter  *router.Config
 	wireguardEngine  wgengine.Engine
 	listeners        map[listenKey]*listener
+	clientType       proto.TelemetryEvent_ClientType
+	createdAt        time.Time
+
+	telemetrySink TelemetrySink
+	// telemetryStore will be nil if telemetrySink is nil.
+	telemetryStore *TelemetryStore
+	telemetryWg    sync.WaitGroup
+
+	watchCtx    context.Context
+	watchCancel func()
 
 	trafficStats *connstats.Statistics
+	lastNetInfo  *tailcfg.NetInfo
+}
+
+func (c *Conn) GetNetInfo() *tailcfg.NetInfo {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	return c.lastNetInfo.Clone()
 }
 
 func (c *Conn) SetTunnelDestination(id uuid.UUID) {
@@ -344,7 +448,9 @@ func (c *Conn) SetNodeCallback(callback func(node *Node)) {
 
 // SetDERPMap updates the DERPMap of a connection.
 func (c *Conn) SetDERPMap(derpMap *tailcfg.DERPMap) {
-	c.configMaps.setDERPMap(derpMap)
+	if c.configMaps.setDERPMap(derpMap) && c.telemetryStore != nil {
+		c.telemetryStore.updateDerpMap(derpMap)
+	}
 }
 
 func (c *Conn) SetDERPForceWebSockets(v bool) {
@@ -393,7 +499,11 @@ func (c *Conn) Status() *ipnstate.Status {
 // Ping sends a ping to the Wireguard engine.
 // The bool returned is true if the ping was performed P2P.
 func (c *Conn) Ping(ctx context.Context, ip netip.Addr) (time.Duration, bool, *ipnstate.PingResult, error) {
-	return c.pingWithType(ctx, ip, tailcfg.PingDisco)
+	dur, p2p, pr, err := c.pingWithType(ctx, ip, tailcfg.PingDisco)
+	if err == nil {
+		c.sendPingTelemetry(pr)
+	}
+	return dur, p2p, pr, err
 }
 
 func (c *Conn) pingWithType(ctx context.Context, ip netip.Addr, pt tailcfg.PingType) (time.Duration, bool, *ipnstate.PingResult, error) {
@@ -488,6 +598,7 @@ func (c *Conn) Closed() <-chan struct{} {
 // Close shuts down the Wireguard connection.
 func (c *Conn) Close() error {
 	c.logger.Info(context.Background(), "closing tailnet Conn")
+	c.watchCancel()
 	c.configMaps.close()
 	c.nodeUpdater.close()
 	c.mutex.Lock()
@@ -498,6 +609,7 @@ func (c *Conn) Close() error {
 	default:
 	}
 	close(c.closed)
+	c.telemetryWg.Wait()
 	c.mutex.Unlock()
 
 	var wg sync.WaitGroup
@@ -656,6 +768,105 @@ func (c *Conn) MagicsockServeHTTPDebug(w http.ResponseWriter, r *http.Request) {
 	c.magicConn.ServeHTTPDebug(w, r)
 }
 
+// SendConnectedTelemetry should be called when connection to a peer with the given IP is established.
+func (c *Conn) SendConnectedTelemetry(ip netip.Addr, application string) {
+	if c.telemetrySink == nil {
+		return
+	}
+	c.telemetryStore.markConnected(&ip, application)
+	e := c.newTelemetryEvent()
+	e.Status = proto.TelemetryEvent_CONNECTED
+	e.ConnectionSetup = durationpb.New(time.Since(c.createdAt))
+	c.sendTelemetryBackground(e)
+}
+
+func (c *Conn) SendDisconnectedTelemetry() {
+	if c.telemetrySink == nil {
+		return
+	}
+	e := c.newTelemetryEvent()
+	e.Status = proto.TelemetryEvent_DISCONNECTED
+	c.sendTelemetryBackground(e)
+}
+
+func (c *Conn) SendSpeedtestTelemetry(throughputMbits float64) {
+	if c.telemetrySink == nil {
+		return
+	}
+	e := c.newTelemetryEvent()
+	e.ThroughputMbits = wrapperspb.Float(float32(throughputMbits))
+	e.Status = proto.TelemetryEvent_CONNECTED
+	c.sendTelemetryBackground(e)
+}
+
+// nolint:revive
+func (c *Conn) sendPingTelemetry(pr *ipnstate.PingResult) {
+	if c.telemetrySink == nil {
+		return
+	}
+	e := c.newTelemetryEvent()
+
+	latency := durationpb.New(time.Duration(pr.LatencySeconds * float64(time.Second)))
+	if pr.Endpoint != "" {
+		e.P2PLatency = latency
+		e.P2PEndpoint = c.telemetryStore.toEndpoint(pr.Endpoint)
+	} else {
+		e.DerpLatency = latency
+	}
+	e.Status = proto.TelemetryEvent_CONNECTED
+	c.sendTelemetryBackground(e)
+}
+
+// The returned telemetry event will not have it's status set.
+func (c *Conn) newTelemetryEvent() *proto.TelemetryEvent {
+	event := c.telemetryStore.newEvent()
+	event.ClientType = c.clientType
+	event.Id = c.id[:]
+	event.ConnectionAge = durationpb.New(time.Since(c.createdAt))
+	return event
+}
+
+func (c *Conn) sendTelemetryBackground(e *proto.TelemetryEvent) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	select {
+	case <-c.closed:
+		return
+	default:
+	}
+	c.telemetryWg.Add(1)
+	go func() {
+		defer c.telemetryWg.Done()
+		c.telemetrySink.SendTelemetryEvent(e)
+	}()
+}
+
+// Watch for changes in the connection type (P2P<->DERP) and send telemetry events.
+func (c *Conn) watchConnChange() {
+	ticker := time.NewTicker(time.Millisecond * 50)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-c.watchCtx.Done():
+			return
+		case <-ticker.C:
+		}
+		status := c.Status()
+		peers := status.Peers()
+		if len(peers) > 1 {
+			// Not a CLI<->agent connection, stop watching
+			return
+		} else if len(peers) == 0 {
+			continue
+		}
+		peer := status.Peer[peers[0]]
+		// If the connection type has changed, send a telemetry event with the latest ping stats
+		if c.telemetryStore.changedConntype(peer.CurAddr) {
+			c.telemetryStore.pingPeer(c)
+		}
+	}
+}
+
 // PeerDiagnostics is a checklist of human-readable conditions necessary to establish an encrypted
 // tunnel to a peer via a Conn
 type PeerDiagnostics struct {
@@ -678,6 +889,10 @@ func (c *Conn) GetPeerDiagnostics(peerID uuid.UUID) PeerDiagnostics {
 	c.nodeUpdater.fillPeerDiagnostics(&d)
 	c.configMaps.fillPeerDiagnostics(&d, peerID)
 	return d
+}
+
+func (c *Conn) GetKnownPeerIDs() []uuid.UUID {
+	return c.configMaps.knownPeerIDs()
 }
 
 type listenKey struct {
@@ -724,8 +939,12 @@ type addr struct{ ln *listener }
 func (a addr) Network() string { return a.ln.key.network }
 func (a addr) String() string  { return a.ln.addr }
 
-// Logger converts the Tailscale logging function to use slog.
-func Logger(logger slog.Logger) tslogger.Logf {
+// Logger converts the Tailscale logging function to use a slog-compatible
+// logger.
+func Logger(logger interface {
+	Debug(ctx context.Context, str string, args ...any)
+},
+) tslogger.Logf {
 	return tslogger.Logf(func(format string, args ...any) {
 		slog.Helper()
 		logger.Debug(context.Background(), fmt.Sprintf(format, args...))

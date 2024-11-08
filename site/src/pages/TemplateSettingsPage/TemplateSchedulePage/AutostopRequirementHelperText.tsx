@@ -1,70 +1,77 @@
-import type { FC } from "react";
 import type { Template } from "api/typesGenerated";
+import type { FC } from "react";
 import type { TemplateAutostopRequirementDaysValue } from "utils/schedule";
 
 const autostopRequirementDescriptions = {
-  off: "工作区不需要定期停止。",
-  daily:
-    "工作区需要每天在用户静默的时间和时区自动停止。",
-  saturday:
-    "工作区需要在用户的静默时间和时区中指定的每周六自动停止。",
-  sunday:
-    "工作区需要在用户的静默时间和时区中指定的每周日自动停止。",
+	off: "Workspaces are not required to stop periodically.",
+	daily:
+		"Workspaces are required to be automatically stopped daily in the user's quiet hours and timezone.",
+	saturday:
+		"Workspaces are required to be automatically stopped every Saturday in the user's quiet hours and timezone.",
+	sunday:
+		"Workspaces are required to be automatically stopped every Sunday in the user's quiet hours and timezone.",
 };
 
 export const convertAutostopRequirementDaysValue = (
-  days: Template["autostop_requirement"]["days_of_week"],
+	days: Template["autostop_requirement"]["days_of_week"],
 ): TemplateAutostopRequirementDaysValue => {
-  if (days.length === 7) {
-    return "daily";
-  } else if (days.length === 1 && days[0] === "saturday") {
-    return "saturday";
-  } else if (days.length === 1 && days[0] === "sunday") {
-    return "sunday";
-  }
+	if (days.length === 7) {
+		return "daily";
+	}
 
-  // On unsupported values we default to "off".
-  return "off";
+	if (days.length === 1 && days[0] === "saturday") {
+		return "saturday";
+	}
+
+	if (days.length === 1 && days[0] === "sunday") {
+		return "sunday";
+	}
+
+	// On unsupported values we default to "off".
+	return "off";
 };
 
 interface AutostopRequirementDaysHelperTextProps {
-  days: TemplateAutostopRequirementDaysValue;
+	days: TemplateAutostopRequirementDaysValue;
 }
 
 export const AutostopRequirementDaysHelperText: FC<
-  AutostopRequirementDaysHelperTextProps
+	AutostopRequirementDaysHelperTextProps
 > = ({ days = "off" }) => {
-  return <span>{autostopRequirementDescriptions[days]}</span>;
+	return <span>{autostopRequirementDescriptions[days]}</span>;
 };
 
 interface AutostopRequirementWeeksHelperTextProps {
-  days: TemplateAutostopRequirementDaysValue;
-  weeks: number;
+	days: TemplateAutostopRequirementDaysValue;
+	weeks: number;
 }
 
 export const AutostopRequirementWeeksHelperText: FC<
-  AutostopRequirementWeeksHelperTextProps
+	AutostopRequirementWeeksHelperTextProps
 > = ({ days, weeks }) => {
-  // Disabled
-  if (days !== "saturday" && days !== "sunday") {
-    return (
-      <span>
-        除非必须停止的日期是周六或周日，否则不能设置自动停止间隔周数。
-      </span>
-    );
-  }
+	// Disabled
+	if (days !== "saturday" && days !== "sunday") {
+		return (
+			<span>
+				Weeks between required stops cannot be set unless days between required
+				stops is Saturday or Sunday.
+			</span>
+		);
+	}
 
-  if (weeks <= 1) {
-    return (
-      <span>
-        工作区需要在用户的静默时间和时区中指定的每周特定日期自动停止。
-      </span>
-    );
-  }
+	if (weeks <= 1) {
+		return (
+			<span>
+				Workspaces are required to be automatically stopped every week on the
+				specified day in the user&apos;s quiet hours and timezone.
+			</span>
+		);
+	}
 
-  return (
-    <span>
-      工作区需要在用户的静默时间和时区中指定的每{weeks}周的特定日期自动停止。
-    </span>
-  );
+	return (
+		<span>
+			Workspaces are required to be automatically stopped every {weeks} weeks on
+			the specified day in the user&apos;s quiet hours and timezone.
+		</span>
+	);
 };

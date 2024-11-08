@@ -57,9 +57,6 @@ done
 # Check dependencies.
 dependencies gh sort
 
-# Authticate gh CLI
-gh_auth
-
 if [[ -z ${old_version} ]]; then
 	error "No old version specified"
 fi
@@ -147,7 +144,6 @@ for commit in "${commits[@]}"; do
 		title="${title} (${commit})"
 	fi
 	line="- ${title}"
-	line=${line//) (/, )}
 	if [[ -v COMMIT_METADATA_AUTHORS[${commit}] ]]; then
 		line+=" (${COMMIT_METADATA_AUTHORS[${commit}]})"
 	fi
@@ -183,7 +179,7 @@ stable_since=
 if ((mainline)); then
 	blurb="
 > [!NOTE]
-> This is a mainline Coder release. We advise enterprise customers without a staging environment to install our [latest stable release](https://github.com/coder/coder/releases/latest) while we refine this version. Learn more about our [Release Schedule](https://coder.com/docs/v2/latest/install/releases).
+> This is a mainline Coder release. We advise enterprise customers without a staging environment to install our [latest stable release](https://github.com/coder/coder/releases/latest) while we refine this version. Learn more about our [Release Schedule](https://coder.com/docs/install/releases).
 "
 else
 	# Date format: April 23, 2024
@@ -202,5 +198,5 @@ Compare: [\`${old_version}...${new_version}\`](https://github.com/coder/coder/co
 
 ## Install/upgrade
 
-Refer to our docs to [install](https://coder.com/docs/v2/latest/install) or [upgrade](https://coder.com/docs/v2/latest/admin/upgrade) Coder, or use a release asset below.
+Refer to our docs to [install](https://coder.com/docs/install) or [upgrade](https://coder.com/docs/install/upgrade) Coder, or use a release asset below.
 "

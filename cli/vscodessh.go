@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -110,7 +111,7 @@ func (r *RootCmd) vscodeSSH() *serpent.Command {
 			// will call this command after the workspace is started.
 			autostart := false
 
-			_, workspaceAgent, err := getWorkspaceAndAgent(ctx, inv, client, autostart, fmt.Sprintf("%s/%s", owner, name))
+			workspace, workspaceAgent, err := getWorkspaceAndAgent(ctx, inv, client, autostart, fmt.Sprintf("%s/%s", owner, name))
 			if err != nil {
 				return xerrors.Errorf("find workspace and agent: %w", err)
 			}
@@ -133,10 +134,20 @@ func (r *RootCmd) vscodeSSH() *serpent.Command {
 				return xerrors.Errorf("unknown wait value %q", waitEnum)
 			}
 
+			appearanceCfg, err := client.Appearance(ctx)
+			if err != nil {
+				var sdkErr *codersdk.Error
+				if !(xerrors.As(err, &sdkErr) && sdkErr.StatusCode() == http.StatusNotFound) {
+					return xerrors.Errorf("get appearance config: %w", err)
+				}
+				appearanceCfg.DocsURL = codersdk.DefaultDocsURL()
+			}
+
 			err = cliui.Agent(ctx, inv.Stderr, workspaceAgent.ID, cliui.AgentOptions{
 				Fetch:     client.WorkspaceAgent,
 				FetchLogs: client.WorkspaceAgentLogsAfter,
 				Wait:      wait,
+				DocsURL:   appearanceCfg.DocsURL,
 			})
 			if err != nil {
 				if xerrors.Is(err, context.Canceled) {
@@ -151,7 +162,11 @@ func (r *RootCmd) vscodeSSH() *serpent.Command {
 			// command via the ProxyCommand SSH option.
 			pid := os.Getppid()
 
-			logger := inv.Logger
+			// Use a stripped down writer that doesn't sync, otherwise you get
+			// "failed to sync sloghuman: sync /dev/stderr: The handle is
+			// invalid" on Windows. Syncing isn't required for stdout/stderr
+			// anyways.
+			logger := inv.Logger.AppendSinks(sloghuman.Sink(slogWriter{w: inv.Stderr})).Leveled(slog.LevelDebug)
 			if logDir != "" {
 				logFilePath := filepath.Join(logDir, fmt.Sprintf("%d.log", pid))
 				logFile, err := fs.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY, 0o600)
@@ -160,7 +175,7 @@ func (r *RootCmd) vscodeSSH() *serpent.Command {
 				}
 				dc := cliutil.DiscardAfterClose(logFile)
 				defer dc.Close()
-				logger = logger.AppendSinks(sloghuman.Sink(dc)).Leveled(slog.LevelDebug)
+				logger = logger.AppendSinks(sloghuman.Sink(dc))
 			}
 			if r.disableDirect {
 				logger.Info(ctx, "direct connections disabled")
@@ -176,6 +191,13 @@ func (r *RootCmd) vscodeSSH() *serpent.Command {
 			defer agentConn.Close()
 
 			agentConn.AwaitReachable(ctx)
+
+			closeUsage := client.UpdateWorkspaceUsageWithBodyContext(ctx, workspace.ID, codersdk.PostWorkspaceUsageRequest{
+				AgentID: workspaceAgent.ID,
+				AppName: codersdk.UsageAppNameVscode,
+			})
+			defer closeUsage()
+
 			rawSSH, err := agentConn.SSH(ctx)
 			if err != nil {
 				return err
@@ -197,31 +219,48 @@ func (r *RootCmd) vscodeSSH() *serpent.Command {
 			// command via the ProxyCommand SSH option.
 			networkInfoFilePath := filepath.Join(networkInfoDir, fmt.Sprintf("%d.json", pid))
 
-			statsErrChan := make(chan error, 1)
+			var (
+				firstErrTime time.Time
+				errCh        = make(chan error, 1)
+			)
 			cb := func(start, end time.Time, virtual, _ map[netlogtype.Connection]netlogtype.Counts) {
-				sendErr := func(err error) {
+				sendErr := func(tolerate bool, err error) {
+					logger.Error(ctx, "collect network stats", slog.Error(err))
+					// Tolerate up to 1 minute of errors.
+					if tolerate {
+						if firstErrTime.IsZero() {
+							logger.Info(ctx, "tolerating network stats errors for up to 1 minute")
+							firstErrTime = time.Now()
+						}
+						if time.Since(firstErrTime) < time.Minute {
+							return
+						}
+					}
+
 					select {
-					case statsErrChan <- err:
+					case errCh <- err:
 					default:
 					}
 				}
 
 				stats, err := collectNetworkStats(ctx, agentConn, start, end, virtual)
 				if err != nil {
-					sendErr(err)
+					sendErr(true, err)
 					return
 				}
 
 				rawStats, err := json.Marshal(stats)
 				if err != nil {
-					sendErr(err)
+					sendErr(false, err)
 					return
 				}
 				err = afero.WriteFile(fs, networkInfoFilePath, rawStats, 0o600)
 				if err != nil {
-					sendErr(err)
+					sendErr(false, err)
 					return
 				}
+
+				firstErrTime = time.Time{}
 			}
 
 			now := time.Now()
@@ -231,7 +270,7 @@ func (r *RootCmd) vscodeSSH() *serpent.Command {
 			select {
 			case <-ctx.Done():
 				return nil
-			case err := <-statsErrChan:
+			case err := <-errCh:
 				return err
 			}
 		},
@@ -271,6 +310,18 @@ func (r *RootCmd) vscodeSSH() *serpent.Command {
 		},
 	}
 	return cmd
+}
+
+// slogWriter wraps an io.Writer and removes all other methods (such as Sync),
+// which may cause undesired/broken behavior.
+type slogWriter struct {
+	w io.Writer
+}
+
+var _ io.Writer = slogWriter{}
+
+func (s slogWriter) Write(p []byte) (n int, err error) {
+	return s.w.Write(p)
 }
 
 type sshNetworkStats struct {

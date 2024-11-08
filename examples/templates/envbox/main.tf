@@ -24,7 +24,6 @@ data "coder_parameter" "home_disk" {
 
 variable "use_kubeconfig" {
   type        = bool
-  sensitive   = true
   default     = true
   description = <<-EOF
   Use host kubeconfig? (true/false)
@@ -40,13 +39,11 @@ provider "coder" {
 
 variable "namespace" {
   type        = string
-  sensitive   = true
   description = "The namespace to create workspaces in (must exist prior to creating workspaces)"
 }
 
 variable "create_tun" {
   type        = bool
-  sensitive   = true
   description = "Add a TUN device to the workspace."
   default     = false
 }
@@ -54,32 +51,27 @@ variable "create_tun" {
 variable "create_fuse" {
   type        = bool
   description = "Add a FUSE device to the workspace."
-  sensitive   = true
   default     = false
 }
 
 variable "max_cpus" {
   type        = string
-  sensitive   = true
   description = "Max number of CPUs the workspace may use (e.g. 2)."
 }
 
 variable "min_cpus" {
   type        = string
-  sensitive   = true
   description = "Minimum number of CPUs the workspace may use (e.g. .1)."
 }
 
 variable "max_memory" {
   type        = string
   description = "Maximum amount of memory to allocate the workspace (in GB)."
-  sensitive   = true
 }
 
 variable "min_memory" {
   type        = string
   description = "Minimum amount of memory to allocate the workspace (in GB)."
-  sensitive   = true
 }
 
 provider "kubernetes" {
@@ -88,6 +80,7 @@ provider "kubernetes" {
 }
 
 data "coder_workspace" "me" {}
+data "coder_workspace_owner" "me" {}
 
 resource "coder_agent" "main" {
   os             = "linux"
@@ -101,9 +94,13 @@ resource "coder_agent" "main" {
     if [ ! -f ~/.bashrc ]; then
       cp /etc/skel/.bashrc $HOME
     fi
-    # install and start code-server
-    curl -fsSL https://code-server.dev/install.sh | sh -s -- --version 4.8.3 | tee code-server-install.log
-    code-server --auth none --port 13337 | tee code-server-install.log &
+
+    # Install the latest code-server.
+    # Append "--version x.x.x" to install a specific version of code-server.
+    curl -fsSL https://code-server.dev/install.sh | sh -s -- --method=standalone --prefix=/tmp/code-server
+
+    # Start code-server in the background.
+    /tmp/code-server/bin/code-server --auth none --port 13337 >/tmp/code-server.log 2>&1 &
   EOT
 }
 
@@ -126,7 +123,7 @@ resource "coder_app" "code-server" {
 
 resource "kubernetes_persistent_volume_claim" "home" {
   metadata {
-    name      = "coder-${lower(data.coder_workspace.me.owner)}-${lower(data.coder_workspace.me.name)}-home"
+    name      = "coder-${lower(data.coder_workspace_owner.me.name)}-${lower(data.coder_workspace.me.name)}-home"
     namespace = var.namespace
   }
   wait_until_bound = false
@@ -144,7 +141,7 @@ resource "kubernetes_pod" "main" {
   count = data.coder_workspace.me.start_count
 
   metadata {
-    name      = "coder-${lower(data.coder_workspace.me.owner)}-${lower(data.coder_workspace.me.name)}"
+    name      = "coder-${lower(data.coder_workspace_owner.me.name)}-${lower(data.coder_workspace.me.name)}"
     namespace = var.namespace
   }
 
@@ -152,7 +149,8 @@ resource "kubernetes_pod" "main" {
     restart_policy = "Never"
 
     container {
-      name              = "dev"
+      name = "dev"
+      # We highly recommend pinning this to a specific release of envbox, as the latest tag may change.
       image             = "ghcr.io/coder/envbox:latest"
       image_pull_policy = "Always"
       command           = ["/envbox", "docker"]
@@ -185,7 +183,7 @@ resource "kubernetes_pod" "main" {
 
       env {
         name  = "CODER_INNER_IMAGE"
-        value = "index.docker.io/codercom/enterprise-base@sha256:069e84783d134841cbb5007a16d9025b6aed67bc5b95eecc118eb96dccd6de68"
+        value = "index.docker.io/codercom/enterprise-base:ubuntu-20240812"
       }
 
       env {

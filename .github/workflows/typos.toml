@@ -14,8 +14,16 @@ darcula = "darcula"
 Hashi = "Hashi"
 trialer = "trialer"
 encrypter = "encrypter"
-hel = "hel"             # as in helsinki
-pn = "pn"               # this is used as proto node
+# as in helsinki
+hel = "hel"
+# this is used as proto node
+pn = "pn"
+# typos doesn't like the EDE in TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA
+EDE = "EDE"
+# HELO is an SMTP command
+HELO = "HELO"
+LKE = "LKE"
+byt = "byt"
 
 [files]
 extend-exclude = [
@@ -33,4 +41,7 @@ extend-exclude = [
 	"**/pnpm-lock.yaml",
 	"tailnet/testdata/**",
 	"site/src/pages/SetupPage/countries.tsx",
+	"provisioner/terraform/testdata/**",
+	# notifications' golden files confuse the detector because of quoted-printable encoding
+	"coderd/notifications/testdata/**"
 ]

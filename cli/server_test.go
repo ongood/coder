@@ -45,10 +45,12 @@ import (
 	"github.com/coder/coder/v2/cli/config"
 	"github.com/coder/coder/v2/coderd/coderdtest"
 	"github.com/coder/coder/v2/coderd/database/dbtestutil"
+	"github.com/coder/coder/v2/coderd/httpapi"
 	"github.com/coder/coder/v2/coderd/telemetry"
 	"github.com/coder/coder/v2/codersdk"
 	"github.com/coder/coder/v2/cryptorand"
 	"github.com/coder/coder/v2/pty/ptytest"
+	"github.com/coder/coder/v2/tailnet/tailnettest"
 	"github.com/coder/coder/v2/testutil"
 )
 
@@ -219,7 +221,8 @@ func TestServer(t *testing.T) {
 		_ = waitAccessURL(t, cfg)
 
 		pty.ExpectMatch("this may cause unexpected problems when creating workspaces")
-		pty.ExpectMatch("View the Web UI: http://localhost:3000/")
+		pty.ExpectMatch("View the Web UI:")
+		pty.ExpectMatch("http://localhost:3000/")
 	})
 
 	// Validate that an https scheme is prepended to a remote access URL
@@ -242,7 +245,8 @@ func TestServer(t *testing.T) {
 		_ = waitAccessURL(t, cfg)
 
 		pty.ExpectMatch("this may cause unexpected problems when creating workspaces")
-		pty.ExpectMatch("View the Web UI: https://foobarbaz.mydomain")
+		pty.ExpectMatch("View the Web UI:")
+		pty.ExpectMatch("https://foobarbaz.mydomain")
 	})
 
 	t.Run("NoWarningWithRemoteAccessURL", func(t *testing.T) {
@@ -260,7 +264,8 @@ func TestServer(t *testing.T) {
 		// Just wait for startup
 		_ = waitAccessURL(t, cfg)
 
-		pty.ExpectMatch("View the Web UI: https://google.com")
+		pty.ExpectMatch("View the Web UI:")
+		pty.ExpectMatch("https://google.com")
 	})
 
 	t.Run("NoSchemeAccessURL", func(t *testing.T) {
@@ -967,26 +972,32 @@ func TestServer(t *testing.T) {
 				assert.NoError(t, err)
 				// nolint:bodyclose
 				res, err = http.DefaultClient.Do(req)
-				return err == nil
-			}, testutil.WaitShort, testutil.IntervalFast)
-			defer res.Body.Close()
+				if err != nil {
+					return false
+				}
+				defer res.Body.Close()
 
-			scanner := bufio.NewScanner(res.Body)
-			hasActiveUsers := false
-			for scanner.Scan() {
-				// This metric is manually registered to be tracked in the server. That's
-				// why we test it's tracked here.
-				if strings.HasPrefix(scanner.Text(), "coderd_api_active_users_duration_hour") {
-					hasActiveUsers = true
-					continue
+				scanner := bufio.NewScanner(res.Body)
+				hasActiveUsers := false
+				for scanner.Scan() {
+					// This metric is manually registered to be tracked in the server. That's
+					// why we test it's tracked here.
+					if strings.HasPrefix(scanner.Text(), "coderd_api_active_users_duration_hour") {
+						hasActiveUsers = true
+						continue
+					}
+					if strings.HasPrefix(scanner.Text(), "coderd_db_query_latencies_seconds") {
+						t.Fatal("db metrics should not be tracked when --prometheus-collect-db-metrics is not enabled")
+					}
+					t.Logf("scanned %s", scanner.Text())
 				}
-				if strings.HasPrefix(scanner.Text(), "coderd_db_query_latencies_seconds") {
-					t.Fatal("db metrics should not be tracked when --prometheus-collect-db-metrics is not enabled")
+				if scanner.Err() != nil {
+					t.Logf("scanner err: %s", scanner.Err().Error())
+					return false
 				}
-				t.Logf("scanned %s", scanner.Text())
-			}
-			require.NoError(t, scanner.Err())
-			require.True(t, hasActiveUsers)
+
+				return hasActiveUsers
+			}, testutil.WaitShort, testutil.IntervalFast, "didn't find coderd_api_active_users_duration_hour in time")
 		})
 
 		t.Run("DBMetricsEnabled", func(t *testing.T) {
@@ -1017,20 +1028,25 @@ func TestServer(t *testing.T) {
 				assert.NoError(t, err)
 				// nolint:bodyclose
 				res, err = http.DefaultClient.Do(req)
-				return err == nil
-			}, testutil.WaitShort, testutil.IntervalFast)
-			defer res.Body.Close()
-
-			scanner := bufio.NewScanner(res.Body)
-			hasDBMetrics := false
-			for scanner.Scan() {
-				if strings.HasPrefix(scanner.Text(), "coderd_db_query_latencies_seconds") {
-					hasDBMetrics = true
+				if err != nil {
+					return false
 				}
-				t.Logf("scanned %s", scanner.Text())
-			}
-			require.NoError(t, scanner.Err())
-			require.True(t, hasDBMetrics)
+				defer res.Body.Close()
+
+				scanner := bufio.NewScanner(res.Body)
+				hasDBMetrics := false
+				for scanner.Scan() {
+					if strings.HasPrefix(scanner.Text(), "coderd_db_query_latencies_seconds") {
+						hasDBMetrics = true
+					}
+					t.Logf("scanned %s", scanner.Text())
+				}
+				if scanner.Err() != nil {
+					t.Logf("scanner err: %s", scanner.Err().Error())
+					return false
+				}
+				return hasDBMetrics
+			}, testutil.WaitShort, testutil.IntervalFast, "didn't find coderd_db_query_latencies_seconds in time")
 		})
 	})
 	t.Run("GitHubOAuth", func(t *testing.T) {
@@ -1347,7 +1363,7 @@ func TestServer(t *testing.T) {
 			}
 			return lastStat.Size() > 0
 		},
-			testutil.WaitShort,
+			dur, //nolint:gocritic
 			testutil.IntervalFast,
 			"file at %s should exist, last stat: %+v",
 			fiName, lastStat,
@@ -1367,7 +1383,8 @@ func TestServer(t *testing.T) {
 				"--in-memory",
 				"--http-address", ":0",
 				"--access-url", "http://example.com",
-				"--provisioner-daemons-echo",
+				"--provisioner-daemons=3",
+				"--provisioner-types=echo",
 				"--log-human", fiName,
 			)
 			clitest.Start(t, root)
@@ -1385,7 +1402,8 @@ func TestServer(t *testing.T) {
 				"--in-memory",
 				"--http-address", ":0",
 				"--access-url", "http://example.com",
-				"--provisioner-daemons-echo",
+				"--provisioner-daemons=3",
+				"--provisioner-types=echo",
 				"--log-human", fi,
 			)
 			clitest.Start(t, root)
@@ -1403,7 +1421,8 @@ func TestServer(t *testing.T) {
 				"--in-memory",
 				"--http-address", ":0",
 				"--access-url", "http://example.com",
-				"--provisioner-daemons-echo",
+				"--provisioner-daemons=3",
+				"--provisioner-types=echo",
 				"--log-json", fi,
 			)
 			clitest.Start(t, root)
@@ -1424,7 +1443,8 @@ func TestServer(t *testing.T) {
 				"--in-memory",
 				"--http-address", ":0",
 				"--access-url", "http://example.com",
-				"--provisioner-daemons-echo",
+				"--provisioner-daemons=3",
+				"--provisioner-types=echo",
 				"--log-stackdriver", fi,
 			)
 			// Attach pty so we get debug output from the command if this test
@@ -1459,7 +1479,8 @@ func TestServer(t *testing.T) {
 				"--in-memory",
 				"--http-address", ":0",
 				"--access-url", "http://example.com",
-				"--provisioner-daemons-echo",
+				"--provisioner-daemons=3",
+				"--provisioner-types=echo",
 				"--log-human", fi1,
 				"--log-json", fi2,
 				"--log-stackdriver", fi3,
@@ -1577,9 +1598,8 @@ func TestServer_Production(t *testing.T) {
 		// Skip on non-Linux because it spawns a PostgreSQL instance.
 		t.SkipNow()
 	}
-	connectionURL, closeFunc, err := dbtestutil.Open()
+	connectionURL, err := dbtestutil.Open(t)
 	require.NoError(t, err)
-	defer closeFunc()
 
 	// Postgres + race detector + CI = slow.
 	ctx, cancelFunc := context.WithTimeout(context.Background(), testutil.WaitSuperLong*3)
@@ -1782,9 +1802,8 @@ func TestConnectToPostgres(t *testing.T) {
 
 	log := slogtest.Make(t, nil)
 
-	dbURL, closeFunc, err := dbtestutil.Open()
+	dbURL, err := dbtestutil.Open(t)
 	require.NoError(t, err)
-	t.Cleanup(closeFunc)
 
 	sqlDB, err := cli.ConnectToPostgres(ctx, log, "postgres", dbURL)
 	require.NoError(t, err)
@@ -1816,6 +1835,12 @@ func TestServer_InvalidDERP(t *testing.T) {
 func TestServer_DisabledDERP(t *testing.T) {
 	t.Parallel()
 
+	derpMap, _ := tailnettest.RunDERPAndSTUN(t)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		httpapi.Write(context.Background(), w, http.StatusOK, derpMap)
+	}))
+	t.Cleanup(srv.Close)
+
 	ctx, cancelFunc := context.WithTimeout(context.Background(), testutil.WaitShort)
 	defer cancelFunc()
 
@@ -1827,7 +1852,7 @@ func TestServer_DisabledDERP(t *testing.T) {
 		"--http-address", ":0",
 		"--access-url", "http://example.com",
 		"--derp-server-enable=false",
-		"--derp-config-url", "https://controlplane.tailscale.com/derpmap/default",
+		"--derp-config-url", srv.URL,
 	)
 	clitest.Start(t, inv.WithContext(ctx))
 	accessURL := waitAccessURL(t, cfg)

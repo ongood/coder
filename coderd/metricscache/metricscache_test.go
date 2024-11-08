@@ -32,7 +32,7 @@ func TestCache_TemplateWorkspaceOwners(t *testing.T) {
 		db    = dbmem.New()
 		cache = metricscache.New(db, slogtest.Make(t, nil), metricscache.Intervals{
 			TemplateBuildTimes: testutil.IntervalFast,
-		})
+		}, false)
 	)
 
 	defer cache.Close()
@@ -49,7 +49,7 @@ func TestCache_TemplateWorkspaceOwners(t *testing.T) {
 		"TemplateWorkspaceOwners never populated 0 owners",
 	)
 
-	dbgen.Workspace(t, db, database.Workspace{
+	dbgen.Workspace(t, db, database.WorkspaceTable{
 		TemplateID: template.ID,
 		OwnerID:    user1.ID,
 	})
@@ -61,7 +61,7 @@ func TestCache_TemplateWorkspaceOwners(t *testing.T) {
 		"TemplateWorkspaceOwners never populated 1 owner",
 	)
 
-	workspace2 := dbgen.Workspace(t, db, database.Workspace{
+	workspace2 := dbgen.Workspace(t, db, database.WorkspaceTable{
 		TemplateID: template.ID,
 		OwnerID:    user2.ID,
 	})
@@ -74,7 +74,7 @@ func TestCache_TemplateWorkspaceOwners(t *testing.T) {
 	)
 
 	// 3rd workspace should not be counted since we have the same owner as workspace2.
-	dbgen.Workspace(t, db, database.Workspace{
+	dbgen.Workspace(t, db, database.WorkspaceTable{
 		TemplateID: template.ID,
 		OwnerID:    user1.ID,
 	})
@@ -150,7 +150,7 @@ func TestCache_BuildTime(t *testing.T) {
 					},
 				},
 				transition: database.WorkspaceTransitionStop,
-			}, want{50 * 1000, true},
+			}, want{30 * 1000, true},
 		},
 		{
 			"three/delete", args{
@@ -183,7 +183,7 @@ func TestCache_BuildTime(t *testing.T) {
 				db    = dbmem.New()
 				cache = metricscache.New(db, slogtest.Make(t, nil), metricscache.Intervals{
 					TemplateBuildTimes: testutil.IntervalFast,
-				})
+				}, false)
 			)
 
 			defer cache.Close()
@@ -278,7 +278,7 @@ func TestCache_DeploymentStats(t *testing.T) {
 	db := dbmem.New()
 	cache := metricscache.New(db, slogtest.Make(t, nil), metricscache.Intervals{
 		DeploymentStats: testutil.IntervalFast,
-	})
+	}, false)
 	defer cache.Close()
 
 	err := db.InsertWorkspaceAgentStats(context.Background(), database.InsertWorkspaceAgentStatsParams{
@@ -300,6 +300,7 @@ func TestCache_DeploymentStats(t *testing.T) {
 		SessionCountReconnectingPTY: []int64{0},
 		SessionCountSSH:             []int64{0},
 		ConnectionMedianLatencyMS:   []float64{10},
+		Usage:                       []bool{false},
 	})
 	require.NoError(t, err)
 

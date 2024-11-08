@@ -216,7 +216,7 @@ To run a Coder server:
   # Or just run the server directly
   $ coder server
 
-  Configuring Coder: https://coder.com/docs/v2/latest/admin/configure
+  Configuring Coder: https://coder.com/docs/admin/setup
 
 To connect to a Coder deployment:
 
@@ -240,9 +240,9 @@ There is another binary in your PATH that conflicts with the binary we've instal
 
   $1
 
-This is likely because of an existing installation of Coder. See our documentation for suggestions on how to resolve this.
+This is likely because of an existing installation of Coder in your \$PATH.
 
-  https://coder.com/docs/v2/latest/install/install.sh#path-conflicts
+Run \`which -a coder\` to view all installations.
 
 EOF
 }
@@ -250,7 +250,7 @@ EOF
 main() {
 	MAINLINE=1
 	STABLE=0
-	TERRAFORM_VERSION="1.6.6"
+	TERRAFORM_VERSION="1.9.8"
 
 	if [ "${TRACE-}" ]; then
 		set -x
@@ -363,7 +363,7 @@ main() {
 	if [ "${RSH_ARGS-}" ]; then
 		RSH="${RSH-ssh}"
 		echoh "Installing remotely with $RSH $RSH_ARGS"
-		curl -fsSL https://coder.dev/install.sh | prefix "$RSH_ARGS" "$RSH" "$RSH_ARGS" sh -s -- "$ALL_FLAGS"
+		curl -fsSL https://coder.com/install.sh | prefix "$RSH_ARGS" "$RSH" "$RSH_ARGS" sh -s -- "$ALL_FLAGS"
 		return
 	fi
 
@@ -372,14 +372,6 @@ main() {
 	OS=${OS:-$(os)}
 	ARCH=${ARCH:-$(arch)}
 	TERRAFORM_ARCH=${TERRAFORM_ARCH:-$(terraform_arch)}
-
-	# We can't reasonably support installing specific versions of Coder through
-	# Homebrew, so if we're on macOS and the `--version` flag was set, we should
-	# "detect" standalone to be the appropriate installation method. This check
-	# needs to occur before we set `VERSION` to a default of the latest release.
-	if [ "$OS" = "darwin" ] && [ "${VERSION-}" ]; then
-		METHOD=standalone
-	fi
 
 	# If we've been provided a flag which is specific to the standalone installation
 	# method, we should "detect" standalone to be the appropriate installation method.
@@ -393,6 +385,15 @@ main() {
 		echoerr "Unknown install method \"$METHOD\""
 		echoerr "Run with --help to see usage."
 		exit 1
+	fi
+
+	# We can't reasonably support installing specific versions of Coder through
+	# Homebrew, so if we're on macOS and the `--version` flag or the `--stable`
+	# flag (our tap follows mainline) was set, we should "detect" standalone to
+	# be the appropriate installation method. This check needs to occur before we
+	# set `VERSION` to a default of the latest release.
+	if [ "$OS" = "darwin" ] && { [ "${VERSION-}" ] || [ "${STABLE}" = 1 ]; }; then
+		METHOD=standalone
 	fi
 
 	# These are used by the various install_* functions that make use of GitHub

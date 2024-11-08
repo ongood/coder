@@ -5,6 +5,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -14,6 +17,7 @@ import (
 	"tailscale.com/ipn/ipnstate"
 
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/coder/coder/v2/agent"
@@ -49,7 +53,7 @@ func TestSupportBundle(t *testing.T) {
 			DeploymentValues: dc.Values,
 		})
 		owner := coderdtest.CreateFirstUser(t, client)
-		r := dbfake.WorkspaceBuild(t, db, database.Workspace{
+		r := dbfake.WorkspaceBuild(t, db, database.WorkspaceTable{
 			OrganizationID: owner.OrganizationID,
 			OwnerID:        owner.UserID,
 		}).WithAgent(func(agents []*proto.Agent) []*proto.Agent {
@@ -128,7 +132,7 @@ func TestSupportBundle(t *testing.T) {
 			DeploymentValues: dc.Values,
 		})
 		admin := coderdtest.CreateFirstUser(t, client)
-		r := dbfake.WorkspaceBuild(t, db, database.Workspace{
+		r := dbfake.WorkspaceBuild(t, db, database.WorkspaceTable{
 			OrganizationID: admin.OrganizationID,
 			OwnerID:        admin.UserID,
 		}).Do() // without agent!
@@ -147,7 +151,7 @@ func TestSupportBundle(t *testing.T) {
 		client, db := coderdtest.NewWithDatabase(t, nil)
 		user := coderdtest.CreateFirstUser(t, client)
 		memberClient, member := coderdtest.CreateAnotherUser(t, client, user.OrganizationID)
-		r := dbfake.WorkspaceBuild(t, db, database.Workspace{
+		r := dbfake.WorkspaceBuild(t, db, database.WorkspaceTable{
 			OrganizationID: user.OrganizationID,
 			OwnerID:        member.ID,
 		}).WithAgent().Do()
@@ -155,6 +159,53 @@ func TestSupportBundle(t *testing.T) {
 		clitest.SetupConfig(t, memberClient, root)
 		err := inv.Run()
 		require.ErrorContains(t, err, "failed authorization check")
+	})
+
+	// This ensures that the CLI does not panic when trying to generate a support bundle
+	// against a fake server that returns an empty response for all requests. This essentially
+	// ensures that (almost) all of the support bundle generating code paths get a zero value.
+	t.Run("DontPanic", func(t *testing.T) {
+		t.Parallel()
+
+		for _, code := range []int{
+			http.StatusOK,
+			http.StatusUnauthorized,
+			http.StatusForbidden,
+			http.StatusNotFound,
+			http.StatusInternalServerError,
+		} {
+			t.Run(http.StatusText(code), func(t *testing.T) {
+				t.Parallel()
+				// Start up a fake server
+				srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					t.Logf("received request: %s %s", r.Method, r.URL)
+					switch r.URL.Path {
+					case "/api/v2/authcheck":
+						// Fake auth check
+						resp := codersdk.AuthorizationResponse{
+							"Read DeploymentValues": true,
+						}
+						w.WriteHeader(http.StatusOK)
+						assert.NoError(t, json.NewEncoder(w).Encode(resp))
+					default:
+						// Simply return a blank response for everything else.
+						w.WriteHeader(code)
+					}
+				}))
+				defer srv.Close()
+				u, err := url.Parse(srv.URL)
+				require.NoError(t, err)
+				client := codersdk.New(u)
+
+				d := t.TempDir()
+				path := filepath.Join(d, "bundle.zip")
+
+				inv, root := clitest.New(t, "support", "bundle", "--url-override", srv.URL, "--output-file", path, "--yes")
+				clitest.SetupConfig(t, client, root)
+				err = inv.Run()
+				require.NoError(t, err)
+			})
+		}
 	})
 }
 
@@ -197,6 +248,10 @@ func assertBundleContents(t *testing.T, path string, wantWorkspace bool, wantAge
 			var v derphealth.Report
 			decodeJSONFromZip(t, f, &v)
 			require.NotEmpty(t, v, "netcheck should not be empty")
+		case "network/interfaces.json":
+			var v healthsdk.InterfacesReport
+			decodeJSONFromZip(t, f, &v)
+			require.NotEmpty(t, v, "interfaces should not be empty")
 		case "workspace/workspace.json":
 			var v codersdk.Workspace
 			decodeJSONFromZip(t, f, &v)

@@ -50,6 +50,26 @@ type Table map[string]map[string]Action
 var AuditableResources = auditMap(auditableResourcesTypes)
 
 var auditableResourcesTypes = map[any]map[string]Action{
+	&database.AuditableOrganizationMember{}: {
+		"username":        ActionTrack,
+		"user_id":         ActionTrack,
+		"organization_id": ActionIgnore, // Never changes.
+		"created_at":      ActionTrack,
+		"updated_at":      ActionTrack,
+		"roles":           ActionTrack,
+	},
+	&database.CustomRole{}: {
+		"name":             ActionTrack,
+		"display_name":     ActionTrack,
+		"site_permissions": ActionTrack,
+		"org_permissions":  ActionTrack,
+		"user_permissions": ActionTrack,
+		"organization_id":  ActionIgnore, // Never changes.
+
+		"id":         ActionIgnore,
+		"created_at": ActionIgnore,
+		"updated_at": ActionIgnore,
+	},
 	&database.GitSSHKey{}: {
 		"user_id":     ActionTrack,
 		"created_at":  ActionIgnore, // Never changes, but is implicit and not helpful in a diff.
@@ -62,6 +82,9 @@ var auditableResourcesTypes = map[any]map[string]Action{
 		"created_at":                        ActionIgnore, // Never changes, but is implicit and not helpful in a diff.
 		"updated_at":                        ActionIgnore, // Changes, but is implicit and not helpful in a diff.
 		"organization_id":                   ActionIgnore, /// Never changes.
+		"organization_name":                 ActionIgnore, // Ignore these changes
+		"organization_display_name":         ActionIgnore, // Ignore these changes
+		"organization_icon":                 ActionIgnore, // Ignore these changes
 		"deleted":                           ActionIgnore, // Changes, but is implicit when a delete event is fired.
 		"name":                              ActionTrack,
 		"display_name":                      ActionTrack,
@@ -106,23 +129,26 @@ var auditableResourcesTypes = map[any]map[string]Action{
 		"archived":                ActionTrack,
 	},
 	&database.User{}: {
-		"id":                   ActionTrack,
-		"email":                ActionTrack,
-		"username":             ActionTrack,
-		"hashed_password":      ActionSecret, // Do not expose a users hashed password.
-		"created_at":           ActionIgnore, // Never changes.
-		"updated_at":           ActionIgnore, // Changes, but is implicit and not helpful in a diff.
-		"status":               ActionTrack,
-		"rbac_roles":           ActionTrack,
-		"login_type":           ActionTrack,
-		"avatar_url":           ActionIgnore,
-		"last_seen_at":         ActionIgnore,
-		"deleted":              ActionTrack,
-		"quiet_hours_schedule": ActionTrack,
-		"theme_preference":     ActionIgnore,
-		"name":                 ActionTrack,
+		"id":                           ActionTrack,
+		"email":                        ActionTrack,
+		"username":                     ActionTrack,
+		"hashed_password":              ActionSecret, // Do not expose a users hashed password.
+		"created_at":                   ActionIgnore, // Never changes.
+		"updated_at":                   ActionIgnore, // Changes, but is implicit and not helpful in a diff.
+		"status":                       ActionTrack,
+		"rbac_roles":                   ActionTrack,
+		"login_type":                   ActionTrack,
+		"avatar_url":                   ActionIgnore,
+		"last_seen_at":                 ActionIgnore,
+		"deleted":                      ActionTrack,
+		"quiet_hours_schedule":         ActionTrack,
+		"theme_preference":             ActionIgnore,
+		"name":                         ActionTrack,
+		"github_com_user_id":           ActionIgnore,
+		"hashed_one_time_passcode":     ActionIgnore,
+		"one_time_passcode_expires_at": ActionTrack,
 	},
-	&database.Workspace{}: {
+	&database.WorkspaceTable{}: {
 		"id":                 ActionTrack,
 		"created_at":         ActionIgnore, // Never changes.
 		"updated_at":         ActionIgnore, // Changes, but is implicit and not helpful in a diff.
@@ -192,6 +218,10 @@ var auditableResourcesTypes = map[any]map[string]Action{
 		"id":                     ActionIgnore,
 		"dismissed_healthchecks": ActionTrack,
 	},
+	&database.NotificationsSettings{}: {
+		"id":              ActionIgnore,
+		"notifier_paused": ActionTrack,
+	},
 	// TODO: track an ID here when the below ticket is completed:
 	// https://github.com/coder/coder/pull/6012
 	&database.License{}: {
@@ -233,6 +263,26 @@ var auditableResourcesTypes = map[any]map[string]Action{
 		"display_secret": ActionIgnore,
 		"app_id":         ActionIgnore,
 		"secret_prefix":  ActionIgnore,
+	},
+	&database.Organization{}: {
+		"id":           ActionIgnore,
+		"name":         ActionTrack,
+		"description":  ActionTrack,
+		"created_at":   ActionIgnore,
+		"updated_at":   ActionTrack,
+		"is_default":   ActionTrack,
+		"display_name": ActionTrack,
+		"icon":         ActionTrack,
+	},
+	&database.NotificationTemplate{}: {
+		"id":             ActionIgnore,
+		"name":           ActionTrack,
+		"title_template": ActionTrack,
+		"body_template":  ActionTrack,
+		"actions":        ActionTrack,
+		"group":          ActionTrack,
+		"method":         ActionTrack,
+		"kind":           ActionTrack,
 	},
 }
 

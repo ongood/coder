@@ -10,30 +10,23 @@ type Fetcher interface {
 	Fetch(ctx context.Context) (codersdk.AppearanceConfig, error)
 }
 
-var DefaultSupportLinks = []codersdk.LinkConfig{
-	{
-		Name:   "文档",
-		Target: "https://coder.com/docs/coder-oss",
-		Icon:   "docs",
-	},
-	{
-		Name:   "报告 BUG",
-		Target: "https://github.com/coder/coder/issues/new?labels=needs+grooming&body={CODER_BUILD_INFO}",
-		Icon:   "bug",
-	},
-	{
-		Name:   "加入讨论组",
-		Target: "https://coder.com/chat?utm_source=coder&utm_medium=coder&utm_campaign=server-footer",
-		Icon:   "chat",
-	},
+type AGPLFetcher struct {
+	docsURL string
 }
 
-type AGPLFetcher struct{}
-
-func (AGPLFetcher) Fetch(context.Context) (codersdk.AppearanceConfig, error) {
+func (f AGPLFetcher) Fetch(context.Context) (codersdk.AppearanceConfig, error) {
 	return codersdk.AppearanceConfig{
-		SupportLinks: DefaultSupportLinks,
+		AnnouncementBanners: []codersdk.BannerConfig{},
+		SupportLinks:        codersdk.DefaultSupportLinks(f.docsURL),
+		DocsURL:             f.docsURL,
 	}, nil
 }
 
-var DefaultFetcher Fetcher = AGPLFetcher{}
+func NewDefaultFetcher(docsURL string) Fetcher {
+	if docsURL == "" {
+		docsURL = codersdk.DefaultDocsURL()
+	}
+	return &AGPLFetcher{
+		docsURL: docsURL,
+	}
+}

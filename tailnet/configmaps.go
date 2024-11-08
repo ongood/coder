@@ -9,7 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/benbjohnson/clock"
 	"github.com/google/uuid"
 	"go4.org/netipx"
 	"tailscale.com/ipn/ipnstate"
@@ -26,6 +25,7 @@ import (
 
 	"cdr.dev/slog"
 	"github.com/coder/coder/v2/tailnet/proto"
+	"github.com/coder/quartz"
 )
 
 const lostTimeout = 15 * time.Minute
@@ -70,7 +70,7 @@ type configMaps struct {
 	blockEndpoints bool
 
 	// for testing
-	clock clock.Clock
+	clock quartz.Clock
 }
 
 func newConfigMaps(logger slog.Logger, engine engineConfigurable, nodeID tailcfg.NodeID, nodeKey key.NodePrivate, discoKey key.DiscoPublic) *configMaps {
@@ -116,7 +116,7 @@ func newConfigMaps(logger slog.Logger, engine engineConfigurable, nodeID tailcfg
 			}},
 		},
 		peers: make(map[uuid.UUID]*peerLifecycle),
-		clock: clock.New(),
+		clock: quartz.NewReal(),
 	}
 	go c.configLoop()
 	return c
@@ -147,14 +147,14 @@ func (c *configMaps) configLoop() {
 		if c.derpMapDirty {
 			derpMap := c.derpMapLocked()
 			actions = append(actions, func() {
-				c.logger.Info(context.Background(), "updating engine DERP map", slog.F("derp_map", (*derpMapStringer)(derpMap)))
+				c.logger.Debug(context.Background(), "updating engine DERP map", slog.F("derp_map", (*derpMapStringer)(derpMap)))
 				c.engine.SetDERPMap(derpMap)
 			})
 		}
 		if c.netmapDirty {
 			nm := c.netMapLocked()
 			actions = append(actions, func() {
-				c.logger.Info(context.Background(), "updating engine network map", slog.F("network_map", nm))
+				c.logger.Debug(context.Background(), "updating engine network map", slog.F("network_map", nm))
 				c.engine.SetNetworkMap(nm)
 				c.reconfig(nm)
 			})
@@ -162,7 +162,7 @@ func (c *configMaps) configLoop() {
 		if c.filterDirty {
 			f := c.filterLocked()
 			actions = append(actions, func() {
-				c.logger.Info(context.Background(), "updating engine filter", slog.F("filter", f))
+				c.logger.Debug(context.Background(), "updating engine filter", slog.F("filter", f))
 				c.engine.SetFilter(f)
 			})
 		}
@@ -239,6 +239,7 @@ func (c *configMaps) setTunnelDestination(id uuid.UUID) {
 		lc = &peerLifecycle{
 			peerID: id,
 		}
+		c.logger.Debug(context.Background(), "setting peer tunnel destination", slog.F("peer_id", id))
 		c.peers[id] = lc
 	}
 	lc.isDestination = true
@@ -283,15 +284,17 @@ func (c *configMaps) getBlockEndpoints() bool {
 
 // setDERPMap sets the DERP map, triggering a configuration of the engine if it has changed.
 // c.L MUST NOT be held.
-func (c *configMaps) setDERPMap(derpMap *tailcfg.DERPMap) {
+// Returns if the derpMap is dirty.
+func (c *configMaps) setDERPMap(derpMap *tailcfg.DERPMap) bool {
 	c.L.Lock()
 	defer c.L.Unlock()
 	if CompareDERPMaps(c.derpMap, derpMap) {
-		return
+		return false
 	}
 	c.derpMap = derpMap
 	c.derpMapDirty = true
 	c.Broadcast()
+	return true
 }
 
 // derMapLocked returns the current DERPMap.  c.L must be held
@@ -498,10 +501,14 @@ func (c *configMaps) setAllPeersLost() {
 		lc.setLostTimer(c)
 		// it's important to drop a log here so that we see it get marked lost if grepping thru
 		// the logs for a specific peer
+		keyID := "(nil node)"
+		if lc.node != nil {
+			keyID = lc.node.Key.ShortString()
+		}
 		c.logger.Debug(context.Background(),
 			"setAllPeersLost marked peer lost",
 			slog.F("peer_id", lc.peerID),
-			slog.F("key_id", lc.node.Key.ShortString()),
+			slog.F("key_id", keyID),
 		)
 	}
 }
@@ -602,6 +609,16 @@ func (c *configMaps) fillPeerDiagnostics(d *PeerDiagnostics, peerID uuid.UUID) {
 	d.LastWireguardHandshake = ps.LastHandshake
 }
 
+func (c *configMaps) knownPeerIDs() []uuid.UUID {
+	c.L.Lock()
+	defer c.L.Unlock()
+	out := make([]uuid.UUID, 0, len(c.peers))
+	for id := range c.peers {
+		out = append(out, id)
+	}
+	return out
+}
+
 func (c *configMaps) peerReadyForHandshakeTimeout(peerID uuid.UUID) {
 	logger := c.logger.With(slog.F("peer_id", peerID))
 	logger.Debug(context.Background(), "peer ready for handshake timeout")
@@ -651,9 +668,9 @@ type peerLifecycle struct {
 	node                   *tailcfg.Node
 	lost                   bool
 	lastHandshake          time.Time
-	lostTimer              *clock.Timer
+	lostTimer              *quartz.Timer
 	readyForHandshake      bool
-	readyForHandshakeTimer *clock.Timer
+	readyForHandshakeTimer *quartz.Timer
 }
 
 func (l *peerLifecycle) resetLostTimer() {

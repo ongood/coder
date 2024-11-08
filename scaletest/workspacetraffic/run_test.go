@@ -71,7 +71,7 @@ func TestRun(t *testing.T) {
 			template = coderdtest.CreateTemplate(t, client, firstUser.OrganizationID, version.ID)
 			_        = coderdtest.AwaitTemplateVersionJobCompleted(t, client, version.ID)
 			// In order to be picked up as a scaletest workspace, the workspace must be named specifically
-			ws = coderdtest.CreateWorkspace(t, client, firstUser.OrganizationID, template.ID, func(cwr *codersdk.CreateWorkspaceRequest) {
+			ws = coderdtest.CreateWorkspace(t, client, template.ID, func(cwr *codersdk.CreateWorkspaceRequest) {
 				cwr.Name = "scaletest-test"
 			})
 			_ = coderdtest.AwaitWorkspaceBuildJobCompleted(t, client, ws.LatestBuild.ID)
@@ -116,7 +116,7 @@ func TestRun(t *testing.T) {
 		go func() {
 			defer close(runDone)
 			err := runner.Run(ctx, "", &logs)
-			assert.NoError(t, err, "unexpected error calling Run()")
+			assert.NoError(t, err, "RUN LOGS:\n%s\nEND RUN LOGS\n", logs.String())
 		}()
 
 		gotMetrics := make(chan struct{})
@@ -190,7 +190,7 @@ func TestRun(t *testing.T) {
 			template = coderdtest.CreateTemplate(t, client, firstUser.OrganizationID, version.ID)
 			_        = coderdtest.AwaitTemplateVersionJobCompleted(t, client, version.ID)
 			// In order to be picked up as a scaletest workspace, the workspace must be named specifically
-			ws = coderdtest.CreateWorkspace(t, client, firstUser.OrganizationID, template.ID, func(cwr *codersdk.CreateWorkspaceRequest) {
+			ws = coderdtest.CreateWorkspace(t, client, template.ID, func(cwr *codersdk.CreateWorkspaceRequest) {
 				cwr.Name = "scaletest-test"
 			})
 			_ = coderdtest.AwaitWorkspaceBuildJobCompleted(t, client, ws.LatestBuild.ID)
@@ -236,7 +236,7 @@ func TestRun(t *testing.T) {
 		go func() {
 			defer close(runDone)
 			err := runner.Run(ctx, "", &logs)
-			assert.NoError(t, err, "unexpected error calling Run()")
+			assert.NoError(t, err, "RUN LOGS:\n%s\nEND RUN LOGS\n", logs.String())
 		}()
 
 		gotMetrics := make(chan struct{})
@@ -338,7 +338,7 @@ func TestRun(t *testing.T) {
 		go func() {
 			defer close(runDone)
 			err := runner.Run(ctx, "", &logs)
-			assert.NoError(t, err, "unexpected error calling Run()")
+			assert.NoError(t, err, "RUN LOGS:\n%s\nEND RUN LOGS\n", logs.String())
 		}()
 
 		gotMetrics := make(chan struct{})

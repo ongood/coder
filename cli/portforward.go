@@ -29,30 +29,31 @@ func (r *RootCmd) portForward() *serpent.Command {
 		tcpForwards      []string // <port>:<port>
 		udpForwards      []string // <port>:<port>
 		disableAutostart bool
+		appearanceConfig codersdk.AppearanceConfig
 	)
 	client := new(codersdk.Client)
 	cmd := &serpent.Command{
 		Use:     "port-forward <workspace>",
 		Short:   `Forward ports from a workspace to the local machine. For reverse port forwarding, use "coder ssh -R".`,
 		Aliases: []string{"tunnel"},
-		Long: formatExamples(
-			example{
+		Long: FormatExamples(
+			Example{
 				Description: "Port forward a single TCP port from 1234 in the workspace to port 5678 on your local machine",
 				Command:     "coder port-forward <workspace> --tcp 5678:1234",
 			},
-			example{
+			Example{
 				Description: "Port forward a single UDP port from port 9000 to port 9000 on your local machine",
 				Command:     "coder port-forward <workspace> --udp 9000",
 			},
-			example{
+			Example{
 				Description: "Port forward multiple TCP ports and a UDP port",
 				Command:     "coder port-forward <workspace> --tcp 8080:8080 --tcp 9000:3000 --udp 5353:53",
 			},
-			example{
+			Example{
 				Description: "Port forward multiple ports (TCP or UDP) in condensed syntax",
 				Command:     "coder port-forward <workspace> --tcp 8080,9000:3000,9090-9092,10000-10002:10010-10012",
 			},
-			example{
+			Example{
 				Description: "Port forward specifying the local address to bind to",
 				Command:     "coder port-forward <workspace> --tcp 1.2.3.4:8080:8080",
 			},
@@ -60,6 +61,7 @@ func (r *RootCmd) portForward() *serpent.Command {
 		Middleware: serpent.Chain(
 			serpent.RequireNArgs(1),
 			r.InitClient(client),
+			initAppearance(client, &appearanceConfig),
 		),
 		Handler: func(inv *serpent.Invocation) error {
 			ctx, cancel := context.WithCancel(inv.Context())
@@ -88,26 +90,29 @@ func (r *RootCmd) portForward() *serpent.Command {
 			}
 
 			err = cliui.Agent(ctx, inv.Stderr, workspaceAgent.ID, cliui.AgentOptions{
-				Fetch: client.WorkspaceAgent,
-				Wait:  false,
+				Fetch:   client.WorkspaceAgent,
+				Wait:    false,
+				DocsURL: appearanceConfig.DocsURL,
 			})
 			if err != nil {
 				return xerrors.Errorf("await agent: %w", err)
 			}
 
+			opts := &workspacesdk.DialAgentOptions{}
+
 			logger := inv.Logger
 			if r.verbose {
-				logger = logger.AppendSinks(sloghuman.Sink(inv.Stdout)).Leveled(slog.LevelDebug)
+				opts.Logger = logger.AppendSinks(sloghuman.Sink(inv.Stdout)).Leveled(slog.LevelDebug)
 			}
 
 			if r.disableDirect {
 				_, _ = fmt.Fprintln(inv.Stderr, "Direct connections disabled.")
+				opts.BlockEndpoints = true
 			}
-			conn, err := workspacesdk.New(client).
-				DialAgent(ctx, workspaceAgent.ID, &workspacesdk.DialAgentOptions{
-					Logger:         logger,
-					BlockEndpoints: r.disableDirect,
-				})
+			if !r.disableNetworkTelemetry {
+				opts.EnableTelemetry = true
+			}
+			conn, err := workspacesdk.New(client).DialAgent(ctx, workspaceAgent.ID, opts)
 			if err != nil {
 				return err
 			}

@@ -1,22 +1,22 @@
-import * as API from "api/api";
+import { API, type InsightsParams, type InsightsTemplateParams } from "api/api";
 
-export const insightsTemplate = (params: API.InsightsTemplateParams) => {
-  return {
-    queryKey: ["insights", "templates", params.template_ids, params],
-    queryFn: () => API.getInsightsTemplate(params),
-  };
+export const insightsTemplate = (params: InsightsTemplateParams) => {
+	return {
+		queryKey: ["insights", "templates", params.template_ids, params],
+		queryFn: () => API.getInsightsTemplate(params),
+	};
 };
 
-export const insightsUserLatency = (params: API.InsightsParams) => {
-  return {
-    queryKey: ["insights", "userLatency", params.template_ids, params],
-    queryFn: () => API.getInsightsUserLatency(params),
-  };
+export const insightsUserLatency = (params: InsightsParams) => {
+	return {
+		queryKey: ["insights", "userLatency", params.template_ids, params],
+		queryFn: () => API.getInsightsUserLatency(params),
+	};
 };
 
-export const insightsUserActivity = (params: API.InsightsParams) => {
-  return {
-    queryKey: ["insights", "userActivity", params.template_ids, params],
-    queryFn: () => API.getInsightsUserActivity(params),
-  };
+export const insightsUserActivity = (params: InsightsParams) => {
+	return {
+		queryKey: ["insights", "userActivity", params.template_ids, params],
+		queryFn: () => API.getInsightsUserActivity(params),
+	};
 };

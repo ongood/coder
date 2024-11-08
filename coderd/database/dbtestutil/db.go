@@ -35,6 +35,7 @@ type options struct {
 	dumpOnFailure bool
 	returnSQLDB   func(*sql.DB)
 	logger        slog.Logger
+	url           string
 }
 
 type Option func(*options)
@@ -56,6 +57,12 @@ func WithDumpOnFailure() Option {
 func WithLogger(logger slog.Logger) Option {
 	return func(o *options) {
 		o.logger = logger
+	}
+}
+
+func WithURL(u string) Option {
+	return func(o *options) {
+		o.url = u
 	}
 }
 
@@ -88,18 +95,17 @@ func NewDB(t testing.TB, opts ...Option) (database.Store, pubsub.Pubsub) {
 		opt(&o)
 	}
 
-	db := dbmem.New()
-	ps := pubsub.NewInMemory()
+	var db database.Store
+	var ps pubsub.Pubsub
 	if WillUsePostgres() {
 		connectionURL := os.Getenv("CODER_PG_CONNECTION_URL")
+		if connectionURL == "" && o.url != "" {
+			connectionURL = o.url
+		}
 		if connectionURL == "" {
-			var (
-				err     error
-				closePg func()
-			)
-			connectionURL, closePg, err = Open()
+			var err error
+			connectionURL, err = Open(t)
 			require.NoError(t, err)
-			t.Cleanup(closePg)
 		}
 
 		if o.fixedTimezone == "" {
@@ -125,13 +131,17 @@ func NewDB(t testing.TB, opts ...Option) (database.Store, pubsub.Pubsub) {
 		if o.dumpOnFailure {
 			t.Cleanup(func() { DumpOnFailure(t, connectionURL) })
 		}
-		db = database.New(sqlDB)
+		// Unit tests should not retry serial transaction failures.
+		db = database.New(sqlDB, database.WithSerialRetryCount(1))
 
 		ps, err = pubsub.New(context.Background(), o.logger, sqlDB, connectionURL)
 		require.NoError(t, err)
 		t.Cleanup(func() {
 			_ = ps.Close()
 		})
+	} else {
+		db = dbmem.New()
+		ps = pubsub.NewInMemory()
 	}
 
 	return db, ps

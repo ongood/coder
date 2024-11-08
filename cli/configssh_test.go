@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -63,9 +64,13 @@ func sshConfigFileRead(t *testing.T, name string) string {
 func TestConfigSSH(t *testing.T) {
 	t.Parallel()
 
+	if runtime.GOOS == "windows" {
+		t.Skip("See coder/internal#117")
+	}
+
 	const hostname = "test-coder."
 	const expectedKey = "ConnectionAttempts"
-	const removeKey = "ConnectionTimeout"
+	const removeKey = "ConnectTimeout"
 	client, db := coderdtest.NewWithDatabase(t, &coderdtest.Options{
 		ConfigSSH: codersdk.SSHConfigResponse{
 			HostnamePrefix: hostname,
@@ -78,7 +83,7 @@ func TestConfigSSH(t *testing.T) {
 	})
 	owner := coderdtest.CreateFirstUser(t, client)
 	member, memberUser := coderdtest.CreateAnotherUser(t, client, owner.OrganizationID)
-	r := dbfake.WorkspaceBuild(t, db, database.Workspace{
+	r := dbfake.WorkspaceBuild(t, db, database.WorkspaceTable{
 		OrganizationID: owner.OrganizationID,
 		OwnerID:        memberUser.ID,
 	}).WithAgent().Do()
@@ -620,6 +625,19 @@ func TestConfigSSH_FileWriteAndOptionsFlow(t *testing.T) {
 				regexMatch: `ProxyCommand .* --header-command "printf h1=v1 h2='v2'" ssh`,
 			},
 		},
+		{
+			name: "Multiple remote forwards",
+			args: []string{
+				"--yes",
+				"--ssh-option", "RemoteForward 2222 192.168.11.1:2222",
+				"--ssh-option", "RemoteForward 2223 192.168.11.1:2223",
+			},
+			wantErr:  false,
+			hasAgent: true,
+			wantConfig: wantConfig{
+				regexMatch: "RemoteForward 2222 192.168.11.1:2222.*\n.*RemoteForward 2223 192.168.11.1:2223",
+			},
+		},
 	}
 	for _, tt := range tests {
 		tt := tt
@@ -629,7 +647,7 @@ func TestConfigSSH_FileWriteAndOptionsFlow(t *testing.T) {
 			client, db := coderdtest.NewWithDatabase(t, nil)
 			user := coderdtest.CreateFirstUser(t, client)
 			if tt.hasAgent {
-				_ = dbfake.WorkspaceBuild(t, db, database.Workspace{
+				_ = dbfake.WorkspaceBuild(t, db, database.WorkspaceTable{
 					OrganizationID: user.OrganizationID,
 					OwnerID:        user.UserID,
 				}).WithAgent().Do()
@@ -749,7 +767,7 @@ func TestConfigSSH_Hostnames(t *testing.T) {
 			owner := coderdtest.CreateFirstUser(t, client)
 			member, memberUser := coderdtest.CreateAnotherUser(t, client, owner.OrganizationID)
 
-			r := dbfake.WorkspaceBuild(t, db, database.Workspace{
+			r := dbfake.WorkspaceBuild(t, db, database.WorkspaceTable{
 				OrganizationID: owner.OrganizationID,
 				OwnerID:        memberUser.ID,
 			}).Resource(resources...).Do()

@@ -83,7 +83,7 @@ func TestDERP(t *testing.T) {
 			},
 		},
 	}
-	w1IP := tailnet.IP()
+	w1IP := tailnet.TailscaleServicePrefix.RandomAddr()
 	w1, err := tailnet.NewConn(&tailnet.Options{
 		Addresses: []netip.Prefix{netip.PrefixFrom(w1IP, 128)},
 		Logger:    logger.Named("w1"),
@@ -92,7 +92,7 @@ func TestDERP(t *testing.T) {
 	require.NoError(t, err)
 
 	w2, err := tailnet.NewConn(&tailnet.Options{
-		Addresses: []netip.Prefix{netip.PrefixFrom(tailnet.IP(), 128)},
+		Addresses: []netip.Prefix{tailnet.TailscaleServicePrefix.RandomPrefix()},
 		Logger:    logger.Named("w2"),
 		DERPMap:   derpMap,
 	})
@@ -205,7 +205,7 @@ func TestDERPForceWebSockets(t *testing.T) {
 	})
 	template := coderdtest.CreateTemplate(t, client, user.OrganizationID, version.ID)
 	coderdtest.AwaitTemplateVersionJobCompleted(t, client, version.ID)
-	workspace := coderdtest.CreateWorkspace(t, client, user.OrganizationID, template.ID)
+	workspace := coderdtest.CreateWorkspace(t, client, template.ID)
 	coderdtest.AwaitWorkspaceBuildJobCompleted(t, client, workspace.LatestBuild.ID)
 
 	_ = agenttest.New(t, client.URL, authToken)
@@ -355,7 +355,7 @@ func TestCSRFExempt(t *testing.T) {
 		// Create a workspace.
 		const agentSlug = "james"
 		const appSlug = "web"
-		wrk := dbfake.WorkspaceBuild(t, api.Database, database.Workspace{
+		wrk := dbfake.WorkspaceBuild(t, api.Database, database.WorkspaceTable{
 			OwnerID:        owner.ID,
 			OrganizationID: first.OrganizationID,
 		}).

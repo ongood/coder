@@ -17,6 +17,7 @@ import (
 	"golang.org/x/xerrors"
 
 	"cdr.dev/slog"
+	"github.com/coder/coder/v2/coderd/rbac/policy"
 
 	"github.com/coder/coder/v2/coderd/coderdtest"
 	"github.com/coder/coder/v2/coderd/database"
@@ -33,6 +34,7 @@ var errMatchAny = xerrors.New("match any error")
 var skipMethods = map[string]string{
 	"InTx":           "Not relevant",
 	"Ping":           "Not relevant",
+	"PGLocks":        "Not relevant",
 	"Wrappers":       "Not relevant",
 	"AcquireLock":    "Not relevant",
 	"TryAcquireLock": "Not relevant",
@@ -98,6 +100,8 @@ func (s *MethodTestSuite) TearDownSuite() {
 	})
 }
 
+var testActorID = uuid.New()
+
 // Subtest is a helper function that returns a function that can be passed to
 // s.Run(). This function will run the test case for the method that is being
 // tested. The check parameter is used to assert the results of the method.
@@ -111,16 +115,14 @@ func (s *MethodTestSuite) Subtest(testCaseF func(db database.Store, check *expec
 		s.methodAccounting[methodName]++
 
 		db := dbmem.New()
-		fakeAuthorizer := &coderdtest.FakeAuthorizer{
-			AlwaysReturn: nil,
-		}
+		fakeAuthorizer := &coderdtest.FakeAuthorizer{}
 		rec := &coderdtest.RecordingAuthorizer{
 			Wrapped: fakeAuthorizer,
 		}
 		az := dbauthz.New(db, rec, slog.Make(), coderdtest.AccessControlStorePointer())
 		actor := rbac.Subject{
-			ID:     uuid.NewString(),
-			Roles:  rbac.RoleNames{rbac.RoleOwner()},
+			ID:     testActorID.String(),
+			Roles:  rbac.RoleIdentifiers{rbac.RoleOwner()},
 			Groups: []string{},
 			Scope:  rbac.ScopeAll,
 		}
@@ -154,7 +156,7 @@ func (s *MethodTestSuite) Subtest(testCaseF func(db database.Store, check *expec
 		if len(testCase.assertions) > 0 {
 			// Only run these tests if we know the underlying call makes
 			// rbac assertions.
-			s.NotAuthorizedErrorTest(ctx, fakeAuthorizer, callMethod)
+			s.NotAuthorizedErrorTest(ctx, fakeAuthorizer, testCase, callMethod)
 		}
 
 		if len(testCase.assertions) > 0 ||
@@ -171,7 +173,11 @@ func (s *MethodTestSuite) Subtest(testCaseF func(db database.Store, check *expec
 		// Always run
 		s.Run("Success", func() {
 			rec.Reset()
-			fakeAuthorizer.AlwaysReturn = nil
+			if testCase.successAuthorizer != nil {
+				fakeAuthorizer.ConditionalReturn = testCase.successAuthorizer
+			} else {
+				fakeAuthorizer.AlwaysReturn(nil)
+			}
 
 			outputs, err := callMethod(ctx)
 			if testCase.err == nil {
@@ -227,9 +233,9 @@ func (s *MethodTestSuite) NoActorErrorTest(callMethod func(ctx context.Context) 
 
 // NotAuthorizedErrorTest runs the given method with an authorizer that will fail authz.
 // Asserts that the error returned is a NotAuthorizedError.
-func (s *MethodTestSuite) NotAuthorizedErrorTest(ctx context.Context, az *coderdtest.FakeAuthorizer, callMethod func(ctx context.Context) ([]reflect.Value, error)) {
+func (s *MethodTestSuite) NotAuthorizedErrorTest(ctx context.Context, az *coderdtest.FakeAuthorizer, testCase expects, callMethod func(ctx context.Context) ([]reflect.Value, error)) {
 	s.Run("NotAuthorized", func() {
-		az.AlwaysReturn = rbac.ForbiddenWithInternal(xerrors.New("Always fail authz"), rbac.Subject{}, "", rbac.Object{}, nil)
+		az.AlwaysReturn(rbac.ForbiddenWithInternal(xerrors.New("Always fail authz"), rbac.Subject{}, "", rbac.Object{}, nil))
 
 		// If we have assertions, that means the method should FAIL
 		// if RBAC will disallow the request. The returned error should
@@ -239,9 +245,14 @@ func (s *MethodTestSuite) NotAuthorizedErrorTest(ctx context.Context, az *coderd
 		// This is unfortunate, but if we are using `Filter` the error returned will be nil. So filter out
 		// any case where the error is nil and the response is an empty slice.
 		if err != nil || !hasEmptySliceResponse(resp) {
-			s.ErrorContainsf(err, "unauthorized", "error string should have a good message")
-			s.Errorf(err, "method should an error with disallow authz")
-			s.ErrorAs(err, &dbauthz.NotAuthorizedError{}, "error should be NotAuthorizedError")
+			// Expect the default error
+			if testCase.notAuthorizedExpect == "" {
+				s.ErrorContainsf(err, "unauthorized", "error string should have a good message")
+				s.Errorf(err, "method should an error with disallow authz")
+				s.ErrorAs(err, &dbauthz.NotAuthorizedError{}, "error should be NotAuthorizedError")
+			} else {
+				s.ErrorContains(err, testCase.notAuthorizedExpect)
+			}
 		}
 	})
 
@@ -249,8 +260,8 @@ func (s *MethodTestSuite) NotAuthorizedErrorTest(ctx context.Context, az *coderd
 		// Pass in a canceled context
 		ctx, cancel := context.WithCancel(ctx)
 		cancel()
-		az.AlwaysReturn = rbac.ForbiddenWithInternal(&topdown.Error{Code: topdown.CancelErr},
-			rbac.Subject{}, "", rbac.Object{}, nil)
+		az.AlwaysReturn(rbac.ForbiddenWithInternal(&topdown.Error{Code: topdown.CancelErr},
+			rbac.Subject{}, "", rbac.Object{}, nil))
 
 		// If we have assertions, that means the method should FAIL
 		// if RBAC will disallow the request. The returned error should
@@ -260,8 +271,12 @@ func (s *MethodTestSuite) NotAuthorizedErrorTest(ctx context.Context, az *coderd
 		// This is unfortunate, but if we are using `Filter` the error returned will be nil. So filter out
 		// any case where the error is nil and the response is an empty slice.
 		if err != nil || !hasEmptySliceResponse(resp) {
-			s.Errorf(err, "method should an error with cancellation")
-			s.ErrorIsf(err, context.Canceled, "error should match context.Cancelled")
+			if testCase.cancelledCtxExpect == "" {
+				s.Errorf(err, "method should an error with cancellation")
+				s.ErrorIsf(err, context.Canceled, "error should match context.Canceled")
+			} else {
+				s.ErrorContains(err, testCase.cancelledCtxExpect)
+			}
 		}
 	})
 }
@@ -305,6 +320,14 @@ type expects struct {
 	// outputs is optional. Can assert non-error return values.
 	outputs []reflect.Value
 	err     error
+
+	// Optional override of the default error checks.
+	// By default, we search for the expected error strings.
+	// If these strings are present, these strings will be searched
+	// instead.
+	notAuthorizedExpect string
+	cancelledCtxExpect  string
+	successAuthorizer   func(ctx context.Context, subject rbac.Subject, action policy.Action, obj rbac.Object) error
 }
 
 // Asserts is required. Asserts the RBAC authorize calls that should be made.
@@ -335,10 +358,37 @@ func (m *expects) Errors(err error) *expects {
 	return m
 }
 
+func (m *expects) FailSystemObjectChecks() *expects {
+	return m.WithSuccessAuthorizer(func(ctx context.Context, subject rbac.Subject, action policy.Action, obj rbac.Object) error {
+		if obj.Type == rbac.ResourceSystem.Type {
+			return xerrors.Errorf("hard coded system authz failed")
+		}
+		return nil
+	})
+}
+
+// WithSuccessAuthorizer is helpful when an optimization authz check is made
+// to skip some RBAC checks. This check in testing would prevent the ability
+// to assert the more nuanced RBAC checks.
+func (m *expects) WithSuccessAuthorizer(f func(ctx context.Context, subject rbac.Subject, action policy.Action, obj rbac.Object) error) *expects {
+	m.successAuthorizer = f
+	return m
+}
+
+func (m *expects) WithNotAuthorized(contains string) *expects {
+	m.notAuthorizedExpect = contains
+	return m
+}
+
+func (m *expects) WithCancelled(contains string) *expects {
+	m.cancelledCtxExpect = contains
+	return m
+}
+
 // AssertRBAC contains the object and actions to be asserted.
 type AssertRBAC struct {
 	Object  rbac.Object
-	Actions []rbac.Action
+	Actions []policy.Action
 }
 
 // values is a convenience method for creating []reflect.Value.
@@ -368,15 +418,15 @@ func values(ins ...any) []reflect.Value {
 //
 // Even-numbered inputs are the objects, and odd-numbered inputs are the actions.
 // Objects must implement rbac.Objecter.
-// Inputs can be a single rbac.Action, or a slice of rbac.Action.
+// Inputs can be a single policy.Action, or a slice of policy.Action.
 //
-//	asserts(workspace, rbac.ActionRead, template, slice(rbac.ActionRead, rbac.ActionWrite), ...)
+//	asserts(workspace, policy.ActionRead, template, slice(policy.ActionRead, policy.ActionWrite), ...)
 //
 // is equivalent to
 //
 //	[]AssertRBAC{
-//	  {Object: workspace, Actions: []rbac.Action{rbac.ActionRead}},
-//	  {Object: template, Actions: []rbac.Action{rbac.ActionRead, rbac.ActionWrite)}},
+//	  {Object: workspace, Actions: []policy.Action{policy.ActionRead}},
+//	  {Object: template, Actions: []policy.Action{policy.ActionRead, policy.ActionWrite)}},
 //	   ...
 //	}
 func asserts(inputs ...any) []AssertRBAC {
@@ -392,19 +442,19 @@ func asserts(inputs ...any) []AssertRBAC {
 		}
 		rbacObj := obj.RBACObject()
 
-		var actions []rbac.Action
-		actions, ok = inputs[i+1].([]rbac.Action)
+		var actions []policy.Action
+		actions, ok = inputs[i+1].([]policy.Action)
 		if !ok {
-			action, ok := inputs[i+1].(rbac.Action)
+			action, ok := inputs[i+1].(policy.Action)
 			if !ok {
 				// Could be the string type.
 				actionAsString, ok := inputs[i+1].(string)
 				if !ok {
 					panic(fmt.Sprintf("action '%q' not a supported action", actionAsString))
 				}
-				action = rbac.Action(actionAsString)
+				action = policy.Action(actionAsString)
 			}
-			actions = []rbac.Action{action}
+			actions = []policy.Action{action}
 		}
 
 		out = append(out, AssertRBAC{

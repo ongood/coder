@@ -68,3 +68,9 @@ result
 
 # Filebrowser.db
 **/filebrowser.db
+
+# pnpm
+.pnpm-store/
+
+# Zed
+.zed_server

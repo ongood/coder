@@ -66,6 +66,7 @@ func TestRun(t *testing.T) {
 		assertNotNilNotEmpty(t, bun.Network.CoordinatorDebug, "network coordinator debug should be present")
 		assertNotNilNotEmpty(t, bun.Network.Netcheck, "network netcheck should be present")
 		assertNotNilNotEmpty(t, bun.Network.TailnetDebug, "network tailnet debug should be present")
+		assertNotNilNotEmpty(t, bun.Network.Interfaces, "network interfaces health should be present")
 		assertNotNilNotEmpty(t, bun.Workspace.Workspace, "workspace should be present")
 		assertSanitizedWorkspace(t, bun.Workspace.Workspace)
 		assertNotNilNotEmpty(t, bun.Workspace.BuildLogs, "workspace build logs should be present")
@@ -114,6 +115,7 @@ func TestRun(t *testing.T) {
 		assertNotNilNotEmpty(t, bun.Network.CoordinatorDebug, "network coordinator debug should be present")
 		assertNotNilNotEmpty(t, bun.Network.Netcheck, "network netcheck should be present")
 		assertNotNilNotEmpty(t, bun.Network.TailnetDebug, "network tailnet debug should be present")
+		assertNotNilNotEmpty(t, bun.Network.Interfaces, "network interfaces health should be present")
 		assert.Empty(t, bun.Workspace.Workspace, "did not expect workspace to be present")
 		assert.Empty(t, bun.Agent, "did not expect agent to be present")
 		assertNotNilNotEmpty(t, bun.Logs, "bundle logs should be present")
@@ -197,7 +199,7 @@ func setupWorkspaceAndAgent(ctx context.Context, t *testing.T, client *codersdk.
 			CreatedBy:      user.UserID,
 		}).
 		Do()
-	wbr := dbfake.WorkspaceBuild(t, db, database.Workspace{
+	wbr := dbfake.WorkspaceBuild(t, db, database.WorkspaceTable{
 		OrganizationID: user.OrganizationID,
 		OwnerID:        user.UserID,
 		TemplateID:     tv.Template.ID,

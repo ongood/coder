@@ -25,9 +25,10 @@ import (
 	"github.com/coder/coder/v2/coderd/externalauth"
 	"github.com/coder/coder/v2/coderd/httpapi"
 	"github.com/coder/coder/v2/coderd/httpmw"
-	"github.com/coder/coder/v2/coderd/parameter"
 	"github.com/coder/coder/v2/coderd/provisionerdserver"
 	"github.com/coder/coder/v2/coderd/rbac"
+	"github.com/coder/coder/v2/coderd/rbac/policy"
+	"github.com/coder/coder/v2/coderd/render"
 	"github.com/coder/coder/v2/coderd/tracing"
 	"github.com/coder/coder/v2/codersdk"
 	"github.com/coder/coder/v2/examples"
@@ -352,21 +353,16 @@ func (api *API) templateVersionExternalAuth(rw http.ResponseWriter, r *http.Requ
 			return
 		}
 
-		_, updated, err := config.RefreshToken(ctx, api.Database, authLink)
-		if err != nil {
+		_, err = config.RefreshToken(ctx, api.Database, authLink)
+		if err != nil && !externalauth.IsInvalidTokenError(err) {
 			httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
 				Message: "Failed to refresh external auth token.",
 				Detail:  err.Error(),
 			})
 			return
 		}
-		// If the token couldn't be validated, then we assume the user isn't
-		// authenticated and return early.
-		if !updated {
-			providers = append(providers, provider)
-			continue
-		}
-		provider.Authenticated = true
+
+		provider.Authenticated = err == nil
 		providers = append(providers, provider)
 	}
 
@@ -430,7 +426,7 @@ func (api *API) postTemplateVersionDryRun(rw http.ResponseWriter, r *http.Reques
 
 	// We use the workspace RBAC check since we don't want to allow dry runs if
 	// the user can't create workspaces.
-	if !api.Authorize(r, rbac.ActionCreate,
+	if !api.Authorize(r, policy.ActionCreate,
 		rbac.ResourceWorkspace.InOrg(templateVersion.OrganizationID).WithOwner(apiKey.UserID.String())) {
 		httpapi.ResourceNotFound(rw)
 		return
@@ -603,7 +599,7 @@ func (api *API) patchTemplateVersionDryRunCancel(rw http.ResponseWriter, r *http
 	if !ok {
 		return
 	}
-	if !api.Authorize(r, rbac.ActionUpdate,
+	if !api.Authorize(r, policy.ActionUpdate,
 		rbac.ResourceWorkspace.InOrg(templateVersion.OrganizationID).WithOwner(job.ProvisionerJob.InitiatorID.String())) {
 		httpapi.ResourceNotFound(rw)
 		return
@@ -684,7 +680,7 @@ func (api *API) fetchTemplateVersionDryRunJob(rw http.ResponseWriter, r *http.Re
 	}
 
 	// Do a workspace resource check since it's basically a workspace dry-run.
-	if !api.Authorize(r, rbac.ActionRead,
+	if !api.Authorize(r, policy.ActionRead,
 		rbac.ResourceWorkspace.InOrg(templateVersion.OrganizationID).WithOwner(job.ProvisionerJob.InitiatorID.String())) {
 		httpapi.Forbidden(rw)
 		return database.GetProvisionerJobsByIDsWithQueuePositionRow{}, false
@@ -1359,12 +1355,12 @@ func (api *API) postTemplateVersionsByOrganization(rw http.ResponseWriter, r *ht
 	var err error
 	// if example id is specified we need to copy the embedded tar into a new file in the database
 	if req.ExampleID != "" {
-		if !api.Authorize(r, rbac.ActionCreate, rbac.ResourceFile.WithOwner(apiKey.UserID.String())) {
+		if !api.Authorize(r, policy.ActionCreate, rbac.ResourceFile.WithOwner(apiKey.UserID.String())) {
 			httpapi.Forbidden(rw)
 			return
 		}
 		// ensure we can read the file that either already exists or will be created
-		if !api.Authorize(r, rbac.ActionRead, rbac.ResourceFile.WithOwner(apiKey.UserID.String())) {
+		if !api.Authorize(r, policy.ActionRead, rbac.ResourceFile.WithOwner(apiKey.UserID.String())) {
 			httpapi.Forbidden(rw)
 			return
 		}
@@ -1452,11 +1448,19 @@ func (api *API) postTemplateVersionsByOrganization(rw http.ResponseWriter, r *ht
 			UserVariableValues: req.UserVariableValues,
 		})
 		if err != nil {
-			return xerrors.Errorf("marshal job input: %w", err)
+			httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
+				Message: "Internal error creating template version.",
+				Detail:  xerrors.Errorf("marshal job input: %w", err).Error(),
+			})
+			return err
 		}
 		traceMetadataRaw, err := json.Marshal(tracing.MetadataFromContext(ctx))
 		if err != nil {
-			return xerrors.Errorf("marshal job metadata: %w", err)
+			httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
+				Message: "Internal error creating template version.",
+				Detail:  xerrors.Errorf("marshal job metadata: %w", err).Error(),
+			})
+			return err
 		}
 
 		provisionerJob, err = tx.InsertProvisionerJob(ctx, database.InsertProvisionerJobParams{
@@ -1477,7 +1481,11 @@ func (api *API) postTemplateVersionsByOrganization(rw http.ResponseWriter, r *ht
 			},
 		})
 		if err != nil {
-			return xerrors.Errorf("insert provisioner job: %w", err)
+			httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
+				Message: "Internal error creating template version.",
+				Detail:  xerrors.Errorf("insert provisioner job: %w", err).Error(),
+			})
+			return err
 		}
 
 		var templateID uuid.NullUUID
@@ -1505,20 +1513,36 @@ func (api *API) postTemplateVersionsByOrganization(rw http.ResponseWriter, r *ht
 			CreatedBy:      apiKey.UserID,
 		})
 		if err != nil {
-			return xerrors.Errorf("insert template version: %w", err)
+			if database.IsUniqueViolation(err, database.UniqueTemplateVersionsTemplateIDNameKey) {
+				httpapi.Write(ctx, rw, http.StatusConflict, codersdk.Response{
+					Message: fmt.Sprintf("A template version with name %q already exists for this template.", req.Name),
+					Validations: []codersdk.ValidationError{{
+						Field:  "name",
+						Detail: "This value is already in use and should be unique.",
+					}},
+				})
+				return err
+			}
+			httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
+				Message: "Internal error creating template version.",
+				Detail:  xerrors.Errorf("insert template version: %w", err).Error(),
+			})
+			return err
 		}
 
 		templateVersion, err = tx.GetTemplateVersionByID(ctx, templateVersionID)
 		if err != nil {
-			return xerrors.Errorf("fetched inserted template version: %w", err)
+			httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
+				Message: "Internal error creating template version.",
+				Detail:  xerrors.Errorf("fetched inserted template version: %w", err).Error(),
+			})
+			return err
 		}
 
 		return nil
 	}, nil)
 	if err != nil {
-		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: err.Error(),
-		})
+		// Each failure case in the tx should have already written a response.
 		return
 	}
 	aReq.New = templateVersion
@@ -1647,7 +1671,7 @@ func convertTemplateVersionParameter(param database.TemplateVersionParameter) (c
 		})
 	}
 
-	descriptionPlaintext, err := parameter.Plaintext(param.Description)
+	descriptionPlaintext, err := render.PlaintextFromMarkdown(param.Description)
 	if err != nil {
 		return codersdk.TemplateVersionParameter{}, err
 	}
