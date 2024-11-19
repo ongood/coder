@@ -334,9 +334,7 @@ jobs:
 
       # 检查磁盘空间
       - name: Check disk space
-        run: |
-          df -h
-          du -sh /*
+        run: df -h
 
       # - name: Generate offline docs
       #   run: |
@@ -427,9 +425,7 @@ jobs:
 
       # 检查磁盘空间
       - name: Check disk space
-        run: |
-          df -h
-          du -sh /*
+        run: df -h
 
   # publish-homebrew:
   #   name: Publish to Homebrew tap
