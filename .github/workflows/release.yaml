@@ -338,9 +338,9 @@ jobs:
 
       - name: Clear cache and temporary files
         run: |
-          rm -rf /usr/local/.cache
-          apt-get clean
-          rm -rf /tmp/*
+          sudo rm -rf /usr/local/.cache
+          sudo apt-get clean
+          sudo rm -rf /tmp/*
 
       - name: Generate offline docs
         run: |
