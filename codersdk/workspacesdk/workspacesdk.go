@@ -216,17 +216,6 @@ func (c *Client) DialAgent(dialCtx context.Context, agentID uuid.UUID, options *
 	if err != nil {
 		return nil, xerrors.Errorf("parse url: %w", err)
 	}
-	q := coordinateURL.Query()
-	// TODO (ethanndickson) - the current version includes 2 additions we don't currently use:
-	//
-	// 2.1 GetAnnouncementBanners on the Agent API (version locked to Tailnet API)
-	// 2.2 PostTelemetry on the Tailnet API
-	//
-	// So, asking for API 2.2 just makes us incompatible back level servers, for no real benefit.
-	// As a temporary measure, we'll specifically ask for API version 2.0 until we implement sending
-	// telemetry.
-	q.Add("version", "2.0")
-	coordinateURL.RawQuery = q.Encode()
 
 	dialer := NewWebsocketDialer(options.Logger, coordinateURL, &websocket.DialOptions{
 		HTTPClient: c.client.HTTPClient,
@@ -234,7 +223,9 @@ func (c *Client) DialAgent(dialCtx context.Context, agentID uuid.UUID, options *
 		// Need to disable compression to avoid a data-race.
 		CompressionMode: websocket.CompressionDisabled,
 	})
-	connector := newTailnetAPIConnector(ctx, options.Logger, agentID, dialer, quartz.NewReal())
+	clk := quartz.NewReal()
+	controller := tailnet.NewController(options.Logger, dialer)
+	controller.ResumeTokenCtrl = tailnet.NewBasicResumeTokenController(options.Logger, clk)
 
 	ip := tailnet.TailscaleServicePrefix.RandomAddr()
 	var header http.Header
@@ -243,7 +234,9 @@ func (c *Client) DialAgent(dialCtx context.Context, agentID uuid.UUID, options *
 	}
 	var telemetrySink tailnet.TelemetrySink
 	if options.EnableTelemetry {
-		telemetrySink = connector
+		basicTel := tailnet.NewBasicTelemetryController(options.Logger)
+		telemetrySink = basicTel
+		controller.TelemetryCtrl = basicTel
 	}
 	conn, err := tailnet.NewConn(&tailnet.Options{
 		Addresses:           []netip.Prefix{netip.PrefixFrom(ip, 128)},
@@ -264,7 +257,11 @@ func (c *Client) DialAgent(dialCtx context.Context, agentID uuid.UUID, options *
 			_ = conn.Close()
 		}
 	}()
-	connector.runConnector(conn)
+	coordCtrl := tailnet.NewTunnelSrcCoordController(options.Logger, conn)
+	coordCtrl.AddDestination(agentID)
+	controller.CoordCtrl = coordCtrl
+	controller.DERPCtrl = tailnet.NewBasicDERPController(options.Logger, conn)
+	controller.Run(ctx)
 
 	options.Logger.Debug(ctx, "running tailnet API v2+ connector")
 
@@ -283,7 +280,7 @@ func (c *Client) DialAgent(dialCtx context.Context, agentID uuid.UUID, options *
 		AgentID: agentID,
 		CloseFunc: func() error {
 			cancel()
-			<-connector.closed
+			<-controller.Closed()
 			return conn.Close()
 		},
 	})

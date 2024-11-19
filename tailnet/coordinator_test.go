@@ -12,7 +12,6 @@ import (
 	"cdr.dev/slog/sloggers/slogtest"
 	"github.com/coder/coder/v2/tailnet"
 	"github.com/coder/coder/v2/tailnet/proto"
-	"github.com/coder/coder/v2/tailnet/tailnettest"
 	"github.com/coder/coder/v2/tailnet/test"
 	"github.com/coder/coder/v2/testutil"
 )
@@ -21,7 +20,7 @@ func TestCoordinator(t *testing.T) {
 	t.Parallel()
 	t.Run("ClientWithoutAgent", func(t *testing.T) {
 		t.Parallel()
-		logger := slogtest.Make(t, nil).Leveled(slog.LevelDebug)
+		logger := testutil.Logger(t)
 		ctx := testutil.Context(t, testutil.WaitShort)
 		coordinator := tailnet.NewCoordinator(logger)
 		defer func() {
@@ -64,7 +63,7 @@ func TestCoordinator(t *testing.T) {
 
 	t.Run("AgentWithoutClients", func(t *testing.T) {
 		t.Parallel()
-		logger := slogtest.Make(t, nil).Leveled(slog.LevelDebug)
+		logger := testutil.Logger(t)
 		ctx := testutil.Context(t, testutil.WaitShort)
 		coordinator := tailnet.NewCoordinator(logger)
 		defer func() {
@@ -128,7 +127,7 @@ func TestCoordinator(t *testing.T) {
 
 	t.Run("AgentWithClient", func(t *testing.T) {
 		t.Parallel()
-		logger := slogtest.Make(t, nil).Leveled(slog.LevelDebug)
+		logger := testutil.Logger(t)
 		coordinator := tailnet.NewCoordinator(logger)
 		defer func() {
 			err := coordinator.Close()
@@ -167,7 +166,7 @@ func TestCoordinator(t *testing.T) {
 
 	t.Run("AgentDoubleConnect", func(t *testing.T) {
 		t.Parallel()
-		logger := slogtest.Make(t, nil).Leveled(slog.LevelDebug)
+		logger := testutil.Logger(t)
 		coordinator := tailnet.NewCoordinator(logger)
 		ctx := testutil.Context(t, testutil.WaitShort)
 
@@ -204,7 +203,7 @@ func TestCoordinator(t *testing.T) {
 
 	t.Run("AgentAck", func(t *testing.T) {
 		t.Parallel()
-		logger := slogtest.Make(t, nil).Leveled(slog.LevelDebug)
+		logger := testutil.Logger(t)
 		coordinator := tailnet.NewCoordinator(logger)
 		ctx := testutil.Context(t, testutil.WaitShort)
 
@@ -213,7 +212,7 @@ func TestCoordinator(t *testing.T) {
 
 	t.Run("AgentAck_NoPermission", func(t *testing.T) {
 		t.Parallel()
-		logger := slogtest.Make(t, nil).Leveled(slog.LevelDebug)
+		logger := testutil.Logger(t)
 		coordinator := tailnet.NewCoordinator(logger)
 		ctx := testutil.Context(t, testutil.WaitShort)
 
@@ -223,7 +222,7 @@ func TestCoordinator(t *testing.T) {
 
 func TestCoordinator_BidirectionalTunnels(t *testing.T) {
 	t.Parallel()
-	logger := slogtest.Make(t, nil).Leveled(slog.LevelDebug)
+	logger := testutil.Logger(t)
 	coordinator := tailnet.NewCoordinator(logger)
 	ctx := testutil.Context(t, testutil.WaitShort)
 	test.BidirectionalTunnels(ctx, t, coordinator)
@@ -231,7 +230,7 @@ func TestCoordinator_BidirectionalTunnels(t *testing.T) {
 
 func TestCoordinator_GracefulDisconnect(t *testing.T) {
 	t.Parallel()
-	logger := slogtest.Make(t, nil).Leveled(slog.LevelDebug)
+	logger := testutil.Logger(t)
 	coordinator := tailnet.NewCoordinator(logger)
 	ctx := testutil.Context(t, testutil.WaitShort)
 	test.GracefulDisconnectTest(ctx, t, coordinator)
@@ -239,28 +238,10 @@ func TestCoordinator_GracefulDisconnect(t *testing.T) {
 
 func TestCoordinator_Lost(t *testing.T) {
 	t.Parallel()
-	logger := slogtest.Make(t, nil).Leveled(slog.LevelDebug)
+	logger := testutil.Logger(t)
 	coordinator := tailnet.NewCoordinator(logger)
 	ctx := testutil.Context(t, testutil.WaitShort)
 	test.LostTest(ctx, t, coordinator)
-}
-
-func TestCoordinator_MultiAgent_CoordClose(t *testing.T) {
-	t.Parallel()
-
-	logger := slogtest.Make(t, &slogtest.Options{IgnoreErrors: true}).Leveled(slog.LevelDebug)
-	ctx, cancel := context.WithTimeout(context.Background(), testutil.WaitShort)
-	defer cancel()
-	coord1 := tailnet.NewCoordinator(logger.Named("coord1"))
-	defer coord1.Close()
-
-	ma1 := tailnettest.NewTestMultiAgent(t, coord1)
-	defer ma1.Close()
-
-	err := coord1.Close()
-	require.NoError(t, err)
-
-	ma1.RequireEventuallyClosed(ctx)
 }
 
 // TestCoordinatorPropogatedPeerContext tests that the context for a specific peer
@@ -269,7 +250,7 @@ func TestCoordinatorPropogatedPeerContext(t *testing.T) {
 	t.Parallel()
 
 	ctx := testutil.Context(t, testutil.WaitShort)
-	logger := slogtest.Make(t, nil).Leveled(slog.LevelDebug)
+	logger := testutil.Logger(t)
 
 	peerCtx := context.WithValue(ctx, test.FakeSubjectKey{}, struct{}{})
 	peerCtx, peerCtxCancel := context.WithCancel(peerCtx)

@@ -1508,7 +1508,7 @@ func TestAgent_Lifecycle(t *testing.T) {
 
 	t.Run("ShutdownScriptOnce", func(t *testing.T) {
 		t.Parallel()
-		logger := slogtest.Make(t, nil).Leveled(slog.LevelDebug)
+		logger := testutil.Logger(t)
 		expected := "this-is-shutdown"
 		derpMap, _ := tailnettest.RunDERPAndSTUN(t)
 
@@ -1863,7 +1863,7 @@ func TestAgent_Dial(t *testing.T) {
 func TestAgent_UpdatedDERP(t *testing.T) {
 	t.Parallel()
 
-	logger := slogtest.Make(t, nil).Leveled(slog.LevelDebug)
+	logger := testutil.Logger(t)
 
 	originalDerpMap, _ := tailnettest.RunDERPAndSTUN(t)
 	require.NotNil(t, originalDerpMap)
@@ -1918,8 +1918,10 @@ func TestAgent_UpdatedDERP(t *testing.T) {
 		testCtx, testCtxCancel := context.WithCancel(context.Background())
 		t.Cleanup(testCtxCancel)
 		clientID := uuid.New()
-		ctrl := tailnet.NewSingleDestController(logger, conn, agentID)
-		coordination := ctrl.New(tailnet.NewInMemoryCoordinatorClient(logger, clientID, agentID, coordinator))
+		ctrl := tailnet.NewTunnelSrcCoordController(logger, conn)
+		ctrl.AddDestination(agentID)
+		auth := tailnet.ClientCoordinateeAuth{AgentID: agentID}
+		coordination := ctrl.New(tailnet.NewInMemoryCoordinatorClient(logger, clientID, auth, coordinator))
 		t.Cleanup(func() {
 			t.Logf("closing coordination %s", name)
 			cctx, ccancel := context.WithTimeout(testCtx, testutil.WaitShort)
@@ -2017,7 +2019,7 @@ func TestAgent_Speedtest(t *testing.T) {
 
 func TestAgent_Reconnect(t *testing.T) {
 	t.Parallel()
-	logger := slogtest.Make(t, nil).Leveled(slog.LevelDebug)
+	logger := testutil.Logger(t)
 	// After the agent is disconnected from a coordinator, it's supposed
 	// to reconnect!
 	coordinator := tailnet.NewCoordinator(logger)
@@ -2058,7 +2060,7 @@ func TestAgent_Reconnect(t *testing.T) {
 
 func TestAgent_WriteVSCodeConfigs(t *testing.T) {
 	t.Parallel()
-	logger := slogtest.Make(t, nil).Leveled(slog.LevelDebug)
+	logger := testutil.Logger(t)
 	coordinator := tailnet.NewCoordinator(logger)
 	defer coordinator.Close()
 
@@ -2407,9 +2409,11 @@ func setupAgent(t *testing.T, metadata agentsdk.Manifest, ptyTimeout time.Durati
 	testCtx, testCtxCancel := context.WithCancel(context.Background())
 	t.Cleanup(testCtxCancel)
 	clientID := uuid.New()
-	ctrl := tailnet.NewSingleDestController(logger, conn, metadata.AgentID)
+	ctrl := tailnet.NewTunnelSrcCoordController(logger, conn)
+	ctrl.AddDestination(metadata.AgentID)
+	auth := tailnet.ClientCoordinateeAuth{AgentID: metadata.AgentID}
 	coordination := ctrl.New(tailnet.NewInMemoryCoordinatorClient(
-		logger, clientID, metadata.AgentID, coordinator))
+		logger, clientID, auth, coordinator))
 	t.Cleanup(func() {
 		cctx, ccancel := context.WithTimeout(testCtx, testutil.WaitShort)
 		defer ccancel()
