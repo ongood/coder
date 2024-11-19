@@ -332,6 +332,16 @@ jobs:
         env:
           CODER_BASE_IMAGE_TAG: ${{ steps.image-base-tag.outputs.tag }}
 
+      # 检查磁盘空间
+      - name: Check disk space
+        run: df -h
+
+      - name: Clear cache and temporary files
+        run: |
+          rm -rf /usr/local/.cache
+          apt-get clean
+          rm -rf /tmp/*
+
       - name: Generate offline docs
         run: |
           version="$(./scripts/version.sh)"
