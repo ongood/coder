@@ -334,18 +334,17 @@ jobs:
 
       # 检查磁盘空间
       - name: Check disk space
-        run: df -h
-
-      - name: Clear cache and temporary files
         run: |
-          sudo rm -rf /usr/local/.cache
-          sudo apt-get clean
-          sudo rm -rf /tmp/*
+          df -h
+          du -sh /*
 
-      - name: Generate offline docs
-        run: |
-          version="$(./scripts/version.sh)"
-          make -j build/coder_docs_"$version".tgz
+      - name: List top 10 largest directories
+        run: sudo du -ah / | sort -rh | head -n 10
+
+      # - name: Generate offline docs
+      #   run: |
+      #     version="$(./scripts/version.sh)"
+      #     make -j build/coder_docs_"$version".tgz
 
       - name: ls build
         run: ls -lh build
@@ -423,6 +422,17 @@ jobs:
           event-type: coder-release
           client-payload: '{"coder_version": "${{ steps.version.outputs.version }}", "release_channel": "${{ inputs.release_channel }}"}'
 
+      - name: Final cleanup
+        run: |
+          sudo rm -rf /tmp/*
+          sudo rm -rf ./build/*
+          docker system prune --all --force --volumes
+
+      # 检查磁盘空间
+      - name: Check disk space
+        run: |
+          df -h
+          du -sh /*
 
   # publish-homebrew:
   #   name: Publish to Homebrew tap
