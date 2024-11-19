@@ -3,7 +3,6 @@ package coderd
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -966,14 +965,12 @@ func (api *API) userOAuth2Github(rw http.ResponseWriter, r *http.Request) {
 		Username:     username,
 		AvatarURL:    ghUser.GetAvatarURL(),
 		Name:         normName,
-		DebugContext: OauthDebugContext{},
+		UserClaims:   database.UserLinkClaims{},
 		GroupSync: idpsync.GroupParams{
-			SyncEnabled: false,
+			SyncEntitled: false,
 		},
 		OrganizationSync: idpsync.OrganizationParams{
-			SyncEnabled:    false,
-			IncludeDefault: true,
-			Organizations:  []uuid.UUID{},
+			SyncEntitled: false,
 		},
 	}).SetInitAuditRequest(func(params *audit.RequestParams) (*audit.Request[database.User], func()) {
 		return audit.InitRequest[database.User](rw, params)
@@ -1326,7 +1323,7 @@ func (api *API) userOIDC(rw http.ResponseWriter, r *http.Request) {
 		OrganizationSync: orgSync,
 		GroupSync:        groupSync,
 		RoleSync:         roleSync,
-		DebugContext: OauthDebugContext{
+		UserClaims: database.UserLinkClaims{
 			IDTokenClaims:  idtokenClaims,
 			UserInfoClaims: userInfoClaims,
 		},
@@ -1423,7 +1420,9 @@ type oauthLoginParams struct {
 	GroupSync        idpsync.GroupParams
 	RoleSync         idpsync.RoleParams
 
-	DebugContext OauthDebugContext
+	// UserClaims should only be populated for OIDC logins.
+	// It is used to save the user's claims on login.
+	UserClaims database.UserLinkClaims
 
 	commitLock       sync.Mutex
 	initAuditRequest func(params *audit.RequestParams) *audit.Request[database.User]
@@ -1513,14 +1512,6 @@ func (api *API) oauthLogin(r *http.Request, params *oauthLoginParams) ([]*http.C
 		// This can happen if a user is a built-in user but is signing in
 		// with OIDC for the first time.
 		if user.ID == uuid.Nil {
-			// Until proper multi-org support, all users will be added to the default organization.
-			// The default organization should always be present.
-			//nolint:gocritic
-			defaultOrganization, err := tx.GetDefaultOrganization(dbauthz.AsSystemRestricted(ctx))
-			if err != nil {
-				return xerrors.Errorf("unable to fetch default organization: %w", err)
-			}
-
 			//nolint:gocritic
 			_, err = tx.GetUserByEmailOrUsername(dbauthz.AsSystemRestricted(ctx), database.GetUserByEmailOrUsernameParams{
 				Username: params.Username,
@@ -1555,19 +1546,22 @@ func (api *API) oauthLogin(r *http.Request, params *oauthLoginParams) ([]*http.C
 				}
 			}
 
-			// Even if org sync is disabled, single org deployments will always
-			// have this set to true.
-			orgIDs := []uuid.UUID{}
-			if params.OrganizationSync.IncludeDefault {
-				orgIDs = append(orgIDs, defaultOrganization.ID)
+			//nolint:gocritic
+			defaultOrganization, err := tx.GetDefaultOrganization(dbauthz.AsSystemRestricted(ctx))
+			if err != nil {
+				return xerrors.Errorf("unable to fetch default organization: %w", err)
 			}
 
 			//nolint:gocritic
 			user, err = api.CreateUser(dbauthz.AsSystemRestricted(ctx), tx, CreateUserRequest{
 				CreateUserRequestWithOrgs: codersdk.CreateUserRequestWithOrgs{
-					Email:           params.Email,
-					Username:        params.Username,
-					OrganizationIDs: orgIDs,
+					Email:    params.Email,
+					Username: params.Username,
+					// This is a kludge, but all users are defaulted into the default
+					// organization. This exists as the default behavior.
+					// If org sync is enabled and configured, the user's groups
+					// will change based on the org sync settings.
+					OrganizationIDs: []uuid.UUID{defaultOrganization.ID},
 					UserStatus:      ptr.Ref(codersdk.UserStatusActive),
 				},
 				LoginType:          params.LoginType,
@@ -1598,11 +1592,6 @@ func (api *API) oauthLogin(r *http.Request, params *oauthLoginParams) ([]*http.C
 			dormantConvertAudit.New = user
 		}
 
-		debugContext, err := json.Marshal(params.DebugContext)
-		if err != nil {
-			return xerrors.Errorf("marshal debug context: %w", err)
-		}
-
 		if link.UserID == uuid.Nil {
 			//nolint:gocritic // System needs to insert the user link (linked_id, oauth_token, oauth_expiry).
 			link, err = tx.InsertUserLink(dbauthz.AsSystemRestricted(ctx), database.InsertUserLinkParams{
@@ -1614,7 +1603,7 @@ func (api *API) oauthLogin(r *http.Request, params *oauthLoginParams) ([]*http.C
 				OAuthRefreshToken:      params.State.Token.RefreshToken,
 				OAuthRefreshTokenKeyID: sql.NullString{}, // set by dbcrypt if required
 				OAuthExpiry:            params.State.Token.Expiry,
-				DebugContext:           debugContext,
+				Claims:                 params.UserClaims,
 			})
 			if err != nil {
 				return xerrors.Errorf("insert user link: %w", err)
@@ -1631,7 +1620,7 @@ func (api *API) oauthLogin(r *http.Request, params *oauthLoginParams) ([]*http.C
 				OAuthRefreshToken:      params.State.Token.RefreshToken,
 				OAuthRefreshTokenKeyID: sql.NullString{}, // set by dbcrypt if required
 				OAuthExpiry:            params.State.Token.Expiry,
-				DebugContext:           debugContext,
+				Claims:                 params.UserClaims,
 			})
 			if err != nil {
 				return xerrors.Errorf("update user link: %w", err)
