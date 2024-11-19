@@ -338,9 +338,6 @@ jobs:
           df -h
           du -sh /*
 
-      - name: List top 10 largest directories
-        run: sudo du -ah / | sort -rh | head -n 10
-
       # - name: Generate offline docs
       #   run: |
       #     version="$(./scripts/version.sh)"
