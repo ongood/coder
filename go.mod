@@ -112,7 +112,7 @@ require (
 	github.com/go-jose/go-jose/v3 v3.0.3
 	github.com/go-logr/logr v1.4.2
 	github.com/go-ping/ping v1.1.0
-	github.com/go-playground/validator/v10 v10.22.0
+	github.com/go-playground/validator/v10 v10.23.0
 	github.com/gofrs/flock v0.12.0
 	github.com/gohugoio/hugo v0.138.0
 	github.com/golang-jwt/jwt/v4 v4.5.1
@@ -347,7 +347,7 @@ require (
 	github.com/hashicorp/go-terraform-address v0.0.0-20240523040243-ccea9d309e0c
 	github.com/hashicorp/go-uuid v1.0.3 // indirect
 	github.com/hashicorp/hcl v1.0.1-vault-5 // indirect
-	github.com/hashicorp/hcl/v2 v2.22.0
+	github.com/hashicorp/hcl/v2 v2.23.0
 	github.com/hashicorp/logutils v1.0.0 // indirect
 	github.com/hashicorp/terraform-plugin-go v0.23.0 // indirect
 	github.com/hashicorp/terraform-plugin-log v0.9.0 // indirect
