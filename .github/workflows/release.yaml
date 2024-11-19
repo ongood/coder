@@ -48,6 +48,18 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
+
+      # 清理空间
+      - name: First cleanup
+        run: |
+          sudo rm -rf /tmp/*
+          sudo rm -rf ./build/*
+          docker system prune --all --force --volumes
+
+      # 检查磁盘空间
+      - name: Check disk space
+        run: df -h
+
       - name: Harden Runner
         uses: step-security/harden-runner@91182cccc01eb5e619899d80e4e971d6181294a7 # v2.10.1
         with:
@@ -332,14 +344,10 @@ jobs:
         env:
           CODER_BASE_IMAGE_TAG: ${{ steps.image-base-tag.outputs.tag }}
 
-      # 检查磁盘空间
-      - name: Check disk space
-        run: df -h
-
-      # - name: Generate offline docs
-      #   run: |
-      #     version="$(./scripts/version.sh)"
-      #     make -j build/coder_docs_"$version".tgz
+      - name: Generate offline docs
+        run: |
+          version="$(./scripts/version.sh)"
+          make -j build/coder_docs_"$version".tgz
 
       - name: ls build
         run: ls -lh build
@@ -377,16 +385,6 @@ jobs:
 
       - name: Setup GCloud SDK
         uses: google-github-actions/setup-gcloud@6189d56e4096ee891640bb02ac264be376592d6a # 2.1.2
-
-      - name: Final cleanup
-        run: |
-          sudo rm -rf /tmp/*
-          sudo rm -rf ./build/*
-          docker system prune --all --force --volumes
-
-      # 检查磁盘空间
-      - name: Check disk space
-        run: df -h
 
 
       # - name: Publish Helm Chart
