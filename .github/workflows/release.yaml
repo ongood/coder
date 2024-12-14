@@ -46,12 +46,20 @@ jobs:
   #       with:
   #         fetch-depth: 0
 
-  #     - name: Setup build tools
-  #       run: |
-  #         brew install bash gnu-getopt make
-  #         echo "$(brew --prefix bash)/bin" >> $GITHUB_PATH
-  #         echo "$(brew --prefix gnu-getopt)/bin" >> $GITHUB_PATH
-  #         echo "$(brew --prefix make)/libexec/gnubin" >> $GITHUB_PATH
+      # # If the event that triggered the build was an annotated tag (which our
+      # # tags are supposed to be), actions/checkout has a bug where the tag in
+      # # question is only a lightweight tag and not a full annotated tag. This
+      # # command seems to fix it.
+      # # https://github.com/actions/checkout/issues/290
+      # - name: Fetch git tags
+      #   run: git fetch --tags --force
+
+      # - name: Setup build tools
+      #   run: |
+      #     brew install bash gnu-getopt make
+      #     echo "$(brew --prefix bash)/bin" >> $GITHUB_PATH
+      #     echo "$(brew --prefix gnu-getopt)/bin" >> $GITHUB_PATH
+      #     echo "$(brew --prefix make)/libexec/gnubin" >> $GITHUB_PATH
 
   #     - name: Setup Go
   #       uses: ./.github/actions/setup-go
