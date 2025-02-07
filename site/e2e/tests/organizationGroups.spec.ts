@@ -5,6 +5,7 @@ import {
 	createUser,
 	setupApiCalls,
 } from "../api";
+import { defaultOrganizationName } from "../constants";
 import { expectUrl } from "../expectUrl";
 import { login, randomName, requiresLicense } from "../helpers";
 import { beforeCoderTest } from "../hooks";
@@ -15,6 +16,17 @@ test.beforeEach(async ({ page }) => {
 	await setupApiCalls(page);
 });
 
+test("redirects", async ({ page }) => {
+	requiresLicense();
+
+	const orgName = defaultOrganizationName;
+	await page.goto("/groups");
+	await expectUrl(page).toHavePathName(`/organizations/${orgName}/groups`);
+
+	await page.goto("/deployment/groups");
+	await expectUrl(page).toHavePathName(`/organizations/${orgName}/groups`);
+});
+
 test("create group", async ({ page }) => {
 	requiresLicense();
 
@@ -23,8 +35,8 @@ test("create group", async ({ page }) => {
 	await page.goto(`/organizations/${org.name}`);
 
 	// Navigate to groups page
-	await page.getByText("Groups").click();
-	await expect(page).toHaveTitle(`Groups - Org ${org.name} - Coder`);
+	await page.getByRole("link", { name: "Groups" }).click();
+	await expect(page).toHaveTitle("Groups - Coder");
 
 	// Create a new group
 	await page.getByText("Create group").click();
@@ -34,7 +46,7 @@ test("create group", async ({ page }) => {
 	const displayName = `Group ${name}`;
 	await page.getByLabel("Display Name").fill(displayName);
 	await page.getByLabel("Avatar URL").fill("/emojis/1f60d.png");
-	await page.getByRole("button", { name: "Submit" }).click();
+	await page.getByRole("button", { name: /save/i }).click();
 
 	await expectUrl(page).toHavePathName(
 		`/organizations/${org.name}/groups/${name}`,
@@ -72,7 +84,7 @@ test("create group", async ({ page }) => {
 	await expect(page.getByText("Group deleted successfully.")).toBeVisible();
 
 	await expectUrl(page).toHavePathName(`/organizations/${org.name}/groups`);
-	await expect(page).toHaveTitle(`Groups - Org ${org.name} - Coder`);
+	await expect(page).toHaveTitle("Groups - Coder");
 });
 
 test("change quota settings", async ({ page }) => {
@@ -91,7 +103,7 @@ test("change quota settings", async ({ page }) => {
 
 	// Update Quota
 	await page.getByLabel("Quota Allowance").fill("100");
-	await page.getByRole("button", { name: "Submit" }).click();
+	await page.getByRole("button", { name: /save/i }).click();
 
 	// We should get sent back to the group page afterwards
 	expectUrl(page).toHavePathName(

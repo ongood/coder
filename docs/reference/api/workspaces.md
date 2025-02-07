@@ -76,6 +76,9 @@ of the template will be used.
     "initiator_id": "06588898-9a84-4b35-ba8f-f9cbd64946f3",
     "initiator_name": "string",
     "job": {
+      "available_workers": [
+        "497f6eca-6276-4993-bfeb-53cbbbba6f08"
+      ],
       "canceled_at": "2019-08-24T14:15:22Z",
       "completed_at": "2019-08-24T14:15:22Z",
       "created_at": "2019-08-24T14:15:22Z",
@@ -83,6 +86,20 @@ of the template will be used.
       "error_code": "REQUIRED_TEMPLATE_VARIABLES",
       "file_id": "8a0cfb4f-ddc9-436d-91bb-75133c583767",
       "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+      "input": {
+        "error": "string",
+        "template_version_id": "0ba39c92-1f1b-4c32-aa3e-9925d7713eb1",
+        "workspace_build_id": "badaf2eb-96c5-4050-9f1d-db2d39ca5478"
+      },
+      "metadata": {
+        "template_display_name": "string",
+        "template_id": "c6d67e98-83ea-49f0-8812-e4abae2b68bc",
+        "template_name": "string",
+        "template_version_name": "string",
+        "workspace_id": "0967198e-ec7b-4c6b-b4d3-f71244cadbe9",
+        "workspace_name": "string"
+      },
+      "organization_id": "7c60d51f-b44e-4682-87d6-449835ea4de6",
       "queue_position": 0,
       "queue_size": 0,
       "started_at": "2019-08-24T14:15:22Z",
@@ -91,6 +108,7 @@ of the template will be used.
         "property1": "string",
         "property2": "string"
       },
+      "type": "template_version_import",
       "worker_id": "ae5fa6f7-c55b-40c1-b40a-b36ac467652b"
     },
     "matched_provisioners": {
@@ -119,7 +137,7 @@ of the template will be used.
                 "hidden": true,
                 "icon": "string",
                 "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
-                "open_in": "string",
+                "open_in": "slim-window",
                 "sharing_level": "owner",
                 "slug": "string",
                 "subdomain": true,
@@ -307,6 +325,9 @@ curl -X GET http://coder-server:8080/api/v2/users/{user}/workspace/{workspacenam
     "initiator_id": "06588898-9a84-4b35-ba8f-f9cbd64946f3",
     "initiator_name": "string",
     "job": {
+      "available_workers": [
+        "497f6eca-6276-4993-bfeb-53cbbbba6f08"
+      ],
       "canceled_at": "2019-08-24T14:15:22Z",
       "completed_at": "2019-08-24T14:15:22Z",
       "created_at": "2019-08-24T14:15:22Z",
@@ -314,6 +335,20 @@ curl -X GET http://coder-server:8080/api/v2/users/{user}/workspace/{workspacenam
       "error_code": "REQUIRED_TEMPLATE_VARIABLES",
       "file_id": "8a0cfb4f-ddc9-436d-91bb-75133c583767",
       "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+      "input": {
+        "error": "string",
+        "template_version_id": "0ba39c92-1f1b-4c32-aa3e-9925d7713eb1",
+        "workspace_build_id": "badaf2eb-96c5-4050-9f1d-db2d39ca5478"
+      },
+      "metadata": {
+        "template_display_name": "string",
+        "template_id": "c6d67e98-83ea-49f0-8812-e4abae2b68bc",
+        "template_name": "string",
+        "template_version_name": "string",
+        "workspace_id": "0967198e-ec7b-4c6b-b4d3-f71244cadbe9",
+        "workspace_name": "string"
+      },
+      "organization_id": "7c60d51f-b44e-4682-87d6-449835ea4de6",
       "queue_position": 0,
       "queue_size": 0,
       "started_at": "2019-08-24T14:15:22Z",
@@ -322,6 +357,7 @@ curl -X GET http://coder-server:8080/api/v2/users/{user}/workspace/{workspacenam
         "property1": "string",
         "property2": "string"
       },
+      "type": "template_version_import",
       "worker_id": "ae5fa6f7-c55b-40c1-b40a-b36ac467652b"
     },
     "matched_provisioners": {
@@ -350,7 +386,7 @@ curl -X GET http://coder-server:8080/api/v2/users/{user}/workspace/{workspacenam
                 "hidden": true,
                 "icon": "string",
                 "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
-                "open_in": "string",
+                "open_in": "slim-window",
                 "sharing_level": "owner",
                 "slug": "string",
                 "subdomain": true,
@@ -562,6 +598,9 @@ of the template will be used.
     "initiator_id": "06588898-9a84-4b35-ba8f-f9cbd64946f3",
     "initiator_name": "string",
     "job": {
+      "available_workers": [
+        "497f6eca-6276-4993-bfeb-53cbbbba6f08"
+      ],
       "canceled_at": "2019-08-24T14:15:22Z",
       "completed_at": "2019-08-24T14:15:22Z",
       "created_at": "2019-08-24T14:15:22Z",
@@ -569,6 +608,20 @@ of the template will be used.
       "error_code": "REQUIRED_TEMPLATE_VARIABLES",
       "file_id": "8a0cfb4f-ddc9-436d-91bb-75133c583767",
       "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+      "input": {
+        "error": "string",
+        "template_version_id": "0ba39c92-1f1b-4c32-aa3e-9925d7713eb1",
+        "workspace_build_id": "badaf2eb-96c5-4050-9f1d-db2d39ca5478"
+      },
+      "metadata": {
+        "template_display_name": "string",
+        "template_id": "c6d67e98-83ea-49f0-8812-e4abae2b68bc",
+        "template_name": "string",
+        "template_version_name": "string",
+        "workspace_id": "0967198e-ec7b-4c6b-b4d3-f71244cadbe9",
+        "workspace_name": "string"
+      },
+      "organization_id": "7c60d51f-b44e-4682-87d6-449835ea4de6",
       "queue_position": 0,
       "queue_size": 0,
       "started_at": "2019-08-24T14:15:22Z",
@@ -577,6 +630,7 @@ of the template will be used.
         "property1": "string",
         "property2": "string"
       },
+      "type": "template_version_import",
       "worker_id": "ae5fa6f7-c55b-40c1-b40a-b36ac467652b"
     },
     "matched_provisioners": {
@@ -605,7 +659,7 @@ of the template will be used.
                 "hidden": true,
                 "icon": "string",
                 "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
-                "open_in": "string",
+                "open_in": "slim-window",
                 "sharing_level": "owner",
                 "slug": "string",
                 "subdomain": true,
@@ -796,6 +850,9 @@ curl -X GET http://coder-server:8080/api/v2/workspaces \
         "initiator_id": "06588898-9a84-4b35-ba8f-f9cbd64946f3",
         "initiator_name": "string",
         "job": {
+          "available_workers": [
+            "497f6eca-6276-4993-bfeb-53cbbbba6f08"
+          ],
           "canceled_at": "2019-08-24T14:15:22Z",
           "completed_at": "2019-08-24T14:15:22Z",
           "created_at": "2019-08-24T14:15:22Z",
@@ -803,6 +860,20 @@ curl -X GET http://coder-server:8080/api/v2/workspaces \
           "error_code": "REQUIRED_TEMPLATE_VARIABLES",
           "file_id": "8a0cfb4f-ddc9-436d-91bb-75133c583767",
           "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+          "input": {
+            "error": "string",
+            "template_version_id": "0ba39c92-1f1b-4c32-aa3e-9925d7713eb1",
+            "workspace_build_id": "badaf2eb-96c5-4050-9f1d-db2d39ca5478"
+          },
+          "metadata": {
+            "template_display_name": "string",
+            "template_id": "c6d67e98-83ea-49f0-8812-e4abae2b68bc",
+            "template_name": "string",
+            "template_version_name": "string",
+            "workspace_id": "0967198e-ec7b-4c6b-b4d3-f71244cadbe9",
+            "workspace_name": "string"
+          },
+          "organization_id": "7c60d51f-b44e-4682-87d6-449835ea4de6",
           "queue_position": 0,
           "queue_size": 0,
           "started_at": "2019-08-24T14:15:22Z",
@@ -811,6 +882,7 @@ curl -X GET http://coder-server:8080/api/v2/workspaces \
             "property1": "string",
             "property2": "string"
           },
+          "type": "template_version_import",
           "worker_id": "ae5fa6f7-c55b-40c1-b40a-b36ac467652b"
         },
         "matched_provisioners": {
@@ -835,7 +907,7 @@ curl -X GET http://coder-server:8080/api/v2/workspaces \
                     "hidden": true,
                     "icon": "string",
                     "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
-                    "open_in": "string",
+                    "open_in": "slim-window",
                     "sharing_level": "owner",
                     "slug": "string",
                     "subdomain": true,
@@ -1024,6 +1096,9 @@ curl -X GET http://coder-server:8080/api/v2/workspaces/{workspace} \
     "initiator_id": "06588898-9a84-4b35-ba8f-f9cbd64946f3",
     "initiator_name": "string",
     "job": {
+      "available_workers": [
+        "497f6eca-6276-4993-bfeb-53cbbbba6f08"
+      ],
       "canceled_at": "2019-08-24T14:15:22Z",
       "completed_at": "2019-08-24T14:15:22Z",
       "created_at": "2019-08-24T14:15:22Z",
@@ -1031,6 +1106,20 @@ curl -X GET http://coder-server:8080/api/v2/workspaces/{workspace} \
       "error_code": "REQUIRED_TEMPLATE_VARIABLES",
       "file_id": "8a0cfb4f-ddc9-436d-91bb-75133c583767",
       "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+      "input": {
+        "error": "string",
+        "template_version_id": "0ba39c92-1f1b-4c32-aa3e-9925d7713eb1",
+        "workspace_build_id": "badaf2eb-96c5-4050-9f1d-db2d39ca5478"
+      },
+      "metadata": {
+        "template_display_name": "string",
+        "template_id": "c6d67e98-83ea-49f0-8812-e4abae2b68bc",
+        "template_name": "string",
+        "template_version_name": "string",
+        "workspace_id": "0967198e-ec7b-4c6b-b4d3-f71244cadbe9",
+        "workspace_name": "string"
+      },
+      "organization_id": "7c60d51f-b44e-4682-87d6-449835ea4de6",
       "queue_position": 0,
       "queue_size": 0,
       "started_at": "2019-08-24T14:15:22Z",
@@ -1039,6 +1128,7 @@ curl -X GET http://coder-server:8080/api/v2/workspaces/{workspace} \
         "property1": "string",
         "property2": "string"
       },
+      "type": "template_version_import",
       "worker_id": "ae5fa6f7-c55b-40c1-b40a-b36ac467652b"
     },
     "matched_provisioners": {
@@ -1067,7 +1157,7 @@ curl -X GET http://coder-server:8080/api/v2/workspaces/{workspace} \
                 "hidden": true,
                 "icon": "string",
                 "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
-                "open_in": "string",
+                "open_in": "slim-window",
                 "sharing_level": "owner",
                 "slug": "string",
                 "subdomain": true,
@@ -1371,6 +1461,9 @@ curl -X PUT http://coder-server:8080/api/v2/workspaces/{workspace}/dormant \
     "initiator_id": "06588898-9a84-4b35-ba8f-f9cbd64946f3",
     "initiator_name": "string",
     "job": {
+      "available_workers": [
+        "497f6eca-6276-4993-bfeb-53cbbbba6f08"
+      ],
       "canceled_at": "2019-08-24T14:15:22Z",
       "completed_at": "2019-08-24T14:15:22Z",
       "created_at": "2019-08-24T14:15:22Z",
@@ -1378,6 +1471,20 @@ curl -X PUT http://coder-server:8080/api/v2/workspaces/{workspace}/dormant \
       "error_code": "REQUIRED_TEMPLATE_VARIABLES",
       "file_id": "8a0cfb4f-ddc9-436d-91bb-75133c583767",
       "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+      "input": {
+        "error": "string",
+        "template_version_id": "0ba39c92-1f1b-4c32-aa3e-9925d7713eb1",
+        "workspace_build_id": "badaf2eb-96c5-4050-9f1d-db2d39ca5478"
+      },
+      "metadata": {
+        "template_display_name": "string",
+        "template_id": "c6d67e98-83ea-49f0-8812-e4abae2b68bc",
+        "template_name": "string",
+        "template_version_name": "string",
+        "workspace_id": "0967198e-ec7b-4c6b-b4d3-f71244cadbe9",
+        "workspace_name": "string"
+      },
+      "organization_id": "7c60d51f-b44e-4682-87d6-449835ea4de6",
       "queue_position": 0,
       "queue_size": 0,
       "started_at": "2019-08-24T14:15:22Z",
@@ -1386,6 +1493,7 @@ curl -X PUT http://coder-server:8080/api/v2/workspaces/{workspace}/dormant \
         "property1": "string",
         "property2": "string"
       },
+      "type": "template_version_import",
       "worker_id": "ae5fa6f7-c55b-40c1-b40a-b36ac467652b"
     },
     "matched_provisioners": {
@@ -1414,7 +1522,7 @@ curl -X PUT http://coder-server:8080/api/v2/workspaces/{workspace}/dormant \
                 "hidden": true,
                 "icon": "string",
                 "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
-                "open_in": "string",
+                "open_in": "slim-window",
                 "sharing_level": "owner",
                 "slug": "string",
                 "subdomain": true,

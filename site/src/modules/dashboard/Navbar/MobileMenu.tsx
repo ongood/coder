@@ -45,7 +45,6 @@ type MobileMenuProps = MobileMenuPermissions & {
 	proxyContextValue?: ProxyContextValue;
 	user?: TypesGen.User;
 	supportLinks?: readonly TypesGen.LinkConfig[];
-	docsHref: string;
 	onSignOut: () => void;
 	isDefaultOpen?: boolean; // Useful for storybook
 };
@@ -55,7 +54,6 @@ export const MobileMenu: FC<MobileMenuProps> = ({
 	proxyContextValue,
 	user,
 	supportLinks,
-	docsHref,
 	onSignOut,
 	...permissions
 }) => {
@@ -65,20 +63,16 @@ export const MobileMenu: FC<MobileMenuProps> = ({
 	return (
 		<DropdownMenu open={open} onOpenChange={setOpen}>
 			{open && (
-				<div className="fixed inset-0 top-[72px] backdrop-blur-sm z-10 bg-content-primary/50" />
+				<div className="fixed inset-0 top-[72px] backdrop-blur-sm z-10 bg-surface-primary/50" />
 			)}
 			<DropdownMenuTrigger asChild>
 				<Button
 					aria-label={open ? "Close menu" : "Open menu"}
-					size="icon"
-					variant="ghost"
-					className="ml-auto md:hidden [&_svg]:size-6"
+					size="lg"
+					variant="subtle"
+					className="ml-auto md:hidden"
 				>
-					{open ? (
-						<XIcon className="size-icon-lg" />
-					) : (
-						<MenuIcon className="size-icon-lg" />
-					)}
+					{open ? <XIcon /> : <MenuIcon />}
 				</Button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent
@@ -93,12 +87,6 @@ export const MobileMenu: FC<MobileMenuProps> = ({
 						<AdminSettingsSub {...permissions} />
 					</>
 				)}
-				<DropdownMenuSeparator />
-				<DropdownMenuItem asChild className={itemStyles.default}>
-					<a href={docsHref} target="_blank" rel="noreferrer norefereer">
-						Docs
-					</a>
-				</DropdownMenuItem>
 				<DropdownMenuSeparator />
 				<UserSettingsSub
 					user={user}
@@ -240,14 +228,7 @@ const AdminSettingsSub: FC<MobileMenuPermissions> = ({
 						asChild
 						className={cn(itemStyles.default, itemStyles.sub)}
 					>
-						<Link to="/organizations">
-							Organizations
-							<FeatureStageBadge
-								contentType="beta"
-								size="sm"
-								showTooltip={false}
-							/>
-						</Link>
+						<Link to="/organizations">Organizations</Link>
 					</DropdownMenuItem>
 				)}
 				{canViewAuditLog && (

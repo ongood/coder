@@ -15,6 +15,7 @@ module.exports = {
 			},
 			fontSize: {
 				"2xs": ["0.625rem", "0.875rem"],
+				xs: ["0.75rem", "1.125rem"],
 				sm: ["0.875rem", "1.5rem"],
 				"3xl": ["2rem", "2.5rem"],
 			},
@@ -32,6 +33,7 @@ module.exports = {
 					success: "hsl(var(--content-success))",
 					danger: "hsl(var(--content-danger))",
 					link: "hsl(var(--content-link))",
+					warning: "hsl(var(--content-warning))",
 				},
 				surface: {
 					primary: "hsl(var(--surface-primary))",
@@ -42,20 +44,18 @@ module.exports = {
 						primary: "hsl(var(--surface-invert-primary))",
 						secondary: "hsl(var(--surface-invert-secondary))",
 					},
-					error: "hsl(var(--surface-error))",
+					destructive: "hsl(var(--surface-destructive))",
 				},
 				border: {
 					DEFAULT: "hsl(var(--border-default))",
-					error: "hsl(var(--border-error))",
+					destructive: "hsl(var(--border-destructive))",
 				},
+				overlay: "hsla(var(--overlay-default))",
 				input: "hsl(var(--input))",
 				ring: "hsl(var(--ring))",
-				chart: {
-					1: "hsl(var(--chart-1))",
-					2: "hsl(var(--chart-2))",
-					3: "hsl(var(--chart-3))",
-					4: "hsl(var(--chart-4))",
-					5: "hsl(var(--chart-5))",
+				highlight: {
+					purple: "hsl(var(--highlight-purple))",
+					green: "hsl(var(--highlight-green))",
 				},
 			},
 			keyframes: {

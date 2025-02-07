@@ -1867,6 +1867,7 @@ CreateWorkspaceRequest provides options for creating a new workspace. Only one o
       "user": {}
     },
     "enable_terraform_debug_mode": true,
+    "ephemeral_deployment": true,
     "experiments": [
       "string"
     ],
@@ -2336,6 +2337,7 @@ CreateWorkspaceRequest provides options for creating a new workspace. Only one o
     "user": {}
   },
   "enable_terraform_debug_mode": true,
+  "ephemeral_deployment": true,
   "experiments": [
     "string"
   ],
@@ -2646,6 +2648,7 @@ CreateWorkspaceRequest provides options for creating a new workspace. Only one o
 | `disable_path_apps`                  | boolean                                                                                              | false    |              |                                                                    |
 | `docs_url`                           | [serpent.URL](#serpenturl)                                                                           | false    |              |                                                                    |
 | `enable_terraform_debug_mode`        | boolean                                                                                              | false    |              |                                                                    |
+| `ephemeral_deployment`               | boolean                                                                                              | false    |              |                                                                    |
 | `experiments`                        | array of string                                                                                      | false    |              |                                                                    |
 | `external_auth`                      | [serpent.Struct-array_codersdk_ExternalAuthConfig](#serpentstruct-array_codersdk_externalauthconfig) | false    |              |                                                                    |
 | `external_token_encryption_keys`     | array of string                                                                                      | false    |              |                                                                    |
@@ -2999,6 +3002,34 @@ Git clone makes use of this by parsing the URL from: 'Username for "https://gith
 | Name  | Type   | Required | Restrictions | Description |
 |-------|--------|----------|--------------|-------------|
 | `key` | string | false    |              |             |
+
+## codersdk.GetUserStatusCountsResponse
+
+```json
+{
+  "status_counts": {
+    "property1": [
+      {
+        "count": 10,
+        "date": "2019-08-24T14:15:22Z"
+      }
+    ],
+    "property2": [
+      {
+        "count": 10,
+        "date": "2019-08-24T14:15:22Z"
+      }
+    ]
+  }
+}
+```
+
+### Properties
+
+| Name               | Type                                                                      | Required | Restrictions | Description |
+|--------------------|---------------------------------------------------------------------------|----------|--------------|-------------|
+| `status_counts`    | object                                                                    | false    |              |             |
+| » `[any property]` | array of [codersdk.UserStatusChangeCount](#codersdkuserstatuschangecount) | false    |              |             |
 
 ## codersdk.GetUsersResponse
 
@@ -3522,6 +3553,7 @@ Git clone makes use of this by parsing the URL from: 'Username for "https://gith
 {
   "actions": "string",
   "body_template": "string",
+  "enabled_by_default": true,
   "group": "string",
   "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
   "kind": "string",
@@ -3533,16 +3565,17 @@ Git clone makes use of this by parsing the URL from: 'Username for "https://gith
 
 ### Properties
 
-| Name             | Type   | Required | Restrictions | Description |
-|------------------|--------|----------|--------------|-------------|
-| `actions`        | string | false    |              |             |
-| `body_template`  | string | false    |              |             |
-| `group`          | string | false    |              |             |
-| `id`             | string | false    |              |             |
-| `kind`           | string | false    |              |             |
-| `method`         | string | false    |              |             |
-| `name`           | string | false    |              |             |
-| `title_template` | string | false    |              |             |
+| Name                 | Type    | Required | Restrictions | Description |
+|----------------------|---------|----------|--------------|-------------|
+| `actions`            | string  | false    |              |             |
+| `body_template`      | string  | false    |              |             |
+| `enabled_by_default` | boolean | false    |              |             |
+| `group`              | string  | false    |              |             |
+| `id`                 | string  | false    |              |             |
+| `kind`               | string  | false    |              |             |
+| `method`             | string  | false    |              |             |
+| `name`               | string  | false    |              |             |
+| `title_template`     | string  | false    |              |             |
 
 ## codersdk.NotificationsConfig
 
@@ -4119,6 +4152,54 @@ Git clone makes use of this by parsing the URL from: 'Username for "https://gith
 | » `[any property]`            | array of string | false    |              |                                                                                                                                                                                     |
 | `organization_assign_default` | boolean         | false    |              | Organization assign default will ensure the default org is always included for every user, regardless of their claims. This preserves legacy behavior.                              |
 
+## codersdk.PatchGroupIDPSyncConfigRequest
+
+```json
+{
+  "auto_create_missing_groups": true,
+  "field": "string",
+  "regex_filter": {}
+}
+```
+
+### Properties
+
+| Name                         | Type                           | Required | Restrictions | Description |
+|------------------------------|--------------------------------|----------|--------------|-------------|
+| `auto_create_missing_groups` | boolean                        | false    |              |             |
+| `field`                      | string                         | false    |              |             |
+| `regex_filter`               | [regexp.Regexp](#regexpregexp) | false    |              |             |
+
+## codersdk.PatchGroupIDPSyncMappingRequest
+
+```json
+{
+  "add": [
+    {
+      "gets": "string",
+      "given": "string"
+    }
+  ],
+  "remove": [
+    {
+      "gets": "string",
+      "given": "string"
+    }
+  ]
+}
+```
+
+### Properties
+
+| Name      | Type            | Required | Restrictions | Description                                              |
+|-----------|-----------------|----------|--------------|----------------------------------------------------------|
+| `add`     | array of object | false    |              |                                                          |
+| `» gets`  | string          | false    |              | The ID of the Coder resource the user should be added to |
+| `» given` | string          | false    |              | The IdP claim the user has                               |
+| `remove`  | array of object | false    |              |                                                          |
+| `» gets`  | string          | false    |              | The ID of the Coder resource the user should be added to |
+| `» given` | string          | false    |              | The IdP claim the user has                               |
+
 ## codersdk.PatchGroupRequest
 
 ```json
@@ -4146,6 +4227,96 @@ Git clone makes use of this by parsing the URL from: 'Username for "https://gith
 | `name`            | string          | false    |              |             |
 | `quota_allowance` | integer         | false    |              |             |
 | `remove_users`    | array of string | false    |              |             |
+
+## codersdk.PatchOrganizationIDPSyncConfigRequest
+
+```json
+{
+  "assign_default": true,
+  "field": "string"
+}
+```
+
+### Properties
+
+| Name             | Type    | Required | Restrictions | Description |
+|------------------|---------|----------|--------------|-------------|
+| `assign_default` | boolean | false    |              |             |
+| `field`          | string  | false    |              |             |
+
+## codersdk.PatchOrganizationIDPSyncMappingRequest
+
+```json
+{
+  "add": [
+    {
+      "gets": "string",
+      "given": "string"
+    }
+  ],
+  "remove": [
+    {
+      "gets": "string",
+      "given": "string"
+    }
+  ]
+}
+```
+
+### Properties
+
+| Name      | Type            | Required | Restrictions | Description                                              |
+|-----------|-----------------|----------|--------------|----------------------------------------------------------|
+| `add`     | array of object | false    |              |                                                          |
+| `» gets`  | string          | false    |              | The ID of the Coder resource the user should be added to |
+| `» given` | string          | false    |              | The IdP claim the user has                               |
+| `remove`  | array of object | false    |              |                                                          |
+| `» gets`  | string          | false    |              | The ID of the Coder resource the user should be added to |
+| `» given` | string          | false    |              | The IdP claim the user has                               |
+
+## codersdk.PatchRoleIDPSyncConfigRequest
+
+```json
+{
+  "field": "string"
+}
+```
+
+### Properties
+
+| Name    | Type   | Required | Restrictions | Description |
+|---------|--------|----------|--------------|-------------|
+| `field` | string | false    |              |             |
+
+## codersdk.PatchRoleIDPSyncMappingRequest
+
+```json
+{
+  "add": [
+    {
+      "gets": "string",
+      "given": "string"
+    }
+  ],
+  "remove": [
+    {
+      "gets": "string",
+      "given": "string"
+    }
+  ]
+}
+```
+
+### Properties
+
+| Name      | Type            | Required | Restrictions | Description                                              |
+|-----------|-----------------|----------|--------------|----------------------------------------------------------|
+| `add`     | array of object | false    |              |                                                          |
+| `» gets`  | string          | false    |              | The ID of the Coder resource the user should be added to |
+| `» given` | string          | false    |              | The IdP claim the user has                               |
+| `remove`  | array of object | false    |              |                                                          |
+| `» gets`  | string          | false    |              | The ID of the Coder resource the user should be added to |
+| `» given` | string          | false    |              | The IdP claim the user has                               |
 
 ## codersdk.PatchTemplateVersionRequest
 
@@ -4315,14 +4486,24 @@ Git clone makes use of this by parsing the URL from: 'Username for "https://gith
 {
   "api_version": "string",
   "created_at": "2019-08-24T14:15:22Z",
+  "current_job": {
+    "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+    "status": "pending"
+  },
   "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
   "key_id": "1e779c8a-6786-4c89-b7c3-a6666f5fd6b5",
+  "key_name": "string",
   "last_seen_at": "2019-08-24T14:15:22Z",
   "name": "string",
   "organization_id": "7c60d51f-b44e-4682-87d6-449835ea4de6",
+  "previous_job": {
+    "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+    "status": "pending"
+  },
   "provisioners": [
     "string"
   ],
+  "status": "offline",
   "tags": {
     "property1": "string",
     "property2": "string"
@@ -4333,24 +4514,82 @@ Git clone makes use of this by parsing the URL from: 'Username for "https://gith
 
 ### Properties
 
-| Name               | Type            | Required | Restrictions | Description |
-|--------------------|-----------------|----------|--------------|-------------|
-| `api_version`      | string          | false    |              |             |
-| `created_at`       | string          | false    |              |             |
-| `id`               | string          | false    |              |             |
-| `key_id`           | string          | false    |              |             |
-| `last_seen_at`     | string          | false    |              |             |
-| `name`             | string          | false    |              |             |
-| `organization_id`  | string          | false    |              |             |
-| `provisioners`     | array of string | false    |              |             |
-| `tags`             | object          | false    |              |             |
-| » `[any property]` | string          | false    |              |             |
-| `version`          | string          | false    |              |             |
+| Name               | Type                                                                 | Required | Restrictions | Description      |
+|--------------------|----------------------------------------------------------------------|----------|--------------|------------------|
+| `api_version`      | string                                                               | false    |              |                  |
+| `created_at`       | string                                                               | false    |              |                  |
+| `current_job`      | [codersdk.ProvisionerDaemonJob](#codersdkprovisionerdaemonjob)       | false    |              |                  |
+| `id`               | string                                                               | false    |              |                  |
+| `key_id`           | string                                                               | false    |              |                  |
+| `key_name`         | string                                                               | false    |              | Optional fields. |
+| `last_seen_at`     | string                                                               | false    |              |                  |
+| `name`             | string                                                               | false    |              |                  |
+| `organization_id`  | string                                                               | false    |              |                  |
+| `previous_job`     | [codersdk.ProvisionerDaemonJob](#codersdkprovisionerdaemonjob)       | false    |              |                  |
+| `provisioners`     | array of string                                                      | false    |              |                  |
+| `status`           | [codersdk.ProvisionerDaemonStatus](#codersdkprovisionerdaemonstatus) | false    |              |                  |
+| `tags`             | object                                                               | false    |              |                  |
+| » `[any property]` | string                                                               | false    |              |                  |
+| `version`          | string                                                               | false    |              |                  |
+
+#### Enumerated Values
+
+| Property | Value     |
+|----------|-----------|
+| `status` | `offline` |
+| `status` | `idle`    |
+| `status` | `busy`    |
+
+## codersdk.ProvisionerDaemonJob
+
+```json
+{
+  "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+  "status": "pending"
+}
+```
+
+### Properties
+
+| Name     | Type                                                           | Required | Restrictions | Description |
+|----------|----------------------------------------------------------------|----------|--------------|-------------|
+| `id`     | string                                                         | false    |              |             |
+| `status` | [codersdk.ProvisionerJobStatus](#codersdkprovisionerjobstatus) | false    |              |             |
+
+#### Enumerated Values
+
+| Property | Value       |
+|----------|-------------|
+| `status` | `pending`   |
+| `status` | `running`   |
+| `status` | `succeeded` |
+| `status` | `canceling` |
+| `status` | `canceled`  |
+| `status` | `failed`    |
+
+## codersdk.ProvisionerDaemonStatus
+
+```json
+"offline"
+```
+
+### Properties
+
+#### Enumerated Values
+
+| Value     |
+|-----------|
+| `offline` |
+| `idle`    |
+| `busy`    |
 
 ## codersdk.ProvisionerJob
 
 ```json
 {
+  "available_workers": [
+    "497f6eca-6276-4993-bfeb-53cbbbba6f08"
+  ],
   "canceled_at": "2019-08-24T14:15:22Z",
   "completed_at": "2019-08-24T14:15:22Z",
   "created_at": "2019-08-24T14:15:22Z",
@@ -4358,6 +4597,20 @@ Git clone makes use of this by parsing the URL from: 'Username for "https://gith
   "error_code": "REQUIRED_TEMPLATE_VARIABLES",
   "file_id": "8a0cfb4f-ddc9-436d-91bb-75133c583767",
   "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+  "input": {
+    "error": "string",
+    "template_version_id": "0ba39c92-1f1b-4c32-aa3e-9925d7713eb1",
+    "workspace_build_id": "badaf2eb-96c5-4050-9f1d-db2d39ca5478"
+  },
+  "metadata": {
+    "template_display_name": "string",
+    "template_id": "c6d67e98-83ea-49f0-8812-e4abae2b68bc",
+    "template_name": "string",
+    "template_version_name": "string",
+    "workspace_id": "0967198e-ec7b-4c6b-b4d3-f71244cadbe9",
+    "workspace_name": "string"
+  },
+  "organization_id": "7c60d51f-b44e-4682-87d6-449835ea4de6",
   "queue_position": 0,
   "queue_size": 0,
   "started_at": "2019-08-24T14:15:22Z",
@@ -4366,28 +4619,34 @@ Git clone makes use of this by parsing the URL from: 'Username for "https://gith
     "property1": "string",
     "property2": "string"
   },
+  "type": "template_version_import",
   "worker_id": "ae5fa6f7-c55b-40c1-b40a-b36ac467652b"
 }
 ```
 
 ### Properties
 
-| Name               | Type                                                           | Required | Restrictions | Description |
-|--------------------|----------------------------------------------------------------|----------|--------------|-------------|
-| `canceled_at`      | string                                                         | false    |              |             |
-| `completed_at`     | string                                                         | false    |              |             |
-| `created_at`       | string                                                         | false    |              |             |
-| `error`            | string                                                         | false    |              |             |
-| `error_code`       | [codersdk.JobErrorCode](#codersdkjoberrorcode)                 | false    |              |             |
-| `file_id`          | string                                                         | false    |              |             |
-| `id`               | string                                                         | false    |              |             |
-| `queue_position`   | integer                                                        | false    |              |             |
-| `queue_size`       | integer                                                        | false    |              |             |
-| `started_at`       | string                                                         | false    |              |             |
-| `status`           | [codersdk.ProvisionerJobStatus](#codersdkprovisionerjobstatus) | false    |              |             |
-| `tags`             | object                                                         | false    |              |             |
-| » `[any property]` | string                                                         | false    |              |             |
-| `worker_id`        | string                                                         | false    |              |             |
+| Name                | Type                                                               | Required | Restrictions | Description |
+|---------------------|--------------------------------------------------------------------|----------|--------------|-------------|
+| `available_workers` | array of string                                                    | false    |              |             |
+| `canceled_at`       | string                                                             | false    |              |             |
+| `completed_at`      | string                                                             | false    |              |             |
+| `created_at`        | string                                                             | false    |              |             |
+| `error`             | string                                                             | false    |              |             |
+| `error_code`        | [codersdk.JobErrorCode](#codersdkjoberrorcode)                     | false    |              |             |
+| `file_id`           | string                                                             | false    |              |             |
+| `id`                | string                                                             | false    |              |             |
+| `input`             | [codersdk.ProvisionerJobInput](#codersdkprovisionerjobinput)       | false    |              |             |
+| `metadata`          | [codersdk.ProvisionerJobMetadata](#codersdkprovisionerjobmetadata) | false    |              |             |
+| `organization_id`   | string                                                             | false    |              |             |
+| `queue_position`    | integer                                                            | false    |              |             |
+| `queue_size`        | integer                                                            | false    |              |             |
+| `started_at`        | string                                                             | false    |              |             |
+| `status`            | [codersdk.ProvisionerJobStatus](#codersdkprovisionerjobstatus)     | false    |              |             |
+| `tags`              | object                                                             | false    |              |             |
+| » `[any property]`  | string                                                             | false    |              |             |
+| `type`              | [codersdk.ProvisionerJobType](#codersdkprovisionerjobtype)         | false    |              |             |
+| `worker_id`         | string                                                             | false    |              |             |
 
 #### Enumerated Values
 
@@ -4400,6 +4659,24 @@ Git clone makes use of this by parsing the URL from: 'Username for "https://gith
 | `status`     | `canceling`                   |
 | `status`     | `canceled`                    |
 | `status`     | `failed`                      |
+
+## codersdk.ProvisionerJobInput
+
+```json
+{
+  "error": "string",
+  "template_version_id": "0ba39c92-1f1b-4c32-aa3e-9925d7713eb1",
+  "workspace_build_id": "badaf2eb-96c5-4050-9f1d-db2d39ca5478"
+}
+```
+
+### Properties
+
+| Name                  | Type   | Required | Restrictions | Description |
+|-----------------------|--------|----------|--------------|-------------|
+| `error`               | string | false    |              |             |
+| `template_version_id` | string | false    |              |             |
+| `workspace_build_id`  | string | false    |              |             |
 
 ## codersdk.ProvisionerJobLog
 
@@ -4435,6 +4712,30 @@ Git clone makes use of this by parsing the URL from: 'Username for "https://gith
 | `log_level` | `warn`  |
 | `log_level` | `error` |
 
+## codersdk.ProvisionerJobMetadata
+
+```json
+{
+  "template_display_name": "string",
+  "template_id": "c6d67e98-83ea-49f0-8812-e4abae2b68bc",
+  "template_name": "string",
+  "template_version_name": "string",
+  "workspace_id": "0967198e-ec7b-4c6b-b4d3-f71244cadbe9",
+  "workspace_name": "string"
+}
+```
+
+### Properties
+
+| Name                    | Type   | Required | Restrictions | Description |
+|-------------------------|--------|----------|--------------|-------------|
+| `template_display_name` | string | false    |              |             |
+| `template_id`           | string | false    |              |             |
+| `template_name`         | string | false    |              |             |
+| `template_version_name` | string | false    |              |             |
+| `workspace_id`          | string | false    |              |             |
+| `workspace_name`        | string | false    |              |             |
+
 ## codersdk.ProvisionerJobStatus
 
 ```json
@@ -4454,6 +4755,22 @@ Git clone makes use of this by parsing the URL from: 'Username for "https://gith
 | `canceled`  |
 | `failed`    |
 | `unknown`   |
+
+## codersdk.ProvisionerJobType
+
+```json
+"template_version_import"
+```
+
+### Properties
+
+#### Enumerated Values
+
+| Value                      |
+|----------------------------|
+| `template_version_import`  |
+| `workspace_build`          |
+| `template_version_dry_run` |
 
 ## codersdk.ProvisionerKey
 
@@ -4488,14 +4805,24 @@ Git clone makes use of this by parsing the URL from: 'Username for "https://gith
     {
       "api_version": "string",
       "created_at": "2019-08-24T14:15:22Z",
+      "current_job": {
+        "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+        "status": "pending"
+      },
       "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
       "key_id": "1e779c8a-6786-4c89-b7c3-a6666f5fd6b5",
+      "key_name": "string",
       "last_seen_at": "2019-08-24T14:15:22Z",
       "name": "string",
       "organization_id": "7c60d51f-b44e-4682-87d6-449835ea4de6",
+      "previous_job": {
+        "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+        "status": "pending"
+      },
       "provisioners": [
         "string"
       ],
+      "status": "offline",
       "tags": {
         "property1": "string",
         "property2": "string"
@@ -4697,40 +5024,42 @@ Git clone makes use of this by parsing the URL from: 'Username for "https://gith
 
 #### Enumerated Values
 
-| Value                     |
-|---------------------------|
-| `*`                       |
-| `api_key`                 |
-| `assign_org_role`         |
-| `assign_role`             |
-| `audit_log`               |
-| `crypto_key`              |
-| `debug_info`              |
-| `deployment_config`       |
-| `deployment_stats`        |
-| `file`                    |
-| `group`                   |
-| `group_member`            |
-| `idpsync_settings`        |
-| `license`                 |
-| `notification_message`    |
-| `notification_preference` |
-| `notification_template`   |
-| `oauth2_app`              |
-| `oauth2_app_code_token`   |
-| `oauth2_app_secret`       |
-| `organization`            |
-| `organization_member`     |
-| `provisioner_daemon`      |
-| `provisioner_keys`        |
-| `replicas`                |
-| `system`                  |
-| `tailnet_coordinator`     |
-| `template`                |
-| `user`                    |
-| `workspace`               |
-| `workspace_dormant`       |
-| `workspace_proxy`         |
+| Value                              |
+|------------------------------------|
+| `*`                                |
+| `api_key`                          |
+| `assign_org_role`                  |
+| `assign_role`                      |
+| `audit_log`                        |
+| `crypto_key`                       |
+| `debug_info`                       |
+| `deployment_config`                |
+| `deployment_stats`                 |
+| `file`                             |
+| `group`                            |
+| `group_member`                     |
+| `idpsync_settings`                 |
+| `license`                          |
+| `notification_message`             |
+| `notification_preference`          |
+| `notification_template`            |
+| `oauth2_app`                       |
+| `oauth2_app_code_token`            |
+| `oauth2_app_secret`                |
+| `organization`                     |
+| `organization_member`              |
+| `provisioner_daemon`               |
+| `provisioner_jobs`                 |
+| `provisioner_keys`                 |
+| `replicas`                         |
+| `system`                           |
+| `tailnet_coordinator`              |
+| `template`                         |
+| `user`                             |
+| `workspace`                        |
+| `workspace_agent_resource_monitor` |
+| `workspace_dormant`                |
+| `workspace_proxy`                  |
 
 ## codersdk.RateLimitConfig
 
@@ -5790,6 +6119,9 @@ Restarts will only happen on weekdays in this list on weeks which line up with W
   },
   "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
   "job": {
+    "available_workers": [
+      "497f6eca-6276-4993-bfeb-53cbbbba6f08"
+    ],
     "canceled_at": "2019-08-24T14:15:22Z",
     "completed_at": "2019-08-24T14:15:22Z",
     "created_at": "2019-08-24T14:15:22Z",
@@ -5797,6 +6129,20 @@ Restarts will only happen on weekdays in this list on weeks which line up with W
     "error_code": "REQUIRED_TEMPLATE_VARIABLES",
     "file_id": "8a0cfb4f-ddc9-436d-91bb-75133c583767",
     "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+    "input": {
+      "error": "string",
+      "template_version_id": "0ba39c92-1f1b-4c32-aa3e-9925d7713eb1",
+      "workspace_build_id": "badaf2eb-96c5-4050-9f1d-db2d39ca5478"
+    },
+    "metadata": {
+      "template_display_name": "string",
+      "template_id": "c6d67e98-83ea-49f0-8812-e4abae2b68bc",
+      "template_name": "string",
+      "template_version_name": "string",
+      "workspace_id": "0967198e-ec7b-4c6b-b4d3-f71244cadbe9",
+      "workspace_name": "string"
+    },
+    "organization_id": "7c60d51f-b44e-4682-87d6-449835ea4de6",
     "queue_position": 0,
     "queue_size": 0,
     "started_at": "2019-08-24T14:15:22Z",
@@ -5805,6 +6151,7 @@ Restarts will only happen on weekdays in this list on weeks which line up with W
       "property1": "string",
       "property2": "string"
     },
+    "type": "template_version_import",
     "worker_id": "ae5fa6f7-c55b-40c1-b40a-b36ac467652b"
   },
   "matched_provisioners": {
@@ -6724,6 +7071,22 @@ If the schedule is empty, the user will be updated to use the default schedule.|
 | `dormant`   |
 | `suspended` |
 
+## codersdk.UserStatusChangeCount
+
+```json
+{
+  "count": 10,
+  "date": "2019-08-24T14:15:22Z"
+}
+```
+
+### Properties
+
+| Name    | Type    | Required | Restrictions | Description |
+|---------|---------|----------|--------------|-------------|
+| `count` | integer | false    |              |             |
+| `date`  | string  | false    |              |             |
+
 ## codersdk.ValidateUserPasswordRequest
 
 ```json
@@ -6829,6 +7192,9 @@ If the schedule is empty, the user will be updated to use the default schedule.|
     "initiator_id": "06588898-9a84-4b35-ba8f-f9cbd64946f3",
     "initiator_name": "string",
     "job": {
+      "available_workers": [
+        "497f6eca-6276-4993-bfeb-53cbbbba6f08"
+      ],
       "canceled_at": "2019-08-24T14:15:22Z",
       "completed_at": "2019-08-24T14:15:22Z",
       "created_at": "2019-08-24T14:15:22Z",
@@ -6836,6 +7202,20 @@ If the schedule is empty, the user will be updated to use the default schedule.|
       "error_code": "REQUIRED_TEMPLATE_VARIABLES",
       "file_id": "8a0cfb4f-ddc9-436d-91bb-75133c583767",
       "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+      "input": {
+        "error": "string",
+        "template_version_id": "0ba39c92-1f1b-4c32-aa3e-9925d7713eb1",
+        "workspace_build_id": "badaf2eb-96c5-4050-9f1d-db2d39ca5478"
+      },
+      "metadata": {
+        "template_display_name": "string",
+        "template_id": "c6d67e98-83ea-49f0-8812-e4abae2b68bc",
+        "template_name": "string",
+        "template_version_name": "string",
+        "workspace_id": "0967198e-ec7b-4c6b-b4d3-f71244cadbe9",
+        "workspace_name": "string"
+      },
+      "organization_id": "7c60d51f-b44e-4682-87d6-449835ea4de6",
       "queue_position": 0,
       "queue_size": 0,
       "started_at": "2019-08-24T14:15:22Z",
@@ -6844,6 +7224,7 @@ If the schedule is empty, the user will be updated to use the default schedule.|
         "property1": "string",
         "property2": "string"
       },
+      "type": "template_version_import",
       "worker_id": "ae5fa6f7-c55b-40c1-b40a-b36ac467652b"
     },
     "matched_provisioners": {
@@ -6872,7 +7253,7 @@ If the schedule is empty, the user will be updated to use the default schedule.|
                 "hidden": true,
                 "icon": "string",
                 "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
-                "open_in": "string",
+                "open_in": "slim-window",
                 "sharing_level": "owner",
                 "slug": "string",
                 "subdomain": true,
@@ -7060,7 +7441,7 @@ If the schedule is empty, the user will be updated to use the default schedule.|
       "hidden": true,
       "icon": "string",
       "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
-      "open_in": "string",
+      "open_in": "slim-window",
       "sharing_level": "owner",
       "slug": "string",
       "subdomain": true,
@@ -7465,7 +7846,7 @@ If the schedule is empty, the user will be updated to use the default schedule.|
   "hidden": true,
   "icon": "string",
   "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
-  "open_in": "string",
+  "open_in": "slim-window",
   "sharing_level": "owner",
   "slug": "string",
   "subdomain": true,
@@ -7486,7 +7867,7 @@ If the schedule is empty, the user will be updated to use the default schedule.|
 | `hidden`         | boolean                                                                | false    |              |                                                                                                                                                                                                                                                |
 | `icon`           | string                                                                 | false    |              | Icon is a relative path or external URL that specifies an icon to be displayed in the dashboard.                                                                                                                                               |
 | `id`             | string                                                                 | false    |              |                                                                                                                                                                                                                                                |
-| `open_in`        | string                                                                 | false    |              |                                                                                                                                                                                                                                                |
+| `open_in`        | [codersdk.WorkspaceAppOpenIn](#codersdkworkspaceappopenin)             | false    |              |                                                                                                                                                                                                                                                |
 | `sharing_level`  | [codersdk.WorkspaceAppSharingLevel](#codersdkworkspaceappsharinglevel) | false    |              |                                                                                                                                                                                                                                                |
 | `slug`           | string                                                                 | false    |              | Slug is a unique identifier within the agent.                                                                                                                                                                                                  |
 | `subdomain`      | boolean                                                                | false    |              | Subdomain denotes whether the app should be accessed via a path on the `coder server` or via a hostname-based dev URL. If this is set to true and there is no app wildcard configured on the server, the app will not be accessible in the UI. |
@@ -7518,6 +7899,21 @@ If the schedule is empty, the user will be updated to use the default schedule.|
 | `healthy`      |
 | `unhealthy`    |
 
+## codersdk.WorkspaceAppOpenIn
+
+```json
+"slim-window"
+```
+
+### Properties
+
+#### Enumerated Values
+
+| Value         |
+|---------------|
+| `slim-window` |
+| `tab`         |
+
 ## codersdk.WorkspaceAppSharingLevel
 
 ```json
@@ -7546,6 +7942,9 @@ If the schedule is empty, the user will be updated to use the default schedule.|
   "initiator_id": "06588898-9a84-4b35-ba8f-f9cbd64946f3",
   "initiator_name": "string",
   "job": {
+    "available_workers": [
+      "497f6eca-6276-4993-bfeb-53cbbbba6f08"
+    ],
     "canceled_at": "2019-08-24T14:15:22Z",
     "completed_at": "2019-08-24T14:15:22Z",
     "created_at": "2019-08-24T14:15:22Z",
@@ -7553,6 +7952,20 @@ If the schedule is empty, the user will be updated to use the default schedule.|
     "error_code": "REQUIRED_TEMPLATE_VARIABLES",
     "file_id": "8a0cfb4f-ddc9-436d-91bb-75133c583767",
     "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+    "input": {
+      "error": "string",
+      "template_version_id": "0ba39c92-1f1b-4c32-aa3e-9925d7713eb1",
+      "workspace_build_id": "badaf2eb-96c5-4050-9f1d-db2d39ca5478"
+    },
+    "metadata": {
+      "template_display_name": "string",
+      "template_id": "c6d67e98-83ea-49f0-8812-e4abae2b68bc",
+      "template_name": "string",
+      "template_version_name": "string",
+      "workspace_id": "0967198e-ec7b-4c6b-b4d3-f71244cadbe9",
+      "workspace_name": "string"
+    },
+    "organization_id": "7c60d51f-b44e-4682-87d6-449835ea4de6",
     "queue_position": 0,
     "queue_size": 0,
     "started_at": "2019-08-24T14:15:22Z",
@@ -7561,6 +7974,7 @@ If the schedule is empty, the user will be updated to use the default schedule.|
       "property1": "string",
       "property2": "string"
     },
+    "type": "template_version_import",
     "worker_id": "ae5fa6f7-c55b-40c1-b40a-b36ac467652b"
   },
   "matched_provisioners": {
@@ -7589,7 +8003,7 @@ If the schedule is empty, the user will be updated to use the default schedule.|
               "hidden": true,
               "icon": "string",
               "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
-              "open_in": "string",
+              "open_in": "slim-window",
               "sharing_level": "owner",
               "slug": "string",
               "subdomain": true,
@@ -7989,7 +8403,7 @@ If the schedule is empty, the user will be updated to use the default schedule.|
           "hidden": true,
           "icon": "string",
           "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
-          "open_in": "string",
+          "open_in": "slim-window",
           "sharing_level": "owner",
           "slug": "string",
           "subdomain": true,
@@ -8200,6 +8614,9 @@ If the schedule is empty, the user will be updated to use the default schedule.|
         "initiator_id": "06588898-9a84-4b35-ba8f-f9cbd64946f3",
         "initiator_name": "string",
         "job": {
+          "available_workers": [
+            "497f6eca-6276-4993-bfeb-53cbbbba6f08"
+          ],
           "canceled_at": "2019-08-24T14:15:22Z",
           "completed_at": "2019-08-24T14:15:22Z",
           "created_at": "2019-08-24T14:15:22Z",
@@ -8207,6 +8624,20 @@ If the schedule is empty, the user will be updated to use the default schedule.|
           "error_code": "REQUIRED_TEMPLATE_VARIABLES",
           "file_id": "8a0cfb4f-ddc9-436d-91bb-75133c583767",
           "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+          "input": {
+            "error": "string",
+            "template_version_id": "0ba39c92-1f1b-4c32-aa3e-9925d7713eb1",
+            "workspace_build_id": "badaf2eb-96c5-4050-9f1d-db2d39ca5478"
+          },
+          "metadata": {
+            "template_display_name": "string",
+            "template_id": "c6d67e98-83ea-49f0-8812-e4abae2b68bc",
+            "template_name": "string",
+            "template_version_name": "string",
+            "workspace_id": "0967198e-ec7b-4c6b-b4d3-f71244cadbe9",
+            "workspace_name": "string"
+          },
+          "organization_id": "7c60d51f-b44e-4682-87d6-449835ea4de6",
           "queue_position": 0,
           "queue_size": 0,
           "started_at": "2019-08-24T14:15:22Z",
@@ -8215,6 +8646,7 @@ If the schedule is empty, the user will be updated to use the default schedule.|
             "property1": "string",
             "property2": "string"
           },
+          "type": "template_version_import",
           "worker_id": "ae5fa6f7-c55b-40c1-b40a-b36ac467652b"
         },
         "matched_provisioners": {
@@ -8239,7 +8671,7 @@ If the schedule is empty, the user will be updated to use the default schedule.|
                     "hidden": true,
                     "icon": "string",
                     "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
-                    "open_in": "string",
+                    "open_in": "slim-window",
                     "sharing_level": "owner",
                     "slug": "string",
                     "subdomain": true,
@@ -9301,14 +9733,24 @@ Zero means unspecified. There might be a limit, but the client need not try to r
         "provisioner_daemon": {
           "api_version": "string",
           "created_at": "2019-08-24T14:15:22Z",
+          "current_job": {
+            "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+            "status": "pending"
+          },
           "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
           "key_id": "1e779c8a-6786-4c89-b7c3-a6666f5fd6b5",
+          "key_name": "string",
           "last_seen_at": "2019-08-24T14:15:22Z",
           "name": "string",
           "organization_id": "7c60d51f-b44e-4682-87d6-449835ea4de6",
+          "previous_job": {
+            "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+            "status": "pending"
+          },
           "provisioners": [
             "string"
           ],
+          "status": "offline",
           "tags": {
             "property1": "string",
             "property2": "string"
@@ -9427,14 +9869,24 @@ Zero means unspecified. There might be a limit, but the client need not try to r
       "provisioner_daemon": {
         "api_version": "string",
         "created_at": "2019-08-24T14:15:22Z",
+        "current_job": {
+          "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+          "status": "pending"
+        },
         "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
         "key_id": "1e779c8a-6786-4c89-b7c3-a6666f5fd6b5",
+        "key_name": "string",
         "last_seen_at": "2019-08-24T14:15:22Z",
         "name": "string",
         "organization_id": "7c60d51f-b44e-4682-87d6-449835ea4de6",
+        "previous_job": {
+          "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+          "status": "pending"
+        },
         "provisioners": [
           "string"
         ],
+        "status": "offline",
         "tags": {
           "property1": "string",
           "property2": "string"
@@ -9484,14 +9936,24 @@ Zero means unspecified. There might be a limit, but the client need not try to r
   "provisioner_daemon": {
     "api_version": "string",
     "created_at": "2019-08-24T14:15:22Z",
+    "current_job": {
+      "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+      "status": "pending"
+    },
     "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
     "key_id": "1e779c8a-6786-4c89-b7c3-a6666f5fd6b5",
+    "key_name": "string",
     "last_seen_at": "2019-08-24T14:15:22Z",
     "name": "string",
     "organization_id": "7c60d51f-b44e-4682-87d6-449835ea4de6",
+    "previous_job": {
+      "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+      "status": "pending"
+    },
     "provisioners": [
       "string"
     ],
+    "status": "offline",
     "tags": {
       "property1": "string",
       "property2": "string"
