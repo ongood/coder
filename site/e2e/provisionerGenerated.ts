@@ -23,6 +23,7 @@ export enum AppSharingLevel {
 }
 
 export enum AppOpenIn {
+  /** @deprecated */
   WINDOW = 0,
   SLIM_WINDOW = 1,
   TAB = 2,
@@ -93,6 +94,17 @@ export interface RichParameterValue {
   value: string;
 }
 
+/** Preset represents a set of preset parameters for a template version. */
+export interface Preset {
+  name: string;
+  parameters: PresetParameter[];
+}
+
+export interface PresetParameter {
+  name: string;
+  value: string;
+}
+
 /** VariableValue holds the key/value mapping of a Terraform variable. */
 export interface VariableValue {
   name: string;
@@ -145,6 +157,7 @@ export interface Agent {
   scripts: Script[];
   extraEnvs: Env[];
   order: number;
+  resourcesMonitoring: ResourcesMonitoring | undefined;
 }
 
 export interface Agent_Metadata {
@@ -159,6 +172,22 @@ export interface Agent_Metadata {
 export interface Agent_EnvEntry {
   key: string;
   value: string;
+}
+
+export interface ResourcesMonitoring {
+  memory: MemoryResourceMonitor | undefined;
+  volumes: VolumeResourceMonitor[];
+}
+
+export interface MemoryResourceMonitor {
+  enabled: boolean;
+  threshold: number;
+}
+
+export interface VolumeResourceMonitor {
+  path: string;
+  enabled: boolean;
+  threshold: number;
 }
 
 export interface DisplayApps {
@@ -304,6 +333,7 @@ export interface PlanComplete {
   externalAuthProviders: ExternalAuthProviderResource[];
   timings: Timing[];
   modules: Module[];
+  presets: Preset[];
 }
 
 /**
@@ -467,6 +497,30 @@ export const RichParameterValue = {
   },
 };
 
+export const Preset = {
+  encode(message: Preset, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.name !== "") {
+      writer.uint32(10).string(message.name);
+    }
+    for (const v of message.parameters) {
+      PresetParameter.encode(v!, writer.uint32(18).fork()).ldelim();
+    }
+    return writer;
+  },
+};
+
+export const PresetParameter = {
+  encode(message: PresetParameter, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.name !== "") {
+      writer.uint32(10).string(message.name);
+    }
+    if (message.value !== "") {
+      writer.uint32(18).string(message.value);
+    }
+    return writer;
+  },
+};
+
 export const VariableValue = {
   encode(message: VariableValue, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
     if (message.name !== "") {
@@ -580,6 +634,9 @@ export const Agent = {
     if (message.order !== 0) {
       writer.uint32(184).int64(message.order);
     }
+    if (message.resourcesMonitoring !== undefined) {
+      ResourcesMonitoring.encode(message.resourcesMonitoring, writer.uint32(194).fork()).ldelim();
+    }
     return writer;
   },
 };
@@ -615,6 +672,45 @@ export const Agent_EnvEntry = {
     }
     if (message.value !== "") {
       writer.uint32(18).string(message.value);
+    }
+    return writer;
+  },
+};
+
+export const ResourcesMonitoring = {
+  encode(message: ResourcesMonitoring, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.memory !== undefined) {
+      MemoryResourceMonitor.encode(message.memory, writer.uint32(10).fork()).ldelim();
+    }
+    for (const v of message.volumes) {
+      VolumeResourceMonitor.encode(v!, writer.uint32(18).fork()).ldelim();
+    }
+    return writer;
+  },
+};
+
+export const MemoryResourceMonitor = {
+  encode(message: MemoryResourceMonitor, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.enabled === true) {
+      writer.uint32(8).bool(message.enabled);
+    }
+    if (message.threshold !== 0) {
+      writer.uint32(16).int32(message.threshold);
+    }
+    return writer;
+  },
+};
+
+export const VolumeResourceMonitor = {
+  encode(message: VolumeResourceMonitor, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.path !== "") {
+      writer.uint32(10).string(message.path);
+    }
+    if (message.enabled === true) {
+      writer.uint32(16).bool(message.enabled);
+    }
+    if (message.threshold !== 0) {
+      writer.uint32(24).int32(message.threshold);
     }
     return writer;
   },
@@ -957,6 +1053,9 @@ export const PlanComplete = {
     }
     for (const v of message.modules) {
       Module.encode(v!, writer.uint32(58).fork()).ldelim();
+    }
+    for (const v of message.presets) {
+      Preset.encode(v!, writer.uint32(66).fork()).ldelim();
     }
     return writer;
   },

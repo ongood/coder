@@ -35,6 +35,9 @@ curl -X GET http://coder-server:8080/api/v2/users/{user}/workspace/{workspacenam
   "initiator_id": "06588898-9a84-4b35-ba8f-f9cbd64946f3",
   "initiator_name": "string",
   "job": {
+    "available_workers": [
+      "497f6eca-6276-4993-bfeb-53cbbbba6f08"
+    ],
     "canceled_at": "2019-08-24T14:15:22Z",
     "completed_at": "2019-08-24T14:15:22Z",
     "created_at": "2019-08-24T14:15:22Z",
@@ -42,6 +45,21 @@ curl -X GET http://coder-server:8080/api/v2/users/{user}/workspace/{workspacenam
     "error_code": "REQUIRED_TEMPLATE_VARIABLES",
     "file_id": "8a0cfb4f-ddc9-436d-91bb-75133c583767",
     "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+    "input": {
+      "error": "string",
+      "template_version_id": "0ba39c92-1f1b-4c32-aa3e-9925d7713eb1",
+      "workspace_build_id": "badaf2eb-96c5-4050-9f1d-db2d39ca5478"
+    },
+    "metadata": {
+      "template_display_name": "string",
+      "template_icon": "string",
+      "template_id": "c6d67e98-83ea-49f0-8812-e4abae2b68bc",
+      "template_name": "string",
+      "template_version_name": "string",
+      "workspace_id": "0967198e-ec7b-4c6b-b4d3-f71244cadbe9",
+      "workspace_name": "string"
+    },
+    "organization_id": "7c60d51f-b44e-4682-87d6-449835ea4de6",
     "queue_position": 0,
     "queue_size": 0,
     "started_at": "2019-08-24T14:15:22Z",
@@ -50,6 +68,7 @@ curl -X GET http://coder-server:8080/api/v2/users/{user}/workspace/{workspacenam
       "property1": "string",
       "property2": "string"
     },
+    "type": "template_version_import",
     "worker_id": "ae5fa6f7-c55b-40c1-b40a-b36ac467652b"
   },
   "matched_provisioners": {
@@ -78,7 +97,7 @@ curl -X GET http://coder-server:8080/api/v2/users/{user}/workspace/{workspacenam
               "hidden": true,
               "icon": "string",
               "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
-              "open_in": "string",
+              "open_in": "slim-window",
               "sharing_level": "owner",
               "slug": "string",
               "subdomain": true,
@@ -230,6 +249,9 @@ curl -X GET http://coder-server:8080/api/v2/workspacebuilds/{workspacebuild} \
   "initiator_id": "06588898-9a84-4b35-ba8f-f9cbd64946f3",
   "initiator_name": "string",
   "job": {
+    "available_workers": [
+      "497f6eca-6276-4993-bfeb-53cbbbba6f08"
+    ],
     "canceled_at": "2019-08-24T14:15:22Z",
     "completed_at": "2019-08-24T14:15:22Z",
     "created_at": "2019-08-24T14:15:22Z",
@@ -237,6 +259,21 @@ curl -X GET http://coder-server:8080/api/v2/workspacebuilds/{workspacebuild} \
     "error_code": "REQUIRED_TEMPLATE_VARIABLES",
     "file_id": "8a0cfb4f-ddc9-436d-91bb-75133c583767",
     "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+    "input": {
+      "error": "string",
+      "template_version_id": "0ba39c92-1f1b-4c32-aa3e-9925d7713eb1",
+      "workspace_build_id": "badaf2eb-96c5-4050-9f1d-db2d39ca5478"
+    },
+    "metadata": {
+      "template_display_name": "string",
+      "template_icon": "string",
+      "template_id": "c6d67e98-83ea-49f0-8812-e4abae2b68bc",
+      "template_name": "string",
+      "template_version_name": "string",
+      "workspace_id": "0967198e-ec7b-4c6b-b4d3-f71244cadbe9",
+      "workspace_name": "string"
+    },
+    "organization_id": "7c60d51f-b44e-4682-87d6-449835ea4de6",
     "queue_position": 0,
     "queue_size": 0,
     "started_at": "2019-08-24T14:15:22Z",
@@ -245,6 +282,7 @@ curl -X GET http://coder-server:8080/api/v2/workspacebuilds/{workspacebuild} \
       "property1": "string",
       "property2": "string"
     },
+    "type": "template_version_import",
     "worker_id": "ae5fa6f7-c55b-40c1-b40a-b36ac467652b"
   },
   "matched_provisioners": {
@@ -273,7 +311,7 @@ curl -X GET http://coder-server:8080/api/v2/workspacebuilds/{workspacebuild} \
               "hidden": true,
               "icon": "string",
               "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
-              "open_in": "string",
+              "open_in": "slim-window",
               "sharing_level": "owner",
               "slug": "string",
               "subdomain": true,
@@ -451,12 +489,12 @@ curl -X GET http://coder-server:8080/api/v2/workspacebuilds/{workspacebuild}/log
 
 ### Parameters
 
-| Name             | In    | Type    | Required | Description           |
-|------------------|-------|---------|----------|-----------------------|
-| `workspacebuild` | path  | string  | true     | Workspace build ID    |
-| `before`         | query | integer | false    | Before Unix timestamp |
-| `after`          | query | integer | false    | After Unix timestamp  |
-| `follow`         | query | boolean | false    | Follow log stream     |
+| Name             | In    | Type    | Required | Description        |
+|------------------|-------|---------|----------|--------------------|
+| `workspacebuild` | path  | string  | true     | Workspace build ID |
+| `before`         | query | integer | false    | Before log id      |
+| `after`          | query | integer | false    | After log id       |
+| `follow`         | query | boolean | false    | Follow log stream  |
 
 ### Example responses
 
@@ -602,7 +640,7 @@ curl -X GET http://coder-server:8080/api/v2/workspacebuilds/{workspacebuild}/res
             "hidden": true,
             "icon": "string",
             "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
-            "open_in": "string",
+            "open_in": "slim-window",
             "sharing_level": "owner",
             "slug": "string",
             "subdomain": true,
@@ -729,7 +767,7 @@ Status Code **200**
 | `»»» hidden`                    | boolean                                                                                                | false    |              |                                                                                                                                                                                                                                                |
 | `»»» icon`                      | string                                                                                                 | false    |              | Icon is a relative path or external URL that specifies an icon to be displayed in the dashboard.                                                                                                                                               |
 | `»»» id`                        | string(uuid)                                                                                           | false    |              |                                                                                                                                                                                                                                                |
-| `»»» open_in`                   | string                                                                                                 | false    |              |                                                                                                                                                                                                                                                |
+| `»»» open_in`                   | [codersdk.WorkspaceAppOpenIn](schemas.md#codersdkworkspaceappopenin)                                   | false    |              |                                                                                                                                                                                                                                                |
 | `»»» sharing_level`             | [codersdk.WorkspaceAppSharingLevel](schemas.md#codersdkworkspaceappsharinglevel)                       | false    |              |                                                                                                                                                                                                                                                |
 | `»»» slug`                      | string                                                                                                 | false    |              | Slug is a unique identifier within the agent.                                                                                                                                                                                                  |
 | `»»» subdomain`                 | boolean                                                                                                | false    |              | Subdomain denotes whether the app should be accessed via a path on the `coder server` or via a hostname-based dev URL. If this is set to true and there is no app wildcard configured on the server, the app will not be accessible in the UI. |
@@ -808,6 +846,8 @@ Status Code **200**
 | `health`                  | `initializing`     |
 | `health`                  | `healthy`          |
 | `health`                  | `unhealthy`        |
+| `open_in`                 | `slim-window`      |
+| `open_in`                 | `tab`              |
 | `sharing_level`           | `owner`            |
 | `sharing_level`           | `authenticated`    |
 | `sharing_level`           | `public`           |
@@ -865,6 +905,9 @@ curl -X GET http://coder-server:8080/api/v2/workspacebuilds/{workspacebuild}/sta
   "initiator_id": "06588898-9a84-4b35-ba8f-f9cbd64946f3",
   "initiator_name": "string",
   "job": {
+    "available_workers": [
+      "497f6eca-6276-4993-bfeb-53cbbbba6f08"
+    ],
     "canceled_at": "2019-08-24T14:15:22Z",
     "completed_at": "2019-08-24T14:15:22Z",
     "created_at": "2019-08-24T14:15:22Z",
@@ -872,6 +915,21 @@ curl -X GET http://coder-server:8080/api/v2/workspacebuilds/{workspacebuild}/sta
     "error_code": "REQUIRED_TEMPLATE_VARIABLES",
     "file_id": "8a0cfb4f-ddc9-436d-91bb-75133c583767",
     "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+    "input": {
+      "error": "string",
+      "template_version_id": "0ba39c92-1f1b-4c32-aa3e-9925d7713eb1",
+      "workspace_build_id": "badaf2eb-96c5-4050-9f1d-db2d39ca5478"
+    },
+    "metadata": {
+      "template_display_name": "string",
+      "template_icon": "string",
+      "template_id": "c6d67e98-83ea-49f0-8812-e4abae2b68bc",
+      "template_name": "string",
+      "template_version_name": "string",
+      "workspace_id": "0967198e-ec7b-4c6b-b4d3-f71244cadbe9",
+      "workspace_name": "string"
+    },
+    "organization_id": "7c60d51f-b44e-4682-87d6-449835ea4de6",
     "queue_position": 0,
     "queue_size": 0,
     "started_at": "2019-08-24T14:15:22Z",
@@ -880,6 +938,7 @@ curl -X GET http://coder-server:8080/api/v2/workspacebuilds/{workspacebuild}/sta
       "property1": "string",
       "property2": "string"
     },
+    "type": "template_version_import",
     "worker_id": "ae5fa6f7-c55b-40c1-b40a-b36ac467652b"
   },
   "matched_provisioners": {
@@ -908,7 +967,7 @@ curl -X GET http://coder-server:8080/api/v2/workspacebuilds/{workspacebuild}/sta
               "hidden": true,
               "icon": "string",
               "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
-              "open_in": "string",
+              "open_in": "slim-window",
               "sharing_level": "owner",
               "slug": "string",
               "subdomain": true,
@@ -1133,6 +1192,9 @@ curl -X GET http://coder-server:8080/api/v2/workspaces/{workspace}/builds \
     "initiator_id": "06588898-9a84-4b35-ba8f-f9cbd64946f3",
     "initiator_name": "string",
     "job": {
+      "available_workers": [
+        "497f6eca-6276-4993-bfeb-53cbbbba6f08"
+      ],
       "canceled_at": "2019-08-24T14:15:22Z",
       "completed_at": "2019-08-24T14:15:22Z",
       "created_at": "2019-08-24T14:15:22Z",
@@ -1140,6 +1202,21 @@ curl -X GET http://coder-server:8080/api/v2/workspaces/{workspace}/builds \
       "error_code": "REQUIRED_TEMPLATE_VARIABLES",
       "file_id": "8a0cfb4f-ddc9-436d-91bb-75133c583767",
       "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+      "input": {
+        "error": "string",
+        "template_version_id": "0ba39c92-1f1b-4c32-aa3e-9925d7713eb1",
+        "workspace_build_id": "badaf2eb-96c5-4050-9f1d-db2d39ca5478"
+      },
+      "metadata": {
+        "template_display_name": "string",
+        "template_icon": "string",
+        "template_id": "c6d67e98-83ea-49f0-8812-e4abae2b68bc",
+        "template_name": "string",
+        "template_version_name": "string",
+        "workspace_id": "0967198e-ec7b-4c6b-b4d3-f71244cadbe9",
+        "workspace_name": "string"
+      },
+      "organization_id": "7c60d51f-b44e-4682-87d6-449835ea4de6",
       "queue_position": 0,
       "queue_size": 0,
       "started_at": "2019-08-24T14:15:22Z",
@@ -1148,6 +1225,7 @@ curl -X GET http://coder-server:8080/api/v2/workspaces/{workspace}/builds \
         "property1": "string",
         "property2": "string"
       },
+      "type": "template_version_import",
       "worker_id": "ae5fa6f7-c55b-40c1-b40a-b36ac467652b"
     },
     "matched_provisioners": {
@@ -1176,7 +1254,7 @@ curl -X GET http://coder-server:8080/api/v2/workspaces/{workspace}/builds \
                 "hidden": true,
                 "icon": "string",
                 "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
-                "open_in": "string",
+                "open_in": "slim-window",
                 "sharing_level": "owner",
                 "slug": "string",
                 "subdomain": true,
@@ -1309,6 +1387,7 @@ Status Code **200**
 | `» initiator_id`                 | string(uuid)                                                                                           | false    |              |                                                                                                                                                                                                                                                |
 | `» initiator_name`               | string                                                                                                 | false    |              |                                                                                                                                                                                                                                                |
 | `» job`                          | [codersdk.ProvisionerJob](schemas.md#codersdkprovisionerjob)                                           | false    |              |                                                                                                                                                                                                                                                |
+| `»» available_workers`           | array                                                                                                  | false    |              |                                                                                                                                                                                                                                                |
 | `»» canceled_at`                 | string(date-time)                                                                                      | false    |              |                                                                                                                                                                                                                                                |
 | `»» completed_at`                | string(date-time)                                                                                      | false    |              |                                                                                                                                                                                                                                                |
 | `»» created_at`                  | string(date-time)                                                                                      | false    |              |                                                                                                                                                                                                                                                |
@@ -1316,12 +1395,26 @@ Status Code **200**
 | `»» error_code`                  | [codersdk.JobErrorCode](schemas.md#codersdkjoberrorcode)                                               | false    |              |                                                                                                                                                                                                                                                |
 | `»» file_id`                     | string(uuid)                                                                                           | false    |              |                                                                                                                                                                                                                                                |
 | `»» id`                          | string(uuid)                                                                                           | false    |              |                                                                                                                                                                                                                                                |
+| `»» input`                       | [codersdk.ProvisionerJobInput](schemas.md#codersdkprovisionerjobinput)                                 | false    |              |                                                                                                                                                                                                                                                |
+| `»»» error`                      | string                                                                                                 | false    |              |                                                                                                                                                                                                                                                |
+| `»»» template_version_id`        | string(uuid)                                                                                           | false    |              |                                                                                                                                                                                                                                                |
+| `»»» workspace_build_id`         | string(uuid)                                                                                           | false    |              |                                                                                                                                                                                                                                                |
+| `»» metadata`                    | [codersdk.ProvisionerJobMetadata](schemas.md#codersdkprovisionerjobmetadata)                           | false    |              |                                                                                                                                                                                                                                                |
+| `»»» template_display_name`      | string                                                                                                 | false    |              |                                                                                                                                                                                                                                                |
+| `»»» template_icon`              | string                                                                                                 | false    |              |                                                                                                                                                                                                                                                |
+| `»»» template_id`                | string(uuid)                                                                                           | false    |              |                                                                                                                                                                                                                                                |
+| `»»» template_name`              | string                                                                                                 | false    |              |                                                                                                                                                                                                                                                |
+| `»»» template_version_name`      | string                                                                                                 | false    |              |                                                                                                                                                                                                                                                |
+| `»»» workspace_id`               | string(uuid)                                                                                           | false    |              |                                                                                                                                                                                                                                                |
+| `»»» workspace_name`             | string                                                                                                 | false    |              |                                                                                                                                                                                                                                                |
+| `»» organization_id`             | string(uuid)                                                                                           | false    |              |                                                                                                                                                                                                                                                |
 | `»» queue_position`              | integer                                                                                                | false    |              |                                                                                                                                                                                                                                                |
 | `»» queue_size`                  | integer                                                                                                | false    |              |                                                                                                                                                                                                                                                |
 | `»» started_at`                  | string(date-time)                                                                                      | false    |              |                                                                                                                                                                                                                                                |
 | `»» status`                      | [codersdk.ProvisionerJobStatus](schemas.md#codersdkprovisionerjobstatus)                               | false    |              |                                                                                                                                                                                                                                                |
 | `»» tags`                        | object                                                                                                 | false    |              |                                                                                                                                                                                                                                                |
 | `»»» [any property]`             | string                                                                                                 | false    |              |                                                                                                                                                                                                                                                |
+| `»» type`                        | [codersdk.ProvisionerJobType](schemas.md#codersdkprovisionerjobtype)                                   | false    |              |                                                                                                                                                                                                                                                |
 | `»» worker_id`                   | string(uuid)                                                                                           | false    |              |                                                                                                                                                                                                                                                |
 | `» matched_provisioners`         | [codersdk.MatchedProvisioners](schemas.md#codersdkmatchedprovisioners)                                 | false    |              |                                                                                                                                                                                                                                                |
 | `»» available`                   | integer                                                                                                | false    |              | Available is the number of provisioner daemons that are available to take jobs. This may be less than the count if some provisioners are busy or have been stopped.                                                                            |
@@ -1344,7 +1437,7 @@ Status Code **200**
 | `»»»» hidden`                    | boolean                                                                                                | false    |              |                                                                                                                                                                                                                                                |
 | `»»»» icon`                      | string                                                                                                 | false    |              | Icon is a relative path or external URL that specifies an icon to be displayed in the dashboard.                                                                                                                                               |
 | `»»»» id`                        | string(uuid)                                                                                           | false    |              |                                                                                                                                                                                                                                                |
-| `»»»» open_in`                   | string                                                                                                 | false    |              |                                                                                                                                                                                                                                                |
+| `»»»» open_in`                   | [codersdk.WorkspaceAppOpenIn](schemas.md#codersdkworkspaceappopenin)                                   | false    |              |                                                                                                                                                                                                                                                |
 | `»»»» sharing_level`             | [codersdk.WorkspaceAppSharingLevel](schemas.md#codersdkworkspaceappsharinglevel)                       | false    |              |                                                                                                                                                                                                                                                |
 | `»»»» slug`                      | string                                                                                                 | false    |              | Slug is a unique identifier within the agent.                                                                                                                                                                                                  |
 | `»»»» subdomain`                 | boolean                                                                                                | false    |              | Subdomain denotes whether the app should be accessed via a path on the `coder server` or via a hostname-based dev URL. If this is set to true and there is no app wildcard configured on the server, the app will not be accessible in the UI. |
@@ -1436,6 +1529,9 @@ Status Code **200**
 | `status`                  | `canceling`                   |
 | `status`                  | `canceled`                    |
 | `status`                  | `failed`                      |
+| `type`                    | `template_version_import`     |
+| `type`                    | `workspace_build`             |
+| `type`                    | `template_version_dry_run`    |
 | `reason`                  | `initiator`                   |
 | `reason`                  | `autostart`                   |
 | `reason`                  | `autostop`                    |
@@ -1443,6 +1539,8 @@ Status Code **200**
 | `health`                  | `initializing`                |
 | `health`                  | `healthy`                     |
 | `health`                  | `unhealthy`                   |
+| `open_in`                 | `slim-window`                 |
+| `open_in`                 | `tab`                         |
 | `sharing_level`           | `owner`                       |
 | `sharing_level`           | `authenticated`               |
 | `sharing_level`           | `public`                      |
@@ -1536,6 +1634,9 @@ curl -X POST http://coder-server:8080/api/v2/workspaces/{workspace}/builds \
   "initiator_id": "06588898-9a84-4b35-ba8f-f9cbd64946f3",
   "initiator_name": "string",
   "job": {
+    "available_workers": [
+      "497f6eca-6276-4993-bfeb-53cbbbba6f08"
+    ],
     "canceled_at": "2019-08-24T14:15:22Z",
     "completed_at": "2019-08-24T14:15:22Z",
     "created_at": "2019-08-24T14:15:22Z",
@@ -1543,6 +1644,21 @@ curl -X POST http://coder-server:8080/api/v2/workspaces/{workspace}/builds \
     "error_code": "REQUIRED_TEMPLATE_VARIABLES",
     "file_id": "8a0cfb4f-ddc9-436d-91bb-75133c583767",
     "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+    "input": {
+      "error": "string",
+      "template_version_id": "0ba39c92-1f1b-4c32-aa3e-9925d7713eb1",
+      "workspace_build_id": "badaf2eb-96c5-4050-9f1d-db2d39ca5478"
+    },
+    "metadata": {
+      "template_display_name": "string",
+      "template_icon": "string",
+      "template_id": "c6d67e98-83ea-49f0-8812-e4abae2b68bc",
+      "template_name": "string",
+      "template_version_name": "string",
+      "workspace_id": "0967198e-ec7b-4c6b-b4d3-f71244cadbe9",
+      "workspace_name": "string"
+    },
+    "organization_id": "7c60d51f-b44e-4682-87d6-449835ea4de6",
     "queue_position": 0,
     "queue_size": 0,
     "started_at": "2019-08-24T14:15:22Z",
@@ -1551,6 +1667,7 @@ curl -X POST http://coder-server:8080/api/v2/workspaces/{workspace}/builds \
       "property1": "string",
       "property2": "string"
     },
+    "type": "template_version_import",
     "worker_id": "ae5fa6f7-c55b-40c1-b40a-b36ac467652b"
   },
   "matched_provisioners": {
@@ -1579,7 +1696,7 @@ curl -X POST http://coder-server:8080/api/v2/workspaces/{workspace}/builds \
               "hidden": true,
               "icon": "string",
               "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
-              "open_in": "string",
+              "open_in": "slim-window",
               "sharing_level": "owner",
               "slug": "string",
               "subdomain": true,

@@ -13,6 +13,17 @@ func ToStrings[T ~string](a []T) []string {
 	return tmp
 }
 
+func StringEnums[E ~string](a []string) []E {
+	if a == nil {
+		return nil
+	}
+	tmp := make([]E, 0, len(a))
+	for _, v := range a {
+		tmp = append(tmp, E(v))
+	}
+	return tmp
+}
+
 // Omit creates a new slice with the arguments omitted from the list.
 func Omit[T comparable](a []T, omits ...T) []T {
 	tmp := make([]T, 0, len(a))
@@ -165,4 +176,20 @@ func DifferenceFunc[T any](a []T, b []T, equal func(a, b T) bool) []T {
 		}
 	}
 	return tmp
+}
+
+func CountConsecutive[T comparable](needle T, haystack ...T) int {
+	maxLength := 0
+	curLength := 0
+
+	for _, v := range haystack {
+		if v == needle {
+			curLength++
+		} else {
+			maxLength = max(maxLength, curLength)
+			curLength = 0
+		}
+	}
+
+	return max(maxLength, curLength)
 }

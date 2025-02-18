@@ -363,24 +363,29 @@ func (b *Builder) buildTx(authFunc func(action policy.Action, object rbac.Object
 	var workspaceBuild database.WorkspaceBuild
 	err = b.store.InTx(func(store database.Store) error {
 		err = store.InsertWorkspaceBuild(b.ctx, database.InsertWorkspaceBuildParams{
-			ID:                workspaceBuildID,
-			CreatedAt:         now,
-			UpdatedAt:         now,
-			WorkspaceID:       b.workspace.ID,
-			TemplateVersionID: templateVersionID,
-			BuildNumber:       buildNum,
-			ProvisionerState:  state,
-			InitiatorID:       b.initiator,
-			Transition:        b.trans,
-			JobID:             provisionerJob.ID,
-			Reason:            b.reason,
-			Deadline:          time.Time{}, // set by provisioner upon completion
-			MaxDeadline:       time.Time{}, // set by provisioner upon completion
+			ID:                      workspaceBuildID,
+			CreatedAt:               now,
+			UpdatedAt:               now,
+			WorkspaceID:             b.workspace.ID,
+			TemplateVersionID:       templateVersionID,
+			BuildNumber:             buildNum,
+			ProvisionerState:        state,
+			InitiatorID:             b.initiator,
+			Transition:              b.trans,
+			JobID:                   provisionerJob.ID,
+			Reason:                  b.reason,
+			Deadline:                time.Time{},     // set by provisioner upon completion
+			MaxDeadline:             time.Time{},     // set by provisioner upon completion
+			TemplateVersionPresetID: uuid.NullUUID{}, // TODO (sasswart): add this in from the caller
 		})
 		if err != nil {
 			code := http.StatusInternalServerError
 			if rbac.IsUnauthorizedError(err) {
 				code = http.StatusForbidden
+			} else if database.IsUniqueViolation(err) {
+				// Concurrent builds may result in duplicate
+				// workspace_builds_workspace_id_build_number_key.
+				code = http.StatusConflict
 			}
 			return BuildError{code, "insert workspace build", err}
 		}

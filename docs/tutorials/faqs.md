@@ -11,28 +11,61 @@ For other community resources, see our
 ## How do I add a Premium trial license?
 
 Visit <https://coder.com/trial> or contact
-
 [sales@coder.com](mailto:sales@coder.com?subject=License) to get a trial key.
 
-You can add a license through the UI or CLI.
+<details>
 
-In the UI, click the Deployment tab -> Licenses and upload the `jwt` license
-file.
+<summary>You can add a license through the UI or CLI</summary>
 
-> To add the license with the CLI, first
-> [install the Coder CLI](../install/cli.md) and server to the latest release.
+<!-- copied from docs/admin/licensing/index.md -->
 
-If the license is a text string:
+<div class="tabs">
 
-```sh
-coder licenses add -l 1f5...765
-```
+### Coder UI
 
-If the license is in a file:
+1. With an `Owner` account, go to **Admin settings** > **Deployment**.
 
-```sh
-coder licenses add -f <path/filename>
-```
+1. Select **Licenses** from the sidebar, then **Add a license**:
+
+   ![Add a license from the licenses screen](../images/admin/licenses/licenses-nolicense.png)
+
+1. On the **Add a license** screen, drag your `.jwt` license file into the
+   **Upload Your License** section, or paste your license in the
+   **Paste Your License** text box, then select **Upload License**:
+
+   ![Add a license screen](../images/admin/licenses/add-license-ui.png)
+
+### Coder CLI
+
+1. Ensure you have the [Coder CLI](../install/cli.md) installed.
+1. Save your license key to disk and make note of the path.
+1. Open a terminal.
+1. Log in to your Coder deployment:
+
+   ```shell
+   coder login <access url>
+   ```
+
+1. Run `coder licenses add`:
+
+   - For a `.jwt` license file:
+
+     ```shell
+     coder licenses add -f <path to your license key>
+     ```
+
+   - For a text string:
+
+     ```sh
+     coder licenses add -l 1f5...765
+     ```
+
+</div>
+
+</details>
+
+Visit the [licensing documentation](../admin/licensing/index.md) for more
+information about licenses.
 
 ## I'm experiencing networking issues, so want to disable Tailscale, STUN, Direct connections and force use of websocket
 
@@ -344,9 +377,6 @@ the IDE can be baked into the container image and manually open Gateway (or
 IntelliJ which has Gateway built-in), using a session token to Coder and then
 open the IDE.
 
-- [IntelliJ IDEA](https://github.com/sharkymark/v2-templates/tree/main/src/pod-idea)
-- [IntelliJ IDEA with Icon](https://github.com/sharkymark/v2-templates/tree/main/src/pod-idea-icon)
-
 ## What options do I have for adding VS Code extensions into code-server, VS Code Desktop or Microsoft's Code Server?
 
 Coder has an open-source project called
@@ -357,19 +387,12 @@ Artifactory.
 - [Blog post](https://coder.com/blog/running-a-private-vs-code-extension-marketplace)
 - [OSS project](https://github.com/coder/code-marketplace)
 
-[See this example template](https://github.com/sharkymark/v2-templates/blob/main/src/code-marketplace/main.tf#L229C1-L232C12)
-where the agent specifies the URL and config environment variables which
-code-server picks up and points the developer to.
-
-Another option is to use Microsoft's code-server - which is like Coder's, but it
+You can also use Microsoft's code-server - which is like Coder's, but it
 can connect to Microsoft's extension marketplace so Copilot and chat can be
 retrieved there.
 
 Another option is to use VS Code Desktop (local) and that connects to
 Microsoft's marketplace.
-
-> Note: these are example templates with no SLAs on them and are not guaranteed
-> for long-term support.
 
 ## I want to run Docker for my workspaces but not install Docker Desktop
 
@@ -404,7 +427,7 @@ colima start --arch x86_64  --cpu 4 --memory 8 --disk 10
 
 Colima will show the path to the docker socket so we have a
 [community template](https://github.com/sharkymark/v2-templates/tree/main/src/docker-code-server)
-that prompts the Coder admin to enter the docker socket as a Terraform variable.
+that prompts the Coder admin to enter the Docker socket as a Terraform variable.
 
 ## How to make a `coder_app` optional?
 

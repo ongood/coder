@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -315,21 +316,34 @@ func (c *Client) ProvisionerDaemons(ctx context.Context) ([]ProvisionerDaemon, e
 	return daemons, json.NewDecoder(res.Body).Decode(&daemons)
 }
 
-func (c *Client) OrganizationProvisionerDaemons(ctx context.Context, organizationID uuid.UUID, tags map[string]string) ([]ProvisionerDaemon, error) {
-	baseURL := fmt.Sprintf("/api/v2/organizations/%s/provisionerdaemons", organizationID.String())
+type OrganizationProvisionerDaemonsOptions struct {
+	Limit int
+	IDs   []uuid.UUID
+	Tags  map[string]string
+}
 
-	queryParams := url.Values{}
-	tagsJSON, err := json.Marshal(tags)
-	if err != nil {
-		return nil, xerrors.Errorf("marshal tags: %w", err)
+func (c *Client) OrganizationProvisionerDaemons(ctx context.Context, organizationID uuid.UUID, opts *OrganizationProvisionerDaemonsOptions) ([]ProvisionerDaemon, error) {
+	qp := url.Values{}
+	if opts != nil {
+		if opts.Limit > 0 {
+			qp.Add("limit", strconv.Itoa(opts.Limit))
+		}
+		if len(opts.IDs) > 0 {
+			qp.Add("ids", joinSliceStringer(opts.IDs))
+		}
+		if len(opts.Tags) > 0 {
+			tagsRaw, err := json.Marshal(opts.Tags)
+			if err != nil {
+				return nil, xerrors.Errorf("marshal tags: %w", err)
+			}
+			qp.Add("tags", string(tagsRaw))
+		}
 	}
 
-	queryParams.Add("tags", string(tagsJSON))
-	if len(queryParams) > 0 {
-		baseURL = fmt.Sprintf("%s?%s", baseURL, queryParams.Encode())
-	}
-
-	res, err := c.Request(ctx, http.MethodGet, baseURL, nil)
+	res, err := c.Request(ctx, http.MethodGet,
+		fmt.Sprintf("/api/v2/organizations/%s/provisionerdaemons?%s", organizationID.String(), qp.Encode()),
+		nil,
+	)
 	if err != nil {
 		return nil, xerrors.Errorf("execute request: %w", err)
 	}
@@ -341,6 +355,83 @@ func (c *Client) OrganizationProvisionerDaemons(ctx context.Context, organizatio
 
 	var daemons []ProvisionerDaemon
 	return daemons, json.NewDecoder(res.Body).Decode(&daemons)
+}
+
+type OrganizationProvisionerJobsOptions struct {
+	Limit  int
+	IDs    []uuid.UUID
+	Status []ProvisionerJobStatus
+	Tags   map[string]string
+}
+
+func (c *Client) OrganizationProvisionerJobs(ctx context.Context, organizationID uuid.UUID, opts *OrganizationProvisionerJobsOptions) ([]ProvisionerJob, error) {
+	qp := url.Values{}
+	if opts != nil {
+		if opts.Limit > 0 {
+			qp.Add("limit", strconv.Itoa(opts.Limit))
+		}
+		if len(opts.IDs) > 0 {
+			qp.Add("ids", joinSliceStringer(opts.IDs))
+		}
+		if len(opts.Status) > 0 {
+			qp.Add("status", joinSlice(opts.Status))
+		}
+		if len(opts.Tags) > 0 {
+			tagsRaw, err := json.Marshal(opts.Tags)
+			if err != nil {
+				return nil, xerrors.Errorf("marshal tags: %w", err)
+			}
+			qp.Add("tags", string(tagsRaw))
+		}
+	}
+
+	res, err := c.Request(ctx, http.MethodGet,
+		fmt.Sprintf("/api/v2/organizations/%s/provisionerjobs?%s", organizationID.String(), qp.Encode()),
+		nil,
+	)
+	if err != nil {
+		return nil, xerrors.Errorf("make request: %w", err)
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		return nil, ReadBodyAsError(res)
+	}
+
+	var jobs []ProvisionerJob
+	return jobs, json.NewDecoder(res.Body).Decode(&jobs)
+}
+
+func (c *Client) OrganizationProvisionerJob(ctx context.Context, organizationID, jobID uuid.UUID) (job ProvisionerJob, err error) {
+	res, err := c.Request(ctx, http.MethodGet,
+		fmt.Sprintf("/api/v2/organizations/%s/provisionerjobs/%s", organizationID.String(), jobID.String()),
+		nil,
+	)
+	if err != nil {
+		return job, xerrors.Errorf("make request: %w", err)
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		return job, ReadBodyAsError(res)
+	}
+	return job, json.NewDecoder(res.Body).Decode(&job)
+}
+
+func joinSlice[T ~string](s []T) string {
+	var ss []string
+	for _, v := range s {
+		ss = append(ss, string(v))
+	}
+	return strings.Join(ss, ",")
+}
+
+func joinSliceStringer[T fmt.Stringer](s []T) string {
+	var ss []string
+	for _, v := range s {
+		ss = append(ss, v.String())
+	}
+	return strings.Join(ss, ",")
 }
 
 // CreateTemplateVersion processes source-code and optionally associates the version with a template.

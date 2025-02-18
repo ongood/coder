@@ -31,7 +31,7 @@ test("add and remove a group", async ({ page }) => {
 
 	const orgName = defaultOrganizationName;
 	const templateName = await createTemplate(page);
-	const groupName = await createGroup(page);
+	const groupName = await createGroup(page, orgName);
 
 	await page.goto(
 		`/templates/${orgName}/${templateName}/settings/permissions`,
@@ -67,7 +67,7 @@ test("require latest version", async ({ page }) => {
 	await expectUrl(page).toHavePathName(`/templates/${templateName}/settings`);
 	let checkbox = await page.waitForSelector("#require_active_version");
 	await checkbox.click();
-	await page.getByTestId("form-submit").click();
+	await page.getByRole("button", { name: /save/i }).click();
 
 	await page.goto(`/templates/${templateName}/settings`, {
 		waitUntil: "domcontentloaded",

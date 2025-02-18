@@ -15,7 +15,7 @@ import * as ssh from "ssh2";
 import { TarWriter } from "utils/tar";
 import {
 	agentPProfPort,
-	coderMain,
+	coderBinary,
 	coderPort,
 	defaultOrganizationName,
 	defaultPassword,
@@ -147,7 +147,7 @@ export const createWorkspace = async (
 		await popup.waitForSelector("text=You are now authenticated.");
 	}
 
-	await page.getByTestId("form-submit").click();
+	await page.getByRole("button", { name: /create workspace/i }).click();
 
 	const user = currentUser(page);
 
@@ -276,7 +276,7 @@ export const createTemplate = async (
 
 	const name = randomName();
 	await page.getByLabel("Name *").fill(name);
-	await page.getByTestId("form-submit").click();
+	await page.getByRole("button", { name: /save/i }).click();
 	await expectUrl(page).toHavePathName(
 		organizationsEnabled
 			? `/templates/${orgName}/${name}/files`
@@ -292,14 +292,22 @@ export const createTemplate = async (
  * createGroup navigates to the /groups/create page and creates a group with a
  * random name.
  */
-export const createGroup = async (page: Page): Promise<string> => {
-	await page.goto("/groups/create", { waitUntil: "domcontentloaded" });
-	await expectUrl(page).toHavePathName("/groups/create");
+export const createGroup = async (
+	page: Page,
+	organization?: string,
+): Promise<string> => {
+	const prefix = organization
+		? `/organizations/${organization}`
+		: "/deployment";
+	await page.goto(`${prefix}/groups/create`, {
+		waitUntil: "domcontentloaded",
+	});
+	await expectUrl(page).toHavePathName(`${prefix}/groups/create`);
 
 	const name = randomName();
 	await page.getByLabel("Name", { exact: true }).fill(name);
-	await page.getByTestId("form-submit").click();
-	await expectUrl(page).toHavePathName(`/groups/${name}`);
+	await page.getByRole("button", { name: /save/i }).click();
+	await expectUrl(page).toHavePathName(`${prefix}/groups/${name}`);
 	return name;
 };
 
@@ -309,12 +317,9 @@ export const createGroup = async (page: Page): Promise<string> => {
 export const sshIntoWorkspace = async (
 	page: Page,
 	workspace: string,
-	binaryPath = "go",
+	binaryPath = coderBinary,
 	binaryArgs: string[] = [],
 ): Promise<ssh.Client> => {
-	if (binaryPath === "go") {
-		binaryArgs = ["run", coderMain];
-	}
 	const sessionToken = await findSessionToken(page);
 	return new Promise<ssh.Client>((resolve, reject) => {
 		const cp = spawn(binaryPath, [...binaryArgs, "ssh", "--stdio", workspace], {
@@ -396,7 +401,7 @@ export const startAgent = async (
 	page: Page,
 	token: string,
 ): Promise<ChildProcess> => {
-	return startAgentWithCommand(page, token, "go", "run", coderMain);
+	return startAgentWithCommand(page, token, coderBinary);
 };
 
 /**
@@ -477,27 +482,21 @@ export const startAgentWithCommand = async (
 		},
 	});
 	cp.stdout.on("data", (data: Buffer) => {
-		console.info(
-			`[agent] [stdout] [onData] ${data.toString().replace(/\n$/g, "")}`,
-		);
+		console.info(`[agent][stdout] ${data.toString().replace(/\n$/g, "")}`);
 	});
 	cp.stderr.on("data", (data: Buffer) => {
-		console.info(
-			`[agent] [stderr] [onData] ${data.toString().replace(/\n$/g, "")}`,
-		);
+		console.info(`[agent][stderr] ${data.toString().replace(/\n$/g, "")}`);
 	});
 
 	await page
 		.getByTestId("agent-status-ready")
-		.waitFor({ state: "visible", timeout: 45_000 });
+		.waitFor({ state: "visible", timeout: 15_000 });
 	return cp;
 };
 
-export const stopAgent = async (cp: ChildProcess, goRun = true) => {
-	// When the web server is started with `go run`, it spawns a child process with coder server.
-	// `pkill -P` terminates child processes belonging the same group as `go run`.
-	// The command `kill` is used to terminate a web server started as a standalone binary.
-	exec(goRun ? `pkill -P ${cp.pid}` : `kill ${cp.pid}`, (error) => {
+export const stopAgent = async (cp: ChildProcess) => {
+	// The command `kill` is used to terminate an agent started as a standalone binary.
+	exec(`kill ${cp.pid}`, (error) => {
 		if (error) {
 			throw new Error(`exec error: ${JSON.stringify(error)}`);
 		}
@@ -580,6 +579,7 @@ const createTemplateVersionTar = async (
 					parameters: response.apply?.parameters ?? [],
 					externalAuthProviders: response.apply?.externalAuthProviders ?? [],
 					timings: response.apply?.timings ?? [],
+					presets: [],
 				},
 			};
 		});
@@ -700,6 +700,7 @@ const createTemplateVersionTar = async (
 			externalAuthProviders: [],
 			timings: [],
 			modules: [],
+			presets: [],
 			...response.plan,
 		} as PlanComplete;
 		response.plan.resources = response.plan.resources?.map(fillResource);
@@ -763,7 +764,7 @@ export const createServer = async (
 async function waitForPort(
 	port: number,
 	host = "0.0.0.0",
-	timeout = 30000,
+	timeout = 60_000,
 ): Promise<void> {
 	const start = Date.now();
 	while (Date.now() - start < timeout) {
@@ -920,10 +921,8 @@ export const updateTemplate = async (
 
 	const sessionToken = await findSessionToken(page);
 	const child = spawn(
-		"go",
+		coderBinary,
 		[
-			"run",
-			coderMain,
 			"templates",
 			"push",
 			"--test.provisioner",
@@ -982,7 +981,7 @@ export const updateTemplateSettings = async (
 		await page.getByLabel(labelText, { exact: true }).fill(value);
 	}
 
-	await page.getByTestId("form-submit").click();
+	await page.getByRole("button", { name: /save/i }).click();
 
 	const name = templateSettingValues.name ?? templateName;
 	await expectUrl(page).toHavePathNameEndingWith(`/${name}`);
@@ -1003,7 +1002,7 @@ export const updateWorkspace = async (
 	await page.getByTestId("confirm-button").click();
 
 	await fillParameters(page, richParameters, buildParameters);
-	await page.getByTestId("form-submit").click();
+	await page.getByRole("button", { name: /update parameters/i }).click();
 
 	await page.waitForSelector("*[data-testid='build-status'] >> text=Running", {
 		state: "visible",
@@ -1024,7 +1023,7 @@ export const updateWorkspaceParameters = async (
 	);
 
 	await fillParameters(page, richParameters, buildParameters);
-	await page.getByTestId("form-submit").click();
+	await page.getByRole("button", { name: /submit and restart/i }).click();
 
 	await page.waitForSelector("*[data-testid='build-status'] >> text=Running", {
 		state: "visible",
@@ -1071,7 +1070,7 @@ export async function createUser(
 	await page.goto("/deployment/users", { waitUntil: "domcontentloaded" });
 	await expect(page).toHaveTitle("Users - Coder");
 
-	await page.getByRole("button", { name: "Create user" }).click();
+	await page.getByRole("link", { name: "Create user" }).click();
 	await expect(page).toHaveTitle("Create User - Coder");
 
 	const username = userValues.username ?? randomName();
@@ -1091,7 +1090,7 @@ export async function createUser(
 	// as the label for the currently active option.
 	const passwordField = page.locator("input[name=password]");
 	await passwordField.fill(password);
-	await page.getByRole("button", { name: "Create user" }).click();
+	await page.getByRole("button", { name: /save/i }).click();
 	await expect(page.getByText("Successfully created user.")).toBeVisible();
 
 	await expect(page).toHaveTitle("Users - Coder");
@@ -1123,7 +1122,7 @@ export async function createOrganization(page: Page): Promise<{
 	const description = `Org description ${name}`;
 	await page.getByLabel("Description").fill(description);
 	await page.getByLabel("Icon", { exact: true }).fill("/emojis/1f957.png");
-	await page.getByRole("button", { name: "Submit" }).click();
+	await page.getByRole("button", { name: /save/i }).click();
 
 	await expectUrl(page).toHavePathName(`/organizations/${name}`);
 	await expect(page.getByText("Organization created.")).toBeVisible();

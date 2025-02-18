@@ -269,6 +269,10 @@ func (p ProvisionerDaemon) RBACObject() rbac.Object {
 		InOrg(p.OrganizationID)
 }
 
+func (p GetProvisionerDaemonsWithStatusByOrganizationRow) RBACObject() rbac.Object {
+	return p.ProvisionerDaemon.RBACObject()
+}
+
 func (p GetEligibleProvisionerDaemonsByProvisionerJobIDsRow) RBACObject() rbac.Object {
 	return p.ProvisionerDaemon.RBACObject()
 }
@@ -454,6 +458,18 @@ func (g Group) IsEveryone() bool {
 	return g.ID == g.OrganizationID
 }
 
+func (p ProvisionerJob) RBACObject() rbac.Object {
+	switch p.Type {
+	// Only acceptable for known job types at this time because template
+	// admins may not be allowed to view new types.
+	case ProvisionerJobTypeTemplateVersionImport, ProvisionerJobTypeTemplateVersionDryRun, ProvisionerJobTypeWorkspaceBuild:
+		return rbac.ResourceProvisionerJobs.InOrg(p.OrganizationID)
+
+	default:
+		panic("developer error: unknown provisioner job type " + string(p.Type))
+	}
+}
+
 func (p ProvisionerJob) Finished() bool {
 	return p.CanceledAt.Valid || p.CompletedAt.Valid
 }
@@ -506,4 +522,36 @@ func (k CryptoKey) CanVerify(now time.Time) bool {
 	hasSecret := k.Secret.Valid
 	isBeforeDeletion := !k.DeletesAt.Valid || now.Before(k.DeletesAt.Time)
 	return hasSecret && isBeforeDeletion
+}
+
+func (r GetProvisionerJobsByOrganizationAndStatusWithQueuePositionAndProvisionerRow) RBACObject() rbac.Object {
+	return r.ProvisionerJob.RBACObject()
+}
+
+func (m WorkspaceAgentMemoryResourceMonitor) Debounce(
+	by time.Duration,
+	now time.Time,
+	oldState, newState WorkspaceAgentMonitorState,
+) (time.Time, bool) {
+	if now.After(m.DebouncedUntil) &&
+		oldState == WorkspaceAgentMonitorStateOK &&
+		newState == WorkspaceAgentMonitorStateNOK {
+		return now.Add(by), true
+	}
+
+	return m.DebouncedUntil, false
+}
+
+func (m WorkspaceAgentVolumeResourceMonitor) Debounce(
+	by time.Duration,
+	now time.Time,
+	oldState, newState WorkspaceAgentMonitorState,
+) (debouncedUntil time.Time, shouldNotify bool) {
+	if now.After(m.DebouncedUntil) &&
+		oldState == WorkspaceAgentMonitorStateOK &&
+		newState == WorkspaceAgentMonitorStateNOK {
+		return now.Add(by), true
+	}
+
+	return m.DebouncedUntil, false
 }

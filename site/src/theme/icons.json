@@ -54,10 +54,12 @@
 	"java.svg",
 	"javascript.svg",
 	"jax.svg",
+	"jetbrains-toolbox.svg",
 	"jfrog.svg",
 	"jupyter.svg",
 	"k8s.png",
 	"kasmvnc.svg",
+	"keycloak.svg",
 	"kotlin.svg",
 	"lxc.svg",
 	"matlab.svg",
@@ -83,6 +85,7 @@
 	"ruby.png",
 	"rubymine.svg",
 	"rust.svg",
+	"rustrover.svg",
 	"slack.svg",
 	"swift.svg",
 	"tensorflow.svg",
@@ -92,5 +95,6 @@
 	"ubuntu.svg",
 	"vault.svg",
 	"webstorm.svg",
-	"widgets.svg"
+	"widgets.svg",
+	"zed.svg"
 ]

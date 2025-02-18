@@ -12,7 +12,7 @@ import (
 
 	"cdr.dev/slog"
 
-	"github.com/coder/terraform-provider-coder/provider"
+	"github.com/coder/terraform-provider-coder/v2/provider"
 
 	tfaddr "github.com/hashicorp/go-terraform-address"
 
@@ -56,6 +56,23 @@ type agentAttributes struct {
 	Metadata                 []agentMetadata              `mapstructure:"metadata"`
 	DisplayApps              []agentDisplayAppsAttributes `mapstructure:"display_apps"`
 	Order                    int64                        `mapstructure:"order"`
+	ResourcesMonitoring      []agentResourcesMonitoring   `mapstructure:"resources_monitoring"`
+}
+
+type agentResourcesMonitoring struct {
+	Memory  []agentMemoryResourceMonitor `mapstructure:"memory"`
+	Volumes []agentVolumeResourceMonitor `mapstructure:"volume"`
+}
+
+type agentMemoryResourceMonitor struct {
+	Enabled   bool  `mapstructure:"enabled"`
+	Threshold int32 `mapstructure:"threshold"`
+}
+
+type agentVolumeResourceMonitor struct {
+	Path      string `mapstructure:"path"`
+	Enabled   bool   `mapstructure:"enabled"`
+	Threshold int32  `mapstructure:"threshold"`
 }
 
 type agentDisplayAppsAttributes struct {
@@ -132,6 +149,7 @@ type resourceMetadataItem struct {
 type State struct {
 	Resources             []*proto.Resource
 	Parameters            []*proto.RichParameter
+	Presets               []*proto.Preset
 	ExternalAuthProviders []*proto.ExternalAuthProviderResource
 }
 
@@ -159,7 +177,7 @@ func ConvertState(ctx context.Context, modules []*tfjson.StateModule, rawGraph s
 
 	// Extra array to preserve the order of rich parameters.
 	tfResourcesRichParameters := make([]*tfjson.StateResource, 0)
-
+	tfResourcesPresets := make([]*tfjson.StateResource, 0)
 	var findTerraformResources func(mod *tfjson.StateModule)
 	findTerraformResources = func(mod *tfjson.StateModule) {
 		for _, module := range mod.ChildModules {
@@ -168,6 +186,9 @@ func ConvertState(ctx context.Context, modules []*tfjson.StateModule, rawGraph s
 		for _, resource := range mod.Resources {
 			if resource.Type == "coder_parameter" {
 				tfResourcesRichParameters = append(tfResourcesRichParameters, resource)
+			}
+			if resource.Type == "coder_workspace_preset" {
+				tfResourcesPresets = append(tfResourcesPresets, resource)
 			}
 
 			label := convertAddressToLabel(resource.Address)
@@ -239,6 +260,29 @@ func ConvertState(ctx context.Context, modules []*tfjson.StateModule, rawGraph s
 				}
 			}
 
+			resourcesMonitoring := &proto.ResourcesMonitoring{
+				Volumes: make([]*proto.VolumeResourceMonitor, 0),
+			}
+
+			for _, resource := range attrs.ResourcesMonitoring {
+				for _, memoryResource := range resource.Memory {
+					resourcesMonitoring.Memory = &proto.MemoryResourceMonitor{
+						Enabled:   memoryResource.Enabled,
+						Threshold: memoryResource.Threshold,
+					}
+				}
+			}
+
+			for _, resource := range attrs.ResourcesMonitoring {
+				for _, volume := range resource.Volumes {
+					resourcesMonitoring.Volumes = append(resourcesMonitoring.Volumes, &proto.VolumeResourceMonitor{
+						Path:      volume.Path,
+						Enabled:   volume.Enabled,
+						Threshold: volume.Threshold,
+					})
+				}
+			}
+
 			agent := &proto.Agent{
 				Name:                     tfResource.Name,
 				Id:                       attrs.ID,
@@ -249,6 +293,7 @@ func ConvertState(ctx context.Context, modules []*tfjson.StateModule, rawGraph s
 				ConnectionTimeoutSeconds: attrs.ConnectionTimeoutSeconds,
 				TroubleshootingUrl:       attrs.TroubleshootingURL,
 				MotdFile:                 attrs.MOTDFile,
+				ResourcesMonitoring:      resourcesMonitoring,
 				Metadata:                 metadata,
 				DisplayApps:              displayApps,
 				Order:                    attrs.Order,
@@ -437,8 +482,6 @@ func ConvertState(ctx context.Context, modules []*tfjson.StateModule, rawGraph s
 			switch strings.ToLower(attrs.OpenIn) {
 			case "slim-window":
 				openIn = proto.AppOpenIn_SLIM_WINDOW
-			case "window":
-				openIn = proto.AppOpenIn_WINDOW
 			case "tab":
 				openIn = proto.AppOpenIn_TAB
 			}
@@ -736,6 +779,78 @@ func ConvertState(ctx context.Context, modules []*tfjson.StateModule, rawGraph s
 		)
 	}
 
+	var duplicatedPresetNames []string
+	presets := make([]*proto.Preset, 0)
+	for _, resource := range tfResourcesPresets {
+		var preset provider.WorkspacePreset
+		err = mapstructure.Decode(resource.AttributeValues, &preset)
+		if err != nil {
+			return nil, xerrors.Errorf("decode preset attributes: %w", err)
+		}
+
+		var duplicatedPresetParameterNames []string
+		var nonExistentParameters []string
+		var presetParameters []*proto.PresetParameter
+		for name, value := range preset.Parameters {
+			presetParameter := &proto.PresetParameter{
+				Name:  name,
+				Value: value,
+			}
+
+			formattedName := fmt.Sprintf("%q", name)
+			if !slice.Contains(duplicatedPresetParameterNames, formattedName) &&
+				slice.ContainsCompare(presetParameters, presetParameter, func(a, b *proto.PresetParameter) bool {
+					return a.Name == b.Name
+				}) {
+				duplicatedPresetParameterNames = append(duplicatedPresetParameterNames, formattedName)
+			}
+			if !slice.ContainsCompare(parameters, &proto.RichParameter{Name: name}, func(a, b *proto.RichParameter) bool {
+				return a.Name == b.Name
+			}) {
+				nonExistentParameters = append(nonExistentParameters, name)
+			}
+
+			presetParameters = append(presetParameters, presetParameter)
+		}
+
+		if len(duplicatedPresetParameterNames) > 0 {
+			s := ""
+			if len(duplicatedPresetParameterNames) == 1 {
+				s = "s"
+			}
+			return nil, xerrors.Errorf(
+				"coder_workspace_preset parameters must be unique but %s appear%s multiple times", stringutil.JoinWithConjunction(duplicatedPresetParameterNames), s,
+			)
+		}
+
+		if len(nonExistentParameters) > 0 {
+			logger.Warn(
+				ctx,
+				"coder_workspace_preset defines preset values for at least one parameter that is not defined by the template",
+				slog.F("parameters", stringutil.JoinWithConjunction(nonExistentParameters)),
+			)
+		}
+
+		protoPreset := &proto.Preset{
+			Name:       preset.Name,
+			Parameters: presetParameters,
+		}
+		if slice.Contains(duplicatedPresetNames, preset.Name) {
+			duplicatedPresetNames = append(duplicatedPresetNames, preset.Name)
+		}
+		presets = append(presets, protoPreset)
+	}
+	if len(duplicatedPresetNames) > 0 {
+		s := ""
+		if len(duplicatedPresetNames) == 1 {
+			s = "s"
+		}
+		return nil, xerrors.Errorf(
+			"coder_workspace_preset names must be unique but %s appear%s multiple times",
+			stringutil.JoinWithConjunction(duplicatedPresetNames), s,
+		)
+	}
+
 	// A map is used to ensure we don't have duplicates!
 	externalAuthProvidersMap := map[string]*proto.ExternalAuthProviderResource{}
 	for _, tfResources := range tfResourcesByLabel {
@@ -769,6 +884,7 @@ func ConvertState(ctx context.Context, modules []*tfjson.StateModule, rawGraph s
 	return &State{
 		Resources:             resources,
 		Parameters:            parameters,
+		Presets:               presets,
 		ExternalAuthProviders: externalAuthProviders,
 	}, nil
 }
