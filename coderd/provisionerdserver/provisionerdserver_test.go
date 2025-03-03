@@ -377,6 +377,7 @@ func TestAcquireJob(t *testing.T) {
 						WorkspaceOwnerSshPrivateKey:   sshKey.PrivateKey,
 						WorkspaceBuildId:              build.ID.String(),
 						WorkspaceOwnerLoginType:       string(user.LoginType),
+						WorkspaceOwnerRbacRoles:       []*sdkproto.Role{{Name: "member", OrgId: pd.OrganizationID.String()}},
 					},
 				},
 			})
@@ -1883,6 +1884,7 @@ func TestInsertWorkspaceResource(t *testing.T) {
 			Name: "something",
 			Type: "aws_instance",
 			Agents: []*sdkproto.Agent{{
+				Name: "dev",
 				Auth: &sdkproto.Agent_Token{
 					Token: "bananas",
 				},
@@ -1896,6 +1898,7 @@ func TestInsertWorkspaceResource(t *testing.T) {
 			Name: "something",
 			Type: "aws_instance",
 			Agents: []*sdkproto.Agent{{
+				Name: "dev",
 				Apps: []*sdkproto.App{{
 					Slug: "a",
 				}, {
@@ -1903,7 +1906,116 @@ func TestInsertWorkspaceResource(t *testing.T) {
 				}},
 			}},
 		})
-		require.ErrorContains(t, err, "duplicate app slug")
+		require.ErrorContains(t, err, `duplicate app slug, must be unique per template: "a"`)
+		err = insert(dbmem.New(), uuid.New(), &sdkproto.Resource{
+			Name: "something",
+			Type: "aws_instance",
+			Agents: []*sdkproto.Agent{{
+				Name: "dev1",
+				Apps: []*sdkproto.App{{
+					Slug: "a",
+				}},
+			}, {
+				Name: "dev2",
+				Apps: []*sdkproto.App{{
+					Slug: "a",
+				}},
+			}},
+		})
+		require.ErrorContains(t, err, `duplicate app slug, must be unique per template: "a"`)
+	})
+	t.Run("AppSlugInvalid", func(t *testing.T) {
+		t.Parallel()
+		db := dbmem.New()
+		job := uuid.New()
+		err := insert(db, job, &sdkproto.Resource{
+			Name: "something",
+			Type: "aws_instance",
+			Agents: []*sdkproto.Agent{{
+				Name: "dev",
+				Apps: []*sdkproto.App{{
+					Slug: "dev_1",
+				}},
+			}},
+		})
+		require.ErrorContains(t, err, `app slug "dev_1" does not match regex`)
+		err = insert(db, job, &sdkproto.Resource{
+			Name: "something",
+			Type: "aws_instance",
+			Agents: []*sdkproto.Agent{{
+				Name: "dev",
+				Apps: []*sdkproto.App{{
+					Slug: "dev--1",
+				}},
+			}},
+		})
+		require.ErrorContains(t, err, `app slug "dev--1" does not match regex`)
+		err = insert(db, job, &sdkproto.Resource{
+			Name: "something",
+			Type: "aws_instance",
+			Agents: []*sdkproto.Agent{{
+				Name: "dev",
+				Apps: []*sdkproto.App{{
+					Slug: "Dev",
+				}},
+			}},
+		})
+		require.ErrorContains(t, err, `app slug "Dev" does not match regex`)
+	})
+	t.Run("DuplicateAgentNames", func(t *testing.T) {
+		t.Parallel()
+		db := dbmem.New()
+		job := uuid.New()
+		// case-insensitive-unique
+		err := insert(db, job, &sdkproto.Resource{
+			Name: "something",
+			Type: "aws_instance",
+			Agents: []*sdkproto.Agent{{
+				Name: "dev",
+			}, {
+				Name: "Dev",
+			}},
+		})
+		require.ErrorContains(t, err, "duplicate agent name")
+		err = insert(db, job, &sdkproto.Resource{
+			Name: "something",
+			Type: "aws_instance",
+			Agents: []*sdkproto.Agent{{
+				Name: "dev",
+			}, {
+				Name: "dev",
+			}},
+		})
+		require.ErrorContains(t, err, "duplicate agent name")
+	})
+	t.Run("AgentNameInvalid", func(t *testing.T) {
+		t.Parallel()
+		db := dbmem.New()
+		job := uuid.New()
+		err := insert(db, job, &sdkproto.Resource{
+			Name: "something",
+			Type: "aws_instance",
+			Agents: []*sdkproto.Agent{{
+				Name: "Dev",
+			}},
+		})
+		require.NoError(t, err) // uppercase is still allowed
+		err = insert(db, job, &sdkproto.Resource{
+			Name: "something",
+			Type: "aws_instance",
+			Agents: []*sdkproto.Agent{{
+				Name: "dev_1",
+			}},
+		})
+		require.ErrorContains(t, err, `agent name "dev_1" contains underscores`) // custom error for underscores
+		err = insert(db, job, &sdkproto.Resource{
+			Name: "something",
+			Type: "aws_instance",
+			Agents: []*sdkproto.Agent{{
+				Name: "dev--1",
+			}},
+		})
+		require.ErrorContains(t, err, `agent name "dev--1" does not match regex`)
 	})
 	t.Run("Success", func(t *testing.T) {
 		t.Parallel()
@@ -1981,6 +2093,7 @@ func TestInsertWorkspaceResource(t *testing.T) {
 			Name: "something",
 			Type: "aws_instance",
 			Agents: []*sdkproto.Agent{{
+				Name: "dev",
 				DisplayApps: &sdkproto.DisplayApps{
 					Vscode:               true,
 					VscodeInsiders:       true,
@@ -2009,6 +2122,7 @@ func TestInsertWorkspaceResource(t *testing.T) {
 			Name: "something",
 			Type: "aws_instance",
 			Agents: []*sdkproto.Agent{{
+				Name:        "dev",
 				DisplayApps: &sdkproto.DisplayApps{},
 			}},
 		})
@@ -2033,6 +2147,7 @@ func TestInsertWorkspaceResource(t *testing.T) {
 			Name: "something",
 			Type: "aws_instance",
 			Agents: []*sdkproto.Agent{{
+				Name:        "dev",
 				DisplayApps: &sdkproto.DisplayApps{},
 				ResourcesMonitoring: &sdkproto.ResourcesMonitoring{
 					Memory: &sdkproto.MemoryResourceMonitor{
