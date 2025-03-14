@@ -12,6 +12,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -24,7 +25,6 @@ import (
 	"github.com/spf13/afero"
 	"go.uber.org/atomic"
 	gossh "golang.org/x/crypto/ssh"
-	"golang.org/x/exp/slices"
 	"golang.org/x/xerrors"
 
 	"cdr.dev/slog"
@@ -900,7 +900,10 @@ func (s *Server) CreateCommand(ctx context.Context, script string, env []string,
 		cmd.Dir = homedir
 	}
 	cmd.Env = append(ei.Environ(), env...)
+	// Set login variables (see `man login`).
 	cmd.Env = append(cmd.Env, fmt.Sprintf("USER=%s", username))
+	cmd.Env = append(cmd.Env, fmt.Sprintf("LOGNAME=%s", username))
+	cmd.Env = append(cmd.Env, fmt.Sprintf("SHELL=%s", shell))
 
 	// Set SSH connection environment variables (these are also set by OpenSSH
 	// and thus expected to be present by SSH clients). Since the agent does

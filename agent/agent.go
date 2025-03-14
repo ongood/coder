@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -26,7 +27,6 @@ import (
 	"github.com/prometheus/common/expfmt"
 	"github.com/spf13/afero"
 	"go.uber.org/atomic"
-	"golang.org/x/exp/slices"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/xerrors"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -91,7 +91,6 @@ type Options struct {
 	Execer                       agentexec.Execer
 	ContainerLister              agentcontainers.Lister
 
-	ExperimentalConnectionReports    bool
 	ExperimentalDevcontainersEnabled bool
 }
 
@@ -196,7 +195,6 @@ func New(options Options) Agent {
 		lister:             options.ContainerLister,
 
 		experimentalDevcontainersEnabled: options.ExperimentalDevcontainersEnabled,
-		experimentalConnectionReports:    options.ExperimentalConnectionReports,
 	}
 	// Initially, we have a closed channel, reflecting the fact that we are not initially connected.
 	// Each time we connect we replace the channel (while holding the closeMutex) with a new one
@@ -273,7 +271,6 @@ type agent struct {
 	lister  agentcontainers.Lister
 
 	experimentalDevcontainersEnabled bool
-	experimentalConnectionReports    bool
 }
 
 func (a *agent) TailnetConn() *tailnet.Conn {
@@ -797,11 +794,6 @@ const (
 )
 
 func (a *agent) reportConnection(id uuid.UUID, connectionType proto.Connection_Type, ip string) (disconnected func(code int, reason string)) {
-	// If the experiment hasn't been enabled, we don't report connections.
-	if !a.experimentalConnectionReports {
-		return func(int, string) {} // Noop.
-	}
-
 	// Remove the port from the IP because ports are not supported in coderd.
 	if host, _, err := net.SplitHostPort(ip); err != nil {
 		a.logger.Error(a.hardCtx, "split host and port for connection report failed", slog.F("ip", ip), slog.Error(err))
@@ -1362,19 +1354,22 @@ func (a *agent) createTailnet(
 		return nil, xerrors.Errorf("update host signer: %w", err)
 	}
 
-	sshListener, err := network.Listen("tcp", ":"+strconv.Itoa(workspacesdk.AgentSSHPort))
-	if err != nil {
-		return nil, xerrors.Errorf("listen on the ssh port: %w", err)
-	}
-	defer func() {
+	for _, port := range []int{workspacesdk.AgentSSHPort, workspacesdk.AgentStandardSSHPort} {
+		sshListener, err := network.Listen("tcp", ":"+strconv.Itoa(port))
 		if err != nil {
-			_ = sshListener.Close()
+			return nil, xerrors.Errorf("listen on the ssh port (%v): %w", port, err)
 		}
-	}()
-	if err = a.trackGoroutine(func() {
-		_ = a.sshServer.Serve(sshListener)
-	}); err != nil {
-		return nil, err
+		// nolint:revive // We do want to run the deferred functions when createTailnet returns.
+		defer func() {
+			if err != nil {
+				_ = sshListener.Close()
+			}
+		}()
+		if err = a.trackGoroutine(func() {
+			_ = a.sshServer.Serve(sshListener)
+		}); err != nil {
+			return nil, err
+		}
 	}
 
 	reconnectingPTYListener, err := network.Listen("tcp", ":"+strconv.Itoa(workspacesdk.AgentReconnectingPTYPort))
