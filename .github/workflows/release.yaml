@@ -340,6 +340,16 @@ jobs:
       #     mv ./build/*arm64.dylib ./site/out/bin/coder-vpn-darwin-arm64.dylib
       #     mv ./build/*arm64.h     ./site/out/bin/coder-vpn-darwin-dylib.h
 
+      # 再检查空间
+      - name: Check disk space
+        run: |
+          echo "==== Current Disk Space ===="
+          df -h
+          echo "==== /tmp Usage ===="
+          du -sh /tmp || true
+          echo "==== Workspace Usage ===="
+          du -sh $GITHUB_WORKSPACE || true
+
       - name: Build binaries
         run: |
           set -euo pipefail
@@ -451,6 +461,14 @@ jobs:
       #
       # TODO: Consider refactoring these attestation steps to use a matrix strategy or composite action
       # to reduce duplication while maintaining the required functionality for each distinct image tag.
+
+      - name: Get Docker image digest (base image)
+        id: base_image_digest
+        run: |
+          tag="${{ steps.image-base-tag.outputs.tag }}"
+          digest=$(docker buildx imagetools inspect $tag --format '{{.Digest}}')
+          echo "digest=$digest" >> $GITHUB_OUTPUT
+
       - name: GitHub Attestation for Base Docker image
         id: attest_base
         if: ${{ !inputs.dry_run && steps.image-base-tag.outputs.tag != '' }}
@@ -458,6 +476,7 @@ jobs:
         uses: actions/attest@ce27ba3b4a9a139d9a20a4a07d69fabb52f1e5bc # v2.4.0
         with:
           subject-name: ${{ steps.image-base-tag.outputs.tag }}
+          subject-digest: ${{ steps.base_image_digest.outputs.digest }}
           predicate-type: "https://slsa.dev/provenance/v1"
           predicate: |
             {
@@ -488,82 +507,12 @@ jobs:
             }
           push-to-registry: true
 
-      - name: Build Linux Docker images
-        id: build_docker
+      - name: Get Docker image digest (main image)
+        id: main_image_digest
         run: |
-          set -euxo pipefail
-
-          # we can't build multi-arch if the images aren't pushed, so quit now
-          # if dry-running
-          if [[ "$CODER_RELEASE" != *t* ]]; then
-            echo Skipping multi-arch docker builds due to dry-run.
-            exit 0
-          fi
-
-          # build Docker images for each architecture
-          version="$(./scripts/version.sh)"
-          make build/coder_"$version"_linux_{amd64,arm64,armv7}.tag
-
-          # build and push multi-arch manifest, this depends on the other images
-          # being pushed so will automatically push them.
-          make push/build/coder_"$version"_linux.tag
-
-          # Save multiarch image tag for attestation
-          multiarch_image="$(./scripts/image_tag.sh)"
-          echo "multiarch_image=${multiarch_image}" >> $GITHUB_OUTPUT
-
-          # For debugging, print all docker image tags
-          docker images
-
-          # if the current version is equal to the highest (according to semver)
-          # version in the repo, also create a multi-arch image as ":latest" and
-          # push it
-          created_latest_tag=false
-          if [[ "$(git tag | grep '^v' | grep -vE '(rc|dev|-|\+|\/)' | sort -r --version-sort | head -n1)" == "v$(./scripts/version.sh)" ]]; then
-            ./scripts/build_docker_multiarch.sh \
-              --push \
-              --target "$(./scripts/image_tag.sh --version latest)" \
-              $(cat build/coder_"$version"_linux_{amd64,arm64,armv7}.tag)
-            created_latest_tag=true
-            echo "created_latest_tag=true" >> $GITHUB_OUTPUT
-          else
-            echo "created_latest_tag=false" >> $GITHUB_OUTPUT
-          fi
-        env:
-          CODER_BASE_IMAGE_TAG: ${{ steps.image-base-tag.outputs.tag }}
-
-      - name: SBOM Generation and Attestation
-        if: ${{ !inputs.dry_run }}
-        env:
-          COSIGN_EXPERIMENTAL: "1"
-        run: |
-          set -euxo pipefail
-
-          # Generate SBOM for multi-arch image with version in filename
-          echo "Generating SBOM for multi-arch image: ${{ steps.build_docker.outputs.multiarch_image }}"
-          syft "${{ steps.build_docker.outputs.multiarch_image }}" -o spdx-json > coder_${{ steps.version.outputs.version }}_sbom.spdx.json
-
-          # Attest SBOM to multi-arch image
-          echo "Attesting SBOM to multi-arch image: ${{ steps.build_docker.outputs.multiarch_image }}"
-          cosign clean --force=true "${{ steps.build_docker.outputs.multiarch_image }}"
-          cosign attest --type spdxjson \
-            --predicate coder_${{ steps.version.outputs.version }}_sbom.spdx.json \
-            --yes \
-            "${{ steps.build_docker.outputs.multiarch_image }}"
-
-          # If latest tag was created, also attest it
-          if [[ "${{ steps.build_docker.outputs.created_latest_tag }}" == "true" ]]; then
-            latest_tag="$(./scripts/image_tag.sh --version latest)"
-            echo "Generating SBOM for latest image: ${latest_tag}"
-            syft "${latest_tag}" -o spdx-json > coder_latest_sbom.spdx.json
-
-            echo "Attesting SBOM to latest image: ${latest_tag}"
-            cosign clean --force=true "${latest_tag}"
-            cosign attest --type spdxjson \
-              --predicate coder_latest_sbom.spdx.json \
-              --yes \
-              "${latest_tag}"
-          fi
+          tag="${{ steps.build_docker.outputs.multiarch_image }}"
+          digest=$(docker buildx imagetools inspect $tag --format '{{.Digest}}')
+          echo "digest=$digest" >> $GITHUB_OUTPUT
 
       - name: GitHub Attestation for Docker image
         id: attest_main
@@ -572,6 +521,7 @@ jobs:
         uses: actions/attest@ce27ba3b4a9a139d9a20a4a07d69fabb52f1e5bc # v2.4.0
         with:
           subject-name: ${{ steps.build_docker.outputs.multiarch_image }}
+          subject-digest: ${{ steps.main_image_digest.outputs.digest }}
           predicate-type: "https://slsa.dev/provenance/v1"
           predicate: |
             {
@@ -602,11 +552,13 @@ jobs:
             }
           push-to-registry: true
 
-      # Get the latest tag name for attestation
-      - name: Get latest tag name
-        id: latest_tag
+      - name: Get Docker image digest (latest image)
+        id: latest_image_digest
         if: ${{ !inputs.dry_run && steps.build_docker.outputs.created_latest_tag == 'true' }}
-        run: echo "tag=$(./scripts/image_tag.sh --version latest)" >> $GITHUB_OUTPUT
+        run: |
+          tag="${{ steps.latest_tag.outputs.tag }}"
+          digest=$(docker buildx imagetools inspect "$tag" --format '{{.Digest}}')
+          echo "digest=$digest" >> $GITHUB_OUTPUT
 
       # If this is the highest version according to semver, also attest the "latest" tag
       - name: GitHub Attestation for "latest" Docker image
@@ -616,6 +568,7 @@ jobs:
         uses: actions/attest@ce27ba3b4a9a139d9a20a4a07d69fabb52f1e5bc # v2.4.0
         with:
           subject-name: ${{ steps.latest_tag.outputs.tag }}
+          subject-digest: ${{ steps.latest_image_digest.outputs.digest }}
           predicate-type: "https://slsa.dev/provenance/v1"
           predicate: |
             {
