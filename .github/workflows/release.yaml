@@ -32,6 +32,7 @@ env:
   CODER_RELEASE_NOTES: ${{ inputs.release_notes }}
 
 jobs:
+
   # # build-dylib is a separate job to build the dylib on macOS.
   # build-dylib:
   #   runs-on: ${{ github.repository_owner == 'coder' && 'depot-macos-latest' || 'macos-latest' }}
@@ -135,15 +136,35 @@ jobs:
     steps:
 
       # 清理空间
-      - name: First cleanup
+      - name: Free up disk space before build
         run: |
-          sudo rm -rf /tmp/*
-          sudo rm -rf ./build/*
-          docker system prune --all --force --volumes
+          echo "==> Before cleanup:"
+          df -h
 
-      # 检查磁盘空间
-      - name: Check disk space
-        run: df -h
+          # 清理各种系统自带开发环境
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/share/boost
+          sudo rm -rf /usr/local/share/chromium
+          sudo rm -rf /usr/local/share/edge_driver
+          sudo rm -rf /usr/local/share/gecko_driver
+          sudo rm -rf /usr/local/share/powershell
+          sudo rm -rf /usr/local/share/swig
+          sudo rm -rf /usr/local/share/vcpkg
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          sudo apt-get clean
+
+          # 清理 docker 占用
+          docker system prune -af || true
+          docker volume prune -f || true
+
+          # 再清理go构建缓存
+          go clean -cache -modcache -testcache -fuzzcache || true
+          sudo rm -rf /tmp/go-build*
+
+          echo "==> After cleanup:"
+          df -h
 
       - name: Harden Runner
         uses: step-security/harden-runner@ec9f2d5744a09debf3a187a3f4f675c53b671911 # v2.13.0
