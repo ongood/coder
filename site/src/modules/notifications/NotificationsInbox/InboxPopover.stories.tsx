@@ -30,13 +30,6 @@ export const Default: Story = {
 	},
 };
 
-export const Scrollable: Story = {
-	args: {
-		unreadCount: 2,
-		notifications: MockNotifications,
-	},
-};
-
 export const Loading: Story = {
 	args: {
 		unreadCount: 0,

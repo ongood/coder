@@ -470,8 +470,6 @@ func TestTemplates(t *testing.T) {
 			}
 
 			for _, c := range cases {
-				c := c
-
 				// nolint: paralleltest // context is from parent t.Run
 				t.Run(c.Name, func(t *testing.T) {
 					_, err := anotherClient.UpdateTemplateMeta(ctx, template.ID, codersdk.UpdateTemplateMeta{
@@ -922,6 +920,7 @@ func TestTemplateACL(t *testing.T) {
 
 	t.Run("everyoneGroup", func(t *testing.T) {
 		t.Parallel()
+
 		client, user := coderdenttest.New(t, &coderdenttest.Options{LicenseOptions: &coderdenttest.LicenseOptions{
 			Features: license.Features{
 				codersdk.FeatureTemplateRBAC: 1,
@@ -940,7 +939,7 @@ func TestTemplateACL(t *testing.T) {
 		require.NoError(t, err)
 
 		require.Len(t, acl.Groups, 1)
-		require.Len(t, acl.Groups[0].Members, 2)
+		require.Len(t, acl.Groups[0].Members, 2) // orgAdmin + TemplateAdmin
 		require.Len(t, acl.Users, 0)
 	})
 

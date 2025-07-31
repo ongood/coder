@@ -113,9 +113,14 @@ type Config struct {
 	BlockFileTransfer bool
 	// ReportConnection.
 	ReportConnection reportConnectionFunc
-	// Experimental: allow connecting to running containers if
-	// CODER_AGENT_DEVCONTAINERS_ENABLE=true.
-	ExperimentalDevContainersEnabled bool
+	// Experimental: allow connecting to running containers via Docker exec.
+	// Note that this is different from the devcontainers feature, which uses
+	// subagents.
+	ExperimentalContainers bool
+	// X11Net allows overriding the networking implementation used for X11
+	// forwarding listeners. When nil, a default implementation backed by the
+	// standard library networking package is used.
+	X11Net X11Network
 }
 
 type Server struct {
@@ -124,14 +129,16 @@ type Server struct {
 	listeners map[net.Listener]struct{}
 	conns     map[net.Conn]struct{}
 	sessions  map[ssh.Session]struct{}
+	processes map[*os.Process]struct{}
 	closing   chan struct{}
 	// Wait for goroutines to exit, waited without
 	// a lock on mu but protected by closing.
 	wg sync.WaitGroup
 
-	Execer agentexec.Execer
-	logger slog.Logger
-	srv    *ssh.Server
+	Execer       agentexec.Execer
+	logger       slog.Logger
+	srv          *ssh.Server
+	x11Forwarder *x11Forwarder
 
 	config *Config
 
@@ -182,11 +189,26 @@ func NewServer(ctx context.Context, logger slog.Logger, prometheusRegistry *prom
 		fs:        fs,
 		conns:     make(map[net.Conn]struct{}),
 		sessions:  make(map[ssh.Session]struct{}),
+		processes: make(map[*os.Process]struct{}),
 		logger:    logger,
 
 		config: config,
 
 		metrics: metrics,
+		x11Forwarder: &x11Forwarder{
+			logger:           logger,
+			x11HandlerErrors: metrics.x11HandlerErrors,
+			fs:               fs,
+			displayOffset:    *config.X11DisplayOffset,
+			sessions:         make(map[*x11Session]struct{}),
+			connections:      make(map[net.Conn]struct{}),
+			network: func() X11Network {
+				if config.X11Net != nil {
+					return config.X11Net
+				}
+				return osNet{}
+			}(),
+		},
 	}
 
 	srv := &ssh.Server{
@@ -223,7 +245,7 @@ func NewServer(ctx context.Context, logger slog.Logger, prometheusRegistry *prom
 				slog.F("destination_port", destinationPort))
 			return true
 		},
-		PtyCallback: func(ctx ssh.Context, pty ssh.Pty) bool {
+		PtyCallback: func(_ ssh.Context, _ ssh.Pty) bool {
 			return true
 		},
 		ReversePortForwardingCallback: func(ctx ssh.Context, bindHost string, bindPort uint32) bool {
@@ -240,7 +262,7 @@ func NewServer(ctx context.Context, logger slog.Logger, prometheusRegistry *prom
 			"cancel-streamlocal-forward@openssh.com": unixForwardHandler.HandleSSHRequest,
 		},
 		X11Callback: s.x11Callback,
-		ServerConfigCallback: func(ctx ssh.Context) *gossh.ServerConfig {
+		ServerConfigCallback: func(_ ssh.Context) *gossh.ServerConfig {
 			return &gossh.ServerConfig{
 				NoClientAuth: true,
 			}
@@ -435,7 +457,7 @@ func (s *Server) sessionHandler(session ssh.Session) {
 	switch ss := session.Subsystem(); ss {
 	case "":
 	case "sftp":
-		if s.config.ExperimentalDevContainersEnabled && container != "" {
+		if s.config.ExperimentalContainers && container != "" {
 			closeCause("sftp not yet supported with containers")
 			_ = session.Exit(1)
 			return
@@ -454,7 +476,7 @@ func (s *Server) sessionHandler(session ssh.Session) {
 
 	x11, hasX11 := session.X11()
 	if hasX11 {
-		display, handled := s.x11Handler(session.Context(), x11)
+		display, handled := s.x11Forwarder.x11Handler(ctx, session)
 		if !handled {
 			logger.Error(ctx, "x11 handler failed")
 			closeCause("x11 handler failed")
@@ -549,7 +571,7 @@ func (s *Server) sessionStart(logger slog.Logger, session ssh.Session, env []str
 
 	var ei usershell.EnvInfoer
 	var err error
-	if s.config.ExperimentalDevContainersEnabled && container != "" {
+	if s.config.ExperimentalContainers && container != "" {
 		ei, err = agentcontainers.EnvInfo(ctx, s.Execer, container, containerUser)
 		if err != nil {
 			s.metrics.sessionErrors.WithLabelValues(magicTypeLabel, ptyLabel, "container_env_info").Add(1)
@@ -582,6 +604,17 @@ func (s *Server) sessionStart(logger slog.Logger, session ssh.Session, env []str
 func (s *Server) startNonPTYSession(logger slog.Logger, session ssh.Session, magicTypeLabel string, cmd *exec.Cmd) error {
 	s.metrics.sessionsTotal.WithLabelValues(magicTypeLabel, "no").Add(1)
 
+	// Create a process group and send SIGHUP to child processes,
+	// otherwise context cancellation will not propagate properly
+	// and SSH server close may be delayed.
+	cmd.SysProcAttr = cmdSysProcAttr()
+
+	// to match OpenSSH, we don't actually tear a non-TTY command down, even if the session ends. OpenSSH closes the
+	// pipes to the process when the session ends; which is what happens here since we wire the command up to the
+	// session for I/O.
+	// c.f. https://github.com/coder/coder/issues/18519#issuecomment-3019118271
+	cmd.Cancel = nil
+
 	cmd.Stdout = session
 	cmd.Stderr = session.Stderr()
 	// This blocks forever until stdin is received if we don't
@@ -603,6 +636,16 @@ func (s *Server) startNonPTYSession(logger slog.Logger, session ssh.Session, mag
 		s.metrics.sessionErrors.WithLabelValues(magicTypeLabel, "no", "start_command").Add(1)
 		return xerrors.Errorf("start: %w", err)
 	}
+
+	// Since we don't cancel the process when the session stops, we still need to tear it down if we are closing. So
+	// track it here.
+	if !s.trackProcess(cmd.Process, true) {
+		// must be closing
+		err = cmdCancel(logger, cmd.Process)
+		return xerrors.Errorf("failed to track process: %w", err)
+	}
+	defer s.trackProcess(cmd.Process, false)
+
 	sigs := make(chan ssh.Signal, 1)
 	session.Signals(sigs)
 	defer func() {
@@ -702,6 +745,7 @@ func (s *Server) startPTYSession(logger slog.Logger, session ptySession, magicTy
 					windowSize = nil
 					continue
 				}
+				// #nosec G115 - Safe conversions for terminal dimensions which are expected to be within uint16 range
 				resizeErr := ptty.Resize(uint16(win.Height), uint16(win.Width))
 				// If the pty is closed, then command has exited, no need to log.
 				if resizeErr != nil && !errors.Is(resizeErr, pty.ErrClosed) {
@@ -809,6 +853,49 @@ func (s *Server) sftpHandler(logger slog.Logger, session ssh.Session) error {
 	return xerrors.Errorf("sftp server closed with error: %w", err)
 }
 
+func (s *Server) CommandEnv(ei usershell.EnvInfoer, addEnv []string) (shell, dir string, env []string, err error) {
+	if ei == nil {
+		ei = &usershell.SystemEnvInfo{}
+	}
+
+	currentUser, err := ei.User()
+	if err != nil {
+		return "", "", nil, xerrors.Errorf("get current user: %w", err)
+	}
+	username := currentUser.Username
+
+	shell, err = ei.Shell(username)
+	if err != nil {
+		return "", "", nil, xerrors.Errorf("get user shell: %w", err)
+	}
+
+	dir = s.config.WorkingDirectory()
+
+	// If the metadata directory doesn't exist, we run the command
+	// in the users home directory.
+	_, err = os.Stat(dir)
+	if dir == "" || err != nil {
+		// Default to user home if a directory is not set.
+		homedir, err := ei.HomeDir()
+		if err != nil {
+			return "", "", nil, xerrors.Errorf("get home dir: %w", err)
+		}
+		dir = homedir
+	}
+	env = append(ei.Environ(), addEnv...)
+	// Set login variables (see `man login`).
+	env = append(env, fmt.Sprintf("USER=%s", username))
+	env = append(env, fmt.Sprintf("LOGNAME=%s", username))
+	env = append(env, fmt.Sprintf("SHELL=%s", shell))
+
+	env, err = s.config.UpdateEnv(env)
+	if err != nil {
+		return "", "", nil, xerrors.Errorf("apply env: %w", err)
+	}
+
+	return shell, dir, env, nil
+}
+
 // CreateCommand processes raw command input with OpenSSH-like behavior.
 // If the script provided is empty, it will default to the users shell.
 // This injects environment variables specified by the user at launch too.
@@ -820,15 +907,10 @@ func (s *Server) CreateCommand(ctx context.Context, script string, env []string,
 	if ei == nil {
 		ei = &usershell.SystemEnvInfo{}
 	}
-	currentUser, err := ei.User()
-	if err != nil {
-		return nil, xerrors.Errorf("get current user: %w", err)
-	}
-	username := currentUser.Username
 
-	shell, err := ei.Shell(username)
+	shell, dir, env, err := s.CommandEnv(ei, env)
 	if err != nil {
-		return nil, xerrors.Errorf("get user shell: %w", err)
+		return nil, xerrors.Errorf("prepare command env: %w", err)
 	}
 
 	// OpenSSH executes all commands with the users current shell.
@@ -886,24 +968,8 @@ func (s *Server) CreateCommand(ctx context.Context, script string, env []string,
 		)
 	}
 	cmd := s.Execer.PTYCommandContext(ctx, modifiedName, modifiedArgs...)
-	cmd.Dir = s.config.WorkingDirectory()
-
-	// If the metadata directory doesn't exist, we run the command
-	// in the users home directory.
-	_, err = os.Stat(cmd.Dir)
-	if cmd.Dir == "" || err != nil {
-		// Default to user home if a directory is not set.
-		homedir, err := ei.HomeDir()
-		if err != nil {
-			return nil, xerrors.Errorf("get home dir: %w", err)
-		}
-		cmd.Dir = homedir
-	}
-	cmd.Env = append(ei.Environ(), env...)
-	// Set login variables (see `man login`).
-	cmd.Env = append(cmd.Env, fmt.Sprintf("USER=%s", username))
-	cmd.Env = append(cmd.Env, fmt.Sprintf("LOGNAME=%s", username))
-	cmd.Env = append(cmd.Env, fmt.Sprintf("SHELL=%s", shell))
+	cmd.Dir = dir
+	cmd.Env = env
 
 	// Set SSH connection environment variables (these are also set by OpenSSH
 	// and thus expected to be present by SSH clients). Since the agent does
@@ -914,18 +980,18 @@ func (s *Server) CreateCommand(ctx context.Context, script string, env []string,
 	cmd.Env = append(cmd.Env, fmt.Sprintf("SSH_CLIENT=%s %s %s", srcAddr, srcPort, dstPort))
 	cmd.Env = append(cmd.Env, fmt.Sprintf("SSH_CONNECTION=%s %s %s %s", srcAddr, srcPort, dstAddr, dstPort))
 
-	cmd.Env, err = s.config.UpdateEnv(cmd.Env)
-	if err != nil {
-		return nil, xerrors.Errorf("apply env: %w", err)
-	}
-
 	return cmd, nil
 }
 
 // Serve starts the server to handle incoming connections on the provided listener.
 // It returns an error if no host keys are set or if there is an issue accepting connections.
 func (s *Server) Serve(l net.Listener) (retErr error) {
-	if len(s.srv.HostSigners) == 0 {
+	// Ensure we're not mutating HostSigners as we're reading it.
+	s.mu.RLock()
+	noHostKeys := len(s.srv.HostSigners) == 0
+	s.mu.RUnlock()
+
+	if noHostKeys {
 		return xerrors.New("no host keys set")
 	}
 
@@ -961,7 +1027,7 @@ func (s *Server) handleConn(l net.Listener, c net.Conn) {
 		return
 	}
 	defer s.trackConn(l, c, false)
-	logger.Info(context.Background(), "started serving connection")
+	logger.Info(context.Background(), "started serving ssh connection")
 	// note: srv.ConnectionCompleteCallback logs completion of the connection
 	s.srv.HandleConn(c)
 }
@@ -1040,6 +1106,27 @@ func (s *Server) trackSession(ss ssh.Session, add bool) (ok bool) {
 	return true
 }
 
+// trackCommand registers the process with the server. If the server is
+// closing, the process is not registered and should be closed.
+//
+//nolint:revive
+func (s *Server) trackProcess(p *os.Process, add bool) (ok bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if add {
+		if s.closing != nil {
+			// Server closed.
+			return false
+		}
+		s.wg.Add(1)
+		s.processes[p] = struct{}{}
+		return true
+	}
+	s.wg.Done()
+	delete(s.processes, p)
+	return true
+}
+
 // Close the server and all active connections. Server can be re-used
 // after Close is done.
 func (s *Server) Close() error {
@@ -1048,32 +1135,50 @@ func (s *Server) Close() error {
 	// Guard against multiple calls to Close and
 	// accepting new connections during close.
 	if s.closing != nil {
+		closing := s.closing
 		s.mu.Unlock()
-		return xerrors.New("server is closing")
+		<-closing
+		return xerrors.New("server is closed")
 	}
 	s.closing = make(chan struct{})
 
+	ctx := context.Background()
+
+	s.logger.Debug(ctx, "closing server")
+
+	// Stop accepting new connections.
+	s.logger.Debug(ctx, "closing all active listeners", slog.F("count", len(s.listeners)))
+	for l := range s.listeners {
+		_ = l.Close()
+	}
+
 	// Close all active sessions to gracefully
 	// terminate client connections.
+	s.logger.Debug(ctx, "closing all active sessions", slog.F("count", len(s.sessions)))
 	for ss := range s.sessions {
 		// We call Close on the underlying channel here because we don't
 		// want to send an exit status to the client (via Exit()).
 		// Typically OpenSSH clients will return 255 as the exit status.
 		_ = ss.Close()
 	}
-
-	// Close all active listeners and connections.
-	for l := range s.listeners {
-		_ = l.Close()
-	}
+	s.logger.Debug(ctx, "closing all active connections", slog.F("count", len(s.conns)))
 	for c := range s.conns {
 		_ = c.Close()
 	}
 
-	// Close the underlying SSH server.
+	for p := range s.processes {
+		_ = cmdCancel(s.logger, p)
+	}
+
+	s.logger.Debug(ctx, "closing SSH server")
 	err := s.srv.Close()
 
 	s.mu.Unlock()
+
+	s.logger.Debug(ctx, "closing X11 forwarding")
+	_ = s.x11Forwarder.Close()
+
+	s.logger.Debug(ctx, "waiting for all goroutines to exit")
 	s.wg.Wait() // Wait for all goroutines to exit.
 
 	s.mu.Lock()
@@ -1081,15 +1186,35 @@ func (s *Server) Close() error {
 	s.closing = nil
 	s.mu.Unlock()
 
+	s.logger.Debug(ctx, "closing server done")
+
 	return err
 }
 
-// Shutdown gracefully closes all active SSH connections and stops
-// accepting new connections.
-//
-// Shutdown is not implemented.
-func (*Server) Shutdown(_ context.Context) error {
-	// TODO(mafredri): Implement shutdown, SIGHUP running commands, etc.
+// Shutdown stops accepting new connections. The current implementation
+// calls Close() for simplicity instead of waiting for existing
+// connections to close. If the context times out, Shutdown will return
+// but Close() may not have completed.
+func (s *Server) Shutdown(ctx context.Context) error {
+	ch := make(chan error, 1)
+	go func() {
+		// TODO(mafredri): Implement shutdown, SIGHUP running commands, etc.
+		// For now we just close the server.
+		ch <- s.Close()
+	}()
+	var err error
+	select {
+	case <-ctx.Done():
+		err = ctx.Err()
+	case err = <-ch:
+	}
+	// Re-check for context cancellation precedence.
+	if ctx.Err() != nil {
+		err = ctx.Err()
+	}
+	if err != nil {
+		return xerrors.Errorf("close server: %w", err)
+	}
 	return nil
 }
 

@@ -1,12 +1,10 @@
 import type { Interpolation, Theme } from "@emotion/react";
-import AddOutlined from "@mui/icons-material/AddOutlined";
-import KeyboardArrowRight from "@mui/icons-material/KeyboardArrowRight";
-import AvatarGroup from "@mui/material/AvatarGroup";
 import Skeleton from "@mui/material/Skeleton";
 import type { Group } from "api/typesGenerated";
 import { Avatar } from "components/Avatar/Avatar";
 import { AvatarData } from "components/Avatar/AvatarData";
 import { AvatarDataSkeleton } from "components/Avatar/AvatarDataSkeleton";
+import { Badge } from "components/Badge/Badge";
 import { Button } from "components/Button/Button";
 import { ChooseOne, Cond } from "components/Conditionals/ChooseOne";
 import { EmptyState } from "components/EmptyState/EmptyState";
@@ -24,11 +22,12 @@ import {
 	TableRowSkeleton,
 } from "components/TableLoader/TableLoader";
 import { useClickableTableRow } from "hooks";
+import { ChevronRightIcon, PlusIcon } from "lucide-react";
 import type { FC } from "react";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import { docs } from "utils/docs";
 
-export type GroupsPageViewProps = {
+type GroupsPageViewProps = {
 	groups: Group[] | undefined;
 	canCreateGroup: boolean;
 	groupsEnabled: boolean;
@@ -81,7 +80,7 @@ export const GroupsPageView: FC<GroupsPageViewProps> = ({
 													canCreateGroup && (
 														<Button asChild>
 															<RouterLink to="create">
-																<AddOutlined />
+																<PlusIcon className="size-icon-sm" />
 																Create group
 															</RouterLink>
 														</Button>
@@ -115,6 +114,8 @@ const GroupRow: FC<GroupRowProps> = ({ group }) => {
 	const rowProps = useClickableTableRow({
 		onClick: () => navigate(group.name),
 	});
+	const memberAvatars = group.members.slice(0, 5);
+	const remainingAvatars = group.members.length - memberAvatars.length;
 
 	return (
 		<TableRow data-testid={`group-${group.id}`} {...rowProps}>
@@ -122,6 +123,8 @@ const GroupRow: FC<GroupRowProps> = ({ group }) => {
 				<AvatarData
 					avatar={
 						<Avatar
+							size="lg"
+							variant="icon"
 							fallback={group.display_name || group.name}
 							src={group.avatar_url}
 						/>
@@ -132,25 +135,29 @@ const GroupRow: FC<GroupRowProps> = ({ group }) => {
 			</TableCell>
 
 			<TableCell>
-				{group.members.length === 0 && "-"}
-				<AvatarGroup
-					max={10}
-					total={group.members.length}
-					css={{ justifyContent: "flex-end", gap: 8 }}
-				>
-					{group.members.map((member) => (
-						<Avatar
-							key={member.username}
-							fallback={member.username}
-							src={member.avatar_url}
-						/>
-					))}
-				</AvatarGroup>
+				{group.members.length > 0 ? (
+					<div className="flex items-center gap-2">
+						{memberAvatars.map((member) => (
+							<Avatar
+								key={member.username}
+								fallback={member.username}
+								src={member.avatar_url}
+							/>
+						))}
+						{remainingAvatars > 0 && (
+							<Badge className="h-[--avatar-default]">
+								+{remainingAvatars}
+							</Badge>
+						)}
+					</div>
+				) : (
+					"-"
+				)}
 			</TableCell>
 
 			<TableCell>
 				<div css={styles.arrowCell}>
-					<KeyboardArrowRight css={styles.arrowRight} />
+					<ChevronRightIcon className="size-icon-sm" />
 				</div>
 			</TableCell>
 		</TableRow>
@@ -187,5 +194,3 @@ const styles = {
 		display: "flex",
 	},
 } satisfies Record<string, Interpolation<Theme>>;
-
-export default GroupsPageView;

@@ -40,7 +40,7 @@ func OAuth2(r *http.Request) OAuth2State {
 // a "code" URL parameter will be redirected.
 // AuthURLOpts are passed to the AuthCodeURL function. If this is nil,
 // the default option oauth2.AccessTypeOffline will be used.
-func ExtractOAuth2(config promoauth.OAuth2Config, client *http.Client, authURLOpts map[string]string) func(http.Handler) http.Handler {
+func ExtractOAuth2(config promoauth.OAuth2Config, client *http.Client, cookieCfg codersdk.HTTPCookieConfig, authURLOpts map[string]string) func(http.Handler) http.Handler {
 	opts := make([]oauth2.AuthCodeOption, 0, len(authURLOpts)+1)
 	opts = append(opts, oauth2.AccessTypeOffline)
 	for k, v := range authURLOpts {
@@ -118,22 +118,20 @@ func ExtractOAuth2(config promoauth.OAuth2Config, client *http.Client, authURLOp
 					}
 				}
 
-				http.SetCookie(rw, &http.Cookie{
+				http.SetCookie(rw, cookieCfg.Apply(&http.Cookie{
 					Name:     codersdk.OAuth2StateCookie,
 					Value:    state,
 					Path:     "/",
 					HttpOnly: true,
-					SameSite: http.SameSiteLaxMode,
-				})
+				}))
 				// Redirect must always be specified, otherwise
 				// an old redirect could apply!
-				http.SetCookie(rw, &http.Cookie{
+				http.SetCookie(rw, cookieCfg.Apply(&http.Cookie{
 					Name:     codersdk.OAuth2RedirectCookie,
 					Value:    redirect,
 					Path:     "/",
 					HttpOnly: true,
-					SameSite: http.SameSiteLaxMode,
-				})
+				}))
 
 				http.Redirect(rw, r, config.AuthCodeURL(state, opts...), http.StatusTemporaryRedirect)
 				return
@@ -209,6 +207,71 @@ func OAuth2ProviderApp(r *http.Request) database.OAuth2ProviderApp {
 // middleware requires the API key middleware higher in the call stack for
 // authentication.
 func ExtractOAuth2ProviderApp(db database.Store) func(http.Handler) http.Handler {
+	return extractOAuth2ProviderAppBase(db, &codersdkErrorWriter{})
+}
+
+// ExtractOAuth2ProviderAppWithOAuth2Errors is the same as ExtractOAuth2ProviderApp but
+// returns OAuth2-compliant errors instead of generic API errors. This should be used
+// for OAuth2 endpoints like /oauth2/tokens.
+func ExtractOAuth2ProviderAppWithOAuth2Errors(db database.Store) func(http.Handler) http.Handler {
+	return extractOAuth2ProviderAppBase(db, &oauth2ErrorWriter{})
+}
+
+// errorWriter interface abstracts different error response formats.
+// This uses the Strategy pattern to avoid a control flag (useOAuth2Errors bool)
+// which was flagged by the linter as an anti-pattern. Instead of duplicating
+// the entire function logic or using a boolean parameter, we inject the error
+// handling behavior through this interface.
+type errorWriter interface {
+	writeMissingClientID(ctx context.Context, rw http.ResponseWriter)
+	writeInvalidClientID(ctx context.Context, rw http.ResponseWriter, err error)
+	writeClientNotFound(ctx context.Context, rw http.ResponseWriter)
+}
+
+// codersdkErrorWriter writes standard codersdk errors for general API endpoints
+type codersdkErrorWriter struct{}
+
+func (*codersdkErrorWriter) writeMissingClientID(ctx context.Context, rw http.ResponseWriter) {
+	httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
+		Message: "Missing OAuth2 client ID.",
+	})
+}
+
+func (*codersdkErrorWriter) writeInvalidClientID(ctx context.Context, rw http.ResponseWriter, err error) {
+	httpapi.Write(ctx, rw, http.StatusUnauthorized, codersdk.Response{
+		Message: "Invalid OAuth2 client ID.",
+		Detail:  err.Error(),
+	})
+}
+
+func (*codersdkErrorWriter) writeClientNotFound(ctx context.Context, rw http.ResponseWriter) {
+	// Management API endpoints return 404 for missing OAuth2 apps (proper REST semantics).
+	// This differs from OAuth2 protocol endpoints which return 401 "invalid_client" per RFC 6749.
+	// Returning 401 here would trigger the frontend's automatic logout interceptor when React Query
+	// refetches a deleted app, incorrectly logging out users who just deleted their own OAuth2 apps.
+	httpapi.Write(ctx, rw, http.StatusNotFound, codersdk.Response{
+		Message: "OAuth2 application not found.",
+	})
+}
+
+// oauth2ErrorWriter writes OAuth2-compliant errors for OAuth2 endpoints
+type oauth2ErrorWriter struct{}
+
+func (*oauth2ErrorWriter) writeMissingClientID(ctx context.Context, rw http.ResponseWriter) {
+	httpapi.WriteOAuth2Error(ctx, rw, http.StatusBadRequest, "invalid_request", "Missing client_id parameter")
+}
+
+func (*oauth2ErrorWriter) writeInvalidClientID(ctx context.Context, rw http.ResponseWriter, _ error) {
+	httpapi.WriteOAuth2Error(ctx, rw, http.StatusUnauthorized, "invalid_client", "The client credentials are invalid")
+}
+
+func (*oauth2ErrorWriter) writeClientNotFound(ctx context.Context, rw http.ResponseWriter) {
+	httpapi.WriteOAuth2Error(ctx, rw, http.StatusUnauthorized, "invalid_client", "The client credentials are invalid")
+}
+
+// extractOAuth2ProviderAppBase is the internal implementation that uses the strategy pattern
+// instead of a control flag to handle different error formats.
+func extractOAuth2ProviderAppBase(db database.Store, errWriter errorWriter) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
@@ -235,26 +298,21 @@ func ExtractOAuth2ProviderApp(db database.Store) func(http.Handler) http.Handler
 					}
 				}
 				if paramAppID == "" {
-					httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
-						Message: "Missing OAuth2 client ID.",
-					})
+					errWriter.writeMissingClientID(ctx, rw)
 					return
 				}
 
 				var err error
 				appID, err = uuid.Parse(paramAppID)
 				if err != nil {
-					httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
-						Message: "Invalid OAuth2 client ID.",
-						Detail:  err.Error(),
-					})
+					errWriter.writeInvalidClientID(ctx, rw, err)
 					return
 				}
 			}
 
 			app, err := db.GetOAuth2ProviderAppByID(ctx, appID)
 			if httpapi.Is404Error(err) {
-				httpapi.ResourceNotFound(rw)
+				errWriter.writeClientNotFound(ctx, rw)
 				return
 			}
 			if err != nil {

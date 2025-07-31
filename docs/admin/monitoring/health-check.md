@@ -294,14 +294,13 @@ be built until there is at least one provisioner daemon running.
 **Solution:**
 
 If you are using
-[External Provisioner Daemons](../provisioners.md#external-provisioners), ensure
+[External Provisioner Daemons](../provisioners/index.md#external-provisioners), ensure
 that they are able to successfully connect to Coder. Otherwise, ensure
 [`--provisioner-daemons`](../../reference/cli/server.md#--provisioner-daemons)
 is set to a value greater than 0.
 
 > [!NOTE]
-> This may be a transient issue if you are currently in the process of
-updating your deployment.
+> This may be a transient issue if you are currently in the process of updating your deployment.
 
 ### EPD02
 
@@ -316,8 +315,7 @@ of API incompatibility.
 version of Coder.
 
 > [!NOTE]
-> This may be a transient issue if you are currently in the process of
-updating your deployment.
+> This may be a transient issue if you are currently in the process of updating your deployment.
 
 ### EPD03
 
@@ -332,8 +330,7 @@ connect to Coder.
 version of Coder.
 
 > [!NOTE]
-> This may be a transient issue if you are currently in the process of
-updating your deployment.
+> This may be a transient issue if you are currently in the process of updating your deployment.
 
 ### EUNKNOWN
 

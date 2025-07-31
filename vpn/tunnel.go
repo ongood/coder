@@ -19,6 +19,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/tailscale/wireguard-go/tun"
 	"golang.org/x/xerrors"
+	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"tailscale.com/net/dns"
 	"tailscale.com/net/netmon"
@@ -26,13 +27,15 @@ import (
 	"tailscale.com/wgengine/router"
 
 	"cdr.dev/slog"
-	"github.com/coder/coder/v2/tailnet"
 	"github.com/coder/quartz"
+
+	"github.com/coder/coder/v2/codersdk"
+	"github.com/coder/coder/v2/tailnet"
 )
 
-// netStatusInterval is the interval at which the tunnel sends network status updates to the manager.
-// This is currently only used to keep `last_handshake` up to date.
-const netStatusInterval = 10 * time.Second
+// netStatusInterval is the interval at which the tunnel records latencies,
+// and sends network status updates to the manager.
+const netStatusInterval = 5 * time.Second
 
 type Tunnel struct {
 	speaker[*TunnelMessage, *ManagerMessage, ManagerMessage]
@@ -42,9 +45,6 @@ type Tunnel struct {
 	requestLoopDone chan struct{}
 
 	logger slog.Logger
-
-	logMu sync.Mutex
-	logs  []*TunnelMessage
 
 	client Client
 
@@ -84,8 +84,10 @@ func NewTunnel(
 			ctx:         uCtx,
 			cancel:      uCancel,
 			netLoopDone: make(chan struct{}),
+			logger:      logger,
 			uSendCh:     s.sendCh,
-			agents:      map[uuid.UUID]tailnet.Agent{},
+			agents:      map[uuid.UUID]agentWithPing{},
+			workspaces:  map[uuid.UUID]tailnet.Workspace{},
 			clock:       quartz.NewReal(),
 		},
 	}
@@ -190,12 +192,6 @@ func UseAsLogger() TunnelOption {
 	}
 }
 
-func UseCustomLogSinks(sinks ...slog.Sink) TunnelOption {
-	return func(t *Tunnel) {
-		t.clientLogger = t.clientLogger.AppendSinks(sinks...)
-	}
-}
-
 func WithClock(clock quartz.Clock) TunnelOption {
 	return func(t *Tunnel) {
 		t.clock = clock
@@ -236,6 +232,24 @@ func (t *Tunnel) start(req *StartRequest) error {
 	for _, h := range req.GetHeaders() {
 		header.Add(h.GetName(), h.GetValue())
 	}
+
+	// Add desktop telemetry if any fields are provided
+	telemetryData := codersdk.CoderDesktopTelemetry{
+		DeviceID:            req.GetDeviceId(),
+		DeviceOS:            req.GetDeviceOs(),
+		CoderDesktopVersion: req.GetCoderDesktopVersion(),
+	}
+	if !telemetryData.IsEmpty() {
+		headerValue, err := json.Marshal(telemetryData)
+		if err == nil {
+			header.Set(codersdk.CoderDesktopTelemetryHeader, string(headerValue))
+			t.logger.Debug(t.ctx, "added desktop telemetry header",
+				slog.F("data", telemetryData))
+		} else {
+			t.logger.Warn(t.ctx, "failed to marshal telemetry data")
+		}
+	}
+
 	var networkingStack NetworkStack
 	if t.networkingStackFn != nil {
 		networkingStack, err = t.networkingStackFn(t, req, t.clientLogger)
@@ -277,31 +291,25 @@ func (t *Tunnel) stop(*StopRequest) error {
 var _ slog.Sink = &Tunnel{}
 
 func (t *Tunnel) LogEntry(_ context.Context, e slog.SinkEntry) {
-	t.logMu.Lock()
-	defer t.logMu.Unlock()
-	t.logs = append(t.logs, &TunnelMessage{
+	msg := &TunnelMessage{
 		Msg: &TunnelMessage_Log{
 			Log: sinkEntryToPb(e),
 		},
-	})
-}
-
-func (t *Tunnel) Sync() {
-	t.logMu.Lock()
-	logs := t.logs
-	t.logs = nil
-	t.logMu.Unlock()
-	for _, msg := range logs {
-		select {
-		case <-t.ctx.Done():
-			return
-		case t.sendCh <- msg:
-		}
+	}
+	select {
+	case <-t.updater.ctx.Done():
+		return
+	case <-t.ctx.Done():
+		return
+	case t.sendCh <- msg:
 	}
 }
 
+func (*Tunnel) Sync() {}
+
 func sinkEntryToPb(e slog.SinkEntry) *Log {
 	l := &Log{
+		// #nosec G115 - Safe conversion for log levels which are small positive integers
 		Level:       Log_Level(e.Level),
 		Message:     e.Message,
 		LoggerNames: e.LoggerNames,
@@ -322,13 +330,37 @@ type updater struct {
 	cancel      context.CancelFunc
 	netLoopDone chan struct{}
 
+	logger slog.Logger
+
 	mu      sync.Mutex
 	uSendCh chan<- *TunnelMessage
 	// agents contains the agents that are currently connected to the tunnel.
-	agents map[uuid.UUID]tailnet.Agent
-	conn   Conn
+	agents map[uuid.UUID]agentWithPing
+	// workspaces contains the workspaces to which agents are currently connected via the tunnel.
+	workspaces map[uuid.UUID]tailnet.Workspace
+	conn       Conn
 
 	clock quartz.Clock
+}
+
+type agentWithPing struct {
+	tailnet.Agent
+	// non-nil if a successful ping has been made
+	lastPing *lastPing
+}
+
+func (a *agentWithPing) Clone() *agentWithPing {
+	return &agentWithPing{
+		Agent:    a.Agent.Clone(),
+		lastPing: a.lastPing,
+	}
+}
+
+type lastPing struct {
+	pingDur              time.Duration
+	didP2p               bool
+	preferredDerp        string
+	preferredDerpLatency *time.Duration
 }
 
 // Update pushes a workspace update to the manager
@@ -376,6 +408,11 @@ func (u *updater) sendUpdateResponse(req *request[*TunnelMessage, *ManagerMessag
 // createPeerUpdateLocked creates a PeerUpdate message from a workspace update, populating
 // the network status of the agents.
 func (u *updater) createPeerUpdateLocked(update tailnet.WorkspaceUpdate) *PeerUpdate {
+	// if the update is a snapshot, we need to process the full state
+	if update.Kind == tailnet.Snapshot {
+		processSnapshotUpdate(&update, u.agents, u.workspaces)
+	}
+
 	out := &PeerUpdate{
 		UpsertedWorkspaces: make([]*Workspace, len(update.UpsertedWorkspaces)),
 		UpsertedAgents:     make([]*Agent, len(update.UpsertedAgents)),
@@ -383,7 +420,31 @@ func (u *updater) createPeerUpdateLocked(update tailnet.WorkspaceUpdate) *PeerUp
 		DeletedAgents:      make([]*Agent, len(update.DeletedAgents)),
 	}
 
-	u.saveUpdateLocked(update)
+	var upsertedAgentsWithPing []*agentWithPing
+
+	// save the workspace update to the tunnel's state, such that it can
+	// be used to populate automated peer updates.
+	for _, agent := range update.UpsertedAgents {
+		var lastPing *lastPing
+		if existing, ok := u.agents[agent.ID]; ok {
+			lastPing = existing.lastPing
+		}
+		upsertedAgent := agentWithPing{
+			Agent:    agent.Clone(),
+			lastPing: lastPing,
+		}
+		u.agents[agent.ID] = upsertedAgent
+		upsertedAgentsWithPing = append(upsertedAgentsWithPing, &upsertedAgent)
+	}
+	for _, agent := range update.DeletedAgents {
+		delete(u.agents, agent.ID)
+	}
+	for _, workspace := range update.UpsertedWorkspaces {
+		u.workspaces[workspace.ID] = workspace.Clone()
+	}
+	for _, workspace := range update.DeletedWorkspaces {
+		delete(u.workspaces, workspace.ID)
+	}
 
 	for i, ws := range update.UpsertedWorkspaces {
 		out.UpsertedWorkspaces[i] = &Workspace{
@@ -392,7 +453,8 @@ func (u *updater) createPeerUpdateLocked(update tailnet.WorkspaceUpdate) *PeerUp
 			Status: Workspace_Status(ws.Status),
 		}
 	}
-	upsertedAgents := u.convertAgentsLocked(update.UpsertedAgents)
+
+	upsertedAgents := u.convertAgentsLocked(upsertedAgentsWithPing)
 	out.UpsertedAgents = upsertedAgents
 	for i, ws := range update.DeletedWorkspaces {
 		out.DeletedWorkspaces[i] = &Workspace{
@@ -423,7 +485,7 @@ func (u *updater) createPeerUpdateLocked(update tailnet.WorkspaceUpdate) *PeerUp
 
 // convertAgentsLocked takes a list of `tailnet.Agent` and converts them to proto agents.
 // If there is an active connection, the last handshake time is populated.
-func (u *updater) convertAgentsLocked(agents []*tailnet.Agent) []*Agent {
+func (u *updater) convertAgentsLocked(agents []*agentWithPing) []*Agent {
 	out := make([]*Agent, 0, len(agents))
 
 	for _, agent := range agents {
@@ -434,12 +496,26 @@ func (u *updater) convertAgentsLocked(agents []*tailnet.Agent) []*Agent {
 		sort.Slice(fqdn, func(i, j int) bool {
 			return len(fqdn[i]) < len(fqdn[j])
 		})
+		var lastPing *LastPing
+		if agent.lastPing != nil {
+			var preferredDerpLatency *durationpb.Duration
+			if agent.lastPing.preferredDerpLatency != nil {
+				preferredDerpLatency = durationpb.New(*agent.lastPing.preferredDerpLatency)
+			}
+			lastPing = &LastPing{
+				Latency:              durationpb.New(agent.lastPing.pingDur),
+				DidP2P:               agent.lastPing.didP2p,
+				PreferredDerp:        agent.lastPing.preferredDerp,
+				PreferredDerpLatency: preferredDerpLatency,
+			}
+		}
 		protoAgent := &Agent{
 			Id:          tailnet.UUIDToByteSlice(agent.ID),
 			Name:        agent.Name,
 			WorkspaceId: tailnet.UUIDToByteSlice(agent.WorkspaceID),
 			Fqdn:        fqdn,
 			IpAddrs:     hostsToIPStrings(agent.Hosts),
+			LastPing:    lastPing,
 		}
 		if u.conn != nil {
 			diags := u.conn.GetPeerDiagnostics(agent.ID)
@@ -449,17 +525,6 @@ func (u *updater) convertAgentsLocked(agents []*tailnet.Agent) []*Agent {
 	}
 
 	return out
-}
-
-// saveUpdateLocked saves the workspace update to the tunnel's state, such that it can
-// be used to populate automated peer updates.
-func (u *updater) saveUpdateLocked(update tailnet.WorkspaceUpdate) {
-	for _, agent := range update.UpsertedAgents {
-		u.agents[agent.ID] = agent.Clone()
-	}
-	for _, agent := range update.DeletedAgents {
-		delete(u.agents, agent.ID)
-	}
 }
 
 // setConn sets the `conn` and returns false if there's already a connection set.
@@ -482,8 +547,8 @@ func (u *updater) stop() error {
 		return nil
 	}
 	err := u.conn.Close()
-	u.conn = nil
 	u.cancel()
+	u.conn = nil
 	return err
 }
 
@@ -493,7 +558,7 @@ func (u *updater) sendAgentUpdate() {
 	u.mu.Lock()
 	defer u.mu.Unlock()
 
-	agents := make([]*tailnet.Agent, 0, len(u.agents))
+	agents := make([]*agentWithPing, 0, len(u.agents))
 	for _, agent := range u.agents {
 		agents = append(agents, &agent)
 	}
@@ -501,6 +566,8 @@ func (u *updater) sendAgentUpdate() {
 	if len(upsertedAgents) == 0 {
 		return
 	}
+
+	u.logger.Debug(u.ctx, "sending agent update")
 
 	msg := &TunnelMessage{
 		Msg: &TunnelMessage_PeerUpdate{
@@ -526,7 +593,115 @@ func (u *updater) netStatusLoop() {
 		case <-u.ctx.Done():
 			return
 		case <-ticker.C:
+			u.recordLatencies()
 			u.sendAgentUpdate()
+		}
+	}
+}
+
+func (u *updater) recordLatencies() {
+	var agentsIDsToPing []uuid.UUID
+	u.mu.Lock()
+	for _, agent := range u.agents {
+		agentsIDsToPing = append(agentsIDsToPing, agent.ID)
+	}
+	conn := u.conn
+	u.mu.Unlock()
+
+	if conn == nil {
+		u.logger.Debug(u.ctx, "skipping pings as tunnel is not connected")
+		return
+	}
+
+	go func() {
+		// We need a waitgroup to cancel the context after all pings are done.
+		var wg sync.WaitGroup
+		pingCtx, cancelFunc := context.WithTimeout(u.ctx, netStatusInterval)
+		defer cancelFunc()
+		for _, agentID := range agentsIDsToPing {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+
+				pingDur, didP2p, pingResult, err := conn.Ping(pingCtx, agentID)
+				if err != nil {
+					u.logger.Warn(u.ctx, "failed to ping agent", slog.F("agent_id", agentID), slog.Error(err))
+					return
+				}
+
+				// We fetch the Node and DERPMap after each ping, as it may have
+				// changed.
+				node := conn.Node()
+				derpMap := conn.DERPMap()
+				if node == nil || derpMap == nil {
+					u.logger.Warn(u.ctx, "failed to get DERP map or node after ping")
+					return
+				}
+				derpLatencies := tailnet.ExtractDERPLatency(node, derpMap)
+				preferredDerp := tailnet.ExtractPreferredDERPName(pingResult, node, derpMap)
+				var preferredDerpLatency *time.Duration
+				if derpLatency, ok := derpLatencies[preferredDerp]; ok {
+					preferredDerpLatency = &derpLatency
+				} else {
+					u.logger.Debug(u.ctx, "preferred DERP not found in DERP latency map", slog.F("preferred_derp", preferredDerp))
+				}
+
+				// Write back results
+				u.mu.Lock()
+				defer u.mu.Unlock()
+				if agent, ok := u.agents[agentID]; ok {
+					agent.lastPing = &lastPing{
+						pingDur:              pingDur,
+						didP2p:               didP2p,
+						preferredDerp:        preferredDerp,
+						preferredDerpLatency: preferredDerpLatency,
+					}
+					u.agents[agentID] = agent
+				} else {
+					u.logger.Debug(u.ctx, "ignoring ping result for unknown agent", slog.F("agent_id", agentID))
+				}
+			}()
+		}
+		wg.Wait()
+	}()
+}
+
+// processSnapshotUpdate handles the logic when a full state update is received.
+// When the tunnel is live, we only receive diffs, but the first packet on any given
+// reconnect to the tailnet API is a full state.
+// Without this logic we weren't processing deletes for any workspaces or agents deleted
+// while the client was disconnected while the computer was asleep.
+func processSnapshotUpdate(update *tailnet.WorkspaceUpdate, agents map[uuid.UUID]agentWithPing, workspaces map[uuid.UUID]tailnet.Workspace) {
+	// ignoredWorkspaces is initially populated with the workspaces that are
+	// in the current update. Later on we populate it with the deleted workspaces too
+	// so that we don't send duplicate updates. Same applies to ignoredAgents.
+	ignoredWorkspaces := make(map[uuid.UUID]struct{}, len(update.UpsertedWorkspaces))
+	ignoredAgents := make(map[uuid.UUID]struct{}, len(update.UpsertedAgents))
+
+	for _, workspace := range update.UpsertedWorkspaces {
+		ignoredWorkspaces[workspace.ID] = struct{}{}
+	}
+	for _, agent := range update.UpsertedAgents {
+		ignoredAgents[agent.ID] = struct{}{}
+	}
+	for _, agent := range agents {
+		if _, present := ignoredAgents[agent.ID]; !present {
+			// delete any current agents that are not in the new update
+			update.DeletedAgents = append(update.DeletedAgents, &tailnet.Agent{
+				ID:          agent.ID,
+				Name:        agent.Name,
+				WorkspaceID: agent.WorkspaceID,
+			})
+		}
+	}
+	for _, workspace := range workspaces {
+		if _, present := ignoredWorkspaces[workspace.ID]; !present {
+			update.DeletedWorkspaces = append(update.DeletedWorkspaces, &tailnet.Workspace{
+				ID:     workspace.ID,
+				Name:   workspace.Name,
+				Status: workspace.Status,
+			})
+			ignoredWorkspaces[workspace.ID] = struct{}{}
 		}
 	}
 }

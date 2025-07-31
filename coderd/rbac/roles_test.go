@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/coder/coder/v2/coderd/database"
+
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
@@ -34,8 +36,7 @@ func (a authSubject) Subjects() []authSubject { return []authSubject{a} }
 // rules. If this is incorrect, that is a mistake.
 func TestBuiltInRoles(t *testing.T) {
 	t.Parallel()
-	for _, r := range rbac.SiteRoles() {
-		r := r
+	for _, r := range rbac.SiteBuiltInRoles() {
 		t.Run(r.Identifier.String(), func(t *testing.T) {
 			t.Parallel()
 			require.NoError(t, r.Valid(), "invalid role")
@@ -43,7 +44,6 @@ func TestBuiltInRoles(t *testing.T) {
 	}
 
 	for _, r := range rbac.OrganizationRoles(uuid.New()) {
-		r := r
 		t.Run(r.Identifier.String(), func(t *testing.T) {
 			t.Parallel()
 			require.NoError(t, r.Valid(), "invalid role")
@@ -224,6 +224,15 @@ func TestRolePermissions(t *testing.T) {
 			AuthorizeMap: map[bool][]hasAuthSubjects{
 				true:  {owner, orgMemberMe},
 				false: {setOtherOrg, setOrgNotMe, memberMe, templateAdmin, userAdmin},
+			},
+		},
+		{
+			Name:     "CreateDeleteWorkspaceAgent",
+			Actions:  []policy.Action{policy.ActionCreateAgent, policy.ActionDeleteAgent},
+			Resource: rbac.ResourceWorkspace.WithID(workspaceID).InOrg(orgID).WithOwner(currentUser.String()),
+			AuthorizeMap: map[bool][]hasAuthSubjects{
+				true:  {owner, orgMemberMe, orgAdmin},
+				false: {setOtherOrg, memberMe, userAdmin, templateAdmin, orgTemplateAdmin, orgUserAdmin, orgAuditor, orgMemberMeBanWorkspace},
 			},
 		},
 		{
@@ -462,7 +471,7 @@ func TestRolePermissions(t *testing.T) {
 		},
 		{
 			Name:     "WorkspaceDormant",
-			Actions:  append(crud, policy.ActionWorkspaceStop),
+			Actions:  append(crud, policy.ActionWorkspaceStop, policy.ActionCreateAgent, policy.ActionDeleteAgent),
 			Resource: rbac.ResourceWorkspaceDormant.WithID(uuid.New()).InOrg(orgID).WithOwner(memberMe.Actor.ID),
 			AuthorizeMap: map[bool][]hasAuthSubjects{
 				true:  {orgMemberMe, orgAdmin, owner},
@@ -485,6 +494,15 @@ func TestRolePermissions(t *testing.T) {
 			AuthorizeMap: map[bool][]hasAuthSubjects{
 				true:  {owner, orgAdmin, orgMemberMe},
 				false: {setOtherOrg, userAdmin, templateAdmin, memberMe, orgTemplateAdmin, orgUserAdmin, orgAuditor},
+			},
+		},
+		{
+			Name:     "PrebuiltWorkspace",
+			Actions:  []policy.Action{policy.ActionUpdate, policy.ActionDelete},
+			Resource: rbac.ResourcePrebuiltWorkspace.WithID(uuid.New()).InOrg(orgID).WithOwner(database.PrebuildsSystemUserID.String()),
+			AuthorizeMap: map[bool][]hasAuthSubjects{
+				true:  {owner, orgAdmin, templateAdmin, orgTemplateAdmin},
+				false: {setOtherOrg, userAdmin, memberMe, orgUserAdmin, orgAuditor, orgMemberMe},
 			},
 		},
 		// Some admin style resources
@@ -580,7 +598,7 @@ func TestRolePermissions(t *testing.T) {
 		},
 		{
 			Name:     "ProvisionerJobs",
-			Actions:  []policy.Action{policy.ActionRead},
+			Actions:  []policy.Action{policy.ActionRead, policy.ActionUpdate, policy.ActionCreate},
 			Resource: rbac.ResourceProvisionerJobs.InOrg(orgID),
 			AuthorizeMap: map[bool][]hasAuthSubjects{
 				true:  {owner, orgTemplateAdmin, orgAdmin},
@@ -713,6 +731,16 @@ func TestRolePermissions(t *testing.T) {
 				},
 			},
 		},
+		// All users can create, read, and delete their own webpush notification subscriptions.
+		{
+			Name:     "WebpushSubscription",
+			Actions:  []policy.Action{policy.ActionCreate, policy.ActionRead, policy.ActionDelete},
+			Resource: rbac.ResourceWebpushSubscription.WithOwner(currentUser.String()),
+			AuthorizeMap: map[bool][]hasAuthSubjects{
+				true:  {owner, memberMe, orgMemberMe},
+				false: {otherOrgMember, orgAdmin, otherOrgAdmin, orgAuditor, otherOrgAuditor, templateAdmin, orgTemplateAdmin, otherOrgTemplateAdmin, userAdmin, orgUserAdmin, otherOrgUserAdmin},
+			},
+		},
 		// AnyOrganization tests
 		{
 			Name:     "CreateOrgMember",
@@ -806,6 +834,30 @@ func TestRolePermissions(t *testing.T) {
 				},
 			},
 		},
+		{
+			Name:     "WorkspaceAgentDevcontainers",
+			Actions:  []policy.Action{policy.ActionCreate},
+			Resource: rbac.ResourceWorkspaceAgentDevcontainers,
+			AuthorizeMap: map[bool][]hasAuthSubjects{
+				true: {owner},
+				false: {
+					memberMe, orgMemberMe, otherOrgMember,
+					orgAdmin, otherOrgAdmin,
+					orgAuditor, otherOrgAuditor,
+					templateAdmin, orgTemplateAdmin, otherOrgTemplateAdmin,
+					userAdmin, orgUserAdmin, otherOrgUserAdmin,
+				},
+			},
+		},
+		{
+			Name:     "ConnectionLogs",
+			Actions:  []policy.Action{policy.ActionRead, policy.ActionUpdate},
+			Resource: rbac.ResourceConnectionLog,
+			AuthorizeMap: map[bool][]hasAuthSubjects{
+				true:  {owner},
+				false: {setOtherOrg, setOrgNotMe, memberMe, orgMemberMe, templateAdmin, userAdmin},
+			},
+		},
 	}
 
 	// We expect every permission to be tested above.
@@ -820,7 +872,6 @@ func TestRolePermissions(t *testing.T) {
 	passed := true
 	// nolint:tparallel,paralleltest
 	for _, c := range testCases {
-		c := c
 		// nolint:tparallel,paralleltest // These share the same remainingPermissions map
 		t.Run(c.Name, func(t *testing.T) {
 			remainingSubjs := make(map[string]struct{})
@@ -919,7 +970,6 @@ func TestIsOrgRole(t *testing.T) {
 
 	// nolint:paralleltest
 	for _, c := range testCases {
-		c := c
 		t.Run(c.Identifier.String(), func(t *testing.T) {
 			t.Parallel()
 			ok := c.Identifier.IsOrgRole()
@@ -932,7 +982,7 @@ func TestIsOrgRole(t *testing.T) {
 func TestListRoles(t *testing.T) {
 	t.Parallel()
 
-	siteRoles := rbac.SiteRoles()
+	siteRoles := rbac.SiteBuiltInRoles()
 	siteRoleNames := make([]string, 0, len(siteRoles))
 	for _, role := range siteRoles {
 		siteRoleNames = append(siteRoleNames, role.Identifier.Name)
@@ -1016,7 +1066,6 @@ func TestChangeSet(t *testing.T) {
 	}
 
 	for _, c := range testCases {
-		c := c
 		t.Run(c.Name, func(t *testing.T) {
 			t.Parallel()
 

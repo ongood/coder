@@ -20,6 +20,9 @@
 # binary will be signed using ./sign_darwin.sh. Read that file for more details
 # on the requirements.
 #
+# If the --sign-gpg parameter is specified, the output binary will be signed using ./sign_with_gpg.sh.
+# Read that file for more details on the requirements.
+#
 # If the --agpl parameter is specified, builds only the AGPL-licensed code (no
 # Coder enterprise features).
 #
@@ -41,10 +44,12 @@ slim="${CODER_SLIM_BUILD:-0}"
 agpl="${CODER_BUILD_AGPL:-0}"
 sign_darwin="${CODER_SIGN_DARWIN:-0}"
 sign_windows="${CODER_SIGN_WINDOWS:-0}"
+sign_gpg="${CODER_SIGN_GPG:-0}"
 boringcrypto=${CODER_BUILD_BORINGCRYPTO:-0}
 dylib=0
 windows_resources="${CODER_WINDOWS_RESOURCES:-0}"
 debug=0
+develop_in_coder="${DEVELOP_IN_CODER:-0}"
 
 bin_ident="com.coder.cli"
 
@@ -83,6 +88,10 @@ while true; do
 		;;
 	--sign-windows)
 		sign_windows=1
+		shift
+		;;
+	--sign-gpg)
+		sign_gpg=1
 		shift
 		;;
 	--boringcrypto)
@@ -141,13 +150,20 @@ if [[ "$debug" == 0 ]]; then
 	ldflags+=(-s -w)
 fi
 
+if [[ "$develop_in_coder" == 1 ]]; then
+	echo "INFO : Overriding codersdk.SessionTokenCookie as we are developing inside a Coder workspace."
+	ldflags+=(
+		-X "'github.com/coder/coder/v2/codersdk.SessionTokenCookie=dev_coder_session_token'"
+	)
+fi
+
 # We use ts_omit_aws here because on Linux it prevents Tailscale from importing
 # github.com/aws/aws-sdk-go-v2/aws, which adds 7 MB to the binary.
 TS_EXTRA_SMALL="ts_omit_aws,ts_omit_bird,ts_omit_tap,ts_omit_kube"
-if [[ "$slim" == 0 ]]; then
-	build_args+=(-tags "embed,$TS_EXTRA_SMALL")
-else
+if [[ "$slim" == 1 || "$dylib" == 1 ]]; then
 	build_args+=(-tags "slim,$TS_EXTRA_SMALL")
+else
+	build_args+=(-tags "embed,$TS_EXTRA_SMALL")
 fi
 if [[ "$agpl" == 1 ]]; then
 	# We don't use a tag to control AGPL because we don't want code to depend on
@@ -317,6 +333,11 @@ fi
 
 if [[ "$sign_windows" == 1 ]] && [[ "$os" == "windows" ]]; then
 	execrelative ./sign_windows.sh "$output_path" 1>&2
+fi
+
+# Platform agnostic signing
+if [[ "$sign_gpg" == 1 ]]; then
+	execrelative ./sign_with_gpg.sh "$output_path" 1>&2
 fi
 
 echo "$output_path"

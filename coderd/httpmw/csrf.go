@@ -16,10 +16,10 @@ import (
 // for non-GET requests.
 // If enforce is false, then CSRF enforcement is disabled. We still want
 // to include the CSRF middleware because it will set the CSRF cookie.
-func CSRF(secureCookie bool) func(next http.Handler) http.Handler {
+func CSRF(cookieCfg codersdk.HTTPCookieConfig) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		mw := nosurf.New(next)
-		mw.SetBaseCookie(http.Cookie{Path: "/", HttpOnly: true, SameSite: http.SameSiteLaxMode, Secure: secureCookie})
+		mw.SetBaseCookie(*cookieCfg.Apply(&http.Cookie{Path: "/", HttpOnly: true}))
 		mw.SetFailureHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			sessCookie, err := r.Cookie(codersdk.SessionTokenCookie)
 			if err == nil &&
@@ -99,6 +99,12 @@ func CSRF(secureCookie bool) func(next http.Handler) http.Handler {
 				// If present, the provisioner daemon also is providing an api key
 				// that will make them exempt from CSRF. But this is still useful
 				// for enumerating the external auths.
+				return true
+			}
+
+			// RFC 6750 Bearer Token authentication is exempt from CSRF
+			// as it uses custom headers that cannot be set by malicious sites
+			if authHeader := r.Header.Get("Authorization"); strings.HasPrefix(strings.ToLower(authHeader), "bearer ") {
 				return true
 			}
 

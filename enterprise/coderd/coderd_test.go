@@ -28,16 +28,22 @@ import (
 	"github.com/coder/coder/v2/agent"
 	"github.com/coder/coder/v2/agent/agenttest"
 	"github.com/coder/coder/v2/coderd/httpapi"
+	agplprebuilds "github.com/coder/coder/v2/coderd/prebuilds"
 	"github.com/coder/coder/v2/coderd/rbac/policy"
 	"github.com/coder/coder/v2/coderd/util/ptr"
+	"github.com/coder/coder/v2/enterprise/coderd/prebuilds"
+	"github.com/coder/coder/v2/provisioner/echo"
+	"github.com/coder/coder/v2/provisionersdk/proto"
 	"github.com/coder/coder/v2/tailnet/tailnettest"
+
+	"github.com/coder/retry"
+	"github.com/coder/serpent"
 
 	agplaudit "github.com/coder/coder/v2/coderd/audit"
 	"github.com/coder/coder/v2/coderd/coderdtest"
 	"github.com/coder/coder/v2/coderd/database"
 	"github.com/coder/coder/v2/coderd/database/dbauthz"
 	"github.com/coder/coder/v2/coderd/database/dbfake"
-	"github.com/coder/coder/v2/coderd/database/dbmem"
 	"github.com/coder/coder/v2/coderd/database/dbtestutil"
 	"github.com/coder/coder/v2/coderd/database/dbtime"
 	"github.com/coder/coder/v2/coderd/rbac"
@@ -50,8 +56,6 @@ import (
 	"github.com/coder/coder/v2/enterprise/dbcrypt"
 	"github.com/coder/coder/v2/enterprise/replicasync"
 	"github.com/coder/coder/v2/testutil"
-	"github.com/coder/retry"
-	"github.com/coder/serpent"
 )
 
 func TestMain(m *testing.M) {
@@ -253,14 +257,78 @@ func TestEntitlements_HeaderWarnings(t *testing.T) {
 	})
 }
 
+func TestEntitlements_Prebuilds(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name            string
+		featureEnabled  bool
+		expectedEnabled bool
+	}{
+		{
+			name:            "Feature enabled",
+			featureEnabled:  true,
+			expectedEnabled: true,
+		},
+		{
+			name:            "Feature disabled",
+			featureEnabled:  false,
+			expectedEnabled: false,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			var prebuildsEntitled int64
+			if tc.featureEnabled {
+				prebuildsEntitled = 1
+			}
+
+			_, _, api, _ := coderdenttest.NewWithAPI(t, &coderdenttest.Options{
+				Options: &coderdtest.Options{
+					DeploymentValues: coderdtest.DeploymentValues(t),
+				},
+
+				EntitlementsUpdateInterval: time.Second,
+				LicenseOptions: &coderdenttest.LicenseOptions{
+					Features: license.Features{
+						codersdk.FeatureWorkspacePrebuilds: prebuildsEntitled,
+					},
+				},
+			})
+
+			// The entitlements will need to refresh before the reconciler is set.
+			require.Eventually(t, func() bool {
+				return api.AGPL.PrebuildsReconciler.Load() != nil
+			}, testutil.WaitSuperLong, testutil.IntervalFast)
+
+			reconciler := api.AGPL.PrebuildsReconciler.Load()
+			claimer := api.AGPL.PrebuildsClaimer.Load()
+			require.NotNil(t, reconciler)
+			require.NotNil(t, claimer)
+
+			if tc.expectedEnabled {
+				require.IsType(t, &prebuilds.StoreReconciler{}, *reconciler)
+				require.IsType(t, &prebuilds.EnterpriseClaimer{}, *claimer)
+			} else {
+				require.Equal(t, &agplprebuilds.DefaultReconciler, reconciler)
+				require.Equal(t, &agplprebuilds.DefaultClaimer, claimer)
+			}
+		})
+	}
+}
+
 func TestAuditLogging(t *testing.T) {
 	t.Parallel()
 	t.Run("Enabled", func(t *testing.T) {
 		t.Parallel()
+		db, _ := dbtestutil.NewDB(t)
 		_, _, api, _ := coderdenttest.NewWithAPI(t, &coderdenttest.Options{
 			AuditLogging: true,
 			Options: &coderdtest.Options{
-				Auditor: audit.NewAuditor(dbmem.New(), audit.DefaultFilter),
+				Auditor: audit.NewAuditor(db, audit.DefaultFilter),
 			},
 			LicenseOptions: &coderdenttest.LicenseOptions{
 				Features: license.Features{
@@ -268,8 +336,9 @@ func TestAuditLogging(t *testing.T) {
 				},
 			},
 		})
+		db, _ = dbtestutil.NewDB(t)
 		auditor := *api.AGPL.Auditor.Load()
-		ea := audit.NewAuditor(dbmem.New(), audit.DefaultFilter)
+		ea := audit.NewAuditor(db, audit.DefaultFilter)
 		t.Logf("%T = %T", auditor, ea)
 		assert.EqualValues(t, reflect.ValueOf(ea).Type(), reflect.ValueOf(auditor).Type())
 	})
@@ -531,7 +600,6 @@ func TestSCIMDisabled(t *testing.T) {
 	}
 
 	for _, p := range checkPaths {
-		p := p
 		t.Run(p, func(t *testing.T) {
 			t.Parallel()
 
@@ -553,6 +621,113 @@ func TestSCIMDisabled(t *testing.T) {
 			require.Contains(t, apiError.Message, "SCIM is disabled")
 		})
 	}
+}
+
+func TestManagedAgentLimit(t *testing.T) {
+	t.Parallel()
+
+	ctx := testutil.Context(t, testutil.WaitLong)
+
+	cli, _ := coderdenttest.New(t, &coderdenttest.Options{
+		Options: &coderdtest.Options{
+			IncludeProvisionerDaemon: true,
+		},
+		LicenseOptions: (&coderdenttest.LicenseOptions{
+			FeatureSet: codersdk.FeatureSetPremium,
+			// Make it expire in the distant future so it doesn't generate
+			// expiry warnings.
+			GraceAt:   time.Now().Add(time.Hour * 24 * 60),
+			ExpiresAt: time.Now().Add(time.Hour * 24 * 90),
+		}).ManagedAgentLimit(1, 1),
+	})
+
+	// Get entitlements to check that the license is a-ok.
+	entitlements, err := cli.Entitlements(ctx) //nolint:gocritic // we're not testing authz on the entitlements endpoint, so using owner is fine
+	require.NoError(t, err)
+	require.True(t, entitlements.HasLicense)
+	agentLimit := entitlements.Features[codersdk.FeatureManagedAgentLimit]
+	require.True(t, agentLimit.Enabled)
+	require.NotNil(t, agentLimit.Limit)
+	require.EqualValues(t, 1, *agentLimit.Limit)
+	require.NotNil(t, agentLimit.SoftLimit)
+	require.EqualValues(t, 1, *agentLimit.SoftLimit)
+	require.Empty(t, entitlements.Errors)
+	// There should be a warning since we're really close to our agent limit.
+	require.Equal(t, entitlements.Warnings[0], "You are approaching the managed agent limit in your license. Please refer to the Deployment Licenses page for more information.")
+
+	// Create a fake provision response that claims there are agents in the
+	// template and every built workspace.
+	//
+	// It's fine that the app ID is only used in a single successful workspace
+	// build.
+	appID := uuid.NewString()
+	echoRes := &echo.Responses{
+		Parse: echo.ParseComplete,
+		ProvisionPlan: []*proto.Response{
+			{
+				Type: &proto.Response_Plan{
+					Plan: &proto.PlanComplete{
+						Plan:        []byte("{}"),
+						ModuleFiles: []byte{},
+						HasAiTasks:  true,
+					},
+				},
+			},
+		},
+		ProvisionApply: []*proto.Response{{
+			Type: &proto.Response_Apply{
+				Apply: &proto.ApplyComplete{
+					Resources: []*proto.Resource{{
+						Name: "example",
+						Type: "aws_instance",
+						Agents: []*proto.Agent{{
+							Id:   uuid.NewString(),
+							Name: "example",
+							Auth: &proto.Agent_Token{
+								Token: uuid.NewString(),
+							},
+							Apps: []*proto.App{{
+								Id:   appID,
+								Slug: "test",
+								Url:  "http://localhost:1234",
+							}},
+						}},
+					}},
+					AiTasks: []*proto.AITask{{
+						Id: uuid.NewString(),
+						SidebarApp: &proto.AITaskSidebarApp{
+							Id: appID,
+						},
+					}},
+				},
+			},
+		}},
+	}
+
+	// Create two templates, one with AI and one without.
+	aiVersion := coderdtest.CreateTemplateVersion(t, cli, uuid.Nil, echoRes)
+	coderdtest.AwaitTemplateVersionJobCompleted(t, cli, aiVersion.ID)
+	aiTemplate := coderdtest.CreateTemplate(t, cli, uuid.Nil, aiVersion.ID)
+	noAiVersion := coderdtest.CreateTemplateVersion(t, cli, uuid.Nil, nil) // use default responses
+	coderdtest.AwaitTemplateVersionJobCompleted(t, cli, noAiVersion.ID)
+	noAiTemplate := coderdtest.CreateTemplate(t, cli, uuid.Nil, noAiVersion.ID)
+
+	// Create one AI workspace, which should succeed.
+	workspace := coderdtest.CreateWorkspace(t, cli, aiTemplate.ID)
+	coderdtest.AwaitWorkspaceBuildJobCompleted(t, cli, workspace.LatestBuild.ID)
+
+	// Create a second AI workspace, which should fail. This needs to be done
+	// manually because coderdtest.CreateWorkspace expects it to succeed.
+	_, err = cli.CreateUserWorkspace(ctx, codersdk.Me, codersdk.CreateWorkspaceRequest{ //nolint:gocritic // owners must still be subject to the limit
+		TemplateID:       aiTemplate.ID,
+		Name:             coderdtest.RandomUsername(t),
+		AutomaticUpdates: codersdk.AutomaticUpdatesNever,
+	})
+	require.ErrorContains(t, err, "You have breached the managed agent limit in your license")
+
+	// Create a third non-AI workspace, which should succeed.
+	workspace = coderdtest.CreateWorkspace(t, cli, noAiTemplate.ID)
+	coderdtest.AwaitWorkspaceBuildJobCompleted(t, cli, workspace.LatestBuild.ID)
 }
 
 // testDBAuthzRole returns a context with a subject that has a role

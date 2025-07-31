@@ -2,6 +2,7 @@ package coderd_test
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"net/http"
 	"slices"
@@ -9,12 +10,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/coder/serpent"
+
 	"github.com/coder/coder/v2/coderd"
 	"github.com/coder/coder/v2/coderd/coderdtest/oidctest"
 	"github.com/coder/coder/v2/coderd/notifications"
 	"github.com/coder/coder/v2/coderd/notifications/notificationstest"
 	"github.com/coder/coder/v2/coderd/rbac/policy"
-	"github.com/coder/serpent"
 
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
@@ -30,7 +32,6 @@ import (
 	"github.com/coder/coder/v2/coderd/database/dbauthz"
 	"github.com/coder/coder/v2/coderd/database/dbfake"
 	"github.com/coder/coder/v2/coderd/database/dbgen"
-	"github.com/coder/coder/v2/coderd/database/dbtestutil"
 	"github.com/coder/coder/v2/coderd/database/dbtime"
 	"github.com/coder/coder/v2/coderd/rbac"
 	"github.com/coder/coder/v2/coderd/util/ptr"
@@ -115,8 +116,8 @@ func TestFirstUser(t *testing.T) {
 		_, err := client.CreateFirstUser(ctx, req)
 		require.NoError(t, err)
 
-		_ = testutil.RequireRecvCtx(ctx, t, trialGenerated)
-		_ = testutil.RequireRecvCtx(ctx, t, entitlementsRefreshed)
+		_ = testutil.TryReceive(ctx, t, trialGenerated)
+		_ = testutil.TryReceive(ctx, t, entitlementsRefreshed)
 	})
 }
 
@@ -1775,7 +1776,6 @@ func TestUsersFilter(t *testing.T) {
 	}
 
 	for _, c := range testCases {
-		c := c
 		t.Run(c.Name, func(t *testing.T) {
 			t.Parallel()
 
@@ -1790,15 +1790,6 @@ func TestUsersFilter(t *testing.T) {
 				match := c.FilterF(c.Filter, made)
 				if match {
 					exp = append(exp, made)
-				}
-			}
-
-			// TODO: This can be removed with dbmem
-			if !dbtestutil.WillUsePostgres() {
-				for i := range matched.Users {
-					if len(matched.Users[i].OrganizationIDs) == 0 {
-						matched.Users[i].OrganizationIDs = nil
-					}
 				}
 			}
 
@@ -1873,6 +1864,153 @@ func TestGetUsers(t *testing.T) {
 		require.NoError(t, err)
 		require.ElementsMatch(t, active, res.Users)
 	})
+	t.Run("GithubComUserID", func(t *testing.T) {
+		t.Parallel()
+		ctx, cancel := context.WithTimeout(context.Background(), testutil.WaitLong)
+		defer cancel()
+
+		client, db := coderdtest.NewWithDatabase(t, nil)
+		first := coderdtest.CreateFirstUser(t, client)
+		_ = dbgen.User(t, db, database.User{
+			Email:    "test2@coder.com",
+			Username: "test2",
+		})
+		// nolint:gocritic // Unit test
+		err := db.UpdateUserGithubComUserID(dbauthz.AsSystemRestricted(ctx), database.UpdateUserGithubComUserIDParams{
+			ID: first.UserID,
+			GithubComUserID: sql.NullInt64{
+				Int64: 123,
+				Valid: true,
+			},
+		})
+		require.NoError(t, err)
+		res, err := client.Users(ctx, codersdk.UsersRequest{
+			SearchQuery: "github_com_user_id:123",
+		})
+		require.NoError(t, err)
+		require.Len(t, res.Users, 1)
+		require.Equal(t, res.Users[0].ID, first.UserID)
+	})
+
+	t.Run("LoginTypeNoneFilter", func(t *testing.T) {
+		t.Parallel()
+		client := coderdtest.New(t, nil)
+		first := coderdtest.CreateFirstUser(t, client)
+		ctx := testutil.Context(t, testutil.WaitLong)
+
+		_, err := client.CreateUserWithOrgs(ctx, codersdk.CreateUserRequestWithOrgs{
+			Email:           "bob@email.com",
+			Username:        "bob",
+			OrganizationIDs: []uuid.UUID{first.OrganizationID},
+			UserLoginType:   codersdk.LoginTypeNone,
+		})
+		require.NoError(t, err)
+
+		res, err := client.Users(ctx, codersdk.UsersRequest{
+			LoginType: []codersdk.LoginType{codersdk.LoginTypeNone},
+		})
+		require.NoError(t, err)
+		require.Len(t, res.Users, 1)
+		require.Equal(t, res.Users[0].LoginType, codersdk.LoginTypeNone)
+	})
+
+	t.Run("LoginTypeMultipleFilter", func(t *testing.T) {
+		t.Parallel()
+		client := coderdtest.New(t, nil)
+		first := coderdtest.CreateFirstUser(t, client)
+		ctx := testutil.Context(t, testutil.WaitLong)
+		filtered := make([]codersdk.User, 0)
+
+		bob, err := client.CreateUserWithOrgs(ctx, codersdk.CreateUserRequestWithOrgs{
+			Email:           "bob@email.com",
+			Username:        "bob",
+			OrganizationIDs: []uuid.UUID{first.OrganizationID},
+			UserLoginType:   codersdk.LoginTypeNone,
+		})
+		require.NoError(t, err)
+		filtered = append(filtered, bob)
+
+		charlie, err := client.CreateUserWithOrgs(ctx, codersdk.CreateUserRequestWithOrgs{
+			Email:           "charlie@email.com",
+			Username:        "charlie",
+			OrganizationIDs: []uuid.UUID{first.OrganizationID},
+			UserLoginType:   codersdk.LoginTypeGithub,
+		})
+		require.NoError(t, err)
+		filtered = append(filtered, charlie)
+
+		res, err := client.Users(ctx, codersdk.UsersRequest{
+			LoginType: []codersdk.LoginType{codersdk.LoginTypeNone, codersdk.LoginTypeGithub},
+		})
+		require.NoError(t, err)
+		require.Len(t, res.Users, 2)
+		require.ElementsMatch(t, filtered, res.Users)
+	})
+
+	t.Run("DormantUserWithLoginTypeNone", func(t *testing.T) {
+		t.Parallel()
+		client := coderdtest.New(t, nil)
+		first := coderdtest.CreateFirstUser(t, client)
+		ctx := testutil.Context(t, testutil.WaitLong)
+
+		_, err := client.CreateUserWithOrgs(ctx, codersdk.CreateUserRequestWithOrgs{
+			Email:           "bob@email.com",
+			Username:        "bob",
+			OrganizationIDs: []uuid.UUID{first.OrganizationID},
+			UserLoginType:   codersdk.LoginTypeNone,
+		})
+		require.NoError(t, err)
+
+		_, err = client.UpdateUserStatus(ctx, "bob", codersdk.UserStatusSuspended)
+		require.NoError(t, err)
+
+		res, err := client.Users(ctx, codersdk.UsersRequest{
+			Status:    codersdk.UserStatusSuspended,
+			LoginType: []codersdk.LoginType{codersdk.LoginTypeNone, codersdk.LoginTypeGithub},
+		})
+		require.NoError(t, err)
+		require.Len(t, res.Users, 1)
+		require.Equal(t, res.Users[0].Username, "bob")
+		require.Equal(t, res.Users[0].Status, codersdk.UserStatusSuspended)
+		require.Equal(t, res.Users[0].LoginType, codersdk.LoginTypeNone)
+	})
+
+	t.Run("LoginTypeOidcFromMultipleUser", func(t *testing.T) {
+		t.Parallel()
+		client := coderdtest.New(t, &coderdtest.Options{
+			OIDCConfig: &coderd.OIDCConfig{
+				AllowSignups: true,
+			},
+		})
+		first := coderdtest.CreateFirstUser(t, client)
+		ctx := testutil.Context(t, testutil.WaitLong)
+
+		_, err := client.CreateUserWithOrgs(ctx, codersdk.CreateUserRequestWithOrgs{
+			Email:           "bob@email.com",
+			Username:        "bob",
+			OrganizationIDs: []uuid.UUID{first.OrganizationID},
+			UserLoginType:   codersdk.LoginTypeOIDC,
+		})
+		require.NoError(t, err)
+
+		for i := range 5 {
+			_, err := client.CreateUserWithOrgs(ctx, codersdk.CreateUserRequestWithOrgs{
+				Email:           fmt.Sprintf("%d@coder.com", i),
+				Username:        fmt.Sprintf("user%d", i),
+				OrganizationIDs: []uuid.UUID{first.OrganizationID},
+				UserLoginType:   codersdk.LoginTypeNone,
+			})
+			require.NoError(t, err)
+		}
+
+		res, err := client.Users(ctx, codersdk.UsersRequest{
+			LoginType: []codersdk.LoginType{codersdk.LoginTypeOIDC},
+		})
+		require.NoError(t, err)
+		require.Len(t, res.Users, 1)
+		require.Equal(t, res.Users[0].Username, "bob")
+		require.Equal(t, res.Users[0].LoginType, codersdk.LoginTypeOIDC)
+	})
 }
 
 func TestGetUsersPagination(t *testing.T) {
@@ -1941,6 +2079,86 @@ func TestPostTokens(t *testing.T) {
 	require.NotNil(t, apiKey)
 	require.GreaterOrEqual(t, len(apiKey.Key), 2)
 	require.NoError(t, err)
+}
+
+func TestUserTerminalFont(t *testing.T) {
+	t.Parallel()
+
+	t.Run("valid font", func(t *testing.T) {
+		t.Parallel()
+
+		adminClient := coderdtest.New(t, nil)
+		firstUser := coderdtest.CreateFirstUser(t, adminClient)
+		client, _ := coderdtest.CreateAnotherUser(t, adminClient, firstUser.OrganizationID)
+
+		ctx, cancel := context.WithTimeout(context.Background(), testutil.WaitLong)
+		defer cancel()
+
+		// given
+		initial, err := client.GetUserAppearanceSettings(ctx, "me")
+		require.NoError(t, err)
+		require.Equal(t, codersdk.TerminalFontName(""), initial.TerminalFont)
+
+		// when
+		updated, err := client.UpdateUserAppearanceSettings(ctx, "me", codersdk.UpdateUserAppearanceSettingsRequest{
+			ThemePreference: "light",
+			TerminalFont:    "fira-code",
+		})
+		require.NoError(t, err)
+
+		// then
+		require.Equal(t, codersdk.TerminalFontFiraCode, updated.TerminalFont)
+	})
+
+	t.Run("unsupported font", func(t *testing.T) {
+		t.Parallel()
+
+		adminClient := coderdtest.New(t, nil)
+		firstUser := coderdtest.CreateFirstUser(t, adminClient)
+		client, _ := coderdtest.CreateAnotherUser(t, adminClient, firstUser.OrganizationID)
+
+		ctx, cancel := context.WithTimeout(context.Background(), testutil.WaitLong)
+		defer cancel()
+
+		// given
+		initial, err := client.GetUserAppearanceSettings(ctx, "me")
+		require.NoError(t, err)
+		require.Equal(t, codersdk.TerminalFontName(""), initial.TerminalFont)
+
+		// when
+		_, err = client.UpdateUserAppearanceSettings(ctx, "me", codersdk.UpdateUserAppearanceSettingsRequest{
+			ThemePreference: "light",
+			TerminalFont:    "foobar",
+		})
+
+		// then
+		require.Error(t, err)
+	})
+
+	t.Run("undefined font is not ok", func(t *testing.T) {
+		t.Parallel()
+
+		adminClient := coderdtest.New(t, nil)
+		firstUser := coderdtest.CreateFirstUser(t, adminClient)
+		client, _ := coderdtest.CreateAnotherUser(t, adminClient, firstUser.OrganizationID)
+
+		ctx, cancel := context.WithTimeout(context.Background(), testutil.WaitLong)
+		defer cancel()
+
+		// given
+		initial, err := client.GetUserAppearanceSettings(ctx, "me")
+		require.NoError(t, err)
+		require.Equal(t, codersdk.TerminalFontName(""), initial.TerminalFont)
+
+		// when
+		_, err = client.UpdateUserAppearanceSettings(ctx, "me", codersdk.UpdateUserAppearanceSettingsRequest{
+			ThemePreference: "light",
+			TerminalFont:    "",
+		})
+
+		// then
+		require.Error(t, err)
+	})
 }
 
 func TestWorkspacesByUser(t *testing.T) {
@@ -2232,7 +2450,6 @@ func TestPaginatedUsers(t *testing.T) {
 	eg, _ := errgroup.WithContext(ctx)
 	// Create users
 	for i := 0; i < total; i++ {
-		i := i
 		eg.Go(func() error {
 			email := fmt.Sprintf("%d@coder.com", i)
 			username := fmt.Sprintf("user%d", i)
@@ -2290,7 +2507,6 @@ func TestPaginatedUsers(t *testing.T) {
 		{name: "username search", limit: 3, allUsers: specialUsers, opt: usernameSearch},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(fmt.Sprintf("%s %d", tt.name, tt.limit), func(t *testing.T) {
 			t.Parallel()
 

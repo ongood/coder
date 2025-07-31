@@ -14,28 +14,15 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/exp/maps"
+	"golang.org/x/xerrors"
+
 	"github.com/coder/coder/v2/agent/agentcontainers/dcspec"
 	"github.com/coder/coder/v2/agent/agentexec"
 	"github.com/coder/coder/v2/agent/usershell"
 	"github.com/coder/coder/v2/coderd/util/ptr"
 	"github.com/coder/coder/v2/codersdk"
-
-	"golang.org/x/exp/maps"
-	"golang.org/x/xerrors"
 )
-
-// DockerCLILister is a ContainerLister that lists containers using the docker CLI
-type DockerCLILister struct {
-	execer agentexec.Execer
-}
-
-var _ Lister = &DockerCLILister{}
-
-func NewDocker(execer agentexec.Execer) Lister {
-	return &DockerCLILister{
-		execer: agentexec.DefaultExecer,
-	}
-}
 
 // DockerEnvInfoer is an implementation of agentssh.EnvInfoer that returns
 // information about a container.
@@ -241,10 +228,23 @@ func run(ctx context.Context, execer agentexec.Execer, cmd string, args ...strin
 	return stdout, stderr, err
 }
 
-func (dcl *DockerCLILister) List(ctx context.Context) (codersdk.WorkspaceAgentListContainersResponse, error) {
+// dockerCLI is an implementation for Docker CLI that lists containers.
+type dockerCLI struct {
+	execer agentexec.Execer
+}
+
+var _ ContainerCLI = (*dockerCLI)(nil)
+
+func NewDockerCLI(execer agentexec.Execer) ContainerCLI {
+	return &dockerCLI{
+		execer: execer,
+	}
+}
+
+func (dcli *dockerCLI) List(ctx context.Context) (codersdk.WorkspaceAgentListContainersResponse, error) {
 	var stdoutBuf, stderrBuf bytes.Buffer
 	// List all container IDs, one per line, with no truncation
-	cmd := dcl.execer.CommandContext(ctx, "docker", "ps", "--all", "--quiet", "--no-trunc")
+	cmd := dcli.execer.CommandContext(ctx, "docker", "ps", "--all", "--quiet", "--no-trunc")
 	cmd.Stdout = &stdoutBuf
 	cmd.Stderr = &stderrBuf
 	if err := cmd.Run(); err != nil {
@@ -269,7 +269,7 @@ func (dcl *DockerCLILister) List(ctx context.Context) (codersdk.WorkspaceAgentLi
 	}
 
 	res := codersdk.WorkspaceAgentListContainersResponse{
-		Containers: make([]codersdk.WorkspaceAgentDevcontainer, 0, len(ids)),
+		Containers: make([]codersdk.WorkspaceAgentContainer, 0, len(ids)),
 		Warnings:   make([]string, 0),
 	}
 	dockerPsStderr := strings.TrimSpace(stderrBuf.String())
@@ -288,7 +288,7 @@ func (dcl *DockerCLILister) List(ctx context.Context) (codersdk.WorkspaceAgentLi
 	// will still contain valid JSON. We will just end up missing
 	// information about the removed container. We could potentially
 	// log this error, but I'm not sure it's worth it.
-	dockerInspectStdout, dockerInspectStderr, err := runDockerInspect(ctx, dcl.execer, ids...)
+	dockerInspectStdout, dockerInspectStderr, err := runDockerInspect(ctx, dcli.execer, ids...)
 	if err != nil {
 		return codersdk.WorkspaceAgentListContainersResponse{}, xerrors.Errorf("run docker inspect: %w: %s", err, dockerInspectStderr)
 	}
@@ -311,6 +311,10 @@ func (dcl *DockerCLILister) List(ctx context.Context) (codersdk.WorkspaceAgentLi
 // container IDs and returns the parsed output.
 // The stderr output is also returned for logging purposes.
 func runDockerInspect(ctx context.Context, execer agentexec.Execer, ids ...string) (stdout, stderr []byte, err error) {
+	if ctx.Err() != nil {
+		// If the context is done, we don't want to run the command.
+		return []byte{}, []byte{}, ctx.Err()
+	}
 	var stdoutBuf, stderrBuf bytes.Buffer
 	cmd := execer.CommandContext(ctx, "docker", append([]string{"inspect"}, ids...)...)
 	cmd.Stdout = &stdoutBuf
@@ -319,9 +323,18 @@ func runDockerInspect(ctx context.Context, execer agentexec.Execer, ids ...strin
 	stdout = bytes.TrimSpace(stdoutBuf.Bytes())
 	stderr = bytes.TrimSpace(stderrBuf.Bytes())
 	if err != nil {
+		if ctx.Err() != nil {
+			// If the context was canceled while running the command,
+			// return the context error instead of the command error,
+			// which is likely to be "signal: killed".
+			return stdout, stderr, ctx.Err()
+		}
+		if bytes.Contains(stderr, []byte("No such object:")) {
+			// This can happen if a container is deleted between the time we check for its existence and the time we inspect it.
+			return stdout, stderr, nil
+		}
 		return stdout, stderr, err
 	}
-
 	return stdout, stderr, nil
 }
 
@@ -380,13 +393,13 @@ func (dis dockerInspectState) String() string {
 	return sb.String()
 }
 
-func convertDockerInspect(raw []byte) ([]codersdk.WorkspaceAgentDevcontainer, []string, error) {
+func convertDockerInspect(raw []byte) ([]codersdk.WorkspaceAgentContainer, []string, error) {
 	var warns []string
 	var ins []dockerInspect
 	if err := json.NewDecoder(bytes.NewReader(raw)).Decode(&ins); err != nil {
 		return nil, nil, xerrors.Errorf("decode docker inspect output: %w", err)
 	}
-	outs := make([]codersdk.WorkspaceAgentDevcontainer, 0, len(ins))
+	outs := make([]codersdk.WorkspaceAgentContainer, 0, len(ins))
 
 	// Say you have two containers:
 	//  - Container A with Host IP 127.0.0.1:8000 mapped to container port 8001
@@ -402,14 +415,14 @@ func convertDockerInspect(raw []byte) ([]codersdk.WorkspaceAgentDevcontainer, []
 	hostPortContainers := make(map[int][]string)
 
 	for _, in := range ins {
-		out := codersdk.WorkspaceAgentDevcontainer{
+		out := codersdk.WorkspaceAgentContainer{
 			CreatedAt: in.Created,
 			// Remove the leading slash from the container name
 			FriendlyName: strings.TrimPrefix(in.Name, "/"),
 			ID:           in.ID,
 			Image:        in.Config.Image,
 			Labels:       in.Config.Labels,
-			Ports:        make([]codersdk.WorkspaceAgentDevcontainerPort, 0),
+			Ports:        make([]codersdk.WorkspaceAgentContainerPort, 0),
 			Running:      in.State.Running,
 			Status:       in.State.String(),
 			Volumes:      make(map[string]string, len(in.Mounts)),
@@ -452,9 +465,10 @@ func convertDockerInspect(raw []byte) ([]codersdk.WorkspaceAgentDevcontainer, []
 					// Also keep track of the host port and the container ID.
 					hostPortContainers[hp] = append(hostPortContainers[hp], in.ID)
 				}
-				out.Ports = append(out.Ports, codersdk.WorkspaceAgentDevcontainerPort{
-					Network:  network,
-					Port:     cp,
+				out.Ports = append(out.Ports, codersdk.WorkspaceAgentContainerPort{
+					Network: network,
+					Port:    cp,
+					// #nosec G115 - Safe conversion since Docker ports are limited to uint16 range
 					HostPort: uint16(hp),
 					HostIP:   p.HostIP,
 				})
@@ -490,19 +504,15 @@ func convertDockerInspect(raw []byte) ([]codersdk.WorkspaceAgentDevcontainer, []
 //	"8080" -> 8080, "tcp"
 func convertDockerPort(in string) (uint16, string, error) {
 	parts := strings.Split(in, "/")
+	p, err := strconv.ParseUint(parts[0], 10, 16)
+	if err != nil {
+		return 0, "", xerrors.Errorf("invalid port format: %s", in)
+	}
 	switch len(parts) {
 	case 1:
 		// assume it's a TCP port
-		p, err := strconv.Atoi(parts[0])
-		if err != nil {
-			return 0, "", xerrors.Errorf("invalid port format: %s", in)
-		}
 		return uint16(p), "tcp", nil
 	case 2:
-		p, err := strconv.Atoi(parts[0])
-		if err != nil {
-			return 0, "", xerrors.Errorf("invalid port format: %s", in)
-		}
 		return uint16(p), parts[1], nil
 	default:
 		return 0, "", xerrors.Errorf("invalid port format: %s", in)
@@ -516,4 +526,72 @@ func isLoopbackOrUnspecified(ips string) bool {
 		return false // technically correct, I suppose
 	}
 	return nip.IsLoopback() || nip.IsUnspecified()
+}
+
+// DetectArchitecture detects the architecture of a container by inspecting its
+// image.
+func (dcli *dockerCLI) DetectArchitecture(ctx context.Context, containerName string) (string, error) {
+	// Inspect the container to get the image name, which contains the architecture.
+	stdout, stderr, err := runCmd(ctx, dcli.execer, "docker", "inspect", "--format", "{{.Config.Image}}", containerName)
+	if err != nil {
+		return "", xerrors.Errorf("inspect container %s: %w: %s", containerName, err, stderr)
+	}
+	imageName := string(stdout)
+	if imageName == "" {
+		return "", xerrors.Errorf("no image found for container %s", containerName)
+	}
+
+	stdout, stderr, err = runCmd(ctx, dcli.execer, "docker", "inspect", "--format", "{{.Architecture}}", imageName)
+	if err != nil {
+		return "", xerrors.Errorf("inspect image %s: %w: %s", imageName, err, stderr)
+	}
+	arch := string(stdout)
+	if arch == "" {
+		return "", xerrors.Errorf("no architecture found for image %s", imageName)
+	}
+	return arch, nil
+}
+
+// Copy copies a file from the host to a container.
+func (dcli *dockerCLI) Copy(ctx context.Context, containerName, src, dst string) error {
+	_, stderr, err := runCmd(ctx, dcli.execer, "docker", "cp", src, containerName+":"+dst)
+	if err != nil {
+		return xerrors.Errorf("copy %s to %s:%s: %w: %s", src, containerName, dst, err, stderr)
+	}
+	return nil
+}
+
+// ExecAs executes a command in a container as a specific user.
+func (dcli *dockerCLI) ExecAs(ctx context.Context, containerName, uid string, args ...string) ([]byte, error) {
+	execArgs := []string{"exec"}
+	if uid != "" {
+		altUID := uid
+		if uid == "root" {
+			// UID 0 is more portable than the name root, so we use that
+			// because  some containers may not have a user named "root".
+			altUID = "0"
+		}
+		execArgs = append(execArgs, "--user", altUID)
+	}
+	execArgs = append(execArgs, containerName)
+	execArgs = append(execArgs, args...)
+
+	stdout, stderr, err := runCmd(ctx, dcli.execer, "docker", execArgs...)
+	if err != nil {
+		return nil, xerrors.Errorf("exec in container %s as user %s: %w: %s", containerName, uid, err, stderr)
+	}
+	return stdout, nil
+}
+
+// runCmd is a helper function that runs a command with the given
+// arguments and returns the stdout and stderr output.
+func runCmd(ctx context.Context, execer agentexec.Execer, cmd string, args ...string) (stdout, stderr []byte, err error) {
+	var stdoutBuf, stderrBuf bytes.Buffer
+	c := execer.CommandContext(ctx, cmd, args...)
+	c.Stdout = &stdoutBuf
+	c.Stderr = &stderrBuf
+	err = c.Run()
+	stdout = bytes.TrimSpace(stdoutBuf.Bytes())
+	stderr = bytes.TrimSpace(stderrBuf.Bytes())
+	return stdout, stderr, err
 }

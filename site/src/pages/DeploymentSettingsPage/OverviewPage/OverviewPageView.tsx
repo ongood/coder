@@ -1,11 +1,16 @@
 import AlertTitle from "@mui/material/AlertTitle";
 import type {
 	DAUsResponse,
-	Experiments,
+	Experiment,
 	SerpentOption,
 } from "api/typesGenerated";
 import { Link } from "components/Link/Link";
-import { SettingsHeader } from "components/SettingsHeader/SettingsHeader";
+import {
+	SettingsHeader,
+	SettingsHeaderDescription,
+	SettingsHeaderDocsLink,
+	SettingsHeaderTitle,
+} from "components/SettingsHeader/SettingsHeader";
 import { Stack } from "components/Stack/Stack";
 import type { FC } from "react";
 import { useDeploymentOptions } from "utils/deployOptions";
@@ -14,11 +19,11 @@ import { Alert } from "../../../components/Alert/Alert";
 import OptionsTable from "../OptionsTable";
 import { UserEngagementChart } from "./UserEngagementChart";
 
-export type OverviewPageViewProps = {
+type OverviewPageViewProps = {
 	deploymentOptions: SerpentOption[];
 	dailyActiveUsers: DAUsResponse | undefined;
-	readonly invalidExperiments: Experiments | string[];
-	readonly safeExperiments: Experiments | string[];
+	readonly invalidExperiments: readonly string[];
+	readonly safeExperiments: readonly Experiment[];
 };
 
 export const OverviewPageView: FC<OverviewPageViewProps> = ({
@@ -30,10 +35,14 @@ export const OverviewPageView: FC<OverviewPageViewProps> = ({
 	return (
 		<>
 			<SettingsHeader
-				title="General"
-				description="Information about your Coder deployment."
-				docsHref={docs("/admin/setup")}
-			/>
+				actions={<SettingsHeaderDocsLink href={docs("/admin/setup")} />}
+			>
+				<SettingsHeaderTitle>General</SettingsHeaderTitle>
+				<SettingsHeaderDescription>
+					Information about your Coder deployment.
+				</SettingsHeaderDescription>
+			</SettingsHeader>
+
 			<Stack spacing={4}>
 				<UserEngagementChart
 					data={dailyActiveUsers?.entries.map((i) => ({

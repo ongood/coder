@@ -20,10 +20,14 @@ import (
 	"tailscale.com/ipn/ipnstate"
 	"tailscale.com/net/speedtest"
 
+	"cdr.dev/slog"
+
 	"github.com/coder/coder/v2/coderd/tracing"
 	"github.com/coder/coder/v2/codersdk"
 	"github.com/coder/coder/v2/codersdk/healthsdk"
+	"github.com/coder/coder/v2/codersdk/wsjson"
 	"github.com/coder/coder/v2/tailnet"
+	"github.com/coder/websocket"
 )
 
 // NewAgentConn creates a new WorkspaceAgentConn. `conn` may be unique
@@ -100,6 +104,8 @@ type AgentReconnectingPTYInit struct {
 	// This can be a username or UID, depending on the underlying implementation.
 	// This is ignored if Container is not set.
 	ContainerUser string
+
+	BackendType string
 }
 
 // AgentReconnectingPTYInitOption is a functional option for AgentReconnectingPTYInit.
@@ -152,6 +158,7 @@ func (c *AgentConn) ReconnectingPTY(ctx context.Context, id uuid.UUID, height, w
 		return nil, err
 	}
 	data = append(make([]byte, 2), data...)
+	// #nosec G115 - Safe conversion as the data length is expected to be within uint16 range for PTY initialization
 	binary.LittleEndian.PutUint16(data, uint16(len(data)-2))
 
 	_, err = conn.Write(data)
@@ -182,14 +189,12 @@ func (c *AgentConn) SSHOnPort(ctx context.Context, port uint16) (*gonet.TCPConn,
 	return c.DialContextTCP(ctx, netip.AddrPortFrom(c.agentAddress(), port))
 }
 
-// SSHClient calls SSH to create a client that uses a weak cipher
-// to improve throughput.
+// SSHClient calls SSH to create a client
 func (c *AgentConn) SSHClient(ctx context.Context) (*ssh.Client, error) {
 	return c.SSHClientOnPort(ctx, AgentSSHPort)
 }
 
 // SSHClientOnPort calls SSH to create a client on a specific port
-// that uses a weak cipher to improve throughput.
 func (c *AgentConn) SSHClientOnPort(ctx context.Context, port uint16) (*ssh.Client, error) {
 	ctx, span := tracing.StartSpan(ctx)
 	defer span.End()
@@ -384,6 +389,50 @@ func (c *AgentConn) ListContainers(ctx context.Context) (codersdk.WorkspaceAgent
 	}
 	var resp codersdk.WorkspaceAgentListContainersResponse
 	return resp, json.NewDecoder(res.Body).Decode(&resp)
+}
+
+func (c *AgentConn) WatchContainers(ctx context.Context, logger slog.Logger) (<-chan codersdk.WorkspaceAgentListContainersResponse, io.Closer, error) {
+	ctx, span := tracing.StartSpan(ctx)
+	defer span.End()
+
+	host := net.JoinHostPort(c.agentAddress().String(), strconv.Itoa(AgentHTTPAPIServerPort))
+	url := fmt.Sprintf("http://%s%s", host, "/api/v0/containers/watch")
+
+	conn, res, err := websocket.Dial(ctx, url, &websocket.DialOptions{
+		HTTPClient: c.apiClient(),
+	})
+	if err != nil {
+		if res == nil {
+			return nil, nil, err
+		}
+		return nil, nil, codersdk.ReadBodyAsError(res)
+	}
+	if res != nil && res.Body != nil {
+		defer res.Body.Close()
+	}
+
+	d := wsjson.NewDecoder[codersdk.WorkspaceAgentListContainersResponse](conn, websocket.MessageText, logger)
+	return d.Chan(), d, nil
+}
+
+// RecreateDevcontainer recreates a devcontainer with the given container.
+// This is a blocking call and will wait for the container to be recreated.
+func (c *AgentConn) RecreateDevcontainer(ctx context.Context, devcontainerID string) (codersdk.Response, error) {
+	ctx, span := tracing.StartSpan(ctx)
+	defer span.End()
+	res, err := c.apiRequest(ctx, http.MethodPost, "/api/v0/containers/devcontainers/"+devcontainerID+"/recreate", nil)
+	if err != nil {
+		return codersdk.Response{}, xerrors.Errorf("do request: %w", err)
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusAccepted {
+		return codersdk.Response{}, codersdk.ReadBodyAsError(res)
+	}
+	var m codersdk.Response
+	if err := json.NewDecoder(res.Body).Decode(&m); err != nil {
+		return codersdk.Response{}, xerrors.Errorf("decode response body: %w", err)
+	}
+	return m, nil
 }
 
 // apiRequest makes a request to the workspace agent's HTTP API server.

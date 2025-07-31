@@ -16,15 +16,65 @@ import (
 	"github.com/coder/coder/v2/coderd/database/dbtime"
 	"github.com/coder/coder/v2/coderd/httpapi"
 	"github.com/coder/coder/v2/coderd/httpmw"
+	"github.com/coder/coder/v2/coderd/httpmw/loggermw"
+	"github.com/coder/coder/v2/coderd/notifications"
 	"github.com/coder/coder/v2/coderd/pubsub"
+	markdown "github.com/coder/coder/v2/coderd/render"
 	"github.com/coder/coder/v2/codersdk"
 	"github.com/coder/coder/v2/codersdk/wsjson"
 	"github.com/coder/websocket"
 )
 
+const (
+	notificationFormatMarkdown  = "markdown"
+	notificationFormatPlaintext = "plaintext"
+)
+
+var fallbackIcons = map[uuid.UUID]string{
+	// workspace related notifications
+	notifications.TemplateWorkspaceCreated:           codersdk.InboxNotificationFallbackIconWorkspace,
+	notifications.TemplateWorkspaceManuallyUpdated:   codersdk.InboxNotificationFallbackIconWorkspace,
+	notifications.TemplateWorkspaceDeleted:           codersdk.InboxNotificationFallbackIconWorkspace,
+	notifications.TemplateWorkspaceAutobuildFailed:   codersdk.InboxNotificationFallbackIconWorkspace,
+	notifications.TemplateWorkspaceDormant:           codersdk.InboxNotificationFallbackIconWorkspace,
+	notifications.TemplateWorkspaceAutoUpdated:       codersdk.InboxNotificationFallbackIconWorkspace,
+	notifications.TemplateWorkspaceMarkedForDeletion: codersdk.InboxNotificationFallbackIconWorkspace,
+	notifications.TemplateWorkspaceManualBuildFailed: codersdk.InboxNotificationFallbackIconWorkspace,
+	notifications.TemplateWorkspaceOutOfMemory:       codersdk.InboxNotificationFallbackIconWorkspace,
+	notifications.TemplateWorkspaceOutOfDisk:         codersdk.InboxNotificationFallbackIconWorkspace,
+
+	// account related notifications
+	notifications.TemplateUserAccountCreated:           codersdk.InboxNotificationFallbackIconAccount,
+	notifications.TemplateUserAccountDeleted:           codersdk.InboxNotificationFallbackIconAccount,
+	notifications.TemplateUserAccountSuspended:         codersdk.InboxNotificationFallbackIconAccount,
+	notifications.TemplateUserAccountActivated:         codersdk.InboxNotificationFallbackIconAccount,
+	notifications.TemplateYourAccountSuspended:         codersdk.InboxNotificationFallbackIconAccount,
+	notifications.TemplateYourAccountActivated:         codersdk.InboxNotificationFallbackIconAccount,
+	notifications.TemplateUserRequestedOneTimePasscode: codersdk.InboxNotificationFallbackIconAccount,
+
+	// template related notifications
+	notifications.TemplateTemplateDeleted:             codersdk.InboxNotificationFallbackIconTemplate,
+	notifications.TemplateTemplateDeprecated:          codersdk.InboxNotificationFallbackIconTemplate,
+	notifications.TemplateWorkspaceBuildsFailedReport: codersdk.InboxNotificationFallbackIconTemplate,
+}
+
+func ensureNotificationIcon(notif codersdk.InboxNotification) codersdk.InboxNotification {
+	if notif.Icon != "" {
+		return notif
+	}
+
+	fallbackIcon, ok := fallbackIcons[notif.TemplateID]
+	if !ok {
+		fallbackIcon = codersdk.InboxNotificationFallbackIconOther
+	}
+
+	notif.Icon = fallbackIcon
+	return notif
+}
+
 // convertInboxNotificationResponse works as a util function to transform a database.InboxNotification to codersdk.InboxNotification
 func convertInboxNotificationResponse(ctx context.Context, logger slog.Logger, notif database.InboxNotification) codersdk.InboxNotification {
-	return codersdk.InboxNotification{
+	convertedNotif := codersdk.InboxNotification{
 		ID:         notif.ID,
 		UserID:     notif.UserID,
 		TemplateID: notif.TemplateID,
@@ -48,6 +98,8 @@ func convertInboxNotificationResponse(ctx context.Context, logger slog.Logger, n
 		}(),
 		CreatedAt: notif.CreatedAt,
 	}
+
+	return ensureNotificationIcon(convertedNotif)
 }
 
 // watchInboxNotifications watches for new inbox notifications and sends them to the client.
@@ -60,6 +112,7 @@ func convertInboxNotificationResponse(ctx context.Context, logger slog.Logger, n
 // @Param targets query string false "Comma-separated list of target IDs to filter notifications"
 // @Param templates query string false "Comma-separated list of template IDs to filter notifications"
 // @Param read_status query string false "Filter notifications by read status. Possible values: read, unread, all"
+// @Param format query string false "Define the output format for notifications title and body." enums(plaintext,markdown)
 // @Success 200 {object} codersdk.GetInboxNotificationResponse
 // @Router /notifications/inbox/watch [get]
 func (api *API) watchInboxNotifications(rw http.ResponseWriter, r *http.Request) {
@@ -73,6 +126,7 @@ func (api *API) watchInboxNotifications(rw http.ResponseWriter, r *http.Request)
 		targets    = p.UUIDs(vals, []uuid.UUID{}, "targets")
 		templates  = p.UUIDs(vals, []uuid.UUID{}, "templates")
 		readStatus = p.String(vals, "all", "read_status")
+		format     = p.String(vals, notificationFormatMarkdown, "format")
 	)
 	p.ErrorExcessParams(vals)
 	if len(p.Errors) > 0 {
@@ -93,18 +147,6 @@ func (api *API) watchInboxNotifications(rw http.ResponseWriter, r *http.Request)
 		})
 		return
 	}
-
-	conn, err := websocket.Accept(rw, r, nil)
-	if err != nil {
-		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: "Failed to upgrade connection to websocket.",
-			Detail:  err.Error(),
-		})
-		return
-	}
-
-	go httpapi.Heartbeat(ctx, conn)
-	defer conn.Close(websocket.StatusNormalClosure, "connection closed")
 
 	notificationCh := make(chan codersdk.InboxNotification, 10)
 
@@ -151,7 +193,7 @@ func (api *API) watchInboxNotifications(rw http.ResponseWriter, r *http.Request)
 
 				// keep a safe guard in case of latency to push notifications through websocket
 				select {
-				case notificationCh <- payload.InboxNotification:
+				case notificationCh <- ensureNotificationIcon(payload.InboxNotification):
 				default:
 					api.Logger.Error(ctx, "failed to push consumed notification into websocket handler, check latency")
 				}
@@ -161,11 +203,27 @@ func (api *API) watchInboxNotifications(rw http.ResponseWriter, r *http.Request)
 		api.Logger.Error(ctx, "subscribe to inbox notification event", slog.Error(err))
 		return
 	}
-
 	defer closeInboxNotificationsSubscriber()
+
+	conn, err := websocket.Accept(rw, r, nil)
+	if err != nil {
+		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
+			Message: "Failed to upgrade connection to websocket.",
+			Detail:  err.Error(),
+		})
+		return
+	}
+
+	go httpapi.Heartbeat(ctx, conn)
+	defer conn.Close(websocket.StatusNormalClosure, "connection closed")
 
 	encoder := wsjson.NewEncoder[codersdk.GetInboxNotificationResponse](conn, websocket.MessageText)
 	defer encoder.Close(websocket.StatusNormalClosure)
+
+	// Log the request immediately instead of after it completes.
+	if rl := loggermw.RequestLoggerFromContext(ctx); rl != nil {
+		rl.WriteLog(ctx, http.StatusAccepted)
+	}
 
 	for {
 		select {
@@ -177,6 +235,23 @@ func (api *API) watchInboxNotifications(rw http.ResponseWriter, r *http.Request)
 				api.Logger.Error(ctx, "failed to count unread inbox notifications", slog.Error(err))
 				return
 			}
+
+			// By default, notifications are stored as markdown
+			// We can change the format based on parameter if required
+			if format == notificationFormatPlaintext {
+				notif.Title, err = markdown.PlaintextFromMarkdown(notif.Title)
+				if err != nil {
+					api.Logger.Error(ctx, "failed to convert notification title to plain text", slog.Error(err))
+					return
+				}
+
+				notif.Content, err = markdown.PlaintextFromMarkdown(notif.Content)
+				if err != nil {
+					api.Logger.Error(ctx, "failed to convert notification content to plain text", slog.Error(err))
+					return
+				}
+			}
+
 			if err := encoder.Encode(codersdk.GetInboxNotificationResponse{
 				Notification: notif,
 				UnreadCount:  int(unreadCount),
@@ -197,6 +272,7 @@ func (api *API) watchInboxNotifications(rw http.ResponseWriter, r *http.Request)
 // @Param targets query string false "Comma-separated list of target IDs to filter notifications"
 // @Param templates query string false "Comma-separated list of template IDs to filter notifications"
 // @Param read_status query string false "Filter notifications by read status. Possible values: read, unread, all"
+// @Param starting_before query string false "ID of the last notification from the current page. Notifications returned will be older than the associated one" format(uuid)
 // @Success 200 {object} codersdk.ListInboxNotificationsResponse
 // @Router /notifications/inbox [get]
 func (api *API) listInboxNotifications(rw http.ResponseWriter, r *http.Request) {
@@ -344,4 +420,32 @@ func (api *API) updateInboxNotificationReadStatus(rw http.ResponseWriter, r *htt
 		Notification: convertInboxNotificationResponse(ctx, api.Logger, updatedNotification),
 		UnreadCount:  int(unreadCount),
 	})
+}
+
+// markAllInboxNotificationsAsRead marks as read all unread notifications for authenticated user.
+// @Summary Mark all unread notifications as read
+// @ID mark-all-unread-notifications-as-read
+// @Security CoderSessionToken
+// @Tags Notifications
+// @Success 204
+// @Router /notifications/inbox/mark-all-as-read [put]
+func (api *API) markAllInboxNotificationsAsRead(rw http.ResponseWriter, r *http.Request) {
+	var (
+		ctx    = r.Context()
+		apikey = httpmw.APIKey(r)
+	)
+
+	err := api.Database.MarkAllInboxNotificationsAsRead(ctx, database.MarkAllInboxNotificationsAsReadParams{
+		UserID: apikey.UserID,
+		ReadAt: sql.NullTime{Time: dbtime.Now(), Valid: true},
+	})
+	if err != nil {
+		api.Logger.Error(ctx, "failed to mark all unread notifications as read", slog.Error(err))
+		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
+			Message: "Failed to mark all unread notifications as read.",
+		})
+		return
+	}
+
+	rw.WriteHeader(http.StatusNoContent)
 }

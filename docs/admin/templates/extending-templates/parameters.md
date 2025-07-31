@@ -207,8 +207,8 @@ data "coder_parameter" "dotfiles_url" {
 Immutable parameters can only be set in these situations:
 
 - Creating a workspace for the first time.
-- Updating a workspace to a new template version. This sets the initial value
-  for required parameters.
+- Updating a workspace to a new template version.
+  This sets the initial value for required parameters.
 
 The idea is to prevent users from modifying fragile or persistent workspace
 resources like volumes, regions, and so on.
@@ -224,9 +224,8 @@ data "coder_parameter" "region" {
 }
 ```
 
-You can modify a parameter's `mutable` attribute state anytime. In case of
-emergency, you can temporarily allow for changing immutable parameters to fix an
-operational issue, but it is not advised to overuse this opportunity.
+If a required parameter is empty or if the workspace creation page detects an incompatibility between selected
+parameters, the **Create workspace** button is disabled until the issues are resolved.
 
 ## Ephemeral parameters
 
@@ -252,7 +251,7 @@ data "coder_parameter" "force_rebuild" {
 
 ## Validating parameters
 
-Coder supports rich parameters with multiple validation modes: min, max,
+Coder supports parameters with multiple validation modes: min, max,
 monotonic numbers, and regular expressions.
 
 ### Number
@@ -293,10 +292,11 @@ data "coder_parameter" "instances" {
 }
 ```
 
-**NOTE:** as of
-[`terraform-provider-coder` v0.19.0](https://registry.terraform.io/providers/coder/coder/0.19.0/docs),
-`options` can be specified in `number` parameters; this also works with
-validations such as `monotonic`.
+> [!NOTE]
+> As of
+> [`terraform-provider-coder` v0.19.0](https://registry.terraform.io/providers/coder/coder/0.19.0/docs),
+> `options` can be specified in `number` parameters; this also works with
+> validations such as `monotonic`.
 
 ### String
 
@@ -314,7 +314,7 @@ data "coder_parameter" "project_id" {
 }
 ```
 
-## Workspace presets (beta)
+## Workspace presets
 
 Workspace presets allow you to configure commonly used combinations of parameters
 into a single option, which makes it easier for developers to pick one that fits
@@ -373,11 +373,30 @@ data "coder_parameter" "jetbrains_ide" {
 ## Create Autofill
 
 When the template doesn't specify default values, Coder may still autofill
-parameters.
+parameters in one of two ways:
 
-1. Coder will look for URL query parameters with form `param.<name>=<value>`.
-   This feature enables platform teams to create pre-filled template creation
-   links.
-2. Coder will populate recently used parameter key-value pairs for the user.
-   This feature helps reduce repetition when filling common parameters such as
-   `dotfiles_url` or `region`.
+- Coder will look for URL query parameters with form `param.<name>=<value>`.
+
+  This feature enables platform teams to create pre-filled template creation links.
+
+- Coder can populate recently used parameter key-value pairs for the user.
+  This feature helps reduce repetition when filling common parameters such as
+  `dotfiles_url` or `region`.
+
+  To enable this feature, you need to set the `auto-fill-parameters` experiment flag:
+
+  ```shell
+  coder server --experiments=auto-fill-parameters
+  ```
+
+  Or set the [environment variable](../../setup/index.md), `CODER_EXPERIMENTS=auto-fill-parameters`
+
+## Dynamic Parameters (beta)
+
+Coder v2.24.0 introduces [Dynamic Parameters](./dynamic-parameters.md) to extend the existing parameter system with
+conditional form controls, enriched input types, and user identity awareness.
+This feature allows template authors to create interactive workspace creation forms, meaning more environment
+customization and fewer templates to maintain.
+
+You can read more in the [Dynamic Parameters documentation](./dynamic-parameters.md) and try it out in the
+[Parameters Playground](https://playground.coder.app/parameters).

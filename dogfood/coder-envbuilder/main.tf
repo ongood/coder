@@ -5,7 +5,7 @@ terraform {
     }
     docker = {
       source  = "kreuzwerker/docker"
-      version = "~> 3.0.0"
+      version = "~> 3.0"
     }
     envbuilder = {
       source = "coder/envbuilder"
@@ -20,10 +20,12 @@ locals {
   docker_host = {
     ""              = "tcp://dogfood-ts-cdr-dev.tailscale.svc.cluster.local:2375"
     "us-pittsburgh" = "tcp://dogfood-ts-cdr-dev.tailscale.svc.cluster.local:2375"
-    "eu-helsinki"   = "tcp://reinhard-hel-cdr-dev.tailscale.svc.cluster.local:2375"
-    "ap-sydney"     = "tcp://wolfgang-syd-cdr-dev.tailscale.svc.cluster.local:2375"
-    "sa-saopaulo"   = "tcp://oberstein-sao-cdr-dev.tailscale.svc.cluster.local:2375"
-    "za-jnb"        = "tcp://greenhill-jnb-cdr-dev.tailscale.svc.cluster.local:2375"
+    // For legacy reasons, this host is labelled `eu-helsinki` but it's
+    // actually in Germany now.
+    "eu-helsinki" = "tcp://katerose-fsn-cdr-dev.tailscale.svc.cluster.local:2375"
+    "ap-sydney"   = "tcp://wolfgang-syd-cdr-dev.tailscale.svc.cluster.local:2375"
+    "sa-saopaulo" = "tcp://oberstein-sao-cdr-dev.tailscale.svc.cluster.local:2375"
+    "za-jnb"      = "tcp://greenhill-jnb-cdr-dev.tailscale.svc.cluster.local:2375"
   }
 
   envbuilder_repo = "ghcr.io/coder/envbuilder-preview"
@@ -59,8 +61,10 @@ data "coder_parameter" "region" {
     value = "us-pittsburgh"
   }
   option {
-    icon  = "/emojis/1f1eb-1f1ee.png"
-    name  = "Helsinki"
+    icon = "/emojis/1f1e9-1f1ea.png"
+    name = "Falkenstein"
+    // For legacy reasons, this host is labelled `eu-helsinki` but it's
+    // actually in Germany now.
     value = "eu-helsinki"
   }
   option {
@@ -105,35 +109,35 @@ data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
 
 module "slackme" {
-  source           = "registry.coder.com/modules/slackme/coder"
-  version          = "1.0.2"
+  source           = "dev.registry.coder.com/coder/slackme/coder"
+  version          = "1.0.30"
   agent_id         = coder_agent.dev.id
   auth_provider_id = "slack"
 }
 
 module "dotfiles" {
-  source   = "registry.coder.com/modules/dotfiles/coder"
-  version  = "1.0.15"
+  source   = "dev.registry.coder.com/coder/dotfiles/coder"
+  version  = "1.2.0"
   agent_id = coder_agent.dev.id
 }
 
 module "personalize" {
-  source   = "registry.coder.com/modules/personalize/coder"
-  version  = "1.0.2"
+  source   = "dev.registry.coder.com/coder/personalize/coder"
+  version  = "1.0.30"
   agent_id = coder_agent.dev.id
 }
 
 module "code-server" {
-  source                  = "registry.coder.com/modules/code-server/coder"
-  version                 = "1.0.15"
+  source                  = "dev.registry.coder.com/coder/code-server/coder"
+  version                 = "1.3.1"
   agent_id                = coder_agent.dev.id
   folder                  = local.repo_dir
   auto_install_extensions = true
 }
 
 module "jetbrains_gateway" {
-  source         = "registry.coder.com/modules/jetbrains-gateway/coder"
-  version        = "1.0.13"
+  source         = "dev.registry.coder.com/coder/jetbrains-gateway/coder"
+  version        = "1.1.1"
   agent_id       = coder_agent.dev.id
   agent_name     = "dev"
   folder         = local.repo_dir
@@ -143,14 +147,14 @@ module "jetbrains_gateway" {
 }
 
 module "filebrowser" {
-  source   = "registry.coder.com/modules/filebrowser/coder"
-  version  = "1.0.8"
+  source   = "dev.registry.coder.com/coder/filebrowser/coder"
+  version  = "1.1.1"
   agent_id = coder_agent.dev.id
 }
 
 module "coder-login" {
-  source   = "registry.coder.com/modules/coder-login/coder"
-  version  = "1.0.15"
+  source   = "dev.registry.coder.com/coder/coder-login/coder"
+  version  = "1.0.30"
   agent_id = coder_agent.dev.id
 }
 

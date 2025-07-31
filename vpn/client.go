@@ -5,10 +5,14 @@ import (
 	"net/http"
 	"net/netip"
 	"net/url"
+	"time"
 
 	"golang.org/x/xerrors"
+
+	"tailscale.com/ipn/ipnstate"
 	"tailscale.com/net/dns"
 	"tailscale.com/net/netmon"
+	"tailscale.com/tailcfg"
 	"tailscale.com/wgengine/router"
 
 	"github.com/google/uuid"
@@ -26,6 +30,9 @@ import (
 type Conn interface {
 	CurrentWorkspaceState() (tailnet.WorkspaceUpdate, error)
 	GetPeerDiagnostics(peerID uuid.UUID) tailnet.PeerDiagnostics
+	Ping(ctx context.Context, agentID uuid.UUID) (time.Duration, bool, *ipnstate.PingResult, error)
+	Node() *tailnet.Node
+	DERPMap() *tailcfg.DERPMap
 	Close() error
 }
 
@@ -35,6 +42,10 @@ type vpnConn struct {
 	cancelFn    func()
 	controller  *tailnet.Controller
 	updatesCtrl *tailnet.TunnelAllWorkspaceUpdatesController
+}
+
+func (c *vpnConn) Ping(ctx context.Context, agentID uuid.UUID) (time.Duration, bool, *ipnstate.PingResult, error) {
+	return c.Conn.Ping(ctx, tailnet.TailscaleServicePrefix.AddrFromUUID(agentID))
 }
 
 func (c *vpnConn) CurrentWorkspaceState() (tailnet.WorkspaceUpdate, error) {
@@ -67,6 +78,19 @@ type Options struct {
 	UpdateHandler    tailnet.UpdatesHandler
 }
 
+type derpMapRewriter struct {
+	logger    slog.Logger
+	serverURL *url.URL
+}
+
+var _ tailnet.DERPMapRewriter = &derpMapRewriter{}
+
+// RewriteDERPMap implements tailnet.DERPMapRewriter. See
+// tailnet.RewriteDERPMapDefaultRelay for more details on why this is necessary.
+func (d *derpMapRewriter) RewriteDERPMap(derpMap *tailcfg.DERPMap) {
+	tailnet.RewriteDERPMapDefaultRelay(context.Background(), d.logger, derpMap, d.serverURL)
+}
+
 func (*client) NewConn(initCtx context.Context, serverURL *url.URL, token string, options *Options) (vpnC Conn, err error) {
 	if options == nil {
 		options = &Options{}
@@ -81,7 +105,7 @@ func (*client) NewConn(initCtx context.Context, serverURL *url.URL, token string
 	sdk.SetSessionToken(token)
 	sdk.HTTPClient.Transport = &codersdk.HeaderTransport{
 		Transport: http.DefaultTransport,
-		Header:    headers,
+		Header:    headers.Clone(),
 	}
 
 	// New context, separate from initCtx. We don't want to cancel the
@@ -107,21 +131,35 @@ func (*client) NewConn(initCtx context.Context, serverURL *url.URL, token string
 	if err != nil {
 		return nil, xerrors.Errorf("get connection info: %w", err)
 	}
+	// default to DNS suffix of "coder" if the server hasn't set it (might be too old).
+	dnsNameOptions := tailnet.DNSNameOptions{Suffix: tailnet.CoderDNSSuffix}
+	dnsMatch := tailnet.CoderDNSSuffix
+	if connInfo.HostnameSuffix != "" {
+		dnsNameOptions.Suffix = connInfo.HostnameSuffix
+		dnsMatch = connInfo.HostnameSuffix
+	}
 
 	headers.Set(codersdk.SessionTokenHeader, token)
 	dialer := workspacesdk.NewWebsocketDialer(options.Logger, rpcURL, &websocket.DialOptions{
 		HTTPClient:      sdk.HTTPClient,
-		HTTPHeader:      headers,
+		HTTPHeader:      headers.Clone(),
 		CompressionMode: websocket.CompressionDisabled,
 	}, workspacesdk.WithWorkspaceUpdates(&proto.WorkspaceUpdatesRequest{
 		WorkspaceOwnerId: tailnet.UUIDToByteSlice(me.ID),
 	}))
 
+	derpMapRewriter := &derpMapRewriter{
+		logger:    options.Logger,
+		serverURL: serverURL,
+	}
+	derpMapRewriter.RewriteDERPMap(connInfo.DERPMap)
+
+	clonedHeaders := headers.Clone()
 	ip := tailnet.CoderServicePrefix.RandomAddr()
 	conn, err := tailnet.NewConn(&tailnet.Options{
 		Addresses:           []netip.Prefix{netip.PrefixFrom(ip, 128)},
 		DERPMap:             connInfo.DERPMap,
-		DERPHeader:          &headers,
+		DERPHeader:          &clonedHeaders,
 		DERPForceWebSockets: connInfo.DERPForceWebSockets,
 		Logger:              options.Logger,
 		BlockEndpoints:      connInfo.DisableDirectConnections,
@@ -129,6 +167,7 @@ func (*client) NewConn(initCtx context.Context, serverURL *url.URL, token string
 		Router:              options.Router,
 		TUNDev:              options.TUNDevice,
 		WireguardMonitor:    options.WireguardMonitor,
+		DNSMatchDomain:      dnsMatch,
 	})
 	if err != nil {
 		return nil, xerrors.Errorf("create tailnet: %w", err)
@@ -144,11 +183,11 @@ func (*client) NewConn(initCtx context.Context, serverURL *url.URL, token string
 	coordCtrl := tailnet.NewTunnelSrcCoordController(options.Logger, conn)
 	controller.ResumeTokenCtrl = tailnet.NewBasicResumeTokenController(options.Logger, clk)
 	controller.CoordCtrl = coordCtrl
-	controller.DERPCtrl = tailnet.NewBasicDERPController(options.Logger, conn)
+	controller.DERPCtrl = tailnet.NewBasicDERPController(options.Logger, derpMapRewriter, conn)
 	updatesCtrl := tailnet.NewTunnelAllWorkspaceUpdatesController(
 		options.Logger,
 		coordCtrl,
-		tailnet.WithDNS(conn, me.Username),
+		tailnet.WithDNS(conn, me.Username, dnsNameOptions),
 		tailnet.WithHandler(options.UpdateHandler),
 	)
 	controller.WorkspaceUpdatesCtrl = updatesCtrl

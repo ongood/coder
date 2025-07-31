@@ -62,7 +62,8 @@ func (api *API) postOrganizationMember(rw http.ResponseWriter, r *http.Request) 
 	}
 	if database.IsUniqueViolation(err, database.UniqueOrganizationMembersPkey) {
 		httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
-			Message: "Organization member already exists in this organization",
+			Message: "User is already an organization member",
+			Detail:  fmt.Sprintf("%s is already a member of %s", user.Username, organization.DisplayName),
 		})
 		return
 	}
@@ -160,6 +161,7 @@ func (api *API) listMembers(rw http.ResponseWriter, r *http.Request) {
 	members, err := api.Database.OrganizationMembers(ctx, database.OrganizationMembersParams{
 		OrganizationID: organization.ID,
 		UserID:         uuid.Nil,
+		IncludeSystem:  false,
 	})
 	if httpapi.Is404Error(err) {
 		httpapi.ResourceNotFound(rw)
@@ -193,7 +195,7 @@ func (api *API) paginatedMembers(rw http.ResponseWriter, r *http.Request) {
 	var (
 		ctx                  = r.Context()
 		organization         = httpmw.OrganizationParam(r)
-		paginationParams, ok = parsePagination(rw, r)
+		paginationParams, ok = ParsePagination(rw, r)
 	)
 	if !ok {
 		return
@@ -201,8 +203,10 @@ func (api *API) paginatedMembers(rw http.ResponseWriter, r *http.Request) {
 
 	paginatedMemberRows, err := api.Database.PaginatedOrganizationMembers(ctx, database.PaginatedOrganizationMembersParams{
 		OrganizationID: organization.ID,
-		LimitOpt:       int32(paginationParams.Limit),
-		OffsetOpt:      int32(paginationParams.Offset),
+		// #nosec G115 - Pagination limits are small and fit in int32
+		LimitOpt: int32(paginationParams.Limit),
+		// #nosec G115 - Pagination offsets are small and fit in int32
+		OffsetOpt: int32(paginationParams.Offset),
 	})
 	if httpapi.Is404Error(err) {
 		httpapi.ResourceNotFound(rw)

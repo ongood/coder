@@ -76,17 +76,8 @@ func (api *API) workspaceAgentRPC(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	owner, err := api.Database.GetUserByID(ctx, workspace.OwnerID)
-	if err != nil {
-		httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
-			Message: "Internal error fetching user.",
-			Detail:  err.Error(),
-		})
-		return
-	}
-
 	logger = logger.With(
-		slog.F("owner", owner.Username),
+		slog.F("owner", workspace.OwnerUsername),
 		slog.F("workspace_name", workspace.Name),
 		slog.F("agent_name", workspaceAgent.Name),
 	)
@@ -137,9 +128,10 @@ func (api *API) workspaceAgentRPC(rw http.ResponseWriter, r *http.Request) {
 	defer monitor.close()
 
 	agentAPI := agentapi.New(agentapi.Options{
-		AgentID:     workspaceAgent.ID,
-		OwnerID:     workspace.OwnerID,
-		WorkspaceID: workspace.ID,
+		AgentID:        workspaceAgent.ID,
+		OwnerID:        workspace.OwnerID,
+		WorkspaceID:    workspace.ID,
+		OrganizationID: workspace.OrganizationID,
 
 		Ctx:                               api.ctx,
 		Log:                               logger,
@@ -147,7 +139,7 @@ func (api *API) workspaceAgentRPC(rw http.ResponseWriter, r *http.Request) {
 		Database:                          api.Database,
 		NotificationsEnqueuer:             api.NotificationsEnqueuer,
 		Pubsub:                            api.Pubsub,
-		Auditor:                           &api.Auditor,
+		ConnectionLogger:                  &api.ConnectionLogger,
 		DerpMapFn:                         api.DERPMap,
 		TailnetCoordinator:                &api.TailnetCoordinator,
 		AppearanceFetcher:                 &api.AppearanceFetcher,
@@ -170,7 +162,7 @@ func (api *API) workspaceAgentRPC(rw http.ResponseWriter, r *http.Request) {
 	})
 
 	streamID := tailnet.StreamID{
-		Name: fmt.Sprintf("%s-%s-%s", owner.Username, workspace.Name, workspaceAgent.Name),
+		Name: fmt.Sprintf("%s-%s-%s", workspace.OwnerUsername, workspace.Name, workspaceAgent.Name),
 		ID:   workspaceAgent.ID,
 		Auth: tailnet.AgentCoordinateeAuth{ID: workspaceAgent.ID},
 	}

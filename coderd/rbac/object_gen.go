@@ -54,6 +54,14 @@ var (
 		Type: "audit_log",
 	}
 
+	// ResourceConnectionLog
+	// Valid Actions
+	//  - "ActionRead" :: read connection logs
+	//  - "ActionUpdate" :: upsert connection log entries
+	ResourceConnectionLog = Object{
+		Type: "connection_log",
+	}
+
 	// ResourceCryptoKey
 	// Valid Actions
 	//  - "ActionCreate" :: create crypto keys
@@ -212,6 +220,14 @@ var (
 		Type: "organization_member",
 	}
 
+	// ResourcePrebuiltWorkspace
+	// Valid Actions
+	//  - "ActionDelete" :: delete prebuilt workspace
+	//  - "ActionUpdate" :: update prebuilt workspace settings
+	ResourcePrebuiltWorkspace = Object{
+		Type: "prebuilt_workspace",
+	}
+
 	// ResourceProvisionerDaemon
 	// Valid Actions
 	//  - "ActionCreate" :: create a provisioner daemon/key
@@ -224,7 +240,9 @@ var (
 
 	// ResourceProvisionerJobs
 	// Valid Actions
+	//  - "ActionCreate" :: create provisioner jobs
 	//  - "ActionRead" :: read provisioner jobs
+	//  - "ActionUpdate" :: update provisioner jobs
 	ResourceProvisionerJobs = Object{
 		Type: "provisioner_jobs",
 	}
@@ -242,6 +260,9 @@ var (
 	//  - "ActionDelete" :: delete system resources
 	//  - "ActionRead" :: view system resources
 	//  - "ActionUpdate" :: update system resources
+	// DEPRECATED: New resources should be created for new things, rather than adding them to System, which has become
+	//             an unmanaged collection of things that don't relate to one another. We can't effectively enforce
+	//             least privilege access control when unrelated resources are grouped together.
 	ResourceSystem = Object{
 		Type: "system",
 	}
@@ -280,11 +301,22 @@ var (
 		Type: "user",
 	}
 
+	// ResourceWebpushSubscription
+	// Valid Actions
+	//  - "ActionCreate" :: create webpush subscriptions
+	//  - "ActionDelete" :: delete webpush subscriptions
+	//  - "ActionRead" :: read webpush subscriptions
+	ResourceWebpushSubscription = Object{
+		Type: "webpush_subscription",
+	}
+
 	// ResourceWorkspace
 	// Valid Actions
 	//  - "ActionApplicationConnect" :: connect to workspace apps via browser
 	//  - "ActionCreate" :: create a new workspace
+	//  - "ActionCreateAgent" :: create a new workspace agent
 	//  - "ActionDelete" :: delete workspace
+	//  - "ActionDeleteAgent" :: delete an existing workspace agent
 	//  - "ActionRead" :: read workspace data to view on the UI
 	//  - "ActionSSH" :: ssh into a given workspace
 	//  - "ActionWorkspaceStart" :: allows starting a workspace
@@ -292,6 +324,13 @@ var (
 	//  - "ActionUpdate" :: edit workspace settings (scheduling, permissions, parameters)
 	ResourceWorkspace = Object{
 		Type: "workspace",
+	}
+
+	// ResourceWorkspaceAgentDevcontainers
+	// Valid Actions
+	//  - "ActionCreate" :: create workspace agent devcontainers
+	ResourceWorkspaceAgentDevcontainers = Object{
+		Type: "workspace_agent_devcontainers",
 	}
 
 	// ResourceWorkspaceAgentResourceMonitor
@@ -307,7 +346,9 @@ var (
 	// Valid Actions
 	//  - "ActionApplicationConnect" :: connect to workspace apps via browser
 	//  - "ActionCreate" :: create a new workspace
+	//  - "ActionCreateAgent" :: create a new workspace agent
 	//  - "ActionDelete" :: delete workspace
+	//  - "ActionDeleteAgent" :: delete an existing workspace agent
 	//  - "ActionRead" :: read workspace data to view on the UI
 	//  - "ActionSSH" :: ssh into a given workspace
 	//  - "ActionWorkspaceStart" :: allows starting a workspace
@@ -335,6 +376,7 @@ func AllResources() []Objecter {
 		ResourceAssignOrgRole,
 		ResourceAssignRole,
 		ResourceAuditLog,
+		ResourceConnectionLog,
 		ResourceCryptoKey,
 		ResourceDebugInfo,
 		ResourceDeploymentConfig,
@@ -353,6 +395,7 @@ func AllResources() []Objecter {
 		ResourceOauth2AppSecret,
 		ResourceOrganization,
 		ResourceOrganizationMember,
+		ResourcePrebuiltWorkspace,
 		ResourceProvisionerDaemon,
 		ResourceProvisionerJobs,
 		ResourceReplicas,
@@ -360,7 +403,9 @@ func AllResources() []Objecter {
 		ResourceTailnetCoordinator,
 		ResourceTemplate,
 		ResourceUser,
+		ResourceWebpushSubscription,
 		ResourceWorkspace,
+		ResourceWorkspaceAgentDevcontainers,
 		ResourceWorkspaceAgentResourceMonitor,
 		ResourceWorkspaceDormant,
 		ResourceWorkspaceProxy,
@@ -372,7 +417,9 @@ func AllActions() []policy.Action {
 		policy.ActionApplicationConnect,
 		policy.ActionAssign,
 		policy.ActionCreate,
+		policy.ActionCreateAgent,
 		policy.ActionDelete,
+		policy.ActionDeleteAgent,
 		policy.ActionRead,
 		policy.ActionReadPersonal,
 		policy.ActionSSH,

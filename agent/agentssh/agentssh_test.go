@@ -8,11 +8,14 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"os"
 	"os/user"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/afero"
@@ -21,6 +24,7 @@ import (
 	"go.uber.org/goleak"
 	"golang.org/x/crypto/ssh"
 
+	"cdr.dev/slog"
 	"cdr.dev/slog/sloggers/slogtest"
 
 	"github.com/coder/coder/v2/agent/agentexec"
@@ -147,51 +151,109 @@ func (*fakeEnvInfoer) ModifyCommand(cmd string, args ...string) (string, []strin
 func TestNewServer_CloseActiveConnections(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
-	logger := slogtest.Make(t, &slogtest.Options{IgnoreErrors: true})
-	s, err := agentssh.NewServer(ctx, logger, prometheus.NewRegistry(), afero.NewMemMapFs(), agentexec.DefaultExecer, nil)
-	require.NoError(t, err)
-	defer s.Close()
-	err = s.UpdateHostSigner(42)
-	assert.NoError(t, err)
-
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	require.NoError(t, err)
-
-	var wg sync.WaitGroup
-	wg.Add(2)
-	go func() {
-		defer wg.Done()
-		err := s.Serve(ln)
-		assert.Error(t, err) // Server is closed.
-	}()
-
-	pty := ptytest.New(t)
-
-	doClose := make(chan struct{})
-	go func() {
-		defer wg.Done()
-		c := sshClient(t, ln.Addr().String())
-		sess, err := c.NewSession()
-		assert.NoError(t, err)
-		sess.Stdin = pty.Input()
-		sess.Stdout = pty.Output()
-		sess.Stderr = pty.Output()
-
-		assert.NoError(t, err)
-		err = sess.Start("")
+	prepare := func(ctx context.Context, t *testing.T) (*agentssh.Server, func()) {
+		t.Helper()
+		logger := slogtest.Make(t, &slogtest.Options{IgnoreErrors: true}).Leveled(slog.LevelDebug)
+		s, err := agentssh.NewServer(ctx, logger, prometheus.NewRegistry(), afero.NewMemMapFs(), agentexec.DefaultExecer, nil)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			_ = s.Close()
+		})
+		err = s.UpdateHostSigner(42)
 		assert.NoError(t, err)
 
-		close(doClose)
-		err = sess.Wait()
-		assert.Error(t, err)
-	}()
+		ln, err := net.Listen("tcp", "127.0.0.1:0")
+		require.NoError(t, err)
 
-	<-doClose
-	err = s.Close()
-	require.NoError(t, err)
+		waitConns := make([]chan struct{}, 4)
 
-	wg.Wait()
+		var wg sync.WaitGroup
+		wg.Add(1 + len(waitConns))
+
+		go func() {
+			defer wg.Done()
+			err := s.Serve(ln)
+			assert.Error(t, err) // Server is closed.
+		}()
+
+		for i := 0; i < len(waitConns); i++ {
+			waitConns[i] = make(chan struct{})
+			go func(ch chan struct{}) {
+				defer wg.Done()
+				c := sshClient(t, ln.Addr().String())
+				sess, err := c.NewSession()
+				assert.NoError(t, err)
+				pty := ptytest.New(t)
+				sess.Stdin = pty.Input()
+				sess.Stdout = pty.Output()
+				sess.Stderr = pty.Output()
+
+				// Every other session will request a PTY.
+				if i%2 == 0 {
+					err = sess.RequestPty("xterm", 80, 80, nil)
+					assert.NoError(t, err)
+				}
+				// The 60 seconds here is intended to be longer than the
+				// test. The shutdown should propagate.
+				if runtime.GOOS == "windows" {
+					// Best effort to at least partially test this in Windows.
+					err = sess.Start("echo start\"ed\" && sleep 60")
+				} else {
+					err = sess.Start("/bin/bash -c 'trap \"sleep 60\" SIGTERM; echo start\"ed\"; sleep 60'")
+				}
+				assert.NoError(t, err)
+
+				// Allow the session to settle (i.e. reach echo).
+				pty.ExpectMatchContext(ctx, "started")
+				// Sleep a bit to ensure the sleep has started.
+				time.Sleep(testutil.IntervalMedium)
+
+				close(ch)
+
+				err = sess.Wait()
+				assert.Error(t, err)
+			}(waitConns[i])
+		}
+
+		for _, ch := range waitConns {
+			select {
+			case <-ctx.Done():
+				t.Fatal("timeout")
+			case <-ch:
+			}
+		}
+
+		return s, wg.Wait
+	}
+
+	t.Run("Close", func(t *testing.T) {
+		t.Parallel()
+		ctx := testutil.Context(t, testutil.WaitMedium)
+		s, wait := prepare(ctx, t)
+		err := s.Close()
+		require.NoError(t, err)
+		wait()
+	})
+
+	t.Run("Shutdown", func(t *testing.T) {
+		t.Parallel()
+		ctx := testutil.Context(t, testutil.WaitMedium)
+		s, wait := prepare(ctx, t)
+		err := s.Shutdown(ctx)
+		require.NoError(t, err)
+		wait()
+	})
+
+	t.Run("Shutdown Early", func(t *testing.T) {
+		t.Parallel()
+		ctx := testutil.Context(t, testutil.WaitMedium)
+		s, wait := prepare(ctx, t)
+		ctx, cancel := context.WithCancel(ctx)
+		cancel()
+		err := s.Shutdown(ctx)
+		require.ErrorIs(t, err, context.Canceled)
+		wait()
+	})
 }
 
 func TestNewServer_Signal(t *testing.T) {
@@ -341,6 +403,81 @@ func TestNewServer_Signal(t *testing.T) {
 		}
 		require.Equal(t, wantCode, exitErr.ExitStatus())
 	})
+}
+
+func TestSSHServer_ClosesStdin(t *testing.T) {
+	t.Parallel()
+	if runtime.GOOS == "windows" {
+		t.Skip("bash doesn't exist on Windows")
+	}
+
+	ctx := testutil.Context(t, testutil.WaitMedium)
+	logger := testutil.Logger(t)
+	s, err := agentssh.NewServer(ctx, logger, prometheus.NewRegistry(), afero.NewMemMapFs(), agentexec.DefaultExecer, nil)
+	require.NoError(t, err)
+	defer s.Close()
+	err = s.UpdateHostSigner(42)
+	assert.NoError(t, err)
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		err := s.Serve(ln)
+		assert.Error(t, err) // Server is closed.
+	}()
+	defer func() {
+		err := s.Close()
+		require.NoError(t, err)
+		<-done
+	}()
+
+	c := sshClient(t, ln.Addr().String())
+
+	sess, err := c.NewSession()
+	require.NoError(t, err)
+	stdout, err := sess.StdoutPipe()
+	require.NoError(t, err)
+	stdin, err := sess.StdinPipe()
+	require.NoError(t, err)
+	defer stdin.Close()
+
+	dir := t.TempDir()
+	err = os.MkdirAll(dir, 0o755)
+	require.NoError(t, err)
+	filePath := filepath.Join(dir, "result.txt")
+
+	// the shell command `read` will block until data is written to stdin, or closed. It will return
+	// exit code 1 if it hits EOF, which is what we want to test.
+	cmdErrCh := make(chan error, 1)
+	go func() {
+		cmdErrCh <- sess.Start(fmt.Sprintf(`echo started; echo "read exit code: $(read && echo 0 || echo 1)" > %s`, filePath))
+	}()
+
+	cmdErr := testutil.RequireReceive(ctx, t, cmdErrCh)
+	require.NoError(t, cmdErr)
+
+	readCh := make(chan error, 1)
+	go func() {
+		buf := make([]byte, 8)
+		_, err := stdout.Read(buf)
+		assert.Equal(t, "started\n", string(buf))
+		readCh <- err
+	}()
+	err = testutil.RequireReceive(ctx, t, readCh)
+	require.NoError(t, err)
+
+	sess.Close()
+
+	var content []byte
+	testutil.Eventually(ctx, t, func(_ context.Context) bool {
+		content, err = os.ReadFile(filePath)
+		return err == nil
+	}, testutil.IntervalFast)
+	require.NoError(t, err)
+	require.Equal(t, "read exit code: 1\n", string(content))
 }
 
 func sshClient(t *testing.T, addr string) *ssh.Client {

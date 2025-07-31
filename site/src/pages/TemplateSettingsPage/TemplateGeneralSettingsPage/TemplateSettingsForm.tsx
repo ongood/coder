@@ -4,6 +4,7 @@ import FormHelperText from "@mui/material/FormHelperText";
 import MenuItem from "@mui/material/MenuItem";
 import TextField from "@mui/material/TextField";
 import {
+	CORSBehaviors,
 	type Template,
 	type UpdateTemplateMeta,
 	WorkspaceAppSharingLevels,
@@ -17,6 +18,7 @@ import {
 	HorizontalForm,
 } from "components/Form/Form";
 import { IconField } from "components/IconField/IconField";
+import { Link } from "components/Link/Link";
 import { Spinner } from "components/Spinner/Spinner";
 import { Stack } from "components/Stack/Stack";
 import {
@@ -25,6 +27,7 @@ import {
 } from "components/StackLabel/StackLabel";
 import { type FormikTouched, useFormik } from "formik";
 import type { FC } from "react";
+import { docs } from "utils/docs";
 import {
 	displayNameValidator,
 	getFormHelpers,
@@ -47,8 +50,10 @@ export const validationSchema = Yup.object({
 	allow_user_cancel_workspace_jobs: Yup.boolean(),
 	icon: iconValidator,
 	require_active_version: Yup.boolean(),
+	use_classic_parameter_flow: Yup.boolean(),
 	deprecation_message: Yup.string(),
 	max_port_sharing_level: Yup.string().oneOf(WorkspaceAppSharingLevels),
+	cors_behavior: Yup.string().oneOf(Object.values(CORSBehaviors)),
 });
 
 export interface TemplateSettingsForm {
@@ -89,6 +94,8 @@ export const TemplateSettingsForm: FC<TemplateSettingsForm> = ({
 			deprecation_message: template.deprecation_message,
 			disable_everyone_group_access: false,
 			max_port_share_level: template.max_port_share_level,
+			use_classic_parameter_flow: template.use_classic_parameter_flow,
+			cors_behavior: template.cors_behavior,
 		},
 		validationSchema,
 		onSubmit,
@@ -222,6 +229,47 @@ export const TemplateSettingsForm: FC<TemplateSettingsForm> = ({
 							</StackLabel>
 						}
 					/>
+					<FormControlLabel
+						control={
+							<Checkbox
+								size="small"
+								id="use_classic_parameter_flow"
+								name="use_classic_parameter_flow"
+								checked={!form.values.use_classic_parameter_flow}
+								onChange={(event) =>
+									form.setFieldValue(
+										"use_classic_parameter_flow",
+										!event.currentTarget.checked,
+									)
+								}
+								disabled={false}
+							/>
+						}
+						label={
+							<StackLabel>
+								<span className="flex flex-row gap-2">
+									Enable dynamic parameters for workspace creation (recommended)
+								</span>
+								<StackLabelHelperText>
+									<div>
+										The dynamic workspace form allows you to design your
+										template with additional form types and identity-aware
+										conditional parameters. This is the default option for new
+										templates. The classic workspace creation flow will be
+										deprecated in a future release.
+									</div>
+									<Link
+										className="text-xs"
+										href={docs(
+											"/admin/templates/extending-templates/dynamic-parameters",
+										)}
+									>
+										Learn more
+									</Link>
+								</StackLabelHelperText>
+							</StackLabel>
+						}
+					/>
 				</FormFields>
 			</FormSection>
 
@@ -278,6 +326,7 @@ export const TemplateSettingsForm: FC<TemplateSettingsForm> = ({
 						label="Maximum Port Sharing Level"
 					>
 						<MenuItem value="owner">Owner</MenuItem>
+						<MenuItem value="organization">Organization</MenuItem>
 						<MenuItem value="authenticated">Authenticated</MenuItem>
 						<MenuItem value="public">Public</MenuItem>
 					</TextField>
@@ -289,6 +338,28 @@ export const TemplateSettingsForm: FC<TemplateSettingsForm> = ({
 							</FormHelperText>
 						</Stack>
 					)}
+				</FormFields>
+			</FormSection>
+
+			<FormSection
+				title="CORS Behavior"
+				description="Control how Cross-Origin Resource Sharing (CORS) requests are handled for all shared ports."
+			>
+				<FormFields>
+					<TextField
+						{...getFieldHelpers("cors_behavior", {
+							helperText:
+								"Use Passthru to bypass Coder's built-in CORS protection.",
+						})}
+						disabled={isSubmitting}
+						fullWidth
+						select
+						value={form.values.cors_behavior}
+						label="CORS Behavior"
+					>
+						<MenuItem value="simple">Simple (recommended)</MenuItem>
+						<MenuItem value="passthru">Passthru</MenuItem>
+					</TextField>
 				</FormFields>
 			</FormSection>
 

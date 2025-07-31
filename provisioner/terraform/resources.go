@@ -3,9 +3,12 @@ package terraform
 import (
 	"context"
 	"fmt"
+	"math"
+	"slices"
 	"strings"
 
 	"github.com/awalterschulze/gographviz"
+	"github.com/google/uuid"
 	tfjson "github.com/hashicorp/terraform-json"
 	"github.com/mitchellh/mapstructure"
 	"golang.org/x/xerrors"
@@ -41,8 +44,9 @@ type agentAttributes struct {
 	Directory       string            `mapstructure:"dir"`
 	ID              string            `mapstructure:"id"`
 	Token           string            `mapstructure:"token"`
+	APIKeyScope     string            `mapstructure:"api_key_scope"`
 	Env             map[string]string `mapstructure:"env"`
-	// Deprecated, but remains here for backwards compatibility.
+	// Deprecated: but remains here for backwards compatibility.
 	StartupScript                string `mapstructure:"startup_script"`
 	StartupScriptBehavior        string `mapstructure:"startup_script_behavior"`
 	StartupScriptTimeoutSeconds  int32  `mapstructure:"startup_script_timeout"`
@@ -57,6 +61,12 @@ type agentAttributes struct {
 	DisplayApps              []agentDisplayAppsAttributes `mapstructure:"display_apps"`
 	Order                    int64                        `mapstructure:"order"`
 	ResourcesMonitoring      []agentResourcesMonitoring   `mapstructure:"resources_monitoring"`
+}
+
+type agentDevcontainerAttributes struct {
+	AgentID         string `mapstructure:"agent_id"`
+	WorkspaceFolder string `mapstructure:"workspace_folder"`
+	ConfigPath      string `mapstructure:"config_path"`
 }
 
 type agentResourcesMonitoring struct {
@@ -85,6 +95,7 @@ type agentDisplayAppsAttributes struct {
 
 // A mapping of attributes on the "coder_app" resource.
 type agentAppAttributes struct {
+	ID      string `mapstructure:"id"`
 	AgentID string `mapstructure:"agent_id"`
 	// Slug is required in terraform, but to avoid breaking existing users we
 	// will default to the resource name if it is not specified.
@@ -100,6 +111,7 @@ type agentAppAttributes struct {
 	Subdomain   bool                       `mapstructure:"subdomain"`
 	Healthcheck []appHealthcheckAttributes `mapstructure:"healthcheck"`
 	Order       int64                      `mapstructure:"order"`
+	Group       string                     `mapstructure:"group"`
 	Hidden      bool                       `mapstructure:"hidden"`
 	OpenIn      string                     `mapstructure:"open_in"`
 }
@@ -151,9 +163,30 @@ type State struct {
 	Parameters            []*proto.RichParameter
 	Presets               []*proto.Preset
 	ExternalAuthProviders []*proto.ExternalAuthProviderResource
+	AITasks               []*proto.AITask
+	HasAITasks            bool
 }
 
 var ErrInvalidTerraformAddr = xerrors.New("invalid terraform address")
+
+// hasAITaskResources is used to determine if a template has *any* `coder_ai_task` resources defined. During template
+// import, it's possible that none of these have `count=1` since count may be dependent on the value of a `coder_parameter`
+// or something else.
+// We need to know at template import if these resources exist to inform the frontend of their existence.
+func hasAITaskResources(graph *gographviz.Graph) bool {
+	for _, node := range graph.Nodes.Lookup {
+		// Check if this node is a coder_ai_task resource
+		if label, exists := node.Attrs["label"]; exists {
+			labelValue := strings.Trim(label, `"`)
+			// The first condition is for the case where the resource is in the root module.
+			// The second condition is for the case where the resource is in a child module.
+			if strings.HasPrefix(labelValue, "coder_ai_task.") || strings.Contains(labelValue, ".coder_ai_task.") {
+				return true
+			}
+		}
+	}
+	return false
+}
 
 // ConvertState consumes Terraform state and a GraphViz representation
 // produced by `terraform graph` to produce resources consumable by Coder.
@@ -178,6 +211,7 @@ func ConvertState(ctx context.Context, modules []*tfjson.StateModule, rawGraph s
 	// Extra array to preserve the order of rich parameters.
 	tfResourcesRichParameters := make([]*tfjson.StateResource, 0)
 	tfResourcesPresets := make([]*tfjson.StateResource, 0)
+	tfResourcesAITasks := make([]*tfjson.StateResource, 0)
 	var findTerraformResources func(mod *tfjson.StateModule)
 	findTerraformResources = func(mod *tfjson.StateModule) {
 		for _, module := range mod.ChildModules {
@@ -189,6 +223,9 @@ func ConvertState(ctx context.Context, modules []*tfjson.StateModule, rawGraph s
 			}
 			if resource.Type == "coder_workspace_preset" {
 				tfResourcesPresets = append(tfResourcesPresets, resource)
+			}
+			if resource.Type == "coder_ai_task" {
+				tfResourcesAITasks = append(tfResourcesAITasks, resource)
 			}
 
 			label := convertAddressToLabel(resource.Address)
@@ -312,12 +349,13 @@ func ConvertState(ctx context.Context, modules []*tfjson.StateModule, rawGraph s
 				Metadata:                 metadata,
 				DisplayApps:              displayApps,
 				Order:                    attrs.Order,
+				ApiKeyScope:              attrs.APIKeyScope,
 			}
 			// Support the legacy script attributes in the agent!
 			if attrs.StartupScript != "" {
 				agent.Scripts = append(agent.Scripts, &proto.Script{
 					// This is ▶️
-					Icon:             "/emojis/25b6.png",
+					Icon:             "/emojis/25b6-fe0f.png",
 					LogPath:          "coder-startup-script.log",
 					DisplayName:      "Startup Script",
 					Script:           attrs.StartupScript,
@@ -387,7 +425,7 @@ func ConvertState(ctx context.Context, modules []*tfjson.StateModule, rawGraph s
 
 			agents, exists := resourceAgents[agentResource.Label]
 			if !exists {
-				agents = make([]*proto.Agent, 0)
+				agents = make([]*proto.Agent, 0, 1)
 			}
 			agents = append(agents, agent)
 			resourceAgents[agentResource.Label] = agents
@@ -512,7 +550,17 @@ func ConvertState(ctx context.Context, modules []*tfjson.StateModule, rawGraph s
 						continue
 					}
 
+					id := attrs.ID
+					if id == "" {
+						// This should never happen since the "id" attribute is set on creation:
+						// https://github.com/coder/terraform-provider-coder/blob/cfa101df4635e405e66094fa7779f9a89d92f400/provider/app.go#L37
+						logger.Warn(ctx, "coder_app's id was unexpectedly empty", slog.F("name", attrs.Name))
+
+						id = uuid.NewString()
+					}
+
 					agent.Apps = append(agent.Apps, &proto.App{
+						Id:           id,
 						Slug:         attrs.Slug,
 						DisplayName:  attrs.DisplayName,
 						Command:      attrs.Command,
@@ -523,6 +571,7 @@ func ConvertState(ctx context.Context, modules []*tfjson.StateModule, rawGraph s
 						SharingLevel: sharingLevel,
 						Healthcheck:  healthcheck,
 						Order:        attrs.Order,
+						Group:        attrs.Group,
 						Hidden:       attrs.Hidden,
 						OpenIn:       openIn,
 					})
@@ -584,6 +633,33 @@ func ConvertState(ctx context.Context, modules []*tfjson.StateModule, rawGraph s
 						RunOnStart:       attrs.RunOnStart,
 						RunOnStop:        attrs.RunOnStop,
 						TimeoutSeconds:   attrs.TimeoutSeconds,
+					})
+				}
+			}
+		}
+	}
+
+	// Associate Dev Containers with agents.
+	for _, resources := range tfResourcesByLabel {
+		for _, resource := range resources {
+			if resource.Type != "coder_devcontainer" {
+				continue
+			}
+			var attrs agentDevcontainerAttributes
+			err = mapstructure.Decode(resource.AttributeValues, &attrs)
+			if err != nil {
+				return nil, xerrors.Errorf("decode script attributes: %w", err)
+			}
+			for _, agents := range resourceAgents {
+				for _, agent := range agents {
+					// Find agents with the matching ID and associate them!
+					if !dependsOnAgent(graph, agent, attrs.AgentID, resource) {
+						continue
+					}
+					agent.Devcontainers = append(agent.Devcontainers, &proto.Devcontainer{
+						Name:            resource.Name,
+						WorkspaceFolder: attrs.WorkspaceFolder,
+						ConfigPath:      attrs.ConfigPath,
 					})
 				}
 			}
@@ -715,17 +791,29 @@ func ConvertState(ctx context.Context, modules []*tfjson.StateModule, rawGraph s
 		if err != nil {
 			return nil, xerrors.Errorf("decode map values for coder_parameter.%s: %w", resource.Name, err)
 		}
+		var defaultVal string
+		if param.Default != nil {
+			defaultVal = *param.Default
+		}
+
+		pft, err := proto.FormType(param.FormType)
+		if err != nil {
+			return nil, xerrors.Errorf("decode form_type for coder_parameter.%s: %w", resource.Name, err)
+		}
+
 		protoParam := &proto.RichParameter{
 			Name:         param.Name,
 			DisplayName:  param.DisplayName,
 			Description:  param.Description,
+			FormType:     pft,
 			Type:         param.Type,
 			Mutable:      param.Mutable,
-			DefaultValue: param.Default,
+			DefaultValue: defaultVal,
 			Icon:         param.Icon,
 			Required:     !param.Optional,
-			Order:        int32(param.Order),
-			Ephemeral:    param.Ephemeral,
+			// #nosec G115 - Safe conversion as parameter order value is expected to be within int32 range
+			Order:     int32(param.Order),
+			Ephemeral: param.Ephemeral,
 		}
 		if len(param.Validation) == 1 {
 			protoParam.ValidationRegex = param.Validation[0].Regex
@@ -849,10 +937,39 @@ func ConvertState(ctx context.Context, modules []*tfjson.StateModule, rawGraph s
 			)
 		}
 
+		if len(preset.Prebuilds) != 1 {
+			logger.Warn(
+				ctx,
+				"coder_workspace_preset must have exactly one prebuild block",
+			)
+		}
+		var prebuildInstances int32
+		var expirationPolicy *proto.ExpirationPolicy
+		var scheduling *proto.Scheduling
+		if len(preset.Prebuilds) > 0 {
+			prebuildInstances = int32(math.Min(math.MaxInt32, float64(preset.Prebuilds[0].Instances)))
+			if len(preset.Prebuilds[0].ExpirationPolicy) > 0 {
+				expirationPolicy = &proto.ExpirationPolicy{
+					Ttl: int32(math.Min(math.MaxInt32, float64(preset.Prebuilds[0].ExpirationPolicy[0].TTL))),
+				}
+			}
+			if len(preset.Prebuilds[0].Scheduling) > 0 {
+				scheduling = convertScheduling(preset.Prebuilds[0].Scheduling[0])
+			}
+		}
 		protoPreset := &proto.Preset{
 			Name:       preset.Name,
 			Parameters: presetParameters,
+			Prebuild: &proto.Prebuild{
+				Instances:        prebuildInstances,
+				ExpirationPolicy: expirationPolicy,
+				Scheduling:       scheduling,
+			},
+			Default:     preset.Default,
+			Description: preset.Description,
+			Icon:        preset.Icon,
 		}
+
 		if slice.Contains(duplicatedPresetNames, preset.Name) {
 			duplicatedPresetNames = append(duplicatedPresetNames, preset.Name)
 		}
@@ -867,6 +984,38 @@ func ConvertState(ctx context.Context, modules []*tfjson.StateModule, rawGraph s
 			"coder_workspace_preset names must be unique but %s appear%s multiple times",
 			stringutil.JoinWithConjunction(duplicatedPresetNames), s,
 		)
+	}
+
+	// Validate that only one preset is marked as default.
+	var defaultPresets int
+	for _, preset := range presets {
+		if preset.Default {
+			defaultPresets++
+		}
+	}
+	if defaultPresets > 1 {
+		return nil, xerrors.Errorf("a maximum of 1 coder_workspace_preset can be marked as default, but %d are set", defaultPresets)
+	}
+
+	// This will only pick up resources which will actually be created.
+	aiTasks := make([]*proto.AITask, 0, len(tfResourcesAITasks))
+	for _, resource := range tfResourcesAITasks {
+		var task provider.AITask
+		err = mapstructure.Decode(resource.AttributeValues, &task)
+		if err != nil {
+			return nil, xerrors.Errorf("decode coder_ai_task attributes: %w", err)
+		}
+
+		if len(task.SidebarApp) < 1 {
+			return nil, xerrors.Errorf("coder_ai_task has no sidebar_app defined")
+		}
+
+		aiTasks = append(aiTasks, &proto.AITask{
+			Id: task.ID,
+			SidebarApp: &proto.AITaskSidebarApp{
+				Id: task.SidebarApp[0].ID,
+			},
+		})
 	}
 
 	// A map is used to ensure we don't have duplicates!
@@ -899,15 +1048,59 @@ func ConvertState(ctx context.Context, modules []*tfjson.StateModule, rawGraph s
 		externalAuthProviders = append(externalAuthProviders, it)
 	}
 
+	hasAITasks := hasAITaskResources(graph)
+	if hasAITasks {
+		hasPromptParam := slices.ContainsFunc(parameters, func(param *proto.RichParameter) bool {
+			return param.Name == provider.TaskPromptParameterName
+		})
+		if !hasPromptParam {
+			return nil, xerrors.Errorf("coder_parameter named '%s' is required when 'coder_ai_task' resource is defined", provider.TaskPromptParameterName)
+		}
+	}
+
 	return &State{
 		Resources:             resources,
 		Parameters:            parameters,
 		Presets:               presets,
 		ExternalAuthProviders: externalAuthProviders,
+		HasAITasks:            hasAITasks,
+		AITasks:               aiTasks,
 	}, nil
 }
 
+func convertScheduling(scheduling provider.Scheduling) *proto.Scheduling {
+	return &proto.Scheduling{
+		Timezone: scheduling.Timezone,
+		Schedule: convertSchedules(scheduling.Schedule),
+	}
+}
+
+func convertSchedules(schedules []provider.Schedule) []*proto.Schedule {
+	protoSchedules := make([]*proto.Schedule, len(schedules))
+	for i, schedule := range schedules {
+		protoSchedules[i] = convertSchedule(schedule)
+	}
+
+	return protoSchedules
+}
+
+func convertSchedule(schedule provider.Schedule) *proto.Schedule {
+	return &proto.Schedule{
+		Cron:      schedule.Cron,
+		Instances: safeInt32Conversion(schedule.Instances),
+	}
+}
+
+func safeInt32Conversion(n int) int32 {
+	if n > math.MaxInt32 {
+		return math.MaxInt32
+	}
+	// #nosec G115 - Safe conversion, as we have explicitly checked that the number does not exceed math.MaxInt32.
+	return int32(n)
+}
+
 func PtrInt32(number int) *int32 {
+	// #nosec G115 - Safe conversion as the number is expected to be within int32 range
 	n := int32(number)
 	return &n
 }

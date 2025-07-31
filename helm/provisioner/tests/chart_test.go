@@ -95,6 +95,14 @@ var testCases = []testCase{
 		name:          "name_override_existing_sa",
 		expectedError: "",
 	},
+	{
+		name:          "custom_resources",
+		expectedError: "",
+	},
+	{
+		name:          "partial_resources",
+		expectedError: "",
+	},
 }
 
 type testCase struct {
@@ -133,9 +141,7 @@ func TestRenderChart(t *testing.T) {
 	require.NoError(t, err, "failed to build Helm dependencies")
 
 	for _, tc := range testCases {
-		tc := tc
 		for _, ns := range namespaces {
-			tc := tc
 			tc.namespace = ns
 
 			t.Run(tc.namespace+"/"+tc.name, func(t *testing.T) {
@@ -160,7 +166,7 @@ func TestRenderChart(t *testing.T) {
 					require.NoError(t, err, "failed to read golden file %q", goldenFilePath)
 
 					// Remove carriage returns to make tests pass on Windows.
-					goldenBytes = bytes.Replace(goldenBytes, []byte("\r"), []byte(""), -1)
+					goldenBytes = bytes.ReplaceAll(goldenBytes, []byte("\r"), []byte(""))
 					expected := string(goldenBytes)
 
 					require.NoError(t, err, "failed to load golden file %q")
@@ -182,14 +188,12 @@ func TestUpdateGoldenFiles(t *testing.T) {
 	require.NoError(t, err, "failed to build Helm dependencies")
 
 	for _, tc := range testCases {
-		tc := tc
 		if tc.expectedError != "" {
 			t.Logf("skipping test case %q with render error", tc.name)
 			continue
 		}
 
 		for _, ns := range namespaces {
-			tc := tc
 			tc.namespace = ns
 
 			valuesPath := tc.valuesFilePath()

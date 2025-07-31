@@ -1,9 +1,5 @@
 import type { Interpolation, Theme } from "@emotion/react";
-import DeleteOutline from "@mui/icons-material/DeleteOutline";
-import PersonAdd from "@mui/icons-material/PersonAdd";
-import SettingsOutlined from "@mui/icons-material/SettingsOutlined";
-import LoadingButton from "@mui/lab/LoadingButton";
-import Button from "@mui/material/Button";
+import MuiButton from "@mui/material/Button";
 import { getErrorMessage } from "api/errors";
 import {
 	addMember,
@@ -20,19 +16,24 @@ import type {
 import { ErrorAlert } from "components/Alert/ErrorAlert";
 import { Avatar } from "components/Avatar/Avatar";
 import { AvatarData } from "components/Avatar/AvatarData";
+import { Button } from "components/Button/Button";
 import { DeleteDialog } from "components/Dialogs/DeleteDialog/DeleteDialog";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "components/DropdownMenu/DropdownMenu";
 import { EmptyState } from "components/EmptyState/EmptyState";
 import { displayError, displaySuccess } from "components/GlobalSnackbar/utils";
 import { LastSeen } from "components/LastSeen/LastSeen";
 import { Loader } from "components/Loader/Loader";
 import {
-	MoreMenu,
-	MoreMenuContent,
-	MoreMenuItem,
-	MoreMenuTrigger,
-	ThreeDotsButton,
-} from "components/MoreMenu/MoreMenu";
-import { SettingsHeader } from "components/SettingsHeader/SettingsHeader";
+	SettingsHeader,
+	SettingsHeaderDescription,
+	SettingsHeaderTitle,
+} from "components/SettingsHeader/SettingsHeader";
+import { Spinner } from "components/Spinner/Spinner";
 import { Stack } from "components/Stack/Stack";
 import {
 	Table,
@@ -47,6 +48,9 @@ import {
 	TableToolbar,
 } from "components/TableToolbar/TableToolbar";
 import { MemberAutocomplete } from "components/UserAutocomplete/UserAutocomplete";
+import { UserPlusIcon } from "lucide-react";
+import { SettingsIcon } from "lucide-react";
+import { EllipsisVertical, TrashIcon } from "lucide-react";
 import { type FC, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { useMutation, useQuery, useQueryClient } from "react-query";
@@ -54,7 +58,7 @@ import { Link as RouterLink, useNavigate, useParams } from "react-router-dom";
 import { isEveryoneGroup } from "utils/groups";
 import { pageTitle } from "utils/page";
 
-export const GroupPage: FC = () => {
+const GroupPage: FC = () => {
 	const { organization = "default", groupName } = useParams() as {
 		organization?: string;
 		groupName: string;
@@ -63,9 +67,10 @@ export const GroupPage: FC = () => {
 	const navigate = useNavigate();
 	const groupQuery = useQuery(group(organization, groupName));
 	const groupData = groupQuery.data;
-	const { data: permissions } = useQuery(
-		groupData ? groupPermissions(groupData.id) : { enabled: false },
-	);
+	const { data: permissions } = useQuery({
+		...groupPermissions(groupData?.id ?? ""),
+		enabled: !!groupData,
+	});
 	const addMemberMutation = useMutation(addMember(queryClient));
 	const removeMemberMutation = useMutation(removeMember(queryClient));
 	const deleteGroupMutation = useMutation(deleteGroup(queryClient));
@@ -106,29 +111,34 @@ export const GroupPage: FC = () => {
 				direction="row"
 				justifyContent="space-between"
 			>
-				<SettingsHeader
-					title={groupData?.display_name || groupData?.name}
-					description="Manage members for this group."
-				/>
+				<SettingsHeader>
+					<SettingsHeaderTitle>
+						{groupData?.display_name || groupData?.name || "Unknown Group"}
+					</SettingsHeaderTitle>
+					<SettingsHeaderDescription>
+						Manage members for this group.
+					</SettingsHeaderDescription>
+				</SettingsHeader>
+
 				{canUpdateGroup && (
 					<Stack direction="row" spacing={2}>
-						<Button
+						<MuiButton
 							component={RouterLink}
-							startIcon={<SettingsOutlined />}
+							startIcon={<SettingsIcon className="size-icon-sm" />}
 							to="settings"
 						>
 							Settings
-						</Button>
-						<Button
+						</MuiButton>
+						<MuiButton
 							disabled={groupData?.id === groupData?.organization_id}
 							onClick={() => {
 								setIsDeletingGroup(true);
 							}}
-							startIcon={<DeleteOutline />}
+							startIcon={<TrashIcon className="size-icon-xs" />}
 							css={styles.removeButton}
 						>
 							Delete&hellip;
-						</Button>
+						</MuiButton>
 					</Stack>
 				)}
 			</Stack>
@@ -136,7 +146,7 @@ export const GroupPage: FC = () => {
 			<Stack spacing={1}>
 				{canUpdateGroup && groupData && !isEveryoneGroup(groupData) && (
 					<AddGroupMember
-						isLoading={addMemberMutation.isLoading}
+						isLoading={addMemberMutation.isPending}
 						organizationId={groupData.organization_id}
 						onSubmit={async (member, reset) => {
 							try {
@@ -211,7 +221,7 @@ export const GroupPage: FC = () => {
 			{groupQuery.data && (
 				<DeleteDialog
 					isOpen={isDeletingGroup}
-					confirmLoading={deleteGroupMutation.isLoading}
+					confirmLoading={deleteGroupMutation.isPending}
 					name={groupQuery.data.name}
 					entity="group"
 					onConfirm={async () => {
@@ -270,15 +280,12 @@ const AddGroupMember: FC<AddGroupMemberProps> = ({
 					}}
 				/>
 
-				<LoadingButton
-					loadingPosition="start"
-					disabled={!selectedUser}
-					type="submit"
-					startIcon={<PersonAdd />}
-					loading={isLoading}
-				>
+				<Button disabled={!selectedUser || isLoading} type="submit">
+					<Spinner loading={isLoading}>
+						<UserPlusIcon className="size-icon-sm" />
+					</Spinner>
 					Add user
-				</LoadingButton>
+				</Button>
 			</Stack>
 		</form>
 	);
@@ -301,7 +308,13 @@ const GroupMemberRow: FC<GroupMemberRowProps> = ({
 		<TableRow key={member.id}>
 			<TableCell width="59%">
 				<AvatarData
-					avatar={<Avatar fallback={member.username} src={member.avatar_url} />}
+					avatar={
+						<Avatar
+							size="lg"
+							fallback={member.username}
+							src={member.avatar_url}
+						/>
+					}
 					title={member.username}
 					subtitle={member.email}
 				/>
@@ -315,20 +328,23 @@ const GroupMemberRow: FC<GroupMemberRowProps> = ({
 			</TableCell>
 			<TableCell width="1%">
 				{canUpdate && (
-					<MoreMenu>
-						<MoreMenuTrigger>
-							<ThreeDotsButton />
-						</MoreMenuTrigger>
-						<MoreMenuContent>
-							<MoreMenuItem
-								danger
+					<DropdownMenu>
+						<DropdownMenuTrigger asChild>
+							<Button size="icon-lg" variant="subtle" aria-label="Open menu">
+								<EllipsisVertical aria-hidden="true" />
+								<span className="sr-only">Open menu</span>
+							</Button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align="end">
+							<DropdownMenuItem
+								className="text-content-destructive focus:text-content-destructive"
 								onClick={onRemove}
 								disabled={group.id === group.organization_id}
 							>
 								Remove
-							</MoreMenuItem>
-						</MoreMenuContent>
-					</MoreMenu>
+							</DropdownMenuItem>
+						</DropdownMenuContent>
+					</DropdownMenu>
 				)}
 			</TableCell>
 		</TableRow>

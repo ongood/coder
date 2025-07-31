@@ -16,6 +16,8 @@ import (
 
 	"github.com/google/uuid"
 	"golang.org/x/mod/semver"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 	"golang.org/x/xerrors"
 
 	"github.com/coreos/go-oidc/v3/oidc"
@@ -65,6 +67,7 @@ type FeatureName string
 const (
 	FeatureUserLimit                  FeatureName = "user_limit"
 	FeatureAuditLog                   FeatureName = "audit_log"
+	FeatureConnectionLog              FeatureName = "connection_log"
 	FeatureBrowserOnly                FeatureName = "browser_only"
 	FeatureSCIM                       FeatureName = "scim"
 	FeatureTemplateRBAC               FeatureName = "template_rbac"
@@ -81,29 +84,48 @@ const (
 	FeatureControlSharedPorts         FeatureName = "control_shared_ports"
 	FeatureCustomRoles                FeatureName = "custom_roles"
 	FeatureMultipleOrganizations      FeatureName = "multiple_organizations"
+	FeatureWorkspacePrebuilds         FeatureName = "workspace_prebuilds"
+	// ManagedAgentLimit is a usage period feature, so the value in the license
+	// contains both a soft and hard limit. Refer to
+	// enterprise/coderd/license/license.go for the license format.
+	FeatureManagedAgentLimit FeatureName = "managed_agent_limit"
 )
 
-// FeatureNames must be kept in-sync with the Feature enum above.
-var FeatureNames = []FeatureName{
-	FeatureUserLimit,
-	FeatureAuditLog,
-	FeatureBrowserOnly,
-	FeatureSCIM,
-	FeatureTemplateRBAC,
-	FeatureHighAvailability,
-	FeatureMultipleExternalAuth,
-	FeatureExternalProvisionerDaemons,
-	FeatureAppearance,
-	FeatureAdvancedTemplateScheduling,
-	FeatureWorkspaceProxy,
-	FeatureUserRoleManagement,
-	FeatureExternalTokenEncryption,
-	FeatureWorkspaceBatchActions,
-	FeatureAccessControl,
-	FeatureControlSharedPorts,
-	FeatureCustomRoles,
-	FeatureMultipleOrganizations,
-}
+var (
+	// FeatureNames must be kept in-sync with the Feature enum above.
+	FeatureNames = []FeatureName{
+		FeatureUserLimit,
+		FeatureAuditLog,
+		FeatureConnectionLog,
+		FeatureBrowserOnly,
+		FeatureSCIM,
+		FeatureTemplateRBAC,
+		FeatureHighAvailability,
+		FeatureMultipleExternalAuth,
+		FeatureExternalProvisionerDaemons,
+		FeatureAppearance,
+		FeatureAdvancedTemplateScheduling,
+		FeatureWorkspaceProxy,
+		FeatureUserRoleManagement,
+		FeatureExternalTokenEncryption,
+		FeatureWorkspaceBatchActions,
+		FeatureAccessControl,
+		FeatureControlSharedPorts,
+		FeatureCustomRoles,
+		FeatureMultipleOrganizations,
+		FeatureWorkspacePrebuilds,
+		FeatureManagedAgentLimit,
+	}
+
+	// FeatureNamesMap is a map of all feature names for quick lookups.
+	FeatureNamesMap = func() map[FeatureName]struct{} {
+		featureNamesMap := make(map[FeatureName]struct{}, len(FeatureNames))
+		for _, featureName := range FeatureNames {
+			featureNamesMap[featureName] = struct{}{}
+		}
+		return featureNamesMap
+	}()
+)
 
 // Humanize returns the feature name in a human-readable format.
 func (n FeatureName) Humanize() string {
@@ -132,6 +154,7 @@ func (n FeatureName) AlwaysEnable() bool {
 		FeatureHighAvailability:           true,
 		FeatureCustomRoles:                true,
 		FeatureMultipleOrganizations:      true,
+		FeatureWorkspacePrebuilds:         true,
 	}[n]
 }
 
@@ -144,6 +167,22 @@ func (n FeatureName) Enterprise() bool {
 	default:
 		return true
 	}
+}
+
+// UsesLimit returns true if the feature uses a limit, and therefore should not
+// be included in any feature sets (as they are not boolean features).
+func (n FeatureName) UsesLimit() bool {
+	return map[FeatureName]bool{
+		FeatureUserLimit:         true,
+		FeatureManagedAgentLimit: true,
+	}[n]
+}
+
+// UsesUsagePeriod returns true if the feature uses period-based usage limits.
+func (n FeatureName) UsesUsagePeriod() bool {
+	return map[FeatureName]bool{
+		FeatureManagedAgentLimit: true,
+	}[n]
 }
 
 // FeatureSet represents a grouping of features. Rather than manually
@@ -170,13 +209,17 @@ func (set FeatureSet) Features() []FeatureName {
 		copy(enterpriseFeatures, FeatureNames)
 		// Remove the selection
 		enterpriseFeatures = slices.DeleteFunc(enterpriseFeatures, func(f FeatureName) bool {
-			return !f.Enterprise()
+			return !f.Enterprise() || f.UsesLimit()
 		})
 
 		return enterpriseFeatures
 	case FeatureSetPremium:
 		premiumFeatures := make([]FeatureName, len(FeatureNames))
 		copy(premiumFeatures, FeatureNames)
+		// Remove the selection
+		premiumFeatures = slices.DeleteFunc(premiumFeatures, func(f FeatureName) bool {
+			return f.UsesLimit()
+		})
 		// FeatureSetPremium is just all features.
 		return premiumFeatures
 	}
@@ -189,6 +232,29 @@ type Feature struct {
 	Enabled     bool        `json:"enabled"`
 	Limit       *int64      `json:"limit,omitempty"`
 	Actual      *int64      `json:"actual,omitempty"`
+
+	// Below is only for features that use usage periods.
+
+	// SoftLimit is the soft limit of the feature, and is only used for showing
+	// included limits in the dashboard. No license validation or warnings are
+	// generated from this value.
+	SoftLimit *int64 `json:"soft_limit,omitempty"`
+	// UsagePeriod denotes that the usage is a counter that accumulates over
+	// this period (and most likely resets with the issuance of the next
+	// license).
+	//
+	// These dates are determined from the license that this entitlement comes
+	// from, see enterprise/coderd/license/license.go.
+	//
+	// Only certain features set these fields:
+	// - FeatureManagedAgentLimit
+	UsagePeriod *UsagePeriod `json:"usage_period,omitempty"`
+}
+
+type UsagePeriod struct {
+	IssuedAt time.Time `json:"issued_at" format:"date-time"`
+	Start    time.Time `json:"start" format:"date-time"`
+	End      time.Time `json:"end" format:"date-time"`
 }
 
 // Compare compares two features and returns an integer representing
@@ -197,13 +263,30 @@ type Feature struct {
 // than the second feature. It is assumed the features are for the same FeatureName.
 //
 // A feature is considered greater than another feature if:
-// 1. Graceful & capable > Entitled & not capable
-// 2. The entitlement is greater
-// 3. The limit is greater
-// 4. Enabled is greater than disabled
-// 5. The actual is greater
+// 1. The usage period has a greater issued at date (note: only certain features use usage periods)
+// 2. The usage period has a greater end date (note: only certain features use usage periods)
+// 3. Graceful & capable > Entitled & not capable (only if both have "Actual" values)
+// 4. The entitlement is greater
+// 5. The limit is greater
+// 6. Enabled is greater than disabled
+// 7. The actual is greater
 func (f Feature) Compare(b Feature) int {
-	if !f.Capable() || !b.Capable() {
+	// For features with usage period constraints only, check the issued at and
+	// end dates.
+	bothHaveUsagePeriod := f.UsagePeriod != nil && b.UsagePeriod != nil
+	if bothHaveUsagePeriod {
+		issuedAtCmp := f.UsagePeriod.IssuedAt.Compare(b.UsagePeriod.IssuedAt)
+		if issuedAtCmp != 0 {
+			return issuedAtCmp
+		}
+		endCmp := f.UsagePeriod.End.Compare(b.UsagePeriod.End)
+		if endCmp != 0 {
+			return endCmp
+		}
+	}
+
+	// Only perform capability comparisons if both features have actual values.
+	if f.Actual != nil && b.Actual != nil && (!f.Capable() || !b.Capable()) {
 		// If either is incapable, then it is possible a grace period
 		// feature can be "greater" than an entitled.
 		// If either is "NotEntitled" then we can defer to a strict entitlement
@@ -218,7 +301,9 @@ func (f Feature) Compare(b Feature) int {
 		}
 	}
 
-	// Strict entitlement check. Higher is better
+	// Strict entitlement check. Higher is better. We don't apply this check for
+	// usage period features as we always want the issued at date to be the main
+	// decision maker.
 	entitlementDifference := f.Entitlement.Weight() - b.Entitlement.Weight()
 	if entitlementDifference != 0 {
 		return entitlementDifference
@@ -288,6 +373,13 @@ type Entitlements struct {
 // the set of features granted by the entitlements. If it does not, it will
 // be ignored and the existing feature with the same name will remain.
 //
+// Features that abide by usage period constraints should have the following
+// fields set or they will be ignored. Other features will have these fields
+// cleared.
+// - UsagePeriodIssuedAt
+// - UsagePeriodStart
+// - UsagePeriodEnd
+//
 // All features should be added as atomic items, and not merged in any way.
 // Merging entitlements could lead to unexpected behavior, like a larger user
 // limit in grace period merging with a smaller one in an "entitled" state. This
@@ -297,6 +389,16 @@ func (e *Entitlements) AddFeature(name FeatureName, add Feature) {
 	if !ok {
 		e.Features[name] = add
 		return
+	}
+
+	// If we're trying to add a feature that uses a usage period and it's not
+	// set, then we should not add it.
+	if name.UsesUsagePeriod() {
+		if add.UsagePeriod == nil || add.UsagePeriod.IssuedAt.IsZero() || add.UsagePeriod.Start.IsZero() || add.UsagePeriod.End.IsZero() {
+			return
+		}
+	} else {
+		add.UsagePeriod = nil
 	}
 
 	// Compare the features, keep the one that is "better"
@@ -342,14 +444,13 @@ type DeploymentValues struct {
 	// HTTPAddress is a string because it may be set to zero to disable.
 	HTTPAddress                     serpent.String                       `json:"http_address,omitempty" typescript:",notnull"`
 	AutobuildPollInterval           serpent.Duration                     `json:"autobuild_poll_interval,omitempty"`
-	JobHangDetectorInterval         serpent.Duration                     `json:"job_hang_detector_interval,omitempty"`
+	JobReaperDetectorInterval       serpent.Duration                     `json:"job_hang_detector_interval,omitempty"`
 	DERP                            DERP                                 `json:"derp,omitempty" typescript:",notnull"`
 	Prometheus                      PrometheusConfig                     `json:"prometheus,omitempty" typescript:",notnull"`
 	Pprof                           PprofConfig                          `json:"pprof,omitempty" typescript:",notnull"`
 	ProxyTrustedHeaders             serpent.StringArray                  `json:"proxy_trusted_headers,omitempty" typescript:",notnull"`
 	ProxyTrustedOrigins             serpent.StringArray                  `json:"proxy_trusted_origins,omitempty" typescript:",notnull"`
 	CacheDir                        serpent.String                       `json:"cache_directory,omitempty" typescript:",notnull"`
-	InMemoryDatabase                serpent.Bool                         `json:"in_memory_database,omitempty" typescript:",notnull"`
 	EphemeralDeployment             serpent.Bool                         `json:"ephemeral_deployment,omitempty" typescript:",notnull"`
 	PostgresURL                     serpent.String                       `json:"pg_connection_url,omitempty" typescript:",notnull"`
 	PostgresAuth                    string                               `json:"pg_auth,omitempty" typescript:",notnull"`
@@ -358,7 +459,7 @@ type DeploymentValues struct {
 	Telemetry                       TelemetryConfig                      `json:"telemetry,omitempty" typescript:",notnull"`
 	TLS                             TLSConfig                            `json:"tls,omitempty" typescript:",notnull"`
 	Trace                           TraceConfig                          `json:"trace,omitempty" typescript:",notnull"`
-	SecureAuthCookie                serpent.Bool                         `json:"secure_auth_cookie,omitempty" typescript:",notnull"`
+	HTTPCookies                     HTTPCookieConfig                     `json:"http_cookies,omitempty" typescript:",notnull"`
 	StrictTransportSecurity         serpent.Int64                        `json:"strict_transport_security,omitempty" typescript:",notnull"`
 	StrictTransportSecurityOptions  serpent.StringArray                  `json:"strict_transport_security_options,omitempty" typescript:",notnull"`
 	SSHKeygenAlgorithm              serpent.String                       `json:"ssh_keygen_algorithm,omitempty" typescript:",notnull"`
@@ -393,11 +494,14 @@ type DeploymentValues struct {
 	TermsOfServiceURL               serpent.String                       `json:"terms_of_service_url,omitempty" typescript:",notnull"`
 	Notifications                   NotificationsConfig                  `json:"notifications,omitempty" typescript:",notnull"`
 	AdditionalCSPPolicy             serpent.StringArray                  `json:"additional_csp_policy,omitempty" typescript:",notnull"`
+	WorkspaceHostnameSuffix         serpent.String                       `json:"workspace_hostname_suffix,omitempty" typescript:",notnull"`
+	Prebuilds                       PrebuildsConfig                      `json:"workspace_prebuilds,omitempty" typescript:",notnull"`
+	HideAITasks                     serpent.Bool                         `json:"hide_ai_tasks,omitempty" typescript:",notnull"`
 
 	Config      serpent.YAMLConfigPath `json:"config,omitempty" typescript:",notnull"`
 	WriteConfig serpent.Bool           `json:"write_config,omitempty" typescript:",notnull"`
 
-	// DEPRECATED: Use HTTPAddress or TLS.Address instead.
+	// Deprecated: Use HTTPAddress or TLS.Address instead.
 	Address serpent.HostPort `json:"address,omitempty" typescript:",notnull"`
 }
 
@@ -462,6 +566,8 @@ type SessionLifetime struct {
 	DefaultTokenDuration serpent.Duration `json:"default_token_lifetime,omitempty" typescript:",notnull"`
 
 	MaximumTokenDuration serpent.Duration `json:"max_token_lifetime,omitempty" typescript:",notnull"`
+
+	MaximumAdminTokenDuration serpent.Duration `json:"max_admin_token_lifetime,omitempty" typescript:",notnull"`
 }
 
 type DERP struct {
@@ -585,6 +691,30 @@ type TraceConfig struct {
 	DataDog         serpent.Bool   `json:"data_dog" typescript:",notnull"`
 }
 
+type HTTPCookieConfig struct {
+	Secure   serpent.Bool `json:"secure_auth_cookie,omitempty" typescript:",notnull"`
+	SameSite string       `json:"same_site,omitempty" typescript:",notnull"`
+}
+
+func (cfg *HTTPCookieConfig) Apply(c *http.Cookie) *http.Cookie {
+	c.Secure = cfg.Secure.Value()
+	c.SameSite = cfg.HTTPSameSite()
+	return c
+}
+
+func (cfg HTTPCookieConfig) HTTPSameSite() http.SameSite {
+	switch strings.ToLower(cfg.SameSite) {
+	case "lax":
+		return http.SameSiteLaxMode
+	case "strict":
+		return http.SameSiteStrictMode
+	case "none":
+		return http.SameSiteNoneMode
+	default:
+		return http.SameSiteDefaultMode
+	}
+}
+
 type ExternalAuthConfig struct {
 	// Type is the type of external auth config.
 	Type         string `json:"type" yaml:"type"`
@@ -698,10 +828,17 @@ type NotificationsConfig struct {
 	SMTP NotificationsEmailConfig `json:"email" typescript:",notnull"`
 	// Webhook settings.
 	Webhook NotificationsWebhookConfig `json:"webhook" typescript:",notnull"`
+	// Inbox settings.
+	Inbox NotificationsInboxConfig `json:"inbox" typescript:",notnull"`
 }
 
+// Are either of the notification methods enabled?
 func (n *NotificationsConfig) Enabled() bool {
 	return n.SMTP.Smarthost != "" || n.Webhook.Endpoint != serpent.URL{}
+}
+
+type NotificationsInboxConfig struct {
+	Enabled serpent.Bool `json:"enabled" typescript:",notnull"`
 }
 
 type NotificationsEmailConfig struct {
@@ -757,6 +894,25 @@ func (c *NotificationsEmailTLSConfig) Empty() bool {
 type NotificationsWebhookConfig struct {
 	// The URL to which the payload will be sent with an HTTP POST request.
 	Endpoint serpent.URL `json:"endpoint" typescript:",notnull"`
+}
+
+type PrebuildsConfig struct {
+	// ReconciliationInterval defines how often the workspace prebuilds state should be reconciled.
+	ReconciliationInterval serpent.Duration `json:"reconciliation_interval" typescript:",notnull"`
+
+	// ReconciliationBackoffInterval specifies the amount of time to increase the backoff interval
+	// when errors occur during reconciliation.
+	ReconciliationBackoffInterval serpent.Duration `json:"reconciliation_backoff_interval" typescript:",notnull"`
+
+	// ReconciliationBackoffLookback determines the time window to look back when calculating
+	// the number of failed prebuilds, which influences the backoff strategy.
+	ReconciliationBackoffLookback serpent.Duration `json:"reconciliation_backoff_lookback" typescript:",notnull"`
+
+	// FailureHardLimit defines the maximum number of consecutive failed prebuild attempts allowed
+	// before a preset is considered to be in a hard limit state. When a preset hits this limit,
+	// no new prebuilds will be created until the limit is reset.
+	// FailureHardLimit is disabled when set to zero.
+	FailureHardLimit serpent.Int64 `json:"failure_hard_limit" typescript:"failure_hard_limit"`
 }
 
 const (
@@ -937,7 +1093,7 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 		deploymentGroupClient = serpent.Group{
 			Name: "Client",
 			Description: "These options change the behavior of how clients interact with the Coder. " +
-				"Clients include the coder cli, vs code extension, and the web UI.",
+				"Clients include the Coder CLI, Coder Desktop, IDE extensions, and the web UI.",
 			YAML: "client",
 		}
 		deploymentGroupConfig = serpent.Group{
@@ -988,6 +1144,16 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 			Name:   "Webhook",
 			Parent: &deploymentGroupNotifications,
 			YAML:   "webhook",
+		}
+		deploymentGroupPrebuilds = serpent.Group{
+			Name:        "Workspace Prebuilds",
+			YAML:        "workspace_prebuilds",
+			Description: "Configure how workspace prebuilds behave.",
+		}
+		deploymentGroupInbox = serpent.Group{
+			Name:   "Inbox",
+			Parent: &deploymentGroupNotifications,
+			YAML:   "inbox",
 		}
 	)
 
@@ -1227,13 +1393,13 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 			Annotations: serpent.Annotations{}.Mark(annotationFormatDuration, "true"),
 		},
 		{
-			Name:        "Job Hang Detector Interval",
-			Description: "Interval to poll for hung jobs and automatically terminate them.",
+			Name:        "Job Reaper Detect Interval",
+			Description: "Interval to poll for hung and pending jobs and automatically terminate them.",
 			Flag:        "job-hang-detector-interval",
 			Env:         "CODER_JOB_HANG_DETECTOR_INTERVAL",
 			Hidden:      true,
 			Default:     time.Minute.String(),
-			Value:       &c.JobHangDetectorInterval,
+			Value:       &c.JobReaperDetectorInterval,
 			YAML:        "jobHangDetectorInterval",
 			Annotations: serpent.Annotations{}.Mark(annotationFormatDuration, "true"),
 		},
@@ -2275,6 +2441,17 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 			Annotations: serpent.Annotations{}.Mark(annotationFormatDuration, "true"),
 		},
 		{
+			Name:        "Maximum Admin Token Lifetime",
+			Description: "The maximum lifetime duration administrators can specify when creating an API token.",
+			Flag:        "max-admin-token-lifetime",
+			Env:         "CODER_MAX_ADMIN_TOKEN_LIFETIME",
+			Default:     (7 * 24 * time.Hour).String(),
+			Value:       &c.Sessions.MaximumAdminTokenDuration,
+			Group:       &deploymentGroupNetworkingHTTP,
+			YAML:        "maxAdminTokenLifetime",
+			Annotations: serpent.Annotations{}.Mark(annotationFormatDuration, "true"),
+		},
+		{
 			Name:        "Default Token Lifetime",
 			Description: "The default lifetime duration for API tokens. This value is used when creating a token without specifying a duration, such as when authenticating the CLI or an IDE plugin.",
 			Flag:        "default-token-lifetime",
@@ -2324,15 +2501,6 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 			YAML:    "cacheDir",
 		},
 		{
-			Name:        "In Memory Database",
-			Description: "Controls whether data will be stored in an in-memory database.",
-			Flag:        "in-memory",
-			Env:         "CODER_IN_MEMORY",
-			Hidden:      true,
-			Value:       &c.InMemoryDatabase,
-			YAML:        "inMemoryDatabase",
-		},
-		{
 			Name:        "Ephemeral Deployment",
 			Description: "Controls whether Coder data, including built-in Postgres, will be stored in a temporary directory and deleted when the server is stopped.",
 			Flag:        "ephemeral",
@@ -2363,9 +2531,21 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 			Description: "Controls if the 'Secure' property is set on browser session cookies.",
 			Flag:        "secure-auth-cookie",
 			Env:         "CODER_SECURE_AUTH_COOKIE",
-			Value:       &c.SecureAuthCookie,
+			Value:       &c.HTTPCookies.Secure,
 			Group:       &deploymentGroupNetworking,
 			YAML:        "secureAuthCookie",
+			Annotations: serpent.Annotations{}.Mark(annotationExternalProxies, "true"),
+		},
+		{
+			Name:        "SameSite Auth Cookie",
+			Description: "Controls the 'SameSite' property is set on browser session cookies.",
+			Flag:        "samesite-auth-cookie",
+			Env:         "CODER_SAMESITE_AUTH_COOKIE",
+			// Do not allow "strict" same-site cookies. That would potentially break workspace apps.
+			Value:       serpent.EnumOf(&c.HTTPCookies.SameSite, "lax", "none"),
+			Default:     "lax",
+			Group:       &deploymentGroupNetworking,
+			YAML:        "sameSiteAuthCookie",
 			Annotations: serpent.Annotations{}.Mark(annotationExternalProxies, "true"),
 		},
 		{
@@ -2536,6 +2716,17 @@ func (c *DeploymentValues) Options() serpent.OptionSet {
 			Value:       &c.SSHConfig.DeploymentName,
 			Hidden:      false,
 			Default:     "coder.",
+		},
+		{
+			Name:        "Workspace Hostname Suffix",
+			Description: "Workspace hostnames use this suffix in SSH config and Coder Connect on Coder Desktop. By default it is coder, resulting in names like myworkspace.coder.",
+			Flag:        "workspace-hostname-suffix",
+			Env:         "CODER_WORKSPACE_HOSTNAME_SUFFIX",
+			YAML:        "workspaceHostnameSuffix",
+			Group:       &deploymentGroupClient,
+			Value:       &c.WorkspaceHostnameSuffix,
+			Hidden:      false,
+			Default:     "coder",
 		},
 		{
 			Name: "SSH Config Options",
@@ -2857,6 +3048,16 @@ Write out the current server config as YAML to stdout.`,
 			YAML:        "endpoint",
 		},
 		{
+			Name:        "Notifications: Inbox: Enabled",
+			Description: "Enable Coder Inbox.",
+			Flag:        "notifications-inbox-enabled",
+			Env:         "CODER_NOTIFICATIONS_INBOX_ENABLED",
+			Value:       &c.Notifications.Inbox.Enabled,
+			Default:     "true",
+			Group:       &deploymentGroupInbox,
+			YAML:        "enabled",
+		},
+		{
 			Name:        "Notifications: Max Send Attempts",
 			Description: "The upper limit of attempts to send a notification.",
 			Flag:        "notifications-max-send-attempts",
@@ -2945,6 +3146,64 @@ Write out the current server config as YAML to stdout.`,
 			YAML:        "fetchInterval",
 			Annotations: serpent.Annotations{}.Mark(annotationFormatDuration, "true"),
 			Hidden:      true, // Hidden because most operators should not need to modify this.
+		},
+
+		// Workspace Prebuilds Options
+		{
+			Name:        "Reconciliation Interval",
+			Description: "How often to reconcile workspace prebuilds state.",
+			Flag:        "workspace-prebuilds-reconciliation-interval",
+			Env:         "CODER_WORKSPACE_PREBUILDS_RECONCILIATION_INTERVAL",
+			Value:       &c.Prebuilds.ReconciliationInterval,
+			Default:     time.Minute.String(),
+			Group:       &deploymentGroupPrebuilds,
+			YAML:        "reconciliation_interval",
+			Annotations: serpent.Annotations{}.Mark(annotationFormatDuration, "true"),
+		},
+		{
+			Name:        "Reconciliation Backoff Interval",
+			Description: "Interval to increase reconciliation backoff by when prebuilds fail, after which a retry attempt is made.",
+			Flag:        "workspace-prebuilds-reconciliation-backoff-interval",
+			Env:         "CODER_WORKSPACE_PREBUILDS_RECONCILIATION_BACKOFF_INTERVAL",
+			Value:       &c.Prebuilds.ReconciliationBackoffInterval,
+			Default:     time.Minute.String(),
+			Group:       &deploymentGroupPrebuilds,
+			YAML:        "reconciliation_backoff_interval",
+			Annotations: serpent.Annotations{}.Mark(annotationFormatDuration, "true"),
+			Hidden:      true,
+		},
+		{
+			Name:        "Reconciliation Backoff Lookback Period",
+			Description: "Interval to look back to determine number of failed prebuilds, which influences backoff.",
+			Flag:        "workspace-prebuilds-reconciliation-backoff-lookback-period",
+			Env:         "CODER_WORKSPACE_PREBUILDS_RECONCILIATION_BACKOFF_LOOKBACK_PERIOD",
+			Value:       &c.Prebuilds.ReconciliationBackoffLookback,
+			Default:     (time.Hour).String(), // TODO: use https://pkg.go.dev/github.com/jackc/pgtype@v1.12.0#Interval
+			Group:       &deploymentGroupPrebuilds,
+			YAML:        "reconciliation_backoff_lookback_period",
+			Annotations: serpent.Annotations{}.Mark(annotationFormatDuration, "true"),
+			Hidden:      true,
+		},
+		{
+			Name:        "Failure Hard Limit",
+			Description: "Maximum number of consecutive failed prebuilds before a preset hits the hard limit; disabled when set to zero.",
+			Flag:        "workspace-prebuilds-failure-hard-limit",
+			Env:         "CODER_WORKSPACE_PREBUILDS_FAILURE_HARD_LIMIT",
+			Value:       &c.Prebuilds.FailureHardLimit,
+			Default:     "3",
+			Group:       &deploymentGroupPrebuilds,
+			YAML:        "failure_hard_limit",
+			Hidden:      true,
+		},
+		{
+			Name:        "Hide AI Tasks",
+			Description: "Hide AI tasks from the dashboard.",
+			Flag:        "hide-ai-tasks",
+			Env:         "CODER_HIDE_AI_TASKS",
+			Default:     "false",
+			Value:       &c.HideAITasks,
+			Group:       &deploymentGroupClient,
+			YAML:        "hideAITasks",
 		},
 	}
 
@@ -3125,6 +3384,9 @@ type BuildInfoResponse struct {
 
 	// DeploymentID is the unique identifier for this deployment.
 	DeploymentID string `json:"deployment_id"`
+
+	// WebPushPublicKey is the public key for push notifications via Web Push.
+	WebPushPublicKey string `json:"webpush_public_key,omitempty"`
 }
 
 type WorkspaceProxyBuildInfo struct {
@@ -3167,28 +3429,64 @@ const (
 	ExperimentAutoFillParameters Experiment = "auto-fill-parameters" // This should not be taken out of experiments until we have redesigned the feature.
 	ExperimentNotifications      Experiment = "notifications"        // Sends notifications via SMTP and webhooks following certain events.
 	ExperimentWorkspaceUsage     Experiment = "workspace-usage"      // Enables the new workspace usage tracking.
+	ExperimentWebPush            Experiment = "web-push"             // Enables web push notifications through the browser.
+	ExperimentOAuth2             Experiment = "oauth2"               // Enables OAuth2 provider functionality.
+	ExperimentMCPServerHTTP      Experiment = "mcp-server-http"      // Enables the MCP HTTP server functionality.
 )
 
-// ExperimentsAll should include all experiments that are safe for
+func (e Experiment) DisplayName() string {
+	switch e {
+	case ExperimentExample:
+		return "Example Experiment"
+	case ExperimentAutoFillParameters:
+		return "Auto-fill Template Parameters"
+	case ExperimentNotifications:
+		return "SMTP and Webhook Notifications"
+	case ExperimentWorkspaceUsage:
+		return "Workspace Usage Tracking"
+	case ExperimentWebPush:
+		return "Browser Push Notifications"
+	case ExperimentOAuth2:
+		return "OAuth2 Provider Functionality"
+	case ExperimentMCPServerHTTP:
+		return "MCP HTTP Server Functionality"
+	default:
+		// Split on hyphen and convert to title case
+		// e.g. "web-push" -> "Web Push", "mcp-server-http" -> "Mcp Server Http"
+		caser := cases.Title(language.English)
+		return caser.String(strings.ReplaceAll(string(e), "-", " "))
+	}
+}
+
+// ExperimentsKnown should include all experiments defined above.
+var ExperimentsKnown = Experiments{
+	ExperimentExample,
+	ExperimentAutoFillParameters,
+	ExperimentNotifications,
+	ExperimentWorkspaceUsage,
+	ExperimentWebPush,
+	ExperimentOAuth2,
+	ExperimentMCPServerHTTP,
+}
+
+// ExperimentsSafe should include all experiments that are safe for
 // users to opt-in to via --experimental='*'.
 // Experiments that are not ready for consumption by all users should
 // not be included here and will be essentially hidden.
-var ExperimentsAll = Experiments{}
+var ExperimentsSafe = Experiments{}
 
 // Experiments is a list of experiments.
 // Multiple experiments may be enabled at the same time.
 // Experiments are not safe for production use, and are not guaranteed to
 // be backwards compatible. They may be removed or renamed at any time.
+// The below typescript-ignore annotation allows our typescript generator
+// to generate an enum list, which is used in the frontend.
+// @typescript-ignore Experiments
 type Experiments []Experiment
 
-// Returns a list of experiments that are enabled for the deployment.
+// Enabled returns a list of experiments that are enabled for the deployment.
 func (e Experiments) Enabled(ex Experiment) bool {
-	for _, v := range e {
-		if v == ex {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(e, ex)
 }
 
 func (c *Client) Experiments(ctx context.Context) (Experiments, error) {
@@ -3353,7 +3651,12 @@ type DeploymentStats struct {
 }
 
 type SSHConfigResponse struct {
-	HostnamePrefix   string            `json:"hostname_prefix"`
+	// HostnamePrefix is the prefix we append to workspace names for SSH hostnames.
+	// Deprecated: use HostnameSuffix instead.
+	HostnamePrefix string `json:"hostname_prefix"`
+
+	// HostnameSuffix is the suffix to append to workspace names for SSH hostnames.
+	HostnameSuffix   string            `json:"hostname_suffix"`
 	SSHConfigOptions map[string]string `json:"ssh_config_options"`
 }
 

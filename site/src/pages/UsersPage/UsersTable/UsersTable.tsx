@@ -12,7 +12,7 @@ import type { FC } from "react";
 import { TableColumnHelpTooltip } from "../../OrganizationSettingsPage/UserTable/TableColumnHelpTooltip";
 import { UsersTableBody } from "./UsersTableBody";
 
-export const Language = {
+const Language = {
 	usernameLabel: "User",
 	rolesLabel: "Roles",
 	groupsLabel: "Groups",
@@ -21,7 +21,7 @@ export const Language = {
 	loginTypeLabel: "Login Type",
 } as const;
 
-export interface UsersTableProps {
+interface UsersTableProps {
 	users: readonly TypesGen.User[] | undefined;
 	roles: TypesGen.AssignableRoles[] | undefined;
 	groupsByUserId: GroupsByUserId | undefined;

@@ -10,12 +10,30 @@ import {
 } from "./constants";
 
 export const wsEndpoint = process.env.CODER_E2E_WS_ENDPOINT;
+export const retries = (() => {
+	if (process.env.CODER_E2E_TEST_RETRIES === undefined) {
+		return undefined;
+	}
+	const count = Number.parseInt(process.env.CODER_E2E_TEST_RETRIES, 10);
+	if (Number.isNaN(count)) {
+		throw new Error(
+			`CODER_E2E_TEST_RETRIES is not a number: ${process.env.CODER_E2E_TEST_RETRIES}`,
+		);
+	}
+	if (count < 0) {
+		throw new Error(
+			`CODER_E2E_TEST_RETRIES is less than 0: ${process.env.CODER_E2E_TEST_RETRIES}`,
+		);
+	}
+	return count;
+})();
 
 const localURL = (port: number, path: string): string => {
 	return `http://localhost:${port}${path}`;
 };
 
 export default defineConfig({
+	retries,
 	globalSetup: require.resolve("./setup/preflight"),
 	projects: [
 		{
@@ -54,7 +72,7 @@ export default defineConfig({
 			"--global-config $(mktemp -d -t e2e-XXXXXXXXXX)",
 			`--access-url=http://localhost:${coderPort}`,
 			`--http-address=0.0.0.0:${coderPort}`,
-			"--in-memory",
+			"--ephemeral",
 			"--telemetry=false",
 			"--dangerous-disable-rate-limits",
 			"--provisioner-daemons 10",

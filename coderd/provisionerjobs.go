@@ -20,6 +20,7 @@ import (
 	"github.com/coder/coder/v2/coderd/database/pubsub"
 	"github.com/coder/coder/v2/coderd/httpapi"
 	"github.com/coder/coder/v2/coderd/httpmw"
+	"github.com/coder/coder/v2/coderd/httpmw/loggermw"
 	"github.com/coder/coder/v2/coderd/rbac"
 	"github.com/coder/coder/v2/coderd/rbac/policy"
 	"github.com/coder/coder/v2/coderd/util/slice"
@@ -362,6 +363,7 @@ func convertProvisionerJob(pj database.GetProvisionerJobsByIDsWithQueuePositionR
 		Tags:           provisionerJob.Tags,
 		QueuePosition:  int(pj.QueuePosition),
 		QueueSize:      int(pj.QueueSize),
+		LogsOverflowed: provisionerJob.LogsOverflowed,
 	}
 	// Applying values optional to the struct.
 	if provisionerJob.StartedAt.Valid {
@@ -394,6 +396,7 @@ func convertProvisionerJobWithQueuePosition(pj database.GetProvisionerJobsByOrga
 		QueuePosition:  pj.QueuePosition,
 		QueueSize:      pj.QueueSize,
 	})
+	job.WorkerName = pj.WorkerName
 	job.AvailableWorkers = pj.AvailableWorkers
 	job.Metadata = codersdk.ProvisionerJobMetadata{
 		TemplateVersionName: pj.TemplateVersionName,
@@ -552,6 +555,11 @@ func (f *logFollower) follow() {
 			}
 		}
 		return
+	}
+
+	// Log the request immediately instead of after it completes.
+	if rl := loggermw.RequestLoggerFromContext(f.ctx); rl != nil {
+		rl.WriteLog(f.ctx, http.StatusAccepted)
 	}
 
 	// no need to wait if the job is done

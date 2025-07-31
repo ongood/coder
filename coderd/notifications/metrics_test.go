@@ -169,7 +169,7 @@ func TestMetrics(t *testing.T) {
 			// See TestPendingUpdatesMetric for a more precise test.
 			return true
 		},
-		"coderd_notifications_synced_updates_total": func(metric *dto.Metric, series string) bool {
+		"coderd_notifications_synced_updates_total": func(metric *dto.Metric, _ string) bool {
 			if debug {
 				t.Logf("coderd_notifications_synced_updates_total = %v: %v", maxAttempts+1, metric.Counter.GetValue())
 			}
@@ -276,8 +276,8 @@ func TestPendingUpdatesMetric(t *testing.T) {
 	require.NoError(t, err)
 
 	mgr.Run(ctx)
-	trap.MustWait(ctx).Release() // ensures ticker has been set
-	fetchTrap.MustWait(ctx).Release()
+	trap.MustWait(ctx).MustRelease(ctx) // ensures ticker has been set
+	fetchTrap.MustWait(ctx).MustRelease(ctx)
 
 	// Advance to the first fetch
 	mClock.Advance(cfg.FetchInterval.Value()).MustWait(ctx)
@@ -300,9 +300,9 @@ func TestPendingUpdatesMetric(t *testing.T) {
 	mClock.Advance(cfg.StoreSyncInterval.Value() - cfg.FetchInterval.Value()).MustWait(ctx)
 
 	// Wait until we intercept the calls to sync the pending updates to the store.
-	success := testutil.RequireRecvCtx(testutil.Context(t, testutil.WaitShort), t, interceptor.updateSuccess)
+	success := testutil.TryReceive(testutil.Context(t, testutil.WaitShort), t, interceptor.updateSuccess)
 	require.EqualValues(t, 2, success)
-	failure := testutil.RequireRecvCtx(testutil.Context(t, testutil.WaitShort), t, interceptor.updateFailure)
+	failure := testutil.TryReceive(testutil.Context(t, testutil.WaitShort), t, interceptor.updateFailure)
 	require.EqualValues(t, 2, failure)
 
 	// Validate that the store synced the expected number of updates.

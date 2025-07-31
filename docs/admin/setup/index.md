@@ -60,6 +60,8 @@ If you are providing TLS certificates directly to the Coder server, either
    options (these both take a comma separated list of files; list certificates
    and their respective keys in the same order).
 
+After you enable the wildcard access URL, you should [disable path-based apps](../../tutorials/best-practices/security-best-practices.md#disable-path-based-apps) for security.
+
 ## TLS & Reverse Proxy
 
 The Coder server can directly use TLS certificates with `CODER_TLS_ENABLE` and
@@ -140,7 +142,7 @@ To configure Coder behind a corporate proxy, set the environment variables
 `HTTP_PROXY` and `HTTPS_PROXY`. Be sure to restart the server. Lowercase values
 (e.g. `http_proxy`) are also respected in this case.
 
-## External Authentication
+## Continue your setup with external authentication
 
 Coder supports external authentication via OAuth2.0. This allows enabling
 integrations with Git providers, such as GitHub, GitLab, and Bitbucket.
@@ -148,10 +150,10 @@ integrations with Git providers, such as GitHub, GitLab, and Bitbucket.
 External authentication can also be used to integrate with external services
 like JFrog Artifactory and others.
 
-Please refer to the [external authentication](../external-auth.md) section for
+Please refer to the [external authentication](../external-auth/index.md) section for
 more information.
 
 ## Up Next
 
 - [Setup and manage templates](../templates/index.md)
-- [Setup external provisioners](../provisioners.md)
+- [Setup external provisioners](../provisioners/index.md)

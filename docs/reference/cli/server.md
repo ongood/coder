@@ -910,6 +910,17 @@ Periodically check for new releases of Coder and inform the owner. The check is 
 
 The maximum lifetime duration users can specify when creating an API token.
 
+### --max-admin-token-lifetime
+
+|             |                                                    |
+|-------------|----------------------------------------------------|
+| Type        | <code>duration</code>                              |
+| Environment | <code>$CODER_MAX_ADMIN_TOKEN_LIFETIME</code>       |
+| YAML        | <code>networking.http.maxAdminTokenLifetime</code> |
+| Default     | <code>168h0m0s</code>                              |
+
+The maximum lifetime duration administrators can specify when creating an API token.
+
 ### --default-token-lifetime
 
 |             |                                            |
@@ -991,6 +1002,17 @@ Type of auth to use when connecting to postgres. For AWS RDS, using IAM authenti
 | YAML        | <code>networking.secureAuthCookie</code> |
 
 Controls if the 'Secure' property is set on browser session cookies.
+
+### --samesite-auth-cookie
+
+|             |                                            |
+|-------------|--------------------------------------------|
+| Type        | <code>lax\|none</code>                     |
+| Environment | <code>$CODER_SAMESITE_AUTH_COOKIE</code>   |
+| YAML        | <code>networking.sameSiteAuthCookie</code> |
+| Default     | <code>lax</code>                           |
+
+Controls the 'SameSite' property is set on browser session cookies.
 
 ### --terms-of-service-url
 
@@ -1132,6 +1154,17 @@ Specify a YAML file to load configuration from.
 | Default     | <code>coder.</code>                     |
 
 The SSH deployment prefix is used in the Host of the ssh config.
+
+### --workspace-hostname-suffix
+
+|             |                                               |
+|-------------|-----------------------------------------------|
+| Type        | <code>string</code>                           |
+| Environment | <code>$CODER_WORKSPACE_HOSTNAME_SUFFIX</code> |
+| YAML        | <code>client.workspaceHostnameSuffix</code>   |
+| Default     | <code>coder</code>                            |
+
+Workspace hostnames use this suffix in SSH config and Coder Connect on Coder Desktop. By default it is coder, resulting in names like myworkspace.coder.
 
 ### --ssh-config-options
 
@@ -1560,6 +1593,17 @@ Certificate key file to use.
 
 The endpoint to which to send webhooks.
 
+### --notifications-inbox-enabled
+
+|             |                                                 |
+|-------------|-------------------------------------------------|
+| Type        | <code>bool</code>                               |
+| Environment | <code>$CODER_NOTIFICATIONS_INBOX_ENABLED</code> |
+| YAML        | <code>notifications.inbox.enabled</code>        |
+| Default     | <code>true</code>                               |
+
+Enable Coder Inbox.
+
 ### --notifications-max-send-attempts
 
 |             |                                                     |
@@ -1570,3 +1614,25 @@ The endpoint to which to send webhooks.
 | Default     | <code>5</code>                                      |
 
 The upper limit of attempts to send a notification.
+
+### --workspace-prebuilds-reconciliation-interval
+
+|             |                                                                 |
+|-------------|-----------------------------------------------------------------|
+| Type        | <code>duration</code>                                           |
+| Environment | <code>$CODER_WORKSPACE_PREBUILDS_RECONCILIATION_INTERVAL</code> |
+| YAML        | <code>workspace_prebuilds.reconciliation_interval</code>        |
+| Default     | <code>1m0s</code>                                               |
+
+How often to reconcile workspace prebuilds state.
+
+### --hide-ai-tasks
+
+|             |                                   |
+|-------------|-----------------------------------|
+| Type        | <code>bool</code>                 |
+| Environment | <code>$CODER_HIDE_AI_TASKS</code> |
+| YAML        | <code>client.hideAITasks</code>   |
+| Default     | <code>false</code>                |
+
+Hide AI tasks from the dashboard.

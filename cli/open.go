@@ -2,13 +2,18 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"path"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/skratchdot/open-golang/open"
 	"golang.org/x/xerrors"
 
@@ -26,6 +31,7 @@ func (r *RootCmd) open() *serpent.Command {
 		},
 		Children: []*serpent.Command{
 			r.openVSCode(),
+			r.openApp(),
 		},
 	}
 	return cmd
@@ -66,13 +72,77 @@ func (r *RootCmd) openVSCode() *serpent.Command {
 			// need to wait for the agent to start.
 			workspaceQuery := inv.Args[0]
 			autostart := true
-			workspace, workspaceAgent, err := getWorkspaceAndAgent(ctx, inv, client, autostart, workspaceQuery)
+			workspace, workspaceAgent, otherWorkspaceAgents, err := getWorkspaceAndAgent(ctx, inv, client, autostart, workspaceQuery)
 			if err != nil {
 				return xerrors.Errorf("get workspace and agent: %w", err)
 			}
 
 			workspaceName := workspace.Name + "." + workspaceAgent.Name
 			insideThisWorkspace := insideAWorkspace && inWorkspaceName == workspaceName
+
+			// To properly work with devcontainers, VS Code has to connect to
+			// parent workspace agent. It will then proceed to enter the
+			// container given the correct parameters. There is inherently no
+			// dependency on the devcontainer agent in this scenario, but
+			// relying on it simplifies the logic and ensures the devcontainer
+			// is ready. To eliminate the dependency we would need to know that
+			// a sub-agent that hasn't been created yet may be a devcontainer,
+			// and thus will be created at a later time as well as expose the
+			// container folder on the API response.
+			var parentWorkspaceAgent codersdk.WorkspaceAgent
+			var devcontainer codersdk.WorkspaceAgentDevcontainer
+			if workspaceAgent.ParentID.Valid {
+				// This is likely a devcontainer agent, so we need to find the
+				// parent workspace agent as well as the devcontainer.
+				for _, otherAgent := range otherWorkspaceAgents {
+					if otherAgent.ID == workspaceAgent.ParentID.UUID {
+						parentWorkspaceAgent = otherAgent
+						break
+					}
+				}
+				if parentWorkspaceAgent.ID == uuid.Nil {
+					return xerrors.Errorf("parent workspace agent %s not found", workspaceAgent.ParentID.UUID)
+				}
+
+				printedWaiting := false
+				for {
+					resp, err := client.WorkspaceAgentListContainers(ctx, parentWorkspaceAgent.ID, nil)
+					if err != nil {
+						return xerrors.Errorf("list parent workspace agent containers: %w", err)
+					}
+
+					for _, dc := range resp.Devcontainers {
+						if dc.Agent.ID == workspaceAgent.ID {
+							devcontainer = dc
+							break
+						}
+					}
+					if devcontainer.ID == uuid.Nil {
+						cliui.Warnf(inv.Stderr, "Devcontainer %q not found, opening as a regular workspace...", workspaceAgent.Name)
+						parentWorkspaceAgent = codersdk.WorkspaceAgent{} // Reset to empty, so we don't use it later.
+						break
+					}
+
+					// Precondition, the devcontainer must be running to enter
+					// it. Once running, devcontainer.Container will be set.
+					if devcontainer.Status == codersdk.WorkspaceAgentDevcontainerStatusRunning {
+						break
+					}
+					if devcontainer.Status != codersdk.WorkspaceAgentDevcontainerStatusStarting {
+						return xerrors.Errorf("devcontainer %q is in unexpected status %q, expected %q or %q",
+							devcontainer.Name, devcontainer.Status,
+							codersdk.WorkspaceAgentDevcontainerStatusRunning,
+							codersdk.WorkspaceAgentDevcontainerStatusStarting,
+						)
+					}
+
+					if !printedWaiting {
+						_, _ = fmt.Fprintf(inv.Stderr, "Waiting for devcontainer %q status to change from %q to %q...\n", devcontainer.Name, devcontainer.Status, codersdk.WorkspaceAgentDevcontainerStatusRunning)
+						printedWaiting = true
+					}
+					time.Sleep(5 * time.Second) // Wait a bit before retrying.
+				}
+			}
 
 			if !insideThisWorkspace {
 				// Wait for the agent to connect, we don't care about readiness
@@ -85,7 +155,7 @@ func (r *RootCmd) openVSCode() *serpent.Command {
 				})
 				if err != nil {
 					if xerrors.Is(err, context.Canceled) {
-						return cliui.Canceled
+						return cliui.ErrCanceled
 					}
 					return xerrors.Errorf("agent: %w", err)
 				}
@@ -94,8 +164,11 @@ func (r *RootCmd) openVSCode() *serpent.Command {
 				// the created state, so we need to wait for that to happen.
 				// However, if no directory is set, the expanded directory will
 				// not be set either.
+				//
+				// Note that this is irrelevant for devcontainer sub agents, as
+				// they always have a directory set.
 				if workspaceAgent.Directory != "" {
-					workspace, workspaceAgent, err = waitForAgentCond(ctx, client, workspace, workspaceAgent, func(a codersdk.WorkspaceAgent) bool {
+					workspace, workspaceAgent, err = waitForAgentCond(ctx, client, workspace, workspaceAgent, func(_ codersdk.WorkspaceAgent) bool {
 						return workspaceAgent.LifecycleState != codersdk.WorkspaceAgentLifecycleCreated
 					})
 					if err != nil {
@@ -108,27 +181,13 @@ func (r *RootCmd) openVSCode() *serpent.Command {
 			if len(inv.Args) > 1 {
 				directory = inv.Args[1]
 			}
+
 			directory, err = resolveAgentAbsPath(workspaceAgent.ExpandedDirectory, directory, workspaceAgent.OperatingSystem, insideThisWorkspace)
 			if err != nil {
 				return xerrors.Errorf("resolve agent path: %w", err)
 			}
 
-			u := &url.URL{
-				Scheme: "vscode",
-				Host:   "coder.coder-remote",
-				Path:   "/open",
-			}
-
-			qp := url.Values{}
-
-			qp.Add("url", client.URL.String())
-			qp.Add("owner", workspace.OwnerName)
-			qp.Add("workspace", workspace.Name)
-			qp.Add("agent", workspaceAgent.Name)
-			if directory != "" {
-				qp.Add("folder", directory)
-			}
-
+			var token string
 			// We always set the token if we believe we can open without
 			// printing the URI, otherwise the token must be explicitly
 			// requested as it will be printed in plain text.
@@ -141,10 +200,33 @@ func (r *RootCmd) openVSCode() *serpent.Command {
 				if err != nil {
 					return xerrors.Errorf("create API key: %w", err)
 				}
-				qp.Add("token", apiKey.Key)
+				token = apiKey.Key
 			}
 
-			u.RawQuery = qp.Encode()
+			var (
+				u  *url.URL
+				qp url.Values
+			)
+			if devcontainer.ID != uuid.Nil {
+				u, qp = buildVSCodeWorkspaceDevContainerLink(
+					token,
+					client.URL.String(),
+					workspace,
+					parentWorkspaceAgent,
+					devcontainer.Container.FriendlyName,
+					directory,
+					devcontainer.WorkspaceFolder,
+					devcontainer.ConfigPath,
+				)
+			} else {
+				u, qp = buildVSCodeWorkspaceLink(
+					token,
+					client.URL.String(),
+					workspace,
+					workspaceAgent,
+					directory,
+				)
+			}
 
 			openingPath := workspaceName
 			if directory != "" {
@@ -211,6 +293,202 @@ func (r *RootCmd) openVSCode() *serpent.Command {
 	return cmd
 }
 
+func (r *RootCmd) openApp() *serpent.Command {
+	var (
+		regionArg     string
+		testOpenError bool
+	)
+
+	client := new(codersdk.Client)
+	cmd := &serpent.Command{
+		Annotations: workspaceCommand,
+		Use:         "app <workspace> <app slug>",
+		Short:       "Open a workspace application.",
+		Middleware: serpent.Chain(
+			r.InitClient(client),
+		),
+		Handler: func(inv *serpent.Invocation) error {
+			ctx, cancel := context.WithCancel(inv.Context())
+			defer cancel()
+
+			if len(inv.Args) == 0 || len(inv.Args) > 2 {
+				return inv.Command.HelpHandler(inv)
+			}
+
+			workspaceName := inv.Args[0]
+			ws, agt, _, err := getWorkspaceAndAgent(ctx, inv, client, false, workspaceName)
+			if err != nil {
+				var sdkErr *codersdk.Error
+				if errors.As(err, &sdkErr) && sdkErr.StatusCode() == http.StatusNotFound {
+					cliui.Errorf(inv.Stderr, "Workspace %q not found!", workspaceName)
+					return sdkErr
+				}
+				cliui.Errorf(inv.Stderr, "Failed to get workspace and agent: %s", err)
+				return err
+			}
+
+			allAppSlugs := make([]string, len(agt.Apps))
+			for i, app := range agt.Apps {
+				allAppSlugs[i] = app.Slug
+			}
+			slices.Sort(allAppSlugs)
+
+			// If a user doesn't specify an app slug, we'll just list the available
+			// apps and exit.
+			if len(inv.Args) == 1 {
+				cliui.Infof(inv.Stderr, "Available apps in %q: %v", workspaceName, allAppSlugs)
+				return nil
+			}
+
+			appSlug := inv.Args[1]
+			var foundApp codersdk.WorkspaceApp
+			appIdx := slices.IndexFunc(agt.Apps, func(a codersdk.WorkspaceApp) bool {
+				return a.Slug == appSlug
+			})
+			if appIdx == -1 {
+				cliui.Errorf(inv.Stderr, "App %q not found in workspace %q!\nAvailable apps: %v", appSlug, workspaceName, allAppSlugs)
+				return xerrors.Errorf("app not found")
+			}
+			foundApp = agt.Apps[appIdx]
+
+			// To build the app URL, we need to know the wildcard hostname
+			// and path app URL for the region.
+			regions, err := client.Regions(ctx)
+			if err != nil {
+				return xerrors.Errorf("failed to fetch regions: %w", err)
+			}
+			var region codersdk.Region
+			preferredIdx := slices.IndexFunc(regions, func(r codersdk.Region) bool {
+				return r.Name == regionArg
+			})
+			if preferredIdx == -1 {
+				allRegions := make([]string, len(regions))
+				for i, r := range regions {
+					allRegions[i] = r.Name
+				}
+				cliui.Errorf(inv.Stderr, "Preferred region %q not found!\nAvailable regions: %v", regionArg, allRegions)
+				return xerrors.Errorf("region not found")
+			}
+			region = regions[preferredIdx]
+
+			baseURL, err := url.Parse(region.PathAppURL)
+			if err != nil {
+				return xerrors.Errorf("failed to parse proxy URL: %w", err)
+			}
+			baseURL.Path = ""
+			pathAppURL := strings.TrimPrefix(region.PathAppURL, baseURL.String())
+			appURL := buildAppLinkURL(baseURL, ws, agt, foundApp, region.WildcardHostname, pathAppURL)
+
+			if foundApp.External {
+				appURL = replacePlaceholderExternalSessionTokenString(client, appURL)
+			}
+
+			// Check if we're inside a workspace.  Generally, we know
+			// that if we're inside a workspace, `open` can't be used.
+			insideAWorkspace := inv.Environ.Get("CODER") == "true"
+			if insideAWorkspace {
+				_, _ = fmt.Fprintf(inv.Stderr, "Please open the following URI on your local machine:\n\n")
+				_, _ = fmt.Fprintf(inv.Stdout, "%s\n", appURL)
+				return nil
+			}
+			_, _ = fmt.Fprintf(inv.Stderr, "Opening %s\n", appURL)
+
+			if !testOpenError {
+				err = open.Run(appURL)
+			} else {
+				err = xerrors.New("test.open-error: " + appURL)
+			}
+			return err
+		},
+	}
+
+	cmd.Options = serpent.OptionSet{
+		{
+			Flag: "region",
+			Env:  "CODER_OPEN_APP_REGION",
+			Description: fmt.Sprintf("Region to use when opening the app." +
+				" By default, the app will be opened using the main Coder deployment (a.k.a. \"primary\")."),
+			Value:   serpent.StringOf(&regionArg),
+			Default: "primary",
+		},
+		{
+			Flag:        "test.open-error",
+			Description: "Don't run the open command.",
+			Value:       serpent.BoolOf(&testOpenError),
+			Hidden:      true, // This is for testing!
+		},
+	}
+
+	return cmd
+}
+
+func buildVSCodeWorkspaceLink(
+	token string,
+	clientURL string,
+	workspace codersdk.Workspace,
+	workspaceAgent codersdk.WorkspaceAgent,
+	directory string,
+) (*url.URL, url.Values) {
+	qp := url.Values{}
+	qp.Add("url", clientURL)
+	qp.Add("owner", workspace.OwnerName)
+	qp.Add("workspace", workspace.Name)
+	qp.Add("agent", workspaceAgent.Name)
+
+	if directory != "" {
+		qp.Add("folder", directory)
+	}
+
+	if token != "" {
+		qp.Add("token", token)
+	}
+
+	return &url.URL{
+		Scheme:   "vscode",
+		Host:     "coder.coder-remote",
+		Path:     "/open",
+		RawQuery: qp.Encode(),
+	}, qp
+}
+
+func buildVSCodeWorkspaceDevContainerLink(
+	token string,
+	clientURL string,
+	workspace codersdk.Workspace,
+	workspaceAgent codersdk.WorkspaceAgent,
+	containerName string,
+	containerFolder string,
+	localWorkspaceFolder string,
+	localConfigFile string,
+) (*url.URL, url.Values) {
+	containerFolder = filepath.ToSlash(containerFolder)
+	localWorkspaceFolder = filepath.ToSlash(localWorkspaceFolder)
+	if localConfigFile != "" {
+		localConfigFile = filepath.ToSlash(localConfigFile)
+	}
+
+	qp := url.Values{}
+	qp.Add("url", clientURL)
+	qp.Add("owner", workspace.OwnerName)
+	qp.Add("workspace", workspace.Name)
+	qp.Add("agent", workspaceAgent.Name)
+	qp.Add("devContainerName", containerName)
+	qp.Add("devContainerFolder", containerFolder)
+	qp.Add("localWorkspaceFolder", localWorkspaceFolder)
+	qp.Add("localConfigFile", localConfigFile)
+
+	if token != "" {
+		qp.Add("token", token)
+	}
+
+	return &url.URL{
+		Scheme:   "vscode",
+		Host:     "coder.coder-remote",
+		Path:     "/openDevContainer",
+		RawQuery: qp.Encode(),
+	}, qp
+}
+
 // waitForAgentCond uses the watch workspace API to update the agent information
 // until the condition is met.
 func waitForAgentCond(ctx context.Context, client *codersdk.Client, workspace codersdk.Workspace, workspaceAgent codersdk.WorkspaceAgent, cond func(codersdk.WorkspaceAgent) bool) (codersdk.Workspace, codersdk.WorkspaceAgent, error) {
@@ -227,7 +505,7 @@ func waitForAgentCond(ctx context.Context, client *codersdk.Client, workspace co
 	}
 
 	for workspace = range wc {
-		workspaceAgent, err = getWorkspaceAgent(workspace, workspaceAgent.Name)
+		workspaceAgent, _, err = getWorkspaceAgent(workspace, workspaceAgent.Name)
 		if err != nil {
 			return workspace, workspaceAgent, xerrors.Errorf("get workspace agent: %w", err)
 		}
@@ -336,4 +614,61 @@ func doAsync(f func()) (wait func()) {
 	return func() {
 		<-done
 	}
+}
+
+// buildAppLinkURL returns the URL to open the app in the browser.
+// It follows similar logic to the TypeScript implementation in site/src/utils/app.ts
+// except that all URLs returned are absolute and based on the provided base URL.
+func buildAppLinkURL(baseURL *url.URL, workspace codersdk.Workspace, agent codersdk.WorkspaceAgent, app codersdk.WorkspaceApp, appsHost, preferredPathBase string) string {
+	// If app is external, return the URL directly
+	if app.External {
+		return app.URL
+	}
+
+	var u url.URL
+	u.Scheme = baseURL.Scheme
+	u.Host = baseURL.Host
+	// We redirect if we don't include a trailing slash, so we always include one to avoid extra roundtrips.
+	u.Path = fmt.Sprintf(
+		"%s/@%s/%s.%s/apps/%s/",
+		preferredPathBase,
+		workspace.OwnerName,
+		workspace.Name,
+		agent.Name,
+		url.PathEscape(app.Slug),
+	)
+	// The frontend leaves the returns a relative URL for the terminal, but we don't have that luxury.
+	if app.Command != "" {
+		u.Path = fmt.Sprintf(
+			"%s/@%s/%s.%s/terminal",
+			preferredPathBase,
+			workspace.OwnerName,
+			workspace.Name,
+			agent.Name,
+		)
+		q := u.Query()
+		q.Set("command", app.Command)
+		u.RawQuery = q.Encode()
+		// encodeURIComponent replaces spaces with %20 but url.QueryEscape replaces them with +.
+		// We replace them with %20 to match the TypeScript implementation.
+		u.RawQuery = strings.ReplaceAll(u.RawQuery, "+", "%20")
+	}
+
+	if appsHost != "" && app.Subdomain && app.SubdomainName != "" {
+		u.Host = strings.Replace(appsHost, "*", app.SubdomainName, 1)
+		u.Path = "/"
+	}
+	return u.String()
+}
+
+// replacePlaceholderExternalSessionTokenString replaces any $SESSION_TOKEN
+// strings in the URL with the actual session token.
+// This is consistent behavior with the frontend. See: site/src/modules/resources/AppLink/AppLink.tsx
+func replacePlaceholderExternalSessionTokenString(client *codersdk.Client, appURL string) string {
+	if !strings.Contains(appURL, "$SESSION_TOKEN") {
+		return appURL
+	}
+
+	// We will just re-use the existing session token we're already using.
+	return strings.ReplaceAll(appURL, "$SESSION_TOKEN", client.SessionToken())
 }

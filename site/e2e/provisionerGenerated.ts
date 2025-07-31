@@ -5,6 +5,21 @@ import { Timestamp } from "./google/protobuf/timestampGenerated";
 
 export const protobufPackage = "provisioner";
 
+export enum ParameterFormType {
+  DEFAULT = 0,
+  FORM_ERROR = 1,
+  RADIO = 2,
+  DROPDOWN = 3,
+  INPUT = 4,
+  TEXTAREA = 5,
+  SLIDER = 6,
+  CHECKBOX = 7,
+  SWITCH = 8,
+  TAGSELECT = 9,
+  MULTISELECT = 10,
+  UNRECOGNIZED = -1,
+}
+
 /** LogLevel represents severity of the log. */
 export enum LogLevel {
   TRACE = 0,
@@ -38,10 +53,31 @@ export enum WorkspaceTransition {
   UNRECOGNIZED = -1,
 }
 
+export enum PrebuiltWorkspaceBuildStage {
+  /** NONE - Default value for builds unrelated to prebuilds. */
+  NONE = 0,
+  /** CREATE - A prebuilt workspace is being provisioned. */
+  CREATE = 1,
+  /** CLAIM - A prebuilt workspace is being claimed. */
+  CLAIM = 2,
+  UNRECOGNIZED = -1,
+}
+
 export enum TimingState {
   STARTED = 0,
   COMPLETED = 1,
   FAILED = 2,
+  UNRECOGNIZED = -1,
+}
+
+export enum DataUploadType {
+  UPLOAD_TYPE_UNKNOWN = 0,
+  /**
+   * UPLOAD_TYPE_MODULE_FILES - UPLOAD_TYPE_MODULE_FILES is used to stream over terraform module files.
+   * These files are located in `.terraform/modules` and are used for dynamic
+   * parameters.
+   */
+  UPLOAD_TYPE_MODULE_FILES = 1,
   UNRECOGNIZED = -1,
 }
 
@@ -86,6 +122,7 @@ export interface RichParameter {
   displayName: string;
   order: number;
   ephemeral: boolean;
+  formType: ParameterFormType;
 }
 
 /** RichParameterValue holds the key/value mapping of a parameter. */
@@ -94,15 +131,49 @@ export interface RichParameterValue {
   value: string;
 }
 
+/**
+ * ExpirationPolicy defines the policy for expiring unclaimed prebuilds.
+ * If a prebuild remains unclaimed for longer than ttl seconds, it is deleted and
+ * recreated to prevent staleness.
+ */
+export interface ExpirationPolicy {
+  ttl: number;
+}
+
+export interface Schedule {
+  cron: string;
+  instances: number;
+}
+
+export interface Scheduling {
+  timezone: string;
+  schedule: Schedule[];
+}
+
+export interface Prebuild {
+  instances: number;
+  expirationPolicy: ExpirationPolicy | undefined;
+  scheduling: Scheduling | undefined;
+}
+
 /** Preset represents a set of preset parameters for a template version. */
 export interface Preset {
   name: string;
   parameters: PresetParameter[];
+  prebuild: Prebuild | undefined;
+  default: boolean;
+  description: string;
+  icon: string;
 }
 
 export interface PresetParameter {
   name: string;
   value: string;
+}
+
+export interface ResourceReplacement {
+  resource: string;
+  paths: string[];
 }
 
 /** VariableValue holds the key/value mapping of a Terraform variable. */
@@ -158,6 +229,8 @@ export interface Agent {
   extraEnvs: Env[];
   order: number;
   resourcesMonitoring: ResourcesMonitoring | undefined;
+  devcontainers: Devcontainer[];
+  apiKeyScope: string;
 }
 
 export interface Agent_Metadata {
@@ -216,6 +289,12 @@ export interface Script {
   logPath: string;
 }
 
+export interface Devcontainer {
+  workspaceFolder: string;
+  configPath: string;
+  name: string;
+}
+
 /** App represents a dev-accessible application on the workspace. */
 export interface App {
   /**
@@ -234,6 +313,9 @@ export interface App {
   order: number;
   hidden: boolean;
   openIn: AppOpenIn;
+  group: string;
+  /** If nil, new UUID will be generated. */
+  id: string;
 }
 
 /** Healthcheck represents configuration for checking for app readiness. */
@@ -267,11 +349,26 @@ export interface Module {
   source: string;
   version: string;
   key: string;
+  dir: string;
 }
 
 export interface Role {
   name: string;
   orgId: string;
+}
+
+export interface RunningAgentAuthToken {
+  agentId: string;
+  token: string;
+}
+
+export interface AITaskSidebarApp {
+  id: string;
+}
+
+export interface AITask {
+  id: string;
+  sidebarApp: AITaskSidebarApp | undefined;
 }
 
 /** Metadata is information about a workspace used in the execution of a build */
@@ -295,6 +392,9 @@ export interface Metadata {
   workspaceBuildId: string;
   workspaceOwnerLoginType: string;
   workspaceOwnerRbacRoles: Role[];
+  /** Indicates that a prebuilt workspace is being built. */
+  prebuiltWorkspaceBuildStage: PrebuiltWorkspaceBuildStage;
+  runningAgentAuthTokens: RunningAgentAuthToken[];
 }
 
 /** Config represents execution configuration shared by all subsequent requests in the Session */
@@ -329,6 +429,15 @@ export interface PlanRequest {
   richParameterValues: RichParameterValue[];
   variableValues: VariableValue[];
   externalAuthProviders: ExternalAuthProvider[];
+  previousParameterValues: RichParameterValue[];
+  /**
+   * If true, the provisioner can safely assume the caller does not need the
+   * module files downloaded by the `terraform init` command.
+   * Ideally this boolean would be flipped in its truthy value, however for
+   * backwards compatibility reasons, the zero value should be the previous
+   * behavior of downloading the module files.
+   */
+  omitModuleFiles: boolean;
 }
 
 /** PlanComplete indicates a request to plan completed. */
@@ -340,6 +449,19 @@ export interface PlanComplete {
   timings: Timing[];
   modules: Module[];
   presets: Preset[];
+  plan: Uint8Array;
+  resourceReplacements: ResourceReplacement[];
+  moduleFiles: Uint8Array;
+  moduleFilesHash: Uint8Array;
+  /**
+   * Whether a template has any `coder_ai_task` resources defined, even if not planned for creation.
+   * During a template import, a plan is run which may not yield in any `coder_ai_task` resources, but nonetheless we
+   * still need to know that such resources are defined.
+   *
+   * See `hasAITaskResources` in provisioner/terraform/resources.go for more details.
+   */
+  hasAiTasks: boolean;
+  aiTasks: AITask[];
 }
 
 /**
@@ -358,6 +480,7 @@ export interface ApplyComplete {
   parameters: RichParameter[];
   externalAuthProviders: ExternalAuthProviderResource[];
   timings: Timing[];
+  aiTasks: AITask[];
 }
 
 export interface Timing {
@@ -387,6 +510,32 @@ export interface Response {
   parse?: ParseComplete | undefined;
   plan?: PlanComplete | undefined;
   apply?: ApplyComplete | undefined;
+  dataUpload?: DataUpload | undefined;
+  chunkPiece?: ChunkPiece | undefined;
+}
+
+export interface DataUpload {
+  uploadType: DataUploadType;
+  /**
+   * data_hash is the sha256 of the payload to be uploaded.
+   * This is also used to uniquely identify the upload.
+   */
+  dataHash: Uint8Array;
+  /** file_size is the total size of the data being uploaded. */
+  fileSize: number;
+  /** Number of chunks to be uploaded. */
+  chunks: number;
+}
+
+/** ChunkPiece is used to stream over large files (over the 4mb limit). */
+export interface ChunkPiece {
+  data: Uint8Array;
+  /**
+   * full_data_hash should match the hash from the original
+   * DataUpload message
+   */
+  fullDataHash: Uint8Array;
+  pieceIndex: number;
 }
 
 export const Empty = {
@@ -487,6 +636,9 @@ export const RichParameter = {
     if (message.ephemeral === true) {
       writer.uint32(136).bool(message.ephemeral);
     }
+    if (message.formType !== 0) {
+      writer.uint32(144).int32(message.formType);
+    }
     return writer;
   },
 };
@@ -503,6 +655,54 @@ export const RichParameterValue = {
   },
 };
 
+export const ExpirationPolicy = {
+  encode(message: ExpirationPolicy, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.ttl !== 0) {
+      writer.uint32(8).int32(message.ttl);
+    }
+    return writer;
+  },
+};
+
+export const Schedule = {
+  encode(message: Schedule, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.cron !== "") {
+      writer.uint32(10).string(message.cron);
+    }
+    if (message.instances !== 0) {
+      writer.uint32(16).int32(message.instances);
+    }
+    return writer;
+  },
+};
+
+export const Scheduling = {
+  encode(message: Scheduling, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.timezone !== "") {
+      writer.uint32(10).string(message.timezone);
+    }
+    for (const v of message.schedule) {
+      Schedule.encode(v!, writer.uint32(18).fork()).ldelim();
+    }
+    return writer;
+  },
+};
+
+export const Prebuild = {
+  encode(message: Prebuild, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.instances !== 0) {
+      writer.uint32(8).int32(message.instances);
+    }
+    if (message.expirationPolicy !== undefined) {
+      ExpirationPolicy.encode(message.expirationPolicy, writer.uint32(18).fork()).ldelim();
+    }
+    if (message.scheduling !== undefined) {
+      Scheduling.encode(message.scheduling, writer.uint32(26).fork()).ldelim();
+    }
+    return writer;
+  },
+};
+
 export const Preset = {
   encode(message: Preset, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
     if (message.name !== "") {
@@ -510,6 +710,18 @@ export const Preset = {
     }
     for (const v of message.parameters) {
       PresetParameter.encode(v!, writer.uint32(18).fork()).ldelim();
+    }
+    if (message.prebuild !== undefined) {
+      Prebuild.encode(message.prebuild, writer.uint32(26).fork()).ldelim();
+    }
+    if (message.default === true) {
+      writer.uint32(32).bool(message.default);
+    }
+    if (message.description !== "") {
+      writer.uint32(42).string(message.description);
+    }
+    if (message.icon !== "") {
+      writer.uint32(50).string(message.icon);
     }
     return writer;
   },
@@ -522,6 +734,18 @@ export const PresetParameter = {
     }
     if (message.value !== "") {
       writer.uint32(18).string(message.value);
+    }
+    return writer;
+  },
+};
+
+export const ResourceReplacement = {
+  encode(message: ResourceReplacement, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.resource !== "") {
+      writer.uint32(10).string(message.resource);
+    }
+    for (const v of message.paths) {
+      writer.uint32(18).string(v!);
     }
     return writer;
   },
@@ -642,6 +866,12 @@ export const Agent = {
     }
     if (message.resourcesMonitoring !== undefined) {
       ResourcesMonitoring.encode(message.resourcesMonitoring, writer.uint32(194).fork()).ldelim();
+    }
+    for (const v of message.devcontainers) {
+      Devcontainer.encode(v!, writer.uint32(202).fork()).ldelim();
+    }
+    if (message.apiKeyScope !== "") {
+      writer.uint32(210).string(message.apiKeyScope);
     }
     return writer;
   },
@@ -788,6 +1018,21 @@ export const Script = {
   },
 };
 
+export const Devcontainer = {
+  encode(message: Devcontainer, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.workspaceFolder !== "") {
+      writer.uint32(10).string(message.workspaceFolder);
+    }
+    if (message.configPath !== "") {
+      writer.uint32(18).string(message.configPath);
+    }
+    if (message.name !== "") {
+      writer.uint32(26).string(message.name);
+    }
+    return writer;
+  },
+};
+
 export const App = {
   encode(message: App, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
     if (message.slug !== "") {
@@ -825,6 +1070,12 @@ export const App = {
     }
     if (message.openIn !== 0) {
       writer.uint32(96).int32(message.openIn);
+    }
+    if (message.group !== "") {
+      writer.uint32(106).string(message.group);
+    }
+    if (message.id !== "") {
+      writer.uint32(114).string(message.id);
     }
     return writer;
   },
@@ -907,6 +1158,9 @@ export const Module = {
     if (message.key !== "") {
       writer.uint32(26).string(message.key);
     }
+    if (message.dir !== "") {
+      writer.uint32(34).string(message.dir);
+    }
     return writer;
   },
 };
@@ -918,6 +1172,39 @@ export const Role = {
     }
     if (message.orgId !== "") {
       writer.uint32(18).string(message.orgId);
+    }
+    return writer;
+  },
+};
+
+export const RunningAgentAuthToken = {
+  encode(message: RunningAgentAuthToken, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.agentId !== "") {
+      writer.uint32(10).string(message.agentId);
+    }
+    if (message.token !== "") {
+      writer.uint32(18).string(message.token);
+    }
+    return writer;
+  },
+};
+
+export const AITaskSidebarApp = {
+  encode(message: AITaskSidebarApp, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.id !== "") {
+      writer.uint32(10).string(message.id);
+    }
+    return writer;
+  },
+};
+
+export const AITask = {
+  encode(message: AITask, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.id !== "") {
+      writer.uint32(10).string(message.id);
+    }
+    if (message.sidebarApp !== undefined) {
+      AITaskSidebarApp.encode(message.sidebarApp, writer.uint32(18).fork()).ldelim();
     }
     return writer;
   },
@@ -981,6 +1268,12 @@ export const Metadata = {
     }
     for (const v of message.workspaceOwnerRbacRoles) {
       Role.encode(v!, writer.uint32(154).fork()).ldelim();
+    }
+    if (message.prebuiltWorkspaceBuildStage !== 0) {
+      writer.uint32(160).int32(message.prebuiltWorkspaceBuildStage);
+    }
+    for (const v of message.runningAgentAuthTokens) {
+      RunningAgentAuthToken.encode(v!, writer.uint32(170).fork()).ldelim();
     }
     return writer;
   },
@@ -1051,6 +1344,12 @@ export const PlanRequest = {
     for (const v of message.externalAuthProviders) {
       ExternalAuthProvider.encode(v!, writer.uint32(34).fork()).ldelim();
     }
+    for (const v of message.previousParameterValues) {
+      RichParameterValue.encode(v!, writer.uint32(42).fork()).ldelim();
+    }
+    if (message.omitModuleFiles === true) {
+      writer.uint32(48).bool(message.omitModuleFiles);
+    }
     return writer;
   },
 };
@@ -1077,6 +1376,24 @@ export const PlanComplete = {
     }
     for (const v of message.presets) {
       Preset.encode(v!, writer.uint32(66).fork()).ldelim();
+    }
+    if (message.plan.length !== 0) {
+      writer.uint32(74).bytes(message.plan);
+    }
+    for (const v of message.resourceReplacements) {
+      ResourceReplacement.encode(v!, writer.uint32(82).fork()).ldelim();
+    }
+    if (message.moduleFiles.length !== 0) {
+      writer.uint32(90).bytes(message.moduleFiles);
+    }
+    if (message.moduleFilesHash.length !== 0) {
+      writer.uint32(98).bytes(message.moduleFilesHash);
+    }
+    if (message.hasAiTasks === true) {
+      writer.uint32(104).bool(message.hasAiTasks);
+    }
+    for (const v of message.aiTasks) {
+      AITask.encode(v!, writer.uint32(114).fork()).ldelim();
     }
     return writer;
   },
@@ -1110,6 +1427,9 @@ export const ApplyComplete = {
     }
     for (const v of message.timings) {
       Timing.encode(v!, writer.uint32(50).fork()).ldelim();
+    }
+    for (const v of message.aiTasks) {
+      AITask.encode(v!, writer.uint32(58).fork()).ldelim();
     }
     return writer;
   },
@@ -1182,6 +1502,45 @@ export const Response = {
     }
     if (message.apply !== undefined) {
       ApplyComplete.encode(message.apply, writer.uint32(34).fork()).ldelim();
+    }
+    if (message.dataUpload !== undefined) {
+      DataUpload.encode(message.dataUpload, writer.uint32(42).fork()).ldelim();
+    }
+    if (message.chunkPiece !== undefined) {
+      ChunkPiece.encode(message.chunkPiece, writer.uint32(50).fork()).ldelim();
+    }
+    return writer;
+  },
+};
+
+export const DataUpload = {
+  encode(message: DataUpload, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.uploadType !== 0) {
+      writer.uint32(8).int32(message.uploadType);
+    }
+    if (message.dataHash.length !== 0) {
+      writer.uint32(18).bytes(message.dataHash);
+    }
+    if (message.fileSize !== 0) {
+      writer.uint32(24).int64(message.fileSize);
+    }
+    if (message.chunks !== 0) {
+      writer.uint32(32).int32(message.chunks);
+    }
+    return writer;
+  },
+};
+
+export const ChunkPiece = {
+  encode(message: ChunkPiece, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.data.length !== 0) {
+      writer.uint32(10).bytes(message.data);
+    }
+    if (message.fullDataHash.length !== 0) {
+      writer.uint32(18).bytes(message.fullDataHash);
+    }
+    if (message.pieceIndex !== 0) {
+      writer.uint32(24).int32(message.pieceIndex);
     }
     return writer;
   },

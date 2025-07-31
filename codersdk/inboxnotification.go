@@ -10,6 +10,13 @@ import (
 	"github.com/google/uuid"
 )
 
+const (
+	InboxNotificationFallbackIconWorkspace = "DEFAULT_ICON_WORKSPACE"
+	InboxNotificationFallbackIconAccount   = "DEFAULT_ICON_ACCOUNT"
+	InboxNotificationFallbackIconTemplate  = "DEFAULT_ICON_TEMPLATE"
+	InboxNotificationFallbackIconOther     = "DEFAULT_ICON_OTHER"
+)
+
 type InboxNotification struct {
 	ID         uuid.UUID                 `json:"id" format:"uuid"`
 	UserID     uuid.UUID                 `json:"user_id" format:"uuid"`
@@ -108,4 +115,22 @@ func (c *Client) UpdateInboxNotificationReadStatus(ctx context.Context, notifID 
 
 	var resp UpdateInboxNotificationReadStatusResponse
 	return resp, json.NewDecoder(res.Body).Decode(&resp)
+}
+
+func (c *Client) MarkAllInboxNotificationsAsRead(ctx context.Context) error {
+	res, err := c.Request(
+		ctx, http.MethodPut,
+		"/api/v2/notifications/inbox/mark-all-as-read",
+		nil,
+	)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusNoContent {
+		return ReadBodyAsError(res)
+	}
+
+	return nil
 }

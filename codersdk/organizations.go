@@ -74,8 +74,8 @@ type OrganizationMember struct {
 
 type OrganizationMemberWithUserData struct {
 	Username           string     `table:"username,default_sort" json:"username"`
-	Name               string     `table:"name" json:"name"`
-	AvatarURL          string     `json:"avatar_url"`
+	Name               string     `table:"name" json:"name,omitempty"`
+	AvatarURL          string     `json:"avatar_url,omitempty"`
 	Email              string     `json:"email"`
 	GlobalRoles        []SlimRole `json:"global_roles"`
 	OrganizationMember `table:"m,recursive_inline"`
@@ -200,6 +200,15 @@ type CreateTemplateRequest struct {
 	// MaxPortShareLevel allows optionally specifying the maximum port share level
 	// for workspaces created from the template.
 	MaxPortShareLevel *WorkspaceAgentPortShareLevel `json:"max_port_share_level"`
+
+	// UseClassicParameterFlow allows optionally specifying whether
+	// the template should use the classic parameter flow. The default if unset is
+	// true, and is why `*bool` is used here. When dynamic parameters becomes
+	// the default, this will default to false.
+	UseClassicParameterFlow *bool `json:"template_use_classic_parameter_flow,omitempty"`
+
+	// CORSBehavior allows optionally specifying the CORS behavior for all shared ports.
+	CORSBehavior *CORSBehavior `json:"cors_behavior"`
 }
 
 // CreateWorkspaceRequest provides options for creating a new workspace.
@@ -207,6 +216,13 @@ type CreateTemplateRequest struct {
 // @Description CreateWorkspaceRequest provides options for creating a new workspace.
 // @Description Only one of TemplateID or TemplateVersionID can be specified, not both.
 // @Description If TemplateID is specified, the active version of the template will be used.
+// @Description Workspace names:
+// @Description - Must start with a letter or number
+// @Description - Can only contain letters, numbers, and hyphens
+// @Description - Cannot contain spaces or special characters
+// @Description - Cannot be named `new` or `create`
+// @Description - Must be unique within your workspaces
+// @Description - Maximum length of 32 characters
 type CreateWorkspaceRequest struct {
 	// TemplateID specifies which template should be used for creating the workspace.
 	TemplateID uuid.UUID `json:"template_id,omitempty" validate:"required_without=TemplateVersionID,excluded_with=TemplateVersionID" format:"uuid"`
@@ -217,8 +233,9 @@ type CreateWorkspaceRequest struct {
 	TTLMillis         *int64    `json:"ttl_ms,omitempty"`
 	// RichParameterValues allows for additional parameters to be provided
 	// during the initial provision.
-	RichParameterValues []WorkspaceBuildParameter `json:"rich_parameter_values,omitempty"`
-	AutomaticUpdates    AutomaticUpdates          `json:"automatic_updates,omitempty"`
+	RichParameterValues     []WorkspaceBuildParameter `json:"rich_parameter_values,omitempty"`
+	AutomaticUpdates        AutomaticUpdates          `json:"automatic_updates,omitempty"`
+	TemplateVersionPresetID uuid.UUID                 `json:"template_version_preset_id,omitempty" format:"uuid"`
 }
 
 func (c *Client) OrganizationByName(ctx context.Context, name string) (Organization, error) {

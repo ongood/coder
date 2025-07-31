@@ -8,9 +8,11 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -29,10 +31,13 @@ import (
 
 	"cdr.dev/slog"
 	"cdr.dev/slog/sloggers/slogtest"
+	"github.com/coder/quartz"
+	"github.com/coder/websocket"
+
 	"github.com/coder/coder/v2/agent"
 	"github.com/coder/coder/v2/agent/agentcontainers"
 	"github.com/coder/coder/v2/agent/agentcontainers/acmock"
-	"github.com/coder/coder/v2/agent/agentexec"
+	"github.com/coder/coder/v2/agent/agentcontainers/watcher"
 	"github.com/coder/coder/v2/agent/agenttest"
 	agentproto "github.com/coder/coder/v2/agent/proto"
 	"github.com/coder/coder/v2/coderd/coderdtest"
@@ -41,12 +46,15 @@ import (
 	"github.com/coder/coder/v2/coderd/database/dbauthz"
 	"github.com/coder/coder/v2/coderd/database/dbfake"
 	"github.com/coder/coder/v2/coderd/database/dbgen"
-	"github.com/coder/coder/v2/coderd/database/dbmem"
+	"github.com/coder/coder/v2/coderd/database/dbtestutil"
 	"github.com/coder/coder/v2/coderd/database/dbtime"
 	"github.com/coder/coder/v2/coderd/database/pubsub"
 	"github.com/coder/coder/v2/coderd/externalauth"
 	"github.com/coder/coder/v2/coderd/jwtutils"
+	"github.com/coder/coder/v2/coderd/prebuilds"
 	"github.com/coder/coder/v2/coderd/rbac"
+	"github.com/coder/coder/v2/coderd/telemetry"
+	"github.com/coder/coder/v2/coderd/util/ptr"
 	"github.com/coder/coder/v2/codersdk"
 	"github.com/coder/coder/v2/codersdk/agentsdk"
 	"github.com/coder/coder/v2/codersdk/workspacesdk"
@@ -56,8 +64,6 @@ import (
 	tailnetproto "github.com/coder/coder/v2/tailnet/proto"
 	"github.com/coder/coder/v2/tailnet/tailnettest"
 	"github.com/coder/coder/v2/testutil"
-	"github.com/coder/quartz"
-	"github.com/coder/websocket"
 )
 
 func TestWorkspaceAgent(t *testing.T) {
@@ -336,31 +342,151 @@ func TestWorkspaceAgentLogs(t *testing.T) {
 	})
 }
 
+func TestWorkspaceAgentAppStatus(t *testing.T) {
+	t.Parallel()
+	client, db := coderdtest.NewWithDatabase(t, nil)
+	user := coderdtest.CreateFirstUser(t, client)
+	client, user2 := coderdtest.CreateAnotherUser(t, client, user.OrganizationID)
+
+	r := dbfake.WorkspaceBuild(t, db, database.WorkspaceTable{
+		OrganizationID: user.OrganizationID,
+		OwnerID:        user2.ID,
+	}).WithAgent(func(a []*proto.Agent) []*proto.Agent {
+		a[0].Apps = []*proto.App{
+			{
+				Slug: "vscode",
+			},
+		}
+		return a
+	}).Do()
+
+	agentClient := agentsdk.New(client.URL)
+	agentClient.SetSessionToken(r.AgentToken)
+	t.Run("Success", func(t *testing.T) {
+		t.Parallel()
+		ctx := testutil.Context(t, testutil.WaitShort)
+		err := agentClient.PatchAppStatus(ctx, agentsdk.PatchAppStatus{
+			AppSlug: "vscode",
+			Message: "testing",
+			URI:     "https://example.com",
+			State:   codersdk.WorkspaceAppStatusStateComplete,
+			// Ensure deprecated fields are ignored.
+			Icon:               "https://example.com/icon.png",
+			NeedsUserAttention: true,
+		})
+		require.NoError(t, err)
+
+		workspace, err := client.Workspace(ctx, r.Workspace.ID)
+		require.NoError(t, err)
+		agent, err := client.WorkspaceAgent(ctx, workspace.LatestBuild.Resources[0].Agents[0].ID)
+		require.NoError(t, err)
+		require.Len(t, agent.Apps[0].Statuses, 1)
+		// Deprecated fields should be ignored.
+		require.Empty(t, agent.Apps[0].Statuses[0].Icon)
+		require.False(t, agent.Apps[0].Statuses[0].NeedsUserAttention)
+	})
+
+	t.Run("FailUnknownApp", func(t *testing.T) {
+		t.Parallel()
+		ctx := testutil.Context(t, testutil.WaitShort)
+		err := agentClient.PatchAppStatus(ctx, agentsdk.PatchAppStatus{
+			AppSlug: "unknown",
+			Message: "testing",
+			URI:     "https://example.com",
+			State:   codersdk.WorkspaceAppStatusStateComplete,
+		})
+		require.ErrorContains(t, err, "No app found with slug")
+		var sdkErr *codersdk.Error
+		require.ErrorAs(t, err, &sdkErr)
+		require.Equal(t, http.StatusBadRequest, sdkErr.StatusCode())
+	})
+
+	t.Run("FailUnknownState", func(t *testing.T) {
+		t.Parallel()
+		ctx := testutil.Context(t, testutil.WaitShort)
+		err := agentClient.PatchAppStatus(ctx, agentsdk.PatchAppStatus{
+			AppSlug: "vscode",
+			Message: "testing",
+			URI:     "https://example.com",
+			State:   "unknown",
+		})
+		require.ErrorContains(t, err, "Invalid state")
+		var sdkErr *codersdk.Error
+		require.ErrorAs(t, err, &sdkErr)
+		require.Equal(t, http.StatusBadRequest, sdkErr.StatusCode())
+	})
+
+	t.Run("FailTooLong", func(t *testing.T) {
+		t.Parallel()
+		ctx := testutil.Context(t, testutil.WaitShort)
+		err := agentClient.PatchAppStatus(ctx, agentsdk.PatchAppStatus{
+			AppSlug: "vscode",
+			Message: strings.Repeat("a", 161),
+			URI:     "https://example.com",
+			State:   codersdk.WorkspaceAppStatusStateComplete,
+		})
+		require.ErrorContains(t, err, "Message is too long")
+		var sdkErr *codersdk.Error
+		require.ErrorAs(t, err, &sdkErr)
+		require.Equal(t, http.StatusBadRequest, sdkErr.StatusCode())
+	})
+}
+
 func TestWorkspaceAgentConnectRPC(t *testing.T) {
 	t.Parallel()
 
 	t.Run("Connect", func(t *testing.T) {
 		t.Parallel()
 
-		client, db := coderdtest.NewWithDatabase(t, nil)
-		user := coderdtest.CreateFirstUser(t, client)
-		r := dbfake.WorkspaceBuild(t, db, database.WorkspaceTable{
-			OrganizationID: user.OrganizationID,
-			OwnerID:        user.UserID,
-		}).WithAgent().Do()
-		_ = agenttest.New(t, client.URL, r.AgentToken)
-		resources := coderdtest.AwaitWorkspaceAgents(t, client, r.Workspace.ID)
+		for _, tc := range []struct {
+			name        string
+			apiKeyScope rbac.ScopeName
+		}{
+			{
+				name:        "empty (backwards compat)",
+				apiKeyScope: "",
+			},
+			{
+				name:        "all",
+				apiKeyScope: rbac.ScopeAll,
+			},
+			{
+				name:        "no_user_data",
+				apiKeyScope: rbac.ScopeNoUserData,
+			},
+			{
+				name:        "application_connect",
+				apiKeyScope: rbac.ScopeApplicationConnect,
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				client, db := coderdtest.NewWithDatabase(t, nil)
+				user := coderdtest.CreateFirstUser(t, client)
+				r := dbfake.WorkspaceBuild(t, db, database.WorkspaceTable{
+					OrganizationID: user.OrganizationID,
+					OwnerID:        user.UserID,
+				}).WithAgent(func(agents []*proto.Agent) []*proto.Agent {
+					for _, agent := range agents {
+						agent.ApiKeyScope = string(tc.apiKeyScope)
+					}
 
-		ctx, cancel := context.WithTimeout(context.Background(), testutil.WaitLong)
-		defer cancel()
+					return agents
+				}).Do()
+				_ = agenttest.New(t, client.URL, r.AgentToken)
+				resources := coderdtest.NewWorkspaceAgentWaiter(t, client, r.Workspace.ID).AgentNames([]string{}).Wait()
 
-		conn, err := workspacesdk.New(client).
-			DialAgent(ctx, resources[0].Agents[0].ID, nil)
-		require.NoError(t, err)
-		defer func() {
-			_ = conn.Close()
-		}()
-		conn.AwaitReachable(ctx)
+				ctx, cancel := context.WithTimeout(context.Background(), testutil.WaitLong)
+				defer cancel()
+
+				conn, err := workspacesdk.New(client).
+					DialAgent(ctx, resources[0].Agents[0].ID, nil)
+				require.NoError(t, err)
+				defer func() {
+					_ = conn.Close()
+				}()
+				conn.AwaitReachable(ctx)
+			})
+		}
 	})
 
 	t.Run("FailNonLatestBuild", func(t *testing.T) {
@@ -605,7 +731,7 @@ func TestWorkspaceAgentClientCoordinate_ResumeToken(t *testing.T) {
 		// random value.
 		originalResumeToken, err := connectToCoordinatorAndFetchResumeToken(ctx, logger, client, agentAndBuild.WorkspaceAgent.ID, "")
 		require.NoError(t, err)
-		originalPeerID := testutil.RequireRecvCtx(ctx, t, resumeTokenProvider.generateCalls)
+		originalPeerID := testutil.TryReceive(ctx, t, resumeTokenProvider.generateCalls)
 		require.NotEqual(t, originalPeerID, uuid.Nil)
 
 		// Connect with a valid resume token, and ensure that the peer ID is set to
@@ -613,9 +739,9 @@ func TestWorkspaceAgentClientCoordinate_ResumeToken(t *testing.T) {
 		clock.Advance(time.Second)
 		newResumeToken, err := connectToCoordinatorAndFetchResumeToken(ctx, logger, client, agentAndBuild.WorkspaceAgent.ID, originalResumeToken)
 		require.NoError(t, err)
-		verifiedToken := testutil.RequireRecvCtx(ctx, t, resumeTokenProvider.verifyCalls)
+		verifiedToken := testutil.TryReceive(ctx, t, resumeTokenProvider.verifyCalls)
 		require.Equal(t, originalResumeToken, verifiedToken)
-		newPeerID := testutil.RequireRecvCtx(ctx, t, resumeTokenProvider.generateCalls)
+		newPeerID := testutil.TryReceive(ctx, t, resumeTokenProvider.generateCalls)
 		require.Equal(t, originalPeerID, newPeerID)
 		require.NotEqual(t, originalResumeToken, newResumeToken)
 
@@ -629,7 +755,7 @@ func TestWorkspaceAgentClientCoordinate_ResumeToken(t *testing.T) {
 		require.Equal(t, http.StatusUnauthorized, sdkErr.StatusCode())
 		require.Len(t, sdkErr.Validations, 1)
 		require.Equal(t, "resume_token", sdkErr.Validations[0].Field)
-		verifiedToken = testutil.RequireRecvCtx(ctx, t, resumeTokenProvider.verifyCalls)
+		verifiedToken = testutil.TryReceive(ctx, t, resumeTokenProvider.verifyCalls)
 		require.Equal(t, "invalid", verifiedToken)
 
 		select {
@@ -677,7 +803,7 @@ func TestWorkspaceAgentClientCoordinate_ResumeToken(t *testing.T) {
 		// random value.
 		originalResumeToken, err := connectToCoordinatorAndFetchResumeToken(ctx, logger, client, agentAndBuild.WorkspaceAgent.ID, "")
 		require.NoError(t, err)
-		originalPeerID := testutil.RequireRecvCtx(ctx, t, resumeTokenProvider.generateCalls)
+		originalPeerID := testutil.TryReceive(ctx, t, resumeTokenProvider.generateCalls)
 		require.NotEqual(t, originalPeerID, uuid.Nil)
 
 		// Connect with an outdated token, and ensure that the peer ID is set to a
@@ -691,9 +817,9 @@ func TestWorkspaceAgentClientCoordinate_ResumeToken(t *testing.T) {
 		clock.Advance(time.Second)
 		newResumeToken, err := connectToCoordinatorAndFetchResumeToken(ctx, logger, client, agentAndBuild.WorkspaceAgent.ID, outdatedToken)
 		require.NoError(t, err)
-		verifiedToken := testutil.RequireRecvCtx(ctx, t, resumeTokenProvider.verifyCalls)
+		verifiedToken := testutil.TryReceive(ctx, t, resumeTokenProvider.verifyCalls)
 		require.Equal(t, outdatedToken, verifiedToken)
-		newPeerID := testutil.RequireRecvCtx(ctx, t, resumeTokenProvider.generateCalls)
+		newPeerID := testutil.TryReceive(ctx, t, resumeTokenProvider.generateCalls)
 		require.NotEqual(t, originalPeerID, newPeerID)
 		require.NotEqual(t, originalResumeToken, newResumeToken)
 	})
@@ -841,6 +967,7 @@ func TestWorkspaceAgentListeningPorts(t *testing.T) {
 			o.PortCacheDuration = time.Millisecond
 		})
 		resources := coderdtest.AwaitWorkspaceAgents(t, client, r.Workspace.ID)
+		// #nosec G115 - Safe conversion as TCP port numbers are within uint16 range (0-65535)
 		return client, uint16(coderdPort), resources[0].Agents[0].ID
 	}
 
@@ -875,6 +1002,7 @@ func TestWorkspaceAgentListeningPorts(t *testing.T) {
 				_ = l.Close()
 			})
 
+			// #nosec G115 - Safe conversion as TCP port numbers are within uint16 range (0-65535)
 			port = uint16(tcpAddr.Port)
 			return true
 		}, testutil.WaitShort, testutil.IntervalFast)
@@ -936,7 +1064,6 @@ func TestWorkspaceAgentListeningPorts(t *testing.T) {
 				},
 			},
 		} {
-			tc := tc
 			t.Run("OK_"+tc.name, func(t *testing.T) {
 				t.Parallel()
 
@@ -1121,8 +1248,11 @@ func TestWorkspaceAgentContainers(t *testing.T) {
 		}).WithAgent(func(agents []*proto.Agent) []*proto.Agent {
 			return agents
 		}).Do()
-		_ = agenttest.New(t, client.URL, r.AgentToken, func(opts *agent.Options) {
-			opts.ContainerLister = agentcontainers.NewDocker(agentexec.DefaultExecer)
+		_ = agenttest.New(t, client.URL, r.AgentToken, func(o *agent.Options) {
+			o.Devcontainers = true
+			o.DevcontainerAPIOptions = append(o.DevcontainerAPIOptions,
+				agentcontainers.WithContainerLabelIncludeFilter("this.label.does.not.exist.ignore.devcontainers", "true"),
+			)
 		})
 		resources := coderdtest.NewWorkspaceAgentWaiter(t, client, r.Workspace.ID).Wait()
 		require.Len(t, resources, 1, "expected one resource")
@@ -1164,7 +1294,7 @@ func TestWorkspaceAgentContainers(t *testing.T) {
 			"com.coder.test": uuid.New().String(),
 		}
 		testResponse := codersdk.WorkspaceAgentListContainersResponse{
-			Containers: []codersdk.WorkspaceAgentDevcontainer{
+			Containers: []codersdk.WorkspaceAgentContainer{
 				{
 					ID:           uuid.NewString(),
 					CreatedAt:    dbtime.Now(),
@@ -1173,7 +1303,7 @@ func TestWorkspaceAgentContainers(t *testing.T) {
 					Labels:       testLabels,
 					Running:      true,
 					Status:       "running",
-					Ports: []codersdk.WorkspaceAgentDevcontainerPort{
+					Ports: []codersdk.WorkspaceAgentContainerPort{
 						{
 							Network:  "tcp",
 							Port:     80,
@@ -1191,31 +1321,33 @@ func TestWorkspaceAgentContainers(t *testing.T) {
 
 		for _, tc := range []struct {
 			name      string
-			setupMock func(*acmock.MockLister) (codersdk.WorkspaceAgentListContainersResponse, error)
+			setupMock func(*acmock.MockContainerCLI) (codersdk.WorkspaceAgentListContainersResponse, error)
 		}{
 			{
 				name: "test response",
-				setupMock: func(mcl *acmock.MockLister) (codersdk.WorkspaceAgentListContainersResponse, error) {
-					mcl.EXPECT().List(gomock.Any()).Return(testResponse, nil).Times(1)
+				setupMock: func(mcl *acmock.MockContainerCLI) (codersdk.WorkspaceAgentListContainersResponse, error) {
+					mcl.EXPECT().List(gomock.Any()).Return(testResponse, nil).AnyTimes()
 					return testResponse, nil
 				},
 			},
 			{
 				name: "error response",
-				setupMock: func(mcl *acmock.MockLister) (codersdk.WorkspaceAgentListContainersResponse, error) {
-					mcl.EXPECT().List(gomock.Any()).Return(codersdk.WorkspaceAgentListContainersResponse{}, assert.AnError).Times(1)
+				setupMock: func(mcl *acmock.MockContainerCLI) (codersdk.WorkspaceAgentListContainersResponse, error) {
+					mcl.EXPECT().List(gomock.Any()).Return(codersdk.WorkspaceAgentListContainersResponse{}, assert.AnError).AnyTimes()
 					return codersdk.WorkspaceAgentListContainersResponse{}, assert.AnError
 				},
 			},
 		} {
-			tc := tc
 			t.Run(tc.name, func(t *testing.T) {
 				t.Parallel()
 
 				ctrl := gomock.NewController(t)
-				mcl := acmock.NewMockLister(ctrl)
+				mcl := acmock.NewMockContainerCLI(ctrl)
 				expected, expectedErr := tc.setupMock(mcl)
-				client, db := coderdtest.NewWithDatabase(t, &coderdtest.Options{})
+				logger := slogtest.Make(t, &slogtest.Options{IgnoreErrors: true}).Leveled(slog.LevelDebug)
+				client, db := coderdtest.NewWithDatabase(t, &coderdtest.Options{
+					Logger: &logger,
+				})
 				user := coderdtest.CreateFirstUser(t, client)
 				r := dbfake.WorkspaceBuild(t, db, database.WorkspaceTable{
 					OrganizationID: user.OrganizationID,
@@ -1223,8 +1355,13 @@ func TestWorkspaceAgentContainers(t *testing.T) {
 				}).WithAgent(func(agents []*proto.Agent) []*proto.Agent {
 					return agents
 				}).Do()
-				_ = agenttest.New(t, client.URL, r.AgentToken, func(opts *agent.Options) {
-					opts.ContainerLister = mcl
+				_ = agenttest.New(t, client.URL, r.AgentToken, func(o *agent.Options) {
+					o.Logger = logger.Named("agent")
+					o.Devcontainers = true
+					o.DevcontainerAPIOptions = append(o.DevcontainerAPIOptions,
+						agentcontainers.WithContainerCLI(mcl),
+						agentcontainers.WithContainerLabelIncludeFilter("this.label.does.not.exist.ignore.devcontainers", "true"),
+					)
 				})
 				resources := coderdtest.NewWorkspaceAgentWaiter(t, client, r.Workspace.ID).Wait()
 				require.Len(t, resources, 1, "expected one resource")
@@ -1243,6 +1380,312 @@ func TestWorkspaceAgentContainers(t *testing.T) {
 					if diff := cmp.Diff(expected, res); diff != "" {
 						t.Fatalf("unexpected response (-want +got):\n%s", diff)
 					}
+				}
+			})
+		}
+	})
+}
+
+func TestWatchWorkspaceAgentDevcontainers(t *testing.T) {
+	t.Parallel()
+
+	var (
+		ctx               = testutil.Context(t, testutil.WaitLong)
+		logger            = slogtest.Make(t, &slogtest.Options{IgnoreErrors: true}).Leveled(slog.LevelDebug)
+		mClock            = quartz.NewMock(t)
+		updaterTickerTrap = mClock.Trap().TickerFunc("updaterLoop")
+		mCtrl             = gomock.NewController(t)
+		mCCLI             = acmock.NewMockContainerCLI(mCtrl)
+
+		client, db = coderdtest.NewWithDatabase(t, &coderdtest.Options{Logger: &logger})
+		user       = coderdtest.CreateFirstUser(t, client)
+		r          = dbfake.WorkspaceBuild(t, db, database.WorkspaceTable{
+			OrganizationID: user.OrganizationID,
+			OwnerID:        user.UserID,
+		}).WithAgent(func(agents []*proto.Agent) []*proto.Agent {
+			return agents
+		}).Do()
+
+		fakeContainer1 = codersdk.WorkspaceAgentContainer{
+			ID:           "container1",
+			CreatedAt:    dbtime.Now(),
+			FriendlyName: "container1",
+			Image:        "busybox:latest",
+			Labels: map[string]string{
+				agentcontainers.DevcontainerLocalFolderLabel: "/home/coder/project1",
+				agentcontainers.DevcontainerConfigFileLabel:  "/home/coder/project1/.devcontainer/devcontainer.json",
+			},
+			Running: true,
+			Status:  "running",
+		}
+
+		fakeContainer2 = codersdk.WorkspaceAgentContainer{
+			ID:           "container1",
+			CreatedAt:    dbtime.Now(),
+			FriendlyName: "container2",
+			Image:        "busybox:latest",
+			Labels: map[string]string{
+				agentcontainers.DevcontainerLocalFolderLabel: "/home/coder/project2",
+				agentcontainers.DevcontainerConfigFileLabel:  "/home/coder/project2/.devcontainer/devcontainer.json",
+			},
+			Running: true,
+			Status:  "running",
+		}
+	)
+
+	stages := []struct {
+		containers []codersdk.WorkspaceAgentContainer
+		expected   codersdk.WorkspaceAgentListContainersResponse
+	}{
+		{
+			containers: []codersdk.WorkspaceAgentContainer{fakeContainer1},
+			expected: codersdk.WorkspaceAgentListContainersResponse{
+				Containers: []codersdk.WorkspaceAgentContainer{fakeContainer1},
+				Devcontainers: []codersdk.WorkspaceAgentDevcontainer{
+					{
+						Name:            "project1",
+						WorkspaceFolder: fakeContainer1.Labels[agentcontainers.DevcontainerLocalFolderLabel],
+						ConfigPath:      fakeContainer1.Labels[agentcontainers.DevcontainerConfigFileLabel],
+						Status:          "running",
+						Container:       &fakeContainer1,
+					},
+				},
+			},
+		},
+		{
+			containers: []codersdk.WorkspaceAgentContainer{fakeContainer1, fakeContainer2},
+			expected: codersdk.WorkspaceAgentListContainersResponse{
+				Containers: []codersdk.WorkspaceAgentContainer{fakeContainer1, fakeContainer2},
+				Devcontainers: []codersdk.WorkspaceAgentDevcontainer{
+					{
+						Name:            "project1",
+						WorkspaceFolder: fakeContainer1.Labels[agentcontainers.DevcontainerLocalFolderLabel],
+						ConfigPath:      fakeContainer1.Labels[agentcontainers.DevcontainerConfigFileLabel],
+						Status:          "running",
+						Container:       &fakeContainer1,
+					},
+					{
+						Name:            "project2",
+						WorkspaceFolder: fakeContainer2.Labels[agentcontainers.DevcontainerLocalFolderLabel],
+						ConfigPath:      fakeContainer2.Labels[agentcontainers.DevcontainerConfigFileLabel],
+						Status:          "running",
+						Container:       &fakeContainer2,
+					},
+				},
+			},
+		},
+		{
+			containers: []codersdk.WorkspaceAgentContainer{fakeContainer2},
+			expected: codersdk.WorkspaceAgentListContainersResponse{
+				Containers: []codersdk.WorkspaceAgentContainer{fakeContainer2},
+				Devcontainers: []codersdk.WorkspaceAgentDevcontainer{
+					{
+						Name:            "",
+						WorkspaceFolder: fakeContainer1.Labels[agentcontainers.DevcontainerLocalFolderLabel],
+						ConfigPath:      fakeContainer1.Labels[agentcontainers.DevcontainerConfigFileLabel],
+						Status:          "stopped",
+						Container:       nil,
+					},
+					{
+						Name:            "project2",
+						WorkspaceFolder: fakeContainer2.Labels[agentcontainers.DevcontainerLocalFolderLabel],
+						ConfigPath:      fakeContainer2.Labels[agentcontainers.DevcontainerConfigFileLabel],
+						Status:          "running",
+						Container:       &fakeContainer2,
+					},
+				},
+			},
+		},
+	}
+
+	// Set up initial state for immediate send on connection
+	mCCLI.EXPECT().List(gomock.Any()).Return(codersdk.WorkspaceAgentListContainersResponse{Containers: stages[0].containers}, nil)
+	mCCLI.EXPECT().DetectArchitecture(gomock.Any(), gomock.Any()).Return("<none>", nil).AnyTimes()
+
+	_ = agenttest.New(t, client.URL, r.AgentToken, func(o *agent.Options) {
+		o.Logger = logger.Named("agent")
+		o.Devcontainers = true
+		o.DevcontainerAPIOptions = []agentcontainers.Option{
+			agentcontainers.WithClock(mClock),
+			agentcontainers.WithContainerCLI(mCCLI),
+			agentcontainers.WithWatcher(watcher.NewNoop()),
+		}
+	})
+
+	resources := coderdtest.NewWorkspaceAgentWaiter(t, client, r.Workspace.ID).Wait()
+	require.Len(t, resources, 1, "expected one resource")
+	require.Len(t, resources[0].Agents, 1, "expected one agent")
+	agentID := resources[0].Agents[0].ID
+
+	updaterTickerTrap.MustWait(ctx).MustRelease(ctx)
+	defer updaterTickerTrap.Close()
+
+	containers, closer, err := client.WatchWorkspaceAgentContainers(ctx, agentID)
+	require.NoError(t, err)
+	defer func() {
+		closer.Close()
+	}()
+
+	// Read initial state sent immediately on connection
+	var got codersdk.WorkspaceAgentListContainersResponse
+	select {
+	case <-ctx.Done():
+	case got = <-containers:
+	}
+	require.NoError(t, ctx.Err())
+
+	require.Equal(t, stages[0].expected.Containers, got.Containers)
+	require.Len(t, got.Devcontainers, len(stages[0].expected.Devcontainers))
+	for j, expectedDev := range stages[0].expected.Devcontainers {
+		gotDev := got.Devcontainers[j]
+		require.Equal(t, expectedDev.Name, gotDev.Name)
+		require.Equal(t, expectedDev.WorkspaceFolder, gotDev.WorkspaceFolder)
+		require.Equal(t, expectedDev.ConfigPath, gotDev.ConfigPath)
+		require.Equal(t, expectedDev.Status, gotDev.Status)
+		require.Equal(t, expectedDev.Container, gotDev.Container)
+	}
+
+	// Process remaining stages through updater loop
+	for i, stage := range stages[1:] {
+		mCCLI.EXPECT().List(gomock.Any()).Return(codersdk.WorkspaceAgentListContainersResponse{Containers: stage.containers}, nil)
+
+		_, aw := mClock.AdvanceNext()
+		aw.MustWait(ctx)
+
+		var got codersdk.WorkspaceAgentListContainersResponse
+		select {
+		case <-ctx.Done():
+		case got = <-containers:
+		}
+		require.NoError(t, ctx.Err())
+
+		require.Equal(t, stages[i+1].expected.Containers, got.Containers)
+		require.Len(t, got.Devcontainers, len(stages[i+1].expected.Devcontainers))
+		for j, expectedDev := range stages[i+1].expected.Devcontainers {
+			gotDev := got.Devcontainers[j]
+			require.Equal(t, expectedDev.Name, gotDev.Name)
+			require.Equal(t, expectedDev.WorkspaceFolder, gotDev.WorkspaceFolder)
+			require.Equal(t, expectedDev.ConfigPath, gotDev.ConfigPath)
+			require.Equal(t, expectedDev.Status, gotDev.Status)
+			require.Equal(t, expectedDev.Container, gotDev.Container)
+		}
+	}
+}
+
+func TestWorkspaceAgentRecreateDevcontainer(t *testing.T) {
+	t.Parallel()
+
+	t.Run("Mock", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			workspaceFolder = t.TempDir()
+			configFile      = filepath.Join(workspaceFolder, ".devcontainer", "devcontainer.json")
+			devcontainerID  = uuid.New()
+
+			// Create a container that would be associated with the devcontainer
+			devContainer = codersdk.WorkspaceAgentContainer{
+				ID:           uuid.NewString(),
+				CreatedAt:    dbtime.Now(),
+				FriendlyName: testutil.GetRandomName(t),
+				Image:        "busybox:latest",
+				Labels: map[string]string{
+					agentcontainers.DevcontainerLocalFolderLabel: workspaceFolder,
+					agentcontainers.DevcontainerConfigFileLabel:  configFile,
+				},
+				Running: true,
+				Status:  "running",
+			}
+
+			devcontainer = codersdk.WorkspaceAgentDevcontainer{
+				ID:              devcontainerID,
+				Name:            "test-devcontainer",
+				WorkspaceFolder: workspaceFolder,
+				ConfigPath:      configFile,
+				Status:          codersdk.WorkspaceAgentDevcontainerStatusRunning,
+				Container:       &devContainer,
+			}
+		)
+
+		for _, tc := range []struct {
+			name               string
+			devcontainerID     string
+			setupDevcontainers []codersdk.WorkspaceAgentDevcontainer
+			setupMock          func(mccli *acmock.MockContainerCLI, mdccli *acmock.MockDevcontainerCLI) (status int)
+		}{
+			{
+				name:               "Recreate",
+				devcontainerID:     devcontainerID.String(),
+				setupDevcontainers: []codersdk.WorkspaceAgentDevcontainer{devcontainer},
+				setupMock: func(mccli *acmock.MockContainerCLI, mdccli *acmock.MockDevcontainerCLI) int {
+					mccli.EXPECT().List(gomock.Any()).Return(codersdk.WorkspaceAgentListContainersResponse{
+						Containers: []codersdk.WorkspaceAgentContainer{devContainer},
+					}, nil).AnyTimes()
+					// DetectArchitecture always returns "<none>" for this test to disable agent injection.
+					mccli.EXPECT().DetectArchitecture(gomock.Any(), devContainer.ID).Return("<none>", nil).AnyTimes()
+					mdccli.EXPECT().ReadConfig(gomock.Any(), workspaceFolder, configFile, gomock.Any()).Return(agentcontainers.DevcontainerConfig{}, nil).AnyTimes()
+					mdccli.EXPECT().Up(gomock.Any(), workspaceFolder, configFile, gomock.Any()).Return("someid", nil).Times(1)
+					return 0
+				},
+			},
+			{
+				name:               "Devcontainer does not exist",
+				devcontainerID:     uuid.NewString(),
+				setupDevcontainers: nil,
+				setupMock: func(mccli *acmock.MockContainerCLI, mdccli *acmock.MockDevcontainerCLI) int {
+					mccli.EXPECT().List(gomock.Any()).Return(codersdk.WorkspaceAgentListContainersResponse{}, nil).AnyTimes()
+					return http.StatusNotFound
+				},
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+
+				ctrl := gomock.NewController(t)
+				mccli := acmock.NewMockContainerCLI(ctrl)
+				mdccli := acmock.NewMockDevcontainerCLI(ctrl)
+				wantStatus := tc.setupMock(mccli, mdccli)
+				logger := slogtest.Make(t, &slogtest.Options{IgnoreErrors: true}).Leveled(slog.LevelDebug)
+				client, db := coderdtest.NewWithDatabase(t, &coderdtest.Options{
+					Logger: &logger,
+				})
+				user := coderdtest.CreateFirstUser(t, client)
+				r := dbfake.WorkspaceBuild(t, db, database.WorkspaceTable{
+					OrganizationID: user.OrganizationID,
+					OwnerID:        user.UserID,
+				}).WithAgent(func(agents []*proto.Agent) []*proto.Agent {
+					return agents
+				}).Do()
+
+				devcontainerAPIOptions := []agentcontainers.Option{
+					agentcontainers.WithContainerCLI(mccli),
+					agentcontainers.WithDevcontainerCLI(mdccli),
+					agentcontainers.WithWatcher(watcher.NewNoop()),
+				}
+				if tc.setupDevcontainers != nil {
+					devcontainerAPIOptions = append(devcontainerAPIOptions,
+						agentcontainers.WithDevcontainers(tc.setupDevcontainers, nil))
+				}
+
+				_ = agenttest.New(t, client.URL, r.AgentToken, func(o *agent.Options) {
+					o.Logger = logger.Named("agent")
+					o.Devcontainers = true
+					o.DevcontainerAPIOptions = devcontainerAPIOptions
+				})
+				resources := coderdtest.NewWorkspaceAgentWaiter(t, client, r.Workspace.ID).Wait()
+				require.Len(t, resources, 1, "expected one resource")
+				require.Len(t, resources[0].Agents, 1, "expected one agent")
+				agentID := resources[0].Agents[0].ID
+
+				ctx := testutil.Context(t, testutil.WaitLong)
+
+				_, err := client.WorkspaceAgentRecreateDevcontainer(ctx, agentID, tc.devcontainerID)
+				if wantStatus > 0 {
+					cerr, ok := codersdk.AsError(err)
+					require.True(t, ok, "expected error to be a coder error")
+					assert.Equal(t, wantStatus, cerr.StatusCode())
+				} else {
+					require.NoError(t, err, "failed to recreate devcontainer")
 				}
 			})
 		}
@@ -1437,7 +1880,6 @@ func TestWorkspaceAgent_LifecycleState(t *testing.T) {
 		}
 		//nolint:paralleltest // No race between setting the state and getting the workspace.
 		for _, tt := range tests {
-			tt := tt
 			t.Run(string(tt.state), func(t *testing.T) {
 				state, err := agentsdk.ProtoFromLifecycleState(tt.state)
 				if tt.wantErr {
@@ -1732,8 +2174,8 @@ func (s *testWAMErrorStore) GetWorkspaceAgentMetadata(ctx context.Context, arg d
 func TestWorkspaceAgent_Metadata_CatchMemoryLeak(t *testing.T) {
 	t.Parallel()
 
-	db := &testWAMErrorStore{Store: dbmem.New()}
-	psub := pubsub.NewInMemory()
+	store, psub := dbtestutil.NewDB(t)
+	db := &testWAMErrorStore{Store: store}
 	logger := slogtest.Make(t, &slogtest.Options{IgnoreErrors: true}).Named("coderd").Leveled(slog.LevelDebug)
 	client := coderdtest.New(t, &coderdtest.Options{
 		Database:                 db,
@@ -1862,8 +2304,8 @@ func TestWorkspaceAgent_Metadata_CatchMemoryLeak(t *testing.T) {
 	// testing it is not straightforward.
 	db.err.Store(&wantErr)
 
-	testutil.RequireRecvCtx(ctx, t, metadataDone)
-	testutil.RequireRecvCtx(ctx, t, postDone)
+	testutil.TryReceive(ctx, t, metadataDone)
+	testutil.TryReceive(ctx, t, postDone)
 }
 
 func TestWorkspaceAgent_Startup(t *testing.T) {
@@ -2155,7 +2597,7 @@ func TestOwnedWorkspacesCoordinate(t *testing.T) {
 		},
 	})
 	if err != nil {
-		if resp.StatusCode != http.StatusSwitchingProtocols {
+		if resp != nil && resp.StatusCode != http.StatusSwitchingProtocols {
 			err = codersdk.ReadBodyAsError(resp)
 		}
 		require.NoError(t, err)
@@ -2211,6 +2653,135 @@ func TestOwnedWorkspacesCoordinate(t *testing.T) {
 	})
 }
 
+func TestUserTailnetTelemetry(t *testing.T) {
+	t.Parallel()
+
+	telemetryData := &codersdk.CoderDesktopTelemetry{
+		DeviceOS:            "Windows",
+		DeviceID:            "device001",
+		CoderDesktopVersion: "0.22.1",
+	}
+	fullHeader, err := json.Marshal(telemetryData)
+	require.NoError(t, err)
+
+	testCases := []struct {
+		name    string
+		headers map[string]string
+		// only used for DeviceID, DeviceOS, CoderDesktopVersion
+		expected telemetry.UserTailnetConnection
+	}{
+		{
+			name:     "no header",
+			headers:  map[string]string{},
+			expected: telemetry.UserTailnetConnection{},
+		},
+		{
+			name: "full header",
+			headers: map[string]string{
+				codersdk.CoderDesktopTelemetryHeader: string(fullHeader),
+			},
+			expected: telemetry.UserTailnetConnection{
+				DeviceOS:            ptr.Ref("Windows"),
+				DeviceID:            ptr.Ref("device001"),
+				CoderDesktopVersion: ptr.Ref("0.22.1"),
+			},
+		},
+		{
+			name: "empty header",
+			headers: map[string]string{
+				codersdk.CoderDesktopTelemetryHeader: "",
+			},
+			expected: telemetry.UserTailnetConnection{},
+		},
+		{
+			name: "invalid header",
+			headers: map[string]string{
+				codersdk.CoderDesktopTelemetryHeader: "{\"device_os",
+			},
+			expected: telemetry.UserTailnetConnection{},
+		},
+	}
+
+	// nolint: paralleltest // no longer need to reinitialize loop vars in go 1.22
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			ctx := testutil.Context(t, testutil.WaitLong)
+			logger := testutil.Logger(t)
+
+			fTelemetry := newFakeTelemetryReporter(ctx, t, 200)
+			fTelemetry.enabled = false
+			firstClient := coderdtest.New(t, &coderdtest.Options{
+				Logger:            &logger,
+				TelemetryReporter: fTelemetry,
+			})
+			firstUser := coderdtest.CreateFirstUser(t, firstClient)
+			member, memberUser := coderdtest.CreateAnotherUser(t, firstClient, firstUser.OrganizationID, rbac.RoleTemplateAdmin())
+
+			headers := http.Header{
+				"Coder-Session-Token": []string{member.SessionToken()},
+			}
+			for k, v := range tc.headers {
+				headers.Add(k, v)
+			}
+
+			// enable telemetry now that user is created.
+			fTelemetry.enabled = true
+
+			u, err := member.URL.Parse("/api/v2/tailnet")
+			require.NoError(t, err)
+			q := u.Query()
+			q.Set("version", "2.0")
+			u.RawQuery = q.Encode()
+
+			predialTime := time.Now()
+
+			//nolint:bodyclose // websocket package closes this for you
+			wsConn, resp, err := websocket.Dial(ctx, u.String(), &websocket.DialOptions{
+				HTTPHeader: headers,
+			})
+			if err != nil {
+				if resp != nil && resp.StatusCode != http.StatusSwitchingProtocols {
+					err = codersdk.ReadBodyAsError(resp)
+				}
+				require.NoError(t, err)
+			}
+			defer wsConn.Close(websocket.StatusNormalClosure, "done")
+
+			// Check telemetry
+			snapshot := testutil.TryReceive(ctx, t, fTelemetry.snapshots)
+			require.Len(t, snapshot.UserTailnetConnections, 1)
+			telemetryConnection := snapshot.UserTailnetConnections[0]
+			require.Equal(t, memberUser.ID.String(), telemetryConnection.UserID)
+			require.GreaterOrEqual(t, telemetryConnection.ConnectedAt, predialTime)
+			require.LessOrEqual(t, telemetryConnection.ConnectedAt, time.Now())
+			require.NotEmpty(t, telemetryConnection.PeerID)
+			requireEqualOrBothNil(t, telemetryConnection.DeviceID, tc.expected.DeviceID)
+			requireEqualOrBothNil(t, telemetryConnection.DeviceOS, tc.expected.DeviceOS)
+			requireEqualOrBothNil(t, telemetryConnection.CoderDesktopVersion, tc.expected.CoderDesktopVersion)
+
+			beforeDisconnectTime := time.Now()
+			err = wsConn.Close(websocket.StatusNormalClosure, "done")
+			require.NoError(t, err)
+
+			snapshot = testutil.TryReceive(ctx, t, fTelemetry.snapshots)
+			require.Len(t, snapshot.UserTailnetConnections, 1)
+			telemetryDisconnection := snapshot.UserTailnetConnections[0]
+			require.Equal(t, memberUser.ID.String(), telemetryDisconnection.UserID)
+			require.Equal(t, telemetryConnection.ConnectedAt, telemetryDisconnection.ConnectedAt)
+			require.Equal(t, telemetryConnection.UserID, telemetryDisconnection.UserID)
+			require.Equal(t, telemetryConnection.PeerID, telemetryDisconnection.PeerID)
+			require.NotNil(t, telemetryDisconnection.DisconnectedAt)
+			require.GreaterOrEqual(t, *telemetryDisconnection.DisconnectedAt, beforeDisconnectTime)
+			require.LessOrEqual(t, *telemetryDisconnection.DisconnectedAt, time.Now())
+			requireEqualOrBothNil(t, telemetryConnection.DeviceID, tc.expected.DeviceID)
+			requireEqualOrBothNil(t, telemetryConnection.DeviceOS, tc.expected.DeviceOS)
+			requireEqualOrBothNil(t, telemetryConnection.CoderDesktopVersion, tc.expected.CoderDesktopVersion)
+		})
+	}
+}
+
 func buildWorkspaceWithAgent(
 	t *testing.T,
 	client *codersdk.Client,
@@ -2237,7 +2808,7 @@ func requireGetManifest(ctx context.Context, t testing.TB, aAPI agentproto.DRPCA
 }
 
 func postStartup(ctx context.Context, t testing.TB, client agent.Client, startup *agentproto.Startup) error {
-	aAPI, _, err := client.ConnectRPC24(ctx)
+	aAPI, _, err := client.ConnectRPC26(ctx)
 	require.NoError(t, err)
 	defer func() {
 		cErr := aAPI.DRPCConn().Close()
@@ -2333,4 +2904,155 @@ func waitForUpdates(
 	case <-ctx.Done():
 		t.Fatal("Timeout waiting for desired state", currentState)
 	}
+}
+
+// fakeTelemetryReporter is a fake implementation of telemetry.Reporter
+// that sends snapshots on a buffered channel, useful for testing.
+type fakeTelemetryReporter struct {
+	enabled   bool
+	snapshots chan *telemetry.Snapshot
+	t         testing.TB
+	ctx       context.Context
+}
+
+// newFakeTelemetryReporter creates a new fakeTelemetryReporter with a buffered channel.
+// The buffer size determines how many snapshots can be reported before blocking.
+func newFakeTelemetryReporter(ctx context.Context, t testing.TB, bufferSize int) *fakeTelemetryReporter {
+	return &fakeTelemetryReporter{
+		enabled:   true,
+		snapshots: make(chan *telemetry.Snapshot, bufferSize),
+		ctx:       ctx,
+		t:         t,
+	}
+}
+
+// Report implements the telemetry.Reporter interface by sending the snapshot
+// to the snapshots channel.
+func (f *fakeTelemetryReporter) Report(snapshot *telemetry.Snapshot) {
+	if !f.enabled {
+		return
+	}
+
+	select {
+	case f.snapshots <- snapshot:
+		// Successfully sent
+	case <-f.ctx.Done():
+		f.t.Error("context closed while writing snapshot")
+	}
+}
+
+// Enabled implements the telemetry.Reporter interface.
+func (f *fakeTelemetryReporter) Enabled() bool {
+	return f.enabled
+}
+
+// Close implements the telemetry.Reporter interface.
+func (*fakeTelemetryReporter) Close() {}
+
+func requireEqualOrBothNil[T any](t testing.TB, a, b *T) {
+	t.Helper()
+	if a != nil && b != nil {
+		require.Equal(t, *a, *b)
+		return
+	}
+	require.Equal(t, a, b)
+}
+
+func TestAgentConnectionInfo(t *testing.T) {
+	t.Parallel()
+	ctx := testutil.Context(t, testutil.WaitShort)
+
+	dv := coderdtest.DeploymentValues(t)
+	dv.WorkspaceHostnameSuffix = "yallah"
+	dv.DERP.Config.BlockDirect = true
+	dv.DERP.Config.ForceWebSockets = true
+	client, db := coderdtest.NewWithDatabase(t, &coderdtest.Options{DeploymentValues: dv})
+	user := coderdtest.CreateFirstUser(t, client)
+	r := dbfake.WorkspaceBuild(t, db, database.WorkspaceTable{
+		OrganizationID: user.OrganizationID,
+		OwnerID:        user.UserID,
+	}).WithAgent().Do()
+
+	info, err := workspacesdk.New(client).AgentConnectionInfoGeneric(ctx)
+	require.NoError(t, err)
+	require.Equal(t, "yallah", info.HostnameSuffix)
+	require.True(t, info.DisableDirectConnections)
+	require.True(t, info.DERPForceWebSockets)
+
+	ws, err := client.Workspace(ctx, r.Workspace.ID)
+	require.NoError(t, err)
+	agnt := ws.LatestBuild.Resources[0].Agents[0]
+	info, err = workspacesdk.New(client).AgentConnectionInfo(ctx, agnt.ID)
+	require.NoError(t, err)
+	require.Equal(t, "yallah", info.HostnameSuffix)
+	require.True(t, info.DisableDirectConnections)
+	require.True(t, info.DERPForceWebSockets)
+}
+
+func TestReinit(t *testing.T) {
+	t.Parallel()
+
+	db, ps := dbtestutil.NewDB(t)
+	pubsubSpy := pubsubReinitSpy{
+		Pubsub:           ps,
+		triedToSubscribe: make(chan string),
+	}
+	client := coderdtest.New(t, &coderdtest.Options{
+		Database: db,
+		Pubsub:   &pubsubSpy,
+	})
+	user := coderdtest.CreateFirstUser(t, client)
+
+	r := dbfake.WorkspaceBuild(t, db, database.WorkspaceTable{
+		OrganizationID: user.OrganizationID,
+		OwnerID:        user.UserID,
+	}).WithAgent().Do()
+
+	pubsubSpy.Lock()
+	pubsubSpy.expectedEvent = agentsdk.PrebuildClaimedChannel(r.Workspace.ID)
+	pubsubSpy.Unlock()
+
+	agentCtx := testutil.Context(t, testutil.WaitShort)
+	agentClient := agentsdk.New(client.URL)
+	agentClient.SetSessionToken(r.AgentToken)
+
+	agentReinitializedCh := make(chan *agentsdk.ReinitializationEvent)
+	go func() {
+		reinitEvent, err := agentClient.WaitForReinit(agentCtx)
+		assert.NoError(t, err)
+		agentReinitializedCh <- reinitEvent
+	}()
+
+	// We need to subscribe before we publish, lest we miss the event
+	ctx := testutil.Context(t, testutil.WaitShort)
+	testutil.TryReceive(ctx, t, pubsubSpy.triedToSubscribe)
+
+	// Now that we're subscribed, publish the event
+	err := prebuilds.NewPubsubWorkspaceClaimPublisher(ps).PublishWorkspaceClaim(agentsdk.ReinitializationEvent{
+		WorkspaceID: r.Workspace.ID,
+		Reason:      agentsdk.ReinitializeReasonPrebuildClaimed,
+	})
+	require.NoError(t, err)
+
+	ctx = testutil.Context(t, testutil.WaitShort)
+	reinitEvent := testutil.TryReceive(ctx, t, agentReinitializedCh)
+	require.NotNil(t, reinitEvent)
+	require.Equal(t, r.Workspace.ID, reinitEvent.WorkspaceID)
+}
+
+type pubsubReinitSpy struct {
+	pubsub.Pubsub
+	sync.Mutex
+	triedToSubscribe chan string
+	expectedEvent    string
+}
+
+func (p *pubsubReinitSpy) Subscribe(event string, listener pubsub.Listener) (cancel func(), err error) {
+	cancel, err = p.Pubsub.Subscribe(event, listener)
+	p.Lock()
+	if p.expectedEvent != "" && event == p.expectedEvent {
+		close(p.triedToSubscribe)
+	}
+	p.Unlock()
+	return cancel, err
 }

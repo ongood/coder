@@ -19,7 +19,7 @@ import (
 	agentproto "github.com/coder/coder/v2/agent/proto"
 	"github.com/coder/coder/v2/coderd/agentapi/resourcesmonitor"
 	"github.com/coder/coder/v2/coderd/appearance"
-	"github.com/coder/coder/v2/coderd/audit"
+	"github.com/coder/coder/v2/coderd/connectionlog"
 	"github.com/coder/coder/v2/coderd/database"
 	"github.com/coder/coder/v2/coderd/database/pubsub"
 	"github.com/coder/coder/v2/coderd/externalauth"
@@ -30,6 +30,7 @@ import (
 	"github.com/coder/coder/v2/coderd/wspubsub"
 	"github.com/coder/coder/v2/codersdk"
 	"github.com/coder/coder/v2/codersdk/agentsdk"
+	"github.com/coder/coder/v2/codersdk/drpcsdk"
 	"github.com/coder/coder/v2/tailnet"
 	tailnetproto "github.com/coder/coder/v2/tailnet/proto"
 	"github.com/coder/quartz"
@@ -49,7 +50,8 @@ type API struct {
 	*ResourcesMonitoringAPI
 	*LogsAPI
 	*ScriptsAPI
-	*AuditAPI
+	*ConnLogAPI
+	*SubAgentAPI
 	*tailnet.DRPCService
 
 	mu sync.Mutex
@@ -58,9 +60,10 @@ type API struct {
 var _ agentproto.DRPCAgentServer = &API{}
 
 type Options struct {
-	AgentID     uuid.UUID
-	OwnerID     uuid.UUID
-	WorkspaceID uuid.UUID
+	AgentID        uuid.UUID
+	OwnerID        uuid.UUID
+	WorkspaceID    uuid.UUID
+	OrganizationID uuid.UUID
 
 	Ctx                               context.Context
 	Log                               slog.Logger
@@ -68,7 +71,7 @@ type Options struct {
 	Database                          database.Store
 	NotificationsEnqueuer             notifications.Enqueuer
 	Pubsub                            pubsub.Pubsub
-	Auditor                           *atomic.Pointer[audit.Auditor]
+	ConnectionLogger                  *atomic.Pointer[connectionlog.ConnectionLogger]
 	DerpMapFn                         func() *tailcfg.DERPMap
 	TailnetCoordinator                *atomic.Pointer[tailnet.Coordinator]
 	StatsReporter                     *workspacestats.Reporter
@@ -121,7 +124,7 @@ func New(opts Options) *API {
 		Clock:                 opts.Clock,
 		Database:              opts.Database,
 		NotificationsEnqueuer: opts.NotificationsEnqueuer,
-		Debounce:              5 * time.Minute,
+		Debounce:              30 * time.Minute,
 
 		Config: resourcesmonitor.Config{
 			NumDatapoints:      20,
@@ -177,11 +180,11 @@ func New(opts Options) *API {
 		Database: opts.Database,
 	}
 
-	api.AuditAPI = &AuditAPI{
-		AgentFn:  api.agent,
-		Auditor:  opts.Auditor,
-		Database: opts.Database,
-		Log:      opts.Log,
+	api.ConnLogAPI = &ConnLogAPI{
+		AgentFn:          api.agent,
+		ConnectionLogger: opts.ConnectionLogger,
+		Database:         opts.Database,
+		Log:              opts.Log,
 	}
 
 	api.DRPCService = &tailnet.DRPCService{
@@ -190,6 +193,16 @@ func New(opts Options) *API {
 		DerpMapUpdateFrequency:  opts.DerpMapUpdateFrequency,
 		DerpMapFn:               opts.DerpMapFn,
 		NetworkTelemetryHandler: opts.NetworkTelemetryHandler,
+	}
+
+	api.SubAgentAPI = &SubAgentAPI{
+		OwnerID:        opts.OwnerID,
+		OrganizationID: opts.OrganizationID,
+		AgentID:        opts.AgentID,
+		AgentFn:        api.agent,
+		Log:            opts.Log,
+		Clock:          opts.Clock,
+		Database:       opts.Database,
 	}
 
 	return api
@@ -209,6 +222,7 @@ func (a *API) Server(ctx context.Context) (*drpcserver.Server, error) {
 
 	return drpcserver.NewWithOptions(&tracing.DRPCHandler{Handler: mux},
 		drpcserver.Options{
+			Manager: drpcsdk.DefaultDRPCOptions(nil),
 			Log: func(err error) {
 				if xerrors.Is(err, io.EOF) {
 					return

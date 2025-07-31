@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -26,7 +27,6 @@ import (
 	"github.com/coder/coder/v2/coderd/database"
 	"github.com/coder/coder/v2/coderd/database/db2sdk"
 	"github.com/coder/coder/v2/coderd/database/dbgen"
-	"github.com/coder/coder/v2/coderd/database/dbmem"
 	"github.com/coder/coder/v2/coderd/database/dbtestutil"
 	"github.com/coder/coder/v2/coderd/database/dbtime"
 	"github.com/coder/coder/v2/coderd/httpmw"
@@ -45,7 +45,7 @@ func TestInjection(t *testing.T) {
 		},
 	}
 	binFs := http.FS(fstest.MapFS{})
-	db := dbmem.New()
+	db, _ := dbtestutil.NewDB(t)
 	handler := site.New(&site.Options{
 		Telemetry: telemetry.NewNoop(),
 		BinFS:     binFs,
@@ -72,13 +72,17 @@ func TestInjection(t *testing.T) {
 	// This will update as part of the request!
 	got.LastSeenAt = user.LastSeenAt
 
+	// json.Unmarshal doesn't parse the timezone correctly
+	got.CreatedAt = got.CreatedAt.In(user.CreatedAt.Location())
+	got.UpdatedAt = got.UpdatedAt.In(user.CreatedAt.Location())
+
 	require.Equal(t, db2sdk.User(user, []uuid.UUID{}), got)
 }
 
 func TestInjectionFailureProducesCleanHTML(t *testing.T) {
 	t.Parallel()
 
-	db := dbmem.New()
+	db, _ := dbtestutil.NewDB(t)
 
 	// Create an expired user with a refresh token, but provide no OAuth2
 	// configuration so that refresh is impossible, this should result in
@@ -373,11 +377,13 @@ func TestServingBin(t *testing.T) {
 	delete(sampleBinFSMissingSha256, binCoderSha1)
 
 	type req struct {
-		url         string
-		ifNoneMatch string
-		wantStatus  int
-		wantBody    []byte
-		wantEtag    string
+		url              string
+		ifNoneMatch      string
+		wantStatus       int
+		wantBody         []byte
+		wantOriginalSize int
+		wantEtag         string
+		compression      bool
 	}
 	tests := []struct {
 		name    string
@@ -390,17 +396,27 @@ func TestServingBin(t *testing.T) {
 			fs:   sampleBinFS(),
 			reqs: []req{
 				{
-					url:        "/bin/coder-linux-amd64",
-					wantStatus: http.StatusOK,
-					wantBody:   []byte("compressed"),
-					wantEtag:   fmt.Sprintf("%q", sampleBinSHAs["coder-linux-amd64"]),
+					url:              "/bin/coder-linux-amd64",
+					wantStatus:       http.StatusOK,
+					wantBody:         []byte("compressed"),
+					wantOriginalSize: 10,
+					wantEtag:         fmt.Sprintf("%q", sampleBinSHAs["coder-linux-amd64"]),
 				},
 				// Test ETag support.
 				{
-					url:         "/bin/coder-linux-amd64",
-					ifNoneMatch: fmt.Sprintf("%q", sampleBinSHAs["coder-linux-amd64"]),
-					wantStatus:  http.StatusNotModified,
-					wantEtag:    fmt.Sprintf("%q", sampleBinSHAs["coder-linux-amd64"]),
+					url:              "/bin/coder-linux-amd64",
+					ifNoneMatch:      fmt.Sprintf("%q", sampleBinSHAs["coder-linux-amd64"]),
+					wantStatus:       http.StatusNotModified,
+					wantOriginalSize: 10,
+					wantEtag:         fmt.Sprintf("%q", sampleBinSHAs["coder-linux-amd64"]),
+				},
+				// Test compression support with X-Original-Content-Length
+				// header.
+				{
+					url:              "/bin/coder-linux-amd64",
+					wantStatus:       http.StatusOK,
+					wantOriginalSize: 10,
+					compression:      true,
 				},
 				{url: "/bin/GITKEEP", wantStatus: http.StatusNotFound},
 			},
@@ -462,15 +478,29 @@ func TestServingBin(t *testing.T) {
 			},
 			reqs: []req{
 				// We support both hyphens and underscores for compatibility.
-				{url: "/bin/coder-linux-amd64", wantStatus: http.StatusOK, wantBody: []byte("embed")},
-				{url: "/bin/coder_linux_amd64", wantStatus: http.StatusOK, wantBody: []byte("embed")},
-				{url: "/bin/GITKEEP", wantStatus: http.StatusOK, wantBody: []byte("")},
+				{
+					url:              "/bin/coder-linux-amd64",
+					wantStatus:       http.StatusOK,
+					wantBody:         []byte("embed"),
+					wantOriginalSize: 5,
+				},
+				{
+					url:              "/bin/coder_linux_amd64",
+					wantStatus:       http.StatusOK,
+					wantBody:         []byte("embed"),
+					wantOriginalSize: 5,
+				},
+				{
+					url:              "/bin/GITKEEP",
+					wantStatus:       http.StatusOK,
+					wantBody:         []byte(""),
+					wantOriginalSize: 0,
+				},
 			},
 		},
 	}
 	//nolint // Parallel test detection issue.
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -482,12 +512,14 @@ func TestServingBin(t *testing.T) {
 				require.Error(t, err, "extraction or read did not fail")
 			}
 
-			srv := httptest.NewServer(site.New(&site.Options{
+			site := site.New(&site.Options{
 				Telemetry: telemetry.NewNoop(),
 				BinFS:     binFS,
 				BinHashes: binHashes,
 				SiteFS:    rootFS,
-			}))
+			})
+			compressor := middleware.NewCompressor(1, "text/*", "application/*")
+			srv := httptest.NewServer(compressor.Handler(site))
 			defer srv.Close()
 
 			// Create a context
@@ -501,6 +533,9 @@ func TestServingBin(t *testing.T) {
 
 					if tr.ifNoneMatch != "" {
 						req.Header.Set("If-None-Match", tr.ifNoneMatch)
+					}
+					if tr.compression {
+						req.Header.Set("Accept-Encoding", "gzip")
 					}
 
 					resp, err := http.DefaultClient.Do(req)
@@ -520,9 +555,27 @@ func TestServingBin(t *testing.T) {
 						assert.Empty(t, gotBody, "body is not empty")
 					}
 
+					if tr.compression {
+						assert.Equal(t, "gzip", resp.Header.Get("Content-Encoding"), "content encoding is not gzip")
+					} else {
+						assert.Empty(t, resp.Header.Get("Content-Encoding"), "content encoding is not empty")
+					}
+
 					if tr.wantEtag != "" {
 						assert.NotEmpty(t, resp.Header.Get("ETag"), "etag header is empty")
 						assert.Equal(t, tr.wantEtag, resp.Header.Get("ETag"), "etag did not match")
+					}
+
+					if tr.wantOriginalSize > 0 {
+						// This is a custom header that we set to help the
+						// client know the size of the decompressed data. See
+						// the comment in site.go.
+						headerStr := resp.Header.Get("X-Original-Content-Length")
+						assert.NotEmpty(t, headerStr, "X-Original-Content-Length header is empty")
+						originalSize, err := strconv.Atoi(headerStr)
+						if assert.NoErrorf(t, err, "could not parse X-Original-Content-Length header %q", headerStr) {
+							assert.EqualValues(t, tr.wantOriginalSize, originalSize, "X-Original-Content-Length did not match")
+						}
 					}
 				})
 			}

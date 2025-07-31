@@ -151,6 +151,15 @@ SET
 	updated_at = @updated_at::timestamptz
 WHERE id = @id::uuid;
 
+-- name: UpdateWorkspaceBuildAITaskByID :exec
+UPDATE
+	workspace_builds
+SET
+	has_ai_task = @has_ai_task,
+	ai_task_sidebar_app_id = @sidebar_app_id,
+	updated_at = @updated_at::timestamptz
+WHERE id = @id::uuid;
+
 -- name: GetActiveWorkspaceBuildsByTemplateID :many
 SELECT wb.*
 FROM (
@@ -213,6 +222,7 @@ SELECT
 	tv.name AS template_version_name,
 	u.username AS workspace_owner_username,
 	w.name AS workspace_name,
+	w.id AS workspace_id,
 	wb.build_number AS workspace_build_number
 FROM
 	workspace_build_with_user AS wb

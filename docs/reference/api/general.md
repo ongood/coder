@@ -61,6 +61,7 @@ curl -X GET http://coder-server:8080/api/v2/buildinfo \
   "telemetry": true,
   "upgrade_message": "string",
   "version": "string",
+  "webpush_public_key": "string",
   "workspace_proxy": true
 }
 ```
@@ -258,8 +259,12 @@ curl -X GET http://coder-server:8080/api/v2/deployment/config \
       "refresh": 0,
       "threshold_database": 0
     },
+    "hide_ai_tasks": true,
     "http_address": "string",
-    "in_memory_database": true,
+    "http_cookies": {
+      "same_site": "string",
+      "secure_auth_cookie": true
+    },
     "job_hang_detector_interval": 0,
     "logging": {
       "human": "string",
@@ -293,6 +298,9 @@ curl -X GET http://coder-server:8080/api/v2/deployment/config \
         }
       },
       "fetch_interval": 0,
+      "inbox": {
+        "enabled": true
+      },
       "lease_count": 0,
       "lease_period": 0,
       "max_send_attempts": 0,
@@ -429,11 +437,11 @@ curl -X GET http://coder-server:8080/api/v2/deployment/config \
     },
     "redirect_to_access_url": true,
     "scim_api_key": "string",
-    "secure_auth_cookie": true,
     "session_lifetime": {
       "default_duration": 0,
       "default_token_lifetime": 0,
       "disable_expiry_refresh": true,
+      "max_admin_token_lifetime": 0,
       "max_token_lifetime": 0
     },
     "ssh_keygen_algorithm": "string",
@@ -511,6 +519,13 @@ curl -X GET http://coder-server:8080/api/v2/deployment/config \
     "web_terminal_renderer": "string",
     "wgtunnel_host": "string",
     "wildcard_access_url": "string",
+    "workspace_hostname_suffix": "string",
+    "workspace_prebuilds": {
+      "failure_hard_limit": 0,
+      "reconciliation_backoff_interval": 0,
+      "reconciliation_backoff_lookback": 0,
+      "reconciliation_interval": 0
+    },
     "write_config": true
   },
   "options": [
@@ -577,6 +592,7 @@ curl -X GET http://coder-server:8080/api/v2/deployment/ssh \
 ```json
 {
   "hostname_prefix": "string",
+  "hostname_suffix": "string",
   "ssh_config_options": {
     "property1": "string",
     "property2": "string"

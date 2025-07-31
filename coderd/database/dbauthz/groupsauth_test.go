@@ -135,7 +135,6 @@ func TestGroupsAuth(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.Name, func(t *testing.T) {
 			t.Parallel()
 
@@ -147,7 +146,10 @@ func TestGroupsAuth(t *testing.T) {
 				require.Error(t, err, "group read")
 			}
 
-			members, err := db.GetGroupMembersByGroupID(actorCtx, group.ID)
+			members, err := db.GetGroupMembersByGroupID(actorCtx, database.GetGroupMembersByGroupIDParams{
+				GroupID:       group.ID,
+				IncludeSystem: false,
+			})
 			if tc.ReadMembers {
 				require.NoError(t, err, "member read")
 				require.Len(t, members, tc.MembersExpected, "member count found does not match")

@@ -13,7 +13,7 @@ machine/VM.
 
 - To change the log format/location, you can set
   [`CODER_LOGGING_HUMAN`](../../reference/cli/server.md#--log-human) and
-  [`CODER_LOGGING_JSON](../../reference/cli/server.md#--log-json) server config.
+  [`CODER_LOGGING_JSON`](../../reference/cli/server.md#--log-json) server config.
   options.
 - To only display certain types of logs, use
   the[`CODER_LOG_FILTER`](../../reference/cli/server.md#-l---log-filter) server
@@ -24,7 +24,7 @@ Connect logs are all captured in the `coderd` logs.
 
 ## `provisionerd` Logs
 
-Logs for [external provisioners](../provisioners.md) are structured
+Logs for [external provisioners](../provisioners/index.md) are structured
 [and configured](../../reference/cli/provisioner_start.md#--log-human) similarly
 to `coderd` logs. Use these logs to troubleshoot and monitor the Terraform
 operations behind workspaces and templates.

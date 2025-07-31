@@ -33,6 +33,8 @@ const (
 	orgUserAdmin            string = "organization-user-admin"
 	orgTemplateAdmin        string = "organization-template-admin"
 	orgWorkspaceCreationBan string = "organization-workspace-creation-ban"
+
+	prebuildsOrchestrator string = "prebuilds-orchestrator"
 )
 
 func init() {
@@ -268,11 +270,15 @@ func ReloadBuiltinRoles(opts *RoleOptions) {
 		Site: append(
 			// Workspace dormancy and workspace are omitted.
 			// Workspace is specifically handled based on the opts.NoOwnerWorkspaceExec
-			allPermsExcept(ResourceWorkspaceDormant, ResourceWorkspace),
+			allPermsExcept(ResourceWorkspaceDormant, ResourcePrebuiltWorkspace, ResourceWorkspace),
 			// This adds back in the Workspace permissions.
 			Permissions(map[string][]policy.Action{
 				ResourceWorkspace.Type:        ownerWorkspaceActions,
-				ResourceWorkspaceDormant.Type: {policy.ActionRead, policy.ActionDelete, policy.ActionCreate, policy.ActionUpdate, policy.ActionWorkspaceStop},
+				ResourceWorkspaceDormant.Type: {policy.ActionRead, policy.ActionDelete, policy.ActionCreate, policy.ActionUpdate, policy.ActionWorkspaceStop, policy.ActionCreateAgent, policy.ActionDeleteAgent},
+				// PrebuiltWorkspaces are a subset of Workspaces.
+				// Explicitly setting PrebuiltWorkspace permissions for clarity.
+				// Note: even without PrebuiltWorkspace permissions, access is still granted via Workspace permissions.
+				ResourcePrebuiltWorkspace.Type: {policy.ActionUpdate, policy.ActionDelete},
 			})...),
 		Org:  map[string][]Permission{},
 		User: []Permission{},
@@ -288,10 +294,10 @@ func ReloadBuiltinRoles(opts *RoleOptions) {
 			ResourceWorkspaceProxy.Type: {policy.ActionRead},
 		}),
 		Org: map[string][]Permission{},
-		User: append(allPermsExcept(ResourceWorkspaceDormant, ResourceUser, ResourceOrganizationMember),
+		User: append(allPermsExcept(ResourceWorkspaceDormant, ResourcePrebuiltWorkspace, ResourceUser, ResourceOrganizationMember),
 			Permissions(map[string][]policy.Action{
 				// Reduced permission set on dormant workspaces. No build, ssh, or exec
-				ResourceWorkspaceDormant.Type: {policy.ActionRead, policy.ActionDelete, policy.ActionCreate, policy.ActionUpdate, policy.ActionWorkspaceStop},
+				ResourceWorkspaceDormant.Type: {policy.ActionRead, policy.ActionDelete, policy.ActionCreate, policy.ActionUpdate, policy.ActionWorkspaceStop, policy.ActionCreateAgent, policy.ActionDeleteAgent},
 				// Users cannot do create/update/delete on themselves, but they
 				// can read their own details.
 				ResourceUser.Type: {policy.ActionRead, policy.ActionReadPersonal, policy.ActionUpdatePersonal},
@@ -309,6 +315,7 @@ func ReloadBuiltinRoles(opts *RoleOptions) {
 		Site: Permissions(map[string][]policy.Action{
 			ResourceAssignOrgRole.Type: {policy.ActionRead},
 			ResourceAuditLog.Type:      {policy.ActionRead},
+			ResourceConnectionLog.Type: {policy.ActionRead},
 			// Allow auditors to see the resources that audit logs reflect.
 			ResourceTemplate.Type:           {policy.ActionRead, policy.ActionViewInsights},
 			ResourceUser.Type:               {policy.ActionRead},
@@ -331,8 +338,9 @@ func ReloadBuiltinRoles(opts *RoleOptions) {
 			ResourceAssignOrgRole.Type: {policy.ActionRead},
 			ResourceTemplate.Type:      ResourceTemplate.AvailableActions(),
 			// CRUD all files, even those they did not upload.
-			ResourceFile.Type:      {policy.ActionCreate, policy.ActionRead},
-			ResourceWorkspace.Type: {policy.ActionRead},
+			ResourceFile.Type:              {policy.ActionCreate, policy.ActionRead},
+			ResourceWorkspace.Type:         {policy.ActionRead},
+			ResourcePrebuiltWorkspace.Type: {policy.ActionUpdate, policy.ActionDelete},
 			// CRUD to provisioner daemons for now.
 			ResourceProvisionerDaemon.Type: {policy.ActionCreate, policy.ActionRead, policy.ActionUpdate, policy.ActionDelete},
 			// Needs to read all organizations since
@@ -409,9 +417,13 @@ func ReloadBuiltinRoles(opts *RoleOptions) {
 				}),
 				Org: map[string][]Permission{
 					// Org admins should not have workspace exec perms.
-					organizationID.String(): append(allPermsExcept(ResourceWorkspace, ResourceWorkspaceDormant, ResourceAssignRole), Permissions(map[string][]policy.Action{
-						ResourceWorkspaceDormant.Type: {policy.ActionRead, policy.ActionDelete, policy.ActionCreate, policy.ActionUpdate, policy.ActionWorkspaceStop},
+					organizationID.String(): append(allPermsExcept(ResourceWorkspace, ResourceWorkspaceDormant, ResourcePrebuiltWorkspace, ResourceAssignRole), Permissions(map[string][]policy.Action{
+						ResourceWorkspaceDormant.Type: {policy.ActionRead, policy.ActionDelete, policy.ActionCreate, policy.ActionUpdate, policy.ActionWorkspaceStop, policy.ActionCreateAgent, policy.ActionDeleteAgent},
 						ResourceWorkspace.Type:        slice.Omit(ResourceWorkspace.AvailableActions(), policy.ActionApplicationConnect, policy.ActionSSH),
+						// PrebuiltWorkspaces are a subset of Workspaces.
+						// Explicitly setting PrebuiltWorkspace permissions for clarity.
+						// Note: even without PrebuiltWorkspace permissions, access is still granted via Workspace permissions.
+						ResourcePrebuiltWorkspace.Type: {policy.ActionUpdate, policy.ActionDelete},
 					})...),
 				},
 				User: []Permission{},
@@ -445,7 +457,8 @@ func ReloadBuiltinRoles(opts *RoleOptions) {
 				Site:        []Permission{},
 				Org: map[string][]Permission{
 					organizationID.String(): Permissions(map[string][]policy.Action{
-						ResourceAuditLog.Type: {policy.ActionRead},
+						ResourceAuditLog.Type:      {policy.ActionRead},
+						ResourceConnectionLog.Type: {policy.ActionRead},
 						// Allow auditors to see the resources that audit logs reflect.
 						ResourceTemplate.Type:           {policy.ActionRead, policy.ActionViewInsights},
 						ResourceGroup.Type:              {policy.ActionRead},
@@ -489,9 +502,10 @@ func ReloadBuiltinRoles(opts *RoleOptions) {
 				Site:        []Permission{},
 				Org: map[string][]Permission{
 					organizationID.String(): Permissions(map[string][]policy.Action{
-						ResourceTemplate.Type:  ResourceTemplate.AvailableActions(),
-						ResourceFile.Type:      {policy.ActionCreate, policy.ActionRead},
-						ResourceWorkspace.Type: {policy.ActionRead},
+						ResourceTemplate.Type:          ResourceTemplate.AvailableActions(),
+						ResourceFile.Type:              {policy.ActionCreate, policy.ActionRead},
+						ResourceWorkspace.Type:         {policy.ActionRead},
+						ResourcePrebuiltWorkspace.Type: {policy.ActionUpdate, policy.ActionDelete},
 						// Assigning template perms requires this permission.
 						ResourceOrganization.Type:       {policy.ActionRead},
 						ResourceOrganizationMember.Type: {policy.ActionRead},
@@ -501,7 +515,7 @@ func ReloadBuiltinRoles(opts *RoleOptions) {
 						// the ability to create templates and provisioners has
 						// a lot of overlap.
 						ResourceProvisionerDaemon.Type: {policy.ActionCreate, policy.ActionRead, policy.ActionUpdate, policy.ActionDelete},
-						ResourceProvisionerJobs.Type:   {policy.ActionRead},
+						ResourceProvisionerJobs.Type:   {policy.ActionRead, policy.ActionUpdate, policy.ActionCreate},
 					}),
 				},
 				User: []Permission{},
@@ -526,6 +540,16 @@ func ReloadBuiltinRoles(opts *RoleOptions) {
 							Negate:       true,
 							ResourceType: ResourceWorkspace.Type,
 							Action:       policy.ActionDelete,
+						},
+						{
+							Negate:       true,
+							ResourceType: ResourceWorkspace.Type,
+							Action:       policy.ActionCreateAgent,
+						},
+						{
+							Negate:       true,
+							ResourceType: ResourceWorkspace.Type,
+							Action:       policy.ActionDeleteAgent,
 						},
 					},
 				},
@@ -585,6 +609,9 @@ var assignRoles = map[string]map[string]bool{
 		customOrganizationRole:  true,
 	},
 	orgUserAdmin: {
+		orgMember: true,
+	},
+	prebuildsOrchestrator: {
 		orgMember: true,
 	},
 }
@@ -786,12 +813,12 @@ func OrganizationRoles(organizationID uuid.UUID) []Role {
 	return roles
 }
 
-// SiteRoles lists all roles that can be applied to a user.
+// SiteBuiltInRoles lists all roles that can be applied to a user.
 // This is the list of available roles, and not specific to a user
 //
 // This should be a list in a database, but until then we build
 // the list from the builtins.
-func SiteRoles() []Role {
+func SiteBuiltInRoles() []Role {
 	var roles []Role
 	for _, roleF := range builtInRoles {
 		// Must provide some non-nil uuid to filter out org roles.
@@ -820,7 +847,6 @@ func Permissions(perms map[string][]policy.Action) []Permission {
 	list := make([]Permission, 0, len(perms))
 	for k, actions := range perms {
 		for _, act := range actions {
-			act := act
 			list = append(list, Permission{
 				Negate:       false,
 				ResourceType: k,

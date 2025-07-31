@@ -64,6 +64,8 @@ import (
 	"github.com/coder/coder/v2/coderd/entitlements"
 	"github.com/coder/coder/v2/coderd/notifications/reports"
 	"github.com/coder/coder/v2/coderd/runtimeconfig"
+	"github.com/coder/coder/v2/coderd/webpush"
+	"github.com/coder/coder/v2/codersdk/drpcsdk"
 
 	"github.com/coder/coder/v2/buildinfo"
 	"github.com/coder/coder/v2/cli/clilog"
@@ -75,7 +77,6 @@ import (
 	"github.com/coder/coder/v2/coderd/database"
 	"github.com/coder/coder/v2/coderd/database/awsiamrds"
 	"github.com/coder/coder/v2/coderd/database/dbauthz"
-	"github.com/coder/coder/v2/coderd/database/dbmem"
 	"github.com/coder/coder/v2/coderd/database/dbmetrics"
 	"github.com/coder/coder/v2/coderd/database/dbpurge"
 	"github.com/coder/coder/v2/coderd/database/migrations"
@@ -84,6 +85,7 @@ import (
 	"github.com/coder/coder/v2/coderd/externalauth"
 	"github.com/coder/coder/v2/coderd/gitsshkey"
 	"github.com/coder/coder/v2/coderd/httpmw"
+	"github.com/coder/coder/v2/coderd/jobreaper"
 	"github.com/coder/coder/v2/coderd/notifications"
 	"github.com/coder/coder/v2/coderd/oauthpki"
 	"github.com/coder/coder/v2/coderd/prometheusmetrics"
@@ -92,14 +94,13 @@ import (
 	"github.com/coder/coder/v2/coderd/schedule"
 	"github.com/coder/coder/v2/coderd/telemetry"
 	"github.com/coder/coder/v2/coderd/tracing"
-	"github.com/coder/coder/v2/coderd/unhanger"
 	"github.com/coder/coder/v2/coderd/updatecheck"
+	"github.com/coder/coder/v2/coderd/util/ptr"
 	"github.com/coder/coder/v2/coderd/util/slice"
 	stringutil "github.com/coder/coder/v2/coderd/util/strings"
 	"github.com/coder/coder/v2/coderd/workspaceapps/appurl"
 	"github.com/coder/coder/v2/coderd/workspacestats"
 	"github.com/coder/coder/v2/codersdk"
-	"github.com/coder/coder/v2/codersdk/drpc"
 	"github.com/coder/coder/v2/cryptorand"
 	"github.com/coder/coder/v2/provisioner/echo"
 	"github.com/coder/coder/v2/provisioner/terraform"
@@ -421,7 +422,7 @@ func (r *RootCmd) Server(newAPI func(context.Context, *coderd.Options) (*coderd.
 
 			builtinPostgres := false
 			// Only use built-in if PostgreSQL URL isn't specified!
-			if !vals.InMemoryDatabase && vals.PostgresURL == "" {
+			if vals.PostgresURL == "" {
 				var closeFunc func() error
 				cliui.Infof(inv.Stdout, "Using built-in PostgreSQL (%s)", config.PostgresPath())
 				customPostgresCacheDir := ""
@@ -618,19 +619,27 @@ func (r *RootCmd) Server(newAPI func(context.Context, *coderd.Options) (*coderd.
 				return xerrors.Errorf("parse ssh config options %q: %w", vals.SSHConfig.SSHConfigOptions.String(), err)
 			}
 
+			// The workspace hostname suffix is always interpreted as implicitly beginning with a single dot, so it is
+			// a config error to explicitly include the dot. This ensures that we always interpret the suffix as a
+			// separate DNS label, and not just an ordinary string suffix. E.g. a suffix of 'coder' will match
+			// 'en.coder' but not 'encoder'.
+			if strings.HasPrefix(vals.WorkspaceHostnameSuffix.String(), ".") {
+				return xerrors.Errorf("you must omit any leading . in workspace hostname suffix: %s",
+					vals.WorkspaceHostnameSuffix.String())
+			}
+
 			options := &coderd.Options{
 				AccessURL:                   vals.AccessURL.Value(),
 				AppHostname:                 appHostname,
 				AppHostnameRegex:            appHostnameRegex,
 				Logger:                      logger.Named("coderd"),
-				Database:                    dbmem.New(),
+				Database:                    nil,
 				BaseDERPMap:                 derpMap,
-				Pubsub:                      pubsub.NewInMemory(),
+				Pubsub:                      nil,
 				CacheDir:                    cacheDir,
 				GoogleTokenValidator:        googleTokenValidator,
 				ExternalAuthConfigs:         externalAuthConfigs,
 				RealIPConfig:                realIPConfig,
-				SecureAuthCookie:            vals.SecureAuthCookie.Value(),
 				SSHKeygenAlgorithm:          sshKeygenAlgorithm,
 				TracerProvider:              tracerProvider,
 				Telemetry:                   telemetry.NewNoop(),
@@ -651,6 +660,7 @@ func (r *RootCmd) Server(newAPI func(context.Context, *coderd.Options) (*coderd.
 				SSHConfig: codersdk.SSHConfigResponse{
 					HostnamePrefix:   vals.SSHConfig.DeploymentName.String(),
 					SSHConfigOptions: configSSHOptions,
+					HostnameSuffix:   vals.WorkspaceHostnameSuffix.String(),
 				},
 				AllowWorkspaceRenames: vals.AllowWorkspaceRenames.Value(),
 				Entitlements:          entitlements.New(),
@@ -715,33 +725,37 @@ func (r *RootCmd) Server(newAPI func(context.Context, *coderd.Options) (*coderd.
 			// nil, that case of the select will just never fire, but it's important not to have a
 			// "bare" read on this channel.
 			var pubsubWatchdogTimeout <-chan struct{}
-			if vals.InMemoryDatabase {
-				// This is only used for testing.
-				options.Database = dbmem.New()
-				options.Pubsub = pubsub.NewInMemory()
-			} else {
-				sqlDB, dbURL, err := getAndMigratePostgresDB(ctx, logger, vals.PostgresURL.String(), codersdk.PostgresAuth(vals.PostgresAuth), sqlDriver)
-				if err != nil {
-					return xerrors.Errorf("connect to postgres: %w", err)
-				}
-				defer func() {
-					_ = sqlDB.Close()
-				}()
 
-				options.Database = database.New(sqlDB)
-				ps, err := pubsub.New(ctx, logger.Named("pubsub"), sqlDB, dbURL)
-				if err != nil {
-					return xerrors.Errorf("create pubsub: %w", err)
-				}
-				options.Pubsub = ps
-				if options.DeploymentValues.Prometheus.Enable {
-					options.PrometheusRegistry.MustRegister(ps)
-				}
-				defer options.Pubsub.Close()
-				psWatchdog := pubsub.NewWatchdog(ctx, logger.Named("pswatch"), ps)
-				pubsubWatchdogTimeout = psWatchdog.Timeout()
-				defer psWatchdog.Close()
+			sqlDB, dbURL, err := getAndMigratePostgresDB(ctx, logger, vals.PostgresURL.String(), codersdk.PostgresAuth(vals.PostgresAuth), sqlDriver)
+			if err != nil {
+				return xerrors.Errorf("connect to postgres: %w", err)
 			}
+			defer func() {
+				_ = sqlDB.Close()
+			}()
+
+			if options.DeploymentValues.Prometheus.Enable {
+				// At this stage we don't think the database name serves much purpose in these metrics.
+				// It requires parsing the DSN to determine it, which requires pulling in another dependency
+				// (i.e. https://github.com/jackc/pgx), but it's rather heavy.
+				// The conn string (https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING) can
+				// take different forms, which make parsing non-trivial.
+				options.PrometheusRegistry.MustRegister(collectors.NewDBStatsCollector(sqlDB, ""))
+			}
+
+			options.Database = database.New(sqlDB)
+			ps, err := pubsub.New(ctx, logger.Named("pubsub"), sqlDB, dbURL)
+			if err != nil {
+				return xerrors.Errorf("create pubsub: %w", err)
+			}
+			options.Pubsub = ps
+			if options.DeploymentValues.Prometheus.Enable {
+				options.PrometheusRegistry.MustRegister(ps)
+			}
+			defer options.Pubsub.Close()
+			psWatchdog := pubsub.NewWatchdog(ctx, logger.Named("pswatch"), ps)
+			pubsubWatchdogTimeout = psWatchdog.Timeout()
+			defer psWatchdog.Close()
 
 			if options.DeploymentValues.Prometheus.Enable && options.DeploymentValues.Prometheus.CollectDBMetrics {
 				options.Database = dbmetrics.NewQueryMetrics(options.Database, options.Logger, options.PrometheusRegistry)
@@ -775,6 +789,29 @@ func (r *RootCmd) Server(newAPI func(context.Context, *coderd.Options) (*coderd.
 				return xerrors.Errorf("set deployment id: %w", err)
 			}
 
+			// Manage push notifications.
+			experiments := coderd.ReadExperiments(options.Logger, options.DeploymentValues.Experiments.Value())
+			if experiments.Enabled(codersdk.ExperimentWebPush) {
+				if !strings.HasPrefix(options.AccessURL.String(), "https://") {
+					options.Logger.Warn(ctx, "access URL is not HTTPS, so web push notifications may not work on some browsers", slog.F("access_url", options.AccessURL.String()))
+				}
+				webpusher, err := webpush.New(ctx, ptr.Ref(options.Logger.Named("webpush")), options.Database, options.AccessURL.String())
+				if err != nil {
+					options.Logger.Error(ctx, "failed to create web push dispatcher", slog.Error(err))
+					options.Logger.Warn(ctx, "web push notifications will not work until the VAPID keys are regenerated")
+					webpusher = &webpush.NoopWebpusher{
+						Msg: "Web Push notifications are disabled due to a system error. Please contact your Coder administrator.",
+					}
+				}
+				options.WebPushDispatcher = webpusher
+			} else {
+				options.WebPushDispatcher = &webpush.NoopWebpusher{
+					// Users will likely not see this message as the endpoints return 404
+					// if not enabled. Just in case...
+					Msg: "Web Push notifications are an experimental feature and are disabled by default. Enable the 'web-push' experiment to use this feature.",
+				}
+			}
+
 			githubOAuth2ConfigParams, err := getGithubOAuth2ConfigParams(ctx, options.Database, vals)
 			if err != nil {
 				return xerrors.Errorf("get github oauth2 config params: %w", err)
@@ -803,6 +840,7 @@ func (r *RootCmd) Server(newAPI func(context.Context, *coderd.Options) (*coderd.
 				BuiltinPostgres:  builtinPostgres,
 				DeploymentID:     deploymentID,
 				Database:         options.Database,
+				Experiments:      coderd.ReadExperiments(options.Logger, options.DeploymentValues.Experiments.Value()),
 				Logger:           logger.Named("telemetry"),
 				URL:              vals.Telemetry.URL.Value(),
 				Tunnel:           tunnel != nil,
@@ -867,6 +905,37 @@ func (r *RootCmd) Server(newAPI func(context.Context, *coderd.Options) (*coderd.
 			options.StatsBatcher = batcher
 			defer closeBatcher()
 
+			// Manage notifications.
+			var (
+				notificationsCfg     = options.DeploymentValues.Notifications
+				notificationsManager *notifications.Manager
+			)
+
+			metrics := notifications.NewMetrics(options.PrometheusRegistry)
+			helpers := templateHelpers(options)
+
+			// The enqueuer is responsible for enqueueing notifications to the given store.
+			enqueuer, err := notifications.NewStoreEnqueuer(notificationsCfg, options.Database, helpers, logger.Named("notifications.enqueuer"), quartz.NewReal())
+			if err != nil {
+				return xerrors.Errorf("failed to instantiate notification store enqueuer: %w", err)
+			}
+			options.NotificationsEnqueuer = enqueuer
+
+			// The notification manager is responsible for:
+			//   - creating notifiers and managing their lifecycles (notifiers are responsible for dequeueing/sending notifications)
+			//   - keeping the store updated with status updates
+			notificationsManager, err = notifications.NewManager(notificationsCfg, options.Database, options.Pubsub, helpers, metrics, logger.Named("notifications.manager"))
+			if err != nil {
+				return xerrors.Errorf("failed to instantiate notification manager: %w", err)
+			}
+
+			// nolint:gocritic // We need to run the manager in a notifier context.
+			notificationsManager.Run(dbauthz.AsNotifier(ctx))
+
+			// Run report generator to distribute periodic reports.
+			notificationReportGenerator := reports.NewReportGenerator(ctx, logger.Named("notifications.report_generator"), options.Database, options.NotificationsEnqueuer, quartz.NewReal())
+			defer notificationReportGenerator.Close()
+
 			// We use a separate coderAPICloser so the Enterprise API
 			// can have its own close functions. This is cleaner
 			// than abstracting the Coder API itself.
@@ -912,41 +981,6 @@ func (r *RootCmd) Server(newAPI func(context.Context, *coderd.Options) (*coderd.
 			err = config.URL().Write(client.URL.String())
 			if err != nil && flag.Lookup("test.v") != nil {
 				return xerrors.Errorf("write config url: %w", err)
-			}
-
-			// Manage notifications.
-			var (
-				notificationsCfg     = options.DeploymentValues.Notifications
-				notificationsManager *notifications.Manager
-			)
-
-			if notificationsCfg.Enabled() {
-				metrics := notifications.NewMetrics(options.PrometheusRegistry)
-				helpers := templateHelpers(options)
-
-				// The enqueuer is responsible for enqueueing notifications to the given store.
-				enqueuer, err := notifications.NewStoreEnqueuer(notificationsCfg, options.Database, helpers, logger.Named("notifications.enqueuer"), quartz.NewReal())
-				if err != nil {
-					return xerrors.Errorf("failed to instantiate notification store enqueuer: %w", err)
-				}
-				options.NotificationsEnqueuer = enqueuer
-
-				// The notification manager is responsible for:
-				//   - creating notifiers and managing their lifecycles (notifiers are responsible for dequeueing/sending notifications)
-				//   - keeping the store updated with status updates
-				notificationsManager, err = notifications.NewManager(notificationsCfg, options.Database, options.Pubsub, helpers, metrics, logger.Named("notifications.manager"))
-				if err != nil {
-					return xerrors.Errorf("failed to instantiate notification manager: %w", err)
-				}
-
-				// nolint:gocritic // We need to run the manager in a notifier context.
-				notificationsManager.Run(dbauthz.AsNotifier(ctx))
-
-				// Run report generator to distribute periodic reports.
-				notificationReportGenerator := reports.NewReportGenerator(ctx, logger.Named("notifications.report_generator"), options.Database, options.NotificationsEnqueuer, quartz.NewReal())
-				defer notificationReportGenerator.Close()
-			} else {
-				logger.Debug(ctx, "notifications are currently disabled as there are no configured delivery methods. See https://coder.com/docs/admin/monitoring/notifications#delivery-methods for more details")
 			}
 
 			// Since errCh only has one buffered slot, all routines
@@ -1067,14 +1101,14 @@ func (r *RootCmd) Server(newAPI func(context.Context, *coderd.Options) (*coderd.
 			autobuildTicker := time.NewTicker(vals.AutobuildPollInterval.Value())
 			defer autobuildTicker.Stop()
 			autobuildExecutor := autobuild.NewExecutor(
-				ctx, options.Database, options.Pubsub, options.PrometheusRegistry, coderAPI.TemplateScheduleStore, &coderAPI.Auditor, coderAPI.AccessControlStore, logger, autobuildTicker.C, options.NotificationsEnqueuer)
+				ctx, options.Database, options.Pubsub, coderAPI.FileCache, options.PrometheusRegistry, coderAPI.TemplateScheduleStore, &coderAPI.Auditor, coderAPI.AccessControlStore, coderAPI.BuildUsageChecker, logger, autobuildTicker.C, options.NotificationsEnqueuer, coderAPI.Experiments)
 			autobuildExecutor.Run()
 
-			hangDetectorTicker := time.NewTicker(vals.JobHangDetectorInterval.Value())
-			defer hangDetectorTicker.Stop()
-			hangDetector := unhanger.New(ctx, options.Database, options.Pubsub, logger, hangDetectorTicker.C)
-			hangDetector.Start()
-			defer hangDetector.Close()
+			jobReaperTicker := time.NewTicker(vals.JobReaperDetectorInterval.Value())
+			defer jobReaperTicker.Stop()
+			jobReaper := jobreaper.New(ctx, options.Database, options.Pubsub, logger, jobReaperTicker.C)
+			jobReaper.Start()
+			defer jobReaper.Close()
 
 			waitForProvisionerJobs := false
 			// Currently there is no way to ask the server to shut
@@ -1144,7 +1178,6 @@ func (r *RootCmd) Server(newAPI func(context.Context, *coderd.Options) (*coderd.
 			var wg sync.WaitGroup
 			for i, provisionerDaemon := range provisionerDaemons {
 				id := i + 1
-				provisionerDaemon := provisionerDaemon
 				wg.Add(1)
 				go func() {
 					defer wg.Done()
@@ -1259,6 +1292,7 @@ func (r *RootCmd) Server(newAPI func(context.Context, *coderd.Options) (*coderd.
 	}
 
 	createAdminUserCmd := r.newCreateAdminUserCommand()
+	regenerateVapidKeypairCmd := r.newRegenerateVapidKeypairCommand()
 
 	rawURLOpt := serpent.Option{
 		Flag: "raw-url",
@@ -1272,7 +1306,7 @@ func (r *RootCmd) Server(newAPI func(context.Context, *coderd.Options) (*coderd.
 
 	serverCmd.Children = append(
 		serverCmd.Children,
-		createAdminUserCmd, postgresBuiltinURLCmd, postgresBuiltinServeCmd,
+		createAdminUserCmd, postgresBuiltinURLCmd, postgresBuiltinServeCmd, regenerateVapidKeypairCmd,
 	)
 
 	return serverCmd
@@ -1389,7 +1423,7 @@ func newProvisionerDaemon(
 	for _, provisionerType := range provisionerTypes {
 		switch provisionerType {
 		case codersdk.ProvisionerTypeEcho:
-			echoClient, echoServer := drpc.MemTransportPipe()
+			echoClient, echoServer := drpcsdk.MemTransportPipe()
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
@@ -1423,7 +1457,7 @@ func newProvisionerDaemon(
 			}
 
 			tracer := coderAPI.TracerProvider.Tracer(tracing.TracerName)
-			terraformClient, terraformServer := drpc.MemTransportPipe()
+			terraformClient, terraformServer := drpcsdk.MemTransportPipe()
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
@@ -1621,7 +1655,6 @@ func configureServerTLS(ctx context.Context, logger slog.Logger, tlsMinVersion, 
 
 		// Expensively check which certificate matches the client hello.
 		for _, cert := range certs {
-			cert := cert
 			if err := hi.SupportsCertificate(&cert); err == nil {
 				return &cert, nil
 			}
@@ -1768,9 +1801,9 @@ func parseTLSCipherSuites(ciphers []string) ([]tls.CipherSuite, error) {
 // hasSupportedVersion is a helper function that returns true if the list
 // of supported versions contains a version between min and max.
 // If the versions list is outside the min/max, then it returns false.
-func hasSupportedVersion(min, max uint16, versions []uint16) bool {
+func hasSupportedVersion(minVal, maxVal uint16, versions []uint16) bool {
 	for _, v := range versions {
-		if v >= min && v <= max {
+		if v >= minVal && v <= maxVal {
 			// If one version is in between min/max, return true.
 			return true
 		}
@@ -1894,7 +1927,7 @@ func getGithubOAuth2ConfigParams(ctx context.Context, db database.Store, vals *c
 
 	if defaultEligibleNotSet {
 		// nolint:gocritic // User count requires system privileges
-		userCount, err := db.GetUserCount(dbauthz.AsSystemRestricted(ctx))
+		userCount, err := db.GetUserCount(dbauthz.AsSystemRestricted(ctx), false)
 		if err != nil {
 			return nil, xerrors.Errorf("get user count: %w", err)
 		}
@@ -2129,6 +2162,8 @@ func startBuiltinPostgres(ctx context.Context, cfg config.Root, logger slog.Logg
 		embeddedpostgres.DefaultConfig().
 			Version(embeddedpostgres.V13).
 			BinariesPath(filepath.Join(cfg.PostgresPath(), "bin")).
+			// Default BinaryRepositoryURL repo1.maven.org is flaky.
+			BinaryRepositoryURL("https://repo.maven.apache.org/maven2").
 			DataPath(filepath.Join(cfg.PostgresPath(), "data")).
 			RuntimePath(filepath.Join(cfg.PostgresPath(), "runtime")).
 			CachePath(cachePath).
@@ -2251,19 +2286,20 @@ func ConnectToPostgres(ctx context.Context, logger slog.Logger, driver string, d
 
 	var err error
 	var sqlDB *sql.DB
+	dbNeedsClosing := true
 	// Try to connect for 30 seconds.
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
 	defer func() {
-		if err == nil {
+		if !dbNeedsClosing {
 			return
 		}
 		if sqlDB != nil {
 			_ = sqlDB.Close()
 			sqlDB = nil
+			logger.Debug(ctx, "closed db before returning from ConnectToPostgres")
 		}
-		logger.Error(ctx, "connect to postgres failed", slog.Error(err))
 	}()
 
 	var tries int
@@ -2298,15 +2334,15 @@ func ConnectToPostgres(ctx context.Context, logger slog.Logger, driver string, d
 	if err != nil {
 		return nil, xerrors.Errorf("get postgres version: %w", err)
 	}
+	defer version.Close()
 	if !version.Next() {
-		return nil, xerrors.Errorf("no rows returned for version select")
+		return nil, xerrors.Errorf("no rows returned for version select: %w", version.Err())
 	}
 	var versionNum int
 	err = version.Scan(&versionNum)
 	if err != nil {
 		return nil, xerrors.Errorf("scan version: %w", err)
 	}
-	_ = version.Close()
 
 	if versionNum < 130000 {
 		return nil, xerrors.Errorf("PostgreSQL version must be v13.0.0 or higher! Got: %d", versionNum)
@@ -2342,6 +2378,7 @@ func ConnectToPostgres(ctx context.Context, logger slog.Logger, driver string, d
 	// of connection churn.
 	sqlDB.SetMaxIdleConns(3)
 
+	dbNeedsClosing = false
 	return sqlDB, nil
 }
 

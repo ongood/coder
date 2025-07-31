@@ -1,9 +1,4 @@
 import { type Interpolation, type Theme, useTheme } from "@emotion/react";
-import CreateIcon from "@mui/icons-material/AddOutlined";
-import ArrowBackOutlined from "@mui/icons-material/ArrowBackOutlined";
-import CloseOutlined from "@mui/icons-material/CloseOutlined";
-import WarningOutlined from "@mui/icons-material/WarningOutlined";
-import Button from "@mui/material/Button";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import { getErrorDetail, getErrorMessage } from "api/errors";
@@ -16,6 +11,7 @@ import type {
 	WorkspaceResource,
 } from "api/typesGenerated";
 import { Alert } from "components/Alert/Alert";
+import { Button } from "components/Button/Button";
 import { Sidebar } from "components/FullPageLayout/Sidebar";
 import {
 	Topbar,
@@ -27,7 +23,9 @@ import {
 } from "components/FullPageLayout/Topbar";
 import { displayError } from "components/GlobalSnackbar/utils";
 import { Loader } from "components/Loader/Loader";
-import { PlayIcon } from "lucide-react";
+import { TriangleAlertIcon } from "lucide-react";
+import { ChevronLeftIcon } from "lucide-react";
+import { ExternalLinkIcon, PlayIcon, PlusIcon, XIcon } from "lucide-react";
 import { linkToTemplate, useLinks } from "modules/navigation";
 import { ProvisionerAlert } from "modules/provisioners/ProvisionerAlert";
 import { AlertVariant } from "modules/provisioners/ProvisionerAlert";
@@ -66,7 +64,7 @@ import { TemplateVersionStatusBadge } from "./TemplateVersionStatusBadge";
 
 type Tab = "logs" | "resources" | undefined; // Undefined is to hide the tab
 
-export interface TemplateVersionEditorProps {
+interface TemplateVersionEditorProps {
 	template: Template;
 	templateVersion: TemplateVersion;
 	defaultFileTree: FileTree;
@@ -219,7 +217,7 @@ export const TemplateVersionEditor: FC<TemplateVersionEditorProps> = ({
 					<div>
 						<Tooltip title="Back to the template">
 							<TopbarIconButton component={RouterLink} to={templateLink}>
-								<ArrowBackOutlined />
+								<ChevronLeftIcon className="size-icon-sm" />
 							</TopbarIconButton>
 						</Tooltip>
 					</div>
@@ -257,6 +255,20 @@ export const TemplateVersionEditor: FC<TemplateVersionEditorProps> = ({
 							paddingRight: 16,
 						}}
 					>
+						<span className="mr-2">
+							<Button asChild size="sm" variant="outline">
+								<a
+									href="https://registry.coder.com"
+									target="_blank"
+									rel="noopener noreferrer"
+									className="flex items-center"
+								>
+									Browse the Coder Registry
+									<ExternalLinkIcon className="size-icon-sm ml-1" />
+								</a>
+							</Button>
+						</span>
+
 						<TemplateVersionStatusBadge version={templateVersion} />
 
 						<div className="flex gap-1 items-center">
@@ -314,8 +326,8 @@ export const TemplateVersionEditor: FC<TemplateVersionEditorProps> = ({
 								dismissible
 								actions={
 									<Button
-										variant="text"
-										size="small"
+										variant="subtle"
+										size="sm"
 										onClick={onCreateWorkspace}
 									>
 										Create a workspace
@@ -361,7 +373,7 @@ export const TemplateVersionEditor: FC<TemplateVersionEditorProps> = ({
 											event.currentTarget.blur();
 										}}
 									>
-										<CreateIcon css={{ width: 16, height: 16 }} />
+										<PlusIcon className="size-icon-xs" />
 									</IconButton>
 								</Tooltip>
 							</div>
@@ -463,11 +475,11 @@ export const TemplateVersionEditor: FC<TemplateVersionEditorProps> = ({
 												textAlign: "center",
 											}}
 										>
-											<WarningOutlined
+											<TriangleAlertIcon
 												css={{
-													fontSize: 48,
 													color: theme.roles.warning.fill.outline,
 												}}
+												className="size-icon-lg"
 											/>
 											<p
 												css={{
@@ -567,7 +579,7 @@ export const TemplateVersionEditor: FC<TemplateVersionEditorProps> = ({
 											borderRadius: 0,
 										}}
 									>
-										<CloseOutlined css={{ width: 16, height: 16 }} />
+										<XIcon className="size-icon-xs" />
 									</IconButton>
 								)}
 							</div>

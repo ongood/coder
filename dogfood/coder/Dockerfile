@@ -1,15 +1,17 @@
-FROM rust:slim@sha256:9abf10cc84dfad6ace1b0aae3951dc5200f467c593394288c11db1e17bb4d349 AS rust-utils
+# 1.86.0
+FROM rust:slim@sha256:3f391b0678a6e0c88fd26f13e399c9c515ac47354e3cadfee7daee3b21651a4f AS rust-utils
 # Install rust helper programs
-# ENV CARGO_NET_GIT_FETCH_WITH_CLI=true
 ENV CARGO_INSTALL_ROOT=/tmp/
-RUN cargo install exa bat ripgrep typos-cli watchexec-cli && \
-	# Reduce image size.
-	rm -rf /usr/local/cargo/registry
+# Use more reliable mirrors for Debian packages
+RUN sed -i 's|http://deb.debian.org/debian|http://mirrors.edge.kernel.org/debian|g' /etc/apt/sources.list && \
+    apt-get update || true
+RUN apt-get update && apt-get install -y libssl-dev openssl pkg-config build-essential
+RUN cargo install jj-cli typos-cli watchexec-cli
 
 FROM ubuntu:jammy@sha256:0e5e4a57c2499249aafc3b40fcd541e9a456aab7296681a3994d631587203f97 AS go
 
 # Install Go manually, so that we can control the version
-ARG GO_VERSION=1.24.1
+ARG GO_VERSION=1.24.4
 
 # Boring Go is needed to build FIPS-compliant binaries.
 RUN apt-get update && \
@@ -34,7 +36,7 @@ RUN apt-get update && \
 	# go-swagger tool to generate the go coder api client
 	go install github.com/go-swagger/go-swagger/cmd/swagger@v0.28.0 && \
 	# goimports for updating imports
-	go install golang.org/x/tools/cmd/goimports@v0.1.7 && \
+	go install golang.org/x/tools/cmd/goimports@v0.31.0 && \
 	# protoc-gen-go is needed to build sysbox from source
 	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.30 && \
 	# drpc support for v2
@@ -45,7 +47,7 @@ RUN apt-get update && \
 	go install github.com/goreleaser/goreleaser@v1.6.1 && \
 	# Install the latest version of gopls for editors that support
 	# the language server protocol
-	go install golang.org/x/tools/gopls@latest && \
+	go install golang.org/x/tools/gopls@v0.18.1 && \
 	# gotestsum makes test output more readable
 	go install gotest.tools/gotestsum@v1.9.0 && \
 	# goveralls collects code coverage metrics from tests
@@ -65,9 +67,6 @@ RUN apt-get update && \
 	# we're using for the version of go-critic that it embeds, then check
 	# the version of ruleguard in go-critic for that tag.
 	go install github.com/quasilyte/go-ruleguard/cmd/ruleguard@v0.3.13 && \
-	# go-fuzz for fuzzy testing. they don't publish releases so we rely on latest.
-	go install github.com/dvyukov/go-fuzz/go-fuzz@latest && \
-	go install github.com/dvyukov/go-fuzz/go-fuzz-build@latest && \
 	# go-releaser for building 'fat binaries' that work cross-platform
 	go install github.com/goreleaser/goreleaser@v1.6.1 && \
 	go install mvdan.cc/sh/v3/cmd/shfmt@v3.7.0 && \
@@ -87,7 +86,8 @@ RUN apt-get update && \
 	rm -rf /tmp/go/pkg && \
 	rm -rf /tmp/go/src
 
-FROM gcr.io/coder-dev-1/alpine:3.18 as proto
+# alpine:3.18
+FROM us-docker.pkg.dev/coder-v2-images-public/public/alpine@sha256:fd032399cd767f310a1d1274e81cab9f0fd8a49b3589eba2c3420228cd45b6a7 AS proto
 WORKDIR /tmp
 RUN apk add curl unzip
 RUN curl -L -o protoc.zip https://github.com/protocolbuffers/protobuf/releases/download/v23.4/protoc-23.4-linux-x86_64.zip && \
@@ -121,13 +121,17 @@ RUN mkdir -p /etc/sudoers.d && \
 	chmod 750 /etc/sudoers.d/ && \
 	chmod 640 /etc/sudoers.d/nopasswd
 
-RUN apt-get update --quiet && apt-get install --yes \
+# Use more reliable mirrors for Ubuntu packages
+RUN sed -i 's|http://archive.ubuntu.com/ubuntu/|http://mirrors.edge.kernel.org/ubuntu/|g' /etc/apt/sources.list && \
+    sed -i 's|http://security.ubuntu.com/ubuntu/|http://mirrors.edge.kernel.org/ubuntu/|g' /etc/apt/sources.list && \
+    apt-get update --quiet && apt-get install --yes \
 	ansible \
 	apt-transport-https \
 	apt-utils \
 	asciinema \
 	bash \
 	bash-completion \
+	bat \
 	bats \
 	bind9-dnsutils \
 	build-essential \
@@ -140,6 +144,7 @@ RUN apt-get update --quiet && apt-get install --yes \
 	docker-ce \
 	docker-ce-cli \
 	docker-compose-plugin \
+	exa \
 	fd-find \
 	file \
 	fish \
@@ -163,6 +168,7 @@ RUN apt-get update --quiet && apt-get install --yes \
 	libgbm-dev \
 	libssl-dev \
 	lsb-release \
+	lsof \
 	man \
 	meld \
 	ncdu \
@@ -176,6 +182,7 @@ RUN apt-get update --quiet && apt-get install --yes \
 	postgresql-16 \
 	python3 \
 	python3-pip \
+	ripgrep \
 	rsync \
 	screen \
 	shellcheck \
@@ -183,6 +190,7 @@ RUN apt-get update --quiet && apt-get install --yes \
 	sudo \
 	tcptraceroute \
 	termshark \
+	tmux \
 	traceroute \
 	unzip \
 	vim \
@@ -196,9 +204,9 @@ RUN apt-get update --quiet && apt-get install --yes \
 	# Configure FIPS-compliant policies
 	update-crypto-policies --set FIPS
 
-# NOTE: In scripts/Dockerfile.base we specifically install Terraform version 1.10.5.
+# NOTE: In scripts/Dockerfile.base we specifically install Terraform version 1.12.2.
 # Installing the same version here to match.
-RUN wget -O /tmp/terraform.zip "https://releases.hashicorp.com/terraform/1.11.0/terraform_1.11.0_linux_amd64.zip" && \
+RUN wget -O /tmp/terraform.zip "https://releases.hashicorp.com/terraform/1.12.2/terraform_1.12.2_linux_amd64.zip" && \
 	unzip /tmp/terraform.zip -d /usr/local/bin && \
 	rm -f /tmp/terraform.zip && \
 	chmod +x /usr/local/bin/terraform && \
@@ -231,18 +239,22 @@ RUN DOCTL_VERSION=$(curl -s "https://api.github.com/repos/digitalocean/doctl/rel
 	tar xf doctl.tar.gz -C /usr/local/bin doctl && \
 	rm doctl.tar.gz
 
+ARG NVM_INSTALL_SHA=bdea8c52186c4dd12657e77e7515509cda5bf9fa5a2f0046bce749e62645076d
 # Install frontend utilities
 ENV NVM_DIR=/usr/local/nvm
 ENV NODE_VERSION=20.16.0
 RUN mkdir -p $NVM_DIR
-RUN curl https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.0/install.sh | bash
+RUN curl -o nvm_install.sh https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.0/install.sh && \
+	echo "${NVM_INSTALL_SHA}  nvm_install.sh" | sha256sum -c && \
+	bash nvm_install.sh && \
+	rm nvm_install.sh
 RUN source $NVM_DIR/nvm.sh && \
 	nvm install $NODE_VERSION && \
 	nvm use $NODE_VERSION
 ENV PATH=$NVM_DIR/versions/node/v$NODE_VERSION/bin:$PATH
 # Allow patch updates for npm and pnpm
-RUN npm install -g npm@^10.8
-RUN npm install -g pnpm@^9.6
+RUN npm install -g npm@10.8.1 --integrity=sha512-Dp1C6SvSMYQI7YHq/y2l94uvI+59Eqbu1EpuKQHQ8p16txXRuRit5gH3Lnaagk2aXDIjg/Iru9pd05bnneKgdw==
+RUN npm install -g pnpm@9.15.1 --integrity=sha512-GstWXmGT7769p3JwKVBGkVDPErzHZCYudYfnHRncmKQj3/lTblfqRMSb33kP9pToPCe+X6oj1n4MAztYO+S/zw==
 
 RUN pnpx playwright@1.47.0 install --with-deps chromium
 
@@ -271,7 +283,7 @@ RUN systemctl enable \
 ARG CLOUD_SQL_PROXY_VERSION=2.2.0 \
 	DIVE_VERSION=0.10.0 \
 	DOCKER_GCR_VERSION=2.1.8 \
-	GOLANGCI_LINT_VERSION=1.55.2 \
+	GOLANGCI_LINT_VERSION=1.64.8 \
 	GRYPE_VERSION=0.61.1 \
 	HELM_VERSION=3.12.0 \
 	KUBE_LINTER_VERSION=0.6.3 \
@@ -280,7 +292,8 @@ ARG CLOUD_SQL_PROXY_VERSION=2.2.0 \
 	TERRAGRUNT_VERSION=0.45.11 \
 	TRIVY_VERSION=0.41.0 \
 	SYFT_VERSION=1.20.0 \
-	COSIGN_VERSION=2.4.3
+	COSIGN_VERSION=2.4.3 \
+	BUN_VERSION=1.2.15
 
 # cloud_sql_proxy, for connecting to cloudsql instances
 # the upstream go.mod prevents this from being installed with go install
@@ -324,7 +337,17 @@ RUN curl --silent --show-error --location --output /usr/local/bin/cloud_sql_prox
 	tar --extract --gzip --directory=/usr/local/bin --file=- syft && \
 	# Sigstore Cosign for artifact signing and attestation
 	curl --silent --show-error --location --output /usr/local/bin/cosign "https://github.com/sigstore/cosign/releases/download/v${COSIGN_VERSION}/cosign-linux-amd64" && \
-	chmod a=rx /usr/local/bin/cosign
+	chmod a=rx /usr/local/bin/cosign && \
+	# Install Bun JavaScript runtime to /usr/local/bin
+	# Ensure unzip is installed right before using it and use multiple mirrors for reliability
+	(apt-get update || (sed -i 's|http://archive.ubuntu.com/ubuntu/|http://mirrors.edge.kernel.org/ubuntu/|g' /etc/apt/sources.list && apt-get update)) && \
+	apt-get install -y unzip && \
+	curl --silent --show-error --location --fail "https://github.com/oven-sh/bun/releases/download/bun-v${BUN_VERSION}/bun-linux-x64.zip" --output /tmp/bun.zip && \
+	unzip -q /tmp/bun.zip -d /tmp && \
+	mv /tmp/bun-linux-x64/bun /usr/local/bin/ && \
+	chmod a=rx /usr/local/bin/bun && \
+	rm -rf /tmp/bun.zip /tmp/bun-linux-x64 && \
+	apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # We use yq during "make deploy" to manually substitute out fields in
 # our helm values.yaml file. See https://github.com/helm/helm/issues/3141

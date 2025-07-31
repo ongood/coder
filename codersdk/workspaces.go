@@ -26,28 +26,30 @@ const (
 // Workspace is a deployment of a template. It references a specific
 // version and can be updated.
 type Workspace struct {
-	ID                                   uuid.UUID      `json:"id" format:"uuid"`
-	CreatedAt                            time.Time      `json:"created_at" format:"date-time"`
-	UpdatedAt                            time.Time      `json:"updated_at" format:"date-time"`
-	OwnerID                              uuid.UUID      `json:"owner_id" format:"uuid"`
-	OwnerName                            string         `json:"owner_name"`
-	OwnerAvatarURL                       string         `json:"owner_avatar_url"`
-	OrganizationID                       uuid.UUID      `json:"organization_id" format:"uuid"`
-	OrganizationName                     string         `json:"organization_name"`
-	TemplateID                           uuid.UUID      `json:"template_id" format:"uuid"`
-	TemplateName                         string         `json:"template_name"`
-	TemplateDisplayName                  string         `json:"template_display_name"`
-	TemplateIcon                         string         `json:"template_icon"`
-	TemplateAllowUserCancelWorkspaceJobs bool           `json:"template_allow_user_cancel_workspace_jobs"`
-	TemplateActiveVersionID              uuid.UUID      `json:"template_active_version_id" format:"uuid"`
-	TemplateRequireActiveVersion         bool           `json:"template_require_active_version"`
-	LatestBuild                          WorkspaceBuild `json:"latest_build"`
-	Outdated                             bool           `json:"outdated"`
-	Name                                 string         `json:"name"`
-	AutostartSchedule                    *string        `json:"autostart_schedule,omitempty"`
-	TTLMillis                            *int64         `json:"ttl_ms,omitempty"`
-	LastUsedAt                           time.Time      `json:"last_used_at" format:"date-time"`
-
+	ID        uuid.UUID `json:"id" format:"uuid"`
+	CreatedAt time.Time `json:"created_at" format:"date-time"`
+	UpdatedAt time.Time `json:"updated_at" format:"date-time"`
+	OwnerID   uuid.UUID `json:"owner_id" format:"uuid"`
+	// OwnerName is the username of the owner of the workspace.
+	OwnerName                            string              `json:"owner_name"`
+	OwnerAvatarURL                       string              `json:"owner_avatar_url"`
+	OrganizationID                       uuid.UUID           `json:"organization_id" format:"uuid"`
+	OrganizationName                     string              `json:"organization_name"`
+	TemplateID                           uuid.UUID           `json:"template_id" format:"uuid"`
+	TemplateName                         string              `json:"template_name"`
+	TemplateDisplayName                  string              `json:"template_display_name"`
+	TemplateIcon                         string              `json:"template_icon"`
+	TemplateAllowUserCancelWorkspaceJobs bool                `json:"template_allow_user_cancel_workspace_jobs"`
+	TemplateActiveVersionID              uuid.UUID           `json:"template_active_version_id" format:"uuid"`
+	TemplateRequireActiveVersion         bool                `json:"template_require_active_version"`
+	TemplateUseClassicParameterFlow      bool                `json:"template_use_classic_parameter_flow"`
+	LatestBuild                          WorkspaceBuild      `json:"latest_build"`
+	LatestAppStatus                      *WorkspaceAppStatus `json:"latest_app_status"`
+	Outdated                             bool                `json:"outdated"`
+	Name                                 string              `json:"name"`
+	AutostartSchedule                    *string             `json:"autostart_schedule,omitempty"`
+	TTLMillis                            *int64              `json:"ttl_ms,omitempty"`
+	LastUsedAt                           time.Time           `json:"last_used_at" format:"date-time"`
 	// DeletingAt indicates the time at which the workspace will be permanently deleted.
 	// A workspace is eligible for deletion if it is dormant (a non-nil dormant_at value)
 	// and a value has been specified for time_til_dormant_autodelete on its template.
@@ -64,6 +66,12 @@ type Workspace struct {
 	AllowRenames     bool             `json:"allow_renames"`
 	Favorite         bool             `json:"favorite"`
 	NextStartAt      *time.Time       `json:"next_start_at" format:"date-time"`
+	// IsPrebuild indicates whether the workspace is a prebuilt workspace.
+	// Prebuilt workspaces are owned by the prebuilds system user and have specific behavior,
+	// such as being managed differently from regular workspaces.
+	// Once a prebuilt workspace is claimed by a user, it transitions to a regular workspace,
+	// and IsPrebuild returns false.
+	IsPrebuild bool `json:"is_prebuild"`
 }
 
 func (w Workspace) FullName() string {
@@ -91,6 +99,16 @@ const (
 	ProvisionerLogLevelDebug ProvisionerLogLevel = "debug"
 )
 
+type CreateWorkspaceBuildReason string
+
+const (
+	CreateWorkspaceBuildReasonDashboard           CreateWorkspaceBuildReason = "dashboard"
+	CreateWorkspaceBuildReasonCLI                 CreateWorkspaceBuildReason = "cli"
+	CreateWorkspaceBuildReasonSSHConnection       CreateWorkspaceBuildReason = "ssh_connection"
+	CreateWorkspaceBuildReasonVSCodeConnection    CreateWorkspaceBuildReason = "vscode_connection"
+	CreateWorkspaceBuildReasonJetbrainsConnection CreateWorkspaceBuildReason = "jetbrains_connection"
+)
+
 // CreateWorkspaceBuildRequest provides options to update the latest workspace build.
 type CreateWorkspaceBuildRequest struct {
 	TemplateVersionID uuid.UUID           `json:"template_version_id,omitempty" format:"uuid"`
@@ -106,6 +124,10 @@ type CreateWorkspaceBuildRequest struct {
 
 	// Log level changes the default logging verbosity of a provider ("info" if empty).
 	LogLevel ProvisionerLogLevel `json:"log_level,omitempty" validate:"omitempty,oneof=debug"`
+	// TemplateVersionPresetID is the ID of the template version preset to use for the build.
+	TemplateVersionPresetID uuid.UUID `json:"template_version_preset_id,omitempty" format:"uuid"`
+	// Reason sets the reason for the workspace build.
+	Reason CreateWorkspaceBuildReason `json:"reason,omitempty" validate:"omitempty,oneof=dashboard cli ssh_connection vscode_connection jetbrains_connection"`
 }
 
 type WorkspaceOptions struct {

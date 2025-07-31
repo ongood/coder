@@ -1,7 +1,5 @@
 import type { CSSObject } from "@emotion/react";
 
-export type ExternalImageMode = keyof ExternalImageModeStyles;
-
 export interface ExternalImageModeStyles {
 	/**
 	 * monochrome icons will be flattened to a neutral, theme-appropriate color.
@@ -156,8 +154,11 @@ export const defaultParametersForBuiltinIcons = new Map<string, string>([
 	["/icon/image.svg", "monochrome"],
 	["/icon/jupyter.svg", "blackWithColor"],
 	["/icon/kasmvnc.svg", "whiteWithColor"],
+	["/icon/kiro.svg", "whiteWithColor"],
 	["/icon/memory.svg", "monochrome"],
 	["/icon/rust.svg", "monochrome"],
 	["/icon/terminal.svg", "monochrome"],
 	["/icon/widgets.svg", "monochrome"],
+	["/icon/windsurf.svg", "monochrome"],
+	["/icon/zed.svg", "monochrome"],
 ]);

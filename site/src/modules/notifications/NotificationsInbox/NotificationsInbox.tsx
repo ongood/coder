@@ -1,4 +1,4 @@
-import { API, watchInboxNotifications } from "api/api";
+import { watchInboxNotifications } from "api/api";
 import { getErrorDetail, getErrorMessage } from "api/errors";
 import type {
 	ListInboxNotificationsResponse,
@@ -6,15 +6,18 @@ import type {
 } from "api/typesGenerated";
 import { displayError } from "components/GlobalSnackbar/utils";
 import { useEffectEvent } from "hooks/hookPolyfills";
-import { type FC, useEffect, useRef } from "react";
+import { type FC, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { InboxPopover } from "./InboxPopover";
 
 const NOTIFICATIONS_QUERY_KEY = ["notifications"];
+const NOTIFICATIONS_LIMIT = 25; // This is hard set in the API
 
 type NotificationsInboxProps = {
 	defaultOpen?: boolean;
-	fetchNotifications: () => Promise<ListInboxNotificationsResponse>;
+	fetchNotifications: (
+		startingBeforeId?: string,
+	) => Promise<ListInboxNotificationsResponse>;
 	markAllAsRead: () => Promise<void>;
 	markNotificationAsRead: (
 		notificationId: string,
@@ -30,12 +33,12 @@ export const NotificationsInbox: FC<NotificationsInboxProps> = ({
 	const queryClient = useQueryClient();
 
 	const {
-		data: res,
+		data: inboxRes,
 		error,
 		refetch,
 	} = useQuery({
 		queryKey: NOTIFICATIONS_QUERY_KEY,
-		queryFn: fetchNotifications,
+		queryFn: () => fetchNotifications(),
 	});
 
 	const updateNotificationsCache = useEffectEvent(
@@ -44,7 +47,7 @@ export const NotificationsInbox: FC<NotificationsInboxProps> = ({
 				res: ListInboxNotificationsResponse,
 			) => ListInboxNotificationsResponse,
 		) => {
-			await queryClient.cancelQueries(NOTIFICATIONS_QUERY_KEY);
+			await queryClient.cancelQueries({ queryKey: NOTIFICATIONS_QUERY_KEY });
 			queryClient.setQueryData<ListInboxNotificationsResponse>(
 				NOTIFICATIONS_QUERY_KEY,
 				(prev) => {
@@ -58,22 +61,58 @@ export const NotificationsInbox: FC<NotificationsInboxProps> = ({
 	);
 
 	useEffect(() => {
-		const socket = watchInboxNotifications(
-			(res) => {
-				updateNotificationsCache((prev) => {
-					return {
-						unread_count: res.unread_count,
-						notifications: [res.notification, ...prev.notifications],
-					};
-				});
-			},
-			{ read_status: "unread" },
-		);
+		const socket = watchInboxNotifications({ read_status: "unread" });
 
-		return () => {
+		socket.addEventListener("message", (e) => {
+			if (e.parseError) {
+				console.warn("Error parsing inbox notification: ", e.parseError);
+				return;
+			}
+
+			const msg = e.parsedMessage;
+			updateNotificationsCache((current) => {
+				return {
+					unread_count: msg.unread_count,
+					notifications: [msg.notification, ...current.notifications],
+				};
+			});
+		});
+
+		socket.addEventListener("error", () => {
+			displayError(
+				"Unable to retrieve latest inbox notifications. Please try refreshing the browser.",
+			);
 			socket.close();
-		};
+		});
+
+		return () => socket.close();
 	}, [updateNotificationsCache]);
+
+	const {
+		mutate: loadMoreNotifications,
+		isPending: isLoadingMoreNotifications,
+	} = useMutation({
+		mutationFn: async () => {
+			if (!inboxRes || inboxRes.notifications.length === 0) {
+				return;
+			}
+			const lastNotification =
+				inboxRes.notifications[inboxRes.notifications.length - 1];
+			const newRes = await fetchNotifications(lastNotification.id);
+			updateNotificationsCache((prev) => {
+				return {
+					unread_count: newRes.unread_count,
+					notifications: [...prev.notifications, ...newRes.notifications],
+				};
+			});
+		},
+		onError: (error) => {
+			displayError(
+				getErrorMessage(error, "Error loading more notifications"),
+				getErrorDetail(error),
+			);
+		},
+	});
 
 	const markAllAsReadMutation = useMutation({
 		mutationFn: markAllAsRead,
@@ -122,12 +161,17 @@ export const NotificationsInbox: FC<NotificationsInboxProps> = ({
 	return (
 		<InboxPopover
 			defaultOpen={defaultOpen}
-			notifications={res?.notifications}
-			unreadCount={res?.unread_count ?? 0}
+			notifications={inboxRes?.notifications}
+			unreadCount={inboxRes?.unread_count ?? 0}
 			error={error}
+			isLoadingMoreNotifications={isLoadingMoreNotifications}
+			hasMoreNotifications={Boolean(
+				inboxRes && inboxRes.notifications.length % NOTIFICATIONS_LIMIT === 0,
+			)}
 			onRetry={refetch}
 			onMarkAllAsRead={markAllAsReadMutation.mutate}
 			onMarkNotificationAsRead={markNotificationAsReadMutation.mutate}
+			onLoadMoreNotifications={loadMoreNotifications}
 		/>
 	);
 };

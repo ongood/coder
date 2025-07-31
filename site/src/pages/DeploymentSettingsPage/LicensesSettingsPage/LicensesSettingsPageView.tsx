@@ -1,21 +1,26 @@
 import { type Interpolation, type Theme, useTheme } from "@emotion/react";
-import AddIcon from "@mui/icons-material/AddOutlined";
-import RefreshIcon from "@mui/icons-material/Refresh";
-import LoadingButton from "@mui/lab/LoadingButton";
-import Button from "@mui/material/Button";
+import MuiButton from "@mui/material/Button";
 import MuiLink from "@mui/material/Link";
 import Skeleton from "@mui/material/Skeleton";
 import Tooltip from "@mui/material/Tooltip";
 import type { GetLicensesResponse } from "api/api";
-import type { UserStatusChangeCount } from "api/typesGenerated";
-import { SettingsHeader } from "components/SettingsHeader/SettingsHeader";
+import type { Feature, UserStatusChangeCount } from "api/typesGenerated";
+import { Button } from "components/Button/Button";
+import {
+	SettingsHeader,
+	SettingsHeaderDescription,
+	SettingsHeaderTitle,
+} from "components/SettingsHeader/SettingsHeader";
+import { Spinner } from "components/Spinner/Spinner";
 import { Stack } from "components/Stack/Stack";
 import { useWindowSize } from "hooks/useWindowSize";
+import { PlusIcon, RotateCwIcon } from "lucide-react";
 import type { FC } from "react";
 import Confetti from "react-confetti";
 import { Link } from "react-router-dom";
 import { LicenseCard } from "./LicenseCard";
 import { LicenseSeatConsumptionChart } from "./LicenseSeatConsumptionChart";
+import { ManagedAgentsConsumption } from "./ManagedAgentsConsumption";
 
 type Props = {
 	showConfetti: boolean;
@@ -28,6 +33,7 @@ type Props = {
 	removeLicense: (licenseId: number) => void;
 	refreshEntitlements: () => void;
 	activeUsers: UserStatusChangeCount[] | undefined;
+	managedAgentFeature?: Feature;
 };
 
 const LicensesSettingsPageView: FC<Props> = ({
@@ -41,6 +47,7 @@ const LicensesSettingsPageView: FC<Props> = ({
 	removeLicense,
 	refreshEntitlements,
 	activeUsers,
+	managedAgentFeature,
 }) => {
 	const theme = useTheme();
 	const { width, height } = useWindowSize();
@@ -60,28 +67,32 @@ const LicensesSettingsPageView: FC<Props> = ({
 				direction="row"
 				justifyContent="space-between"
 			>
-				<SettingsHeader
-					title="Licenses"
-					description="Manage licenses to unlock Premium features."
-				/>
+				<SettingsHeader>
+					<SettingsHeaderTitle>Licenses</SettingsHeaderTitle>
+					<SettingsHeaderDescription>
+						Manage licenses to unlock Premium features.
+					</SettingsHeaderDescription>
+				</SettingsHeader>
 
 				<Stack direction="row" spacing={2}>
-					<Button
+					<MuiButton
 						component={Link}
 						to="/deployment/licenses/add"
-						startIcon={<AddIcon />}
+						startIcon={<PlusIcon className="size-icon-sm" />}
 					>
 						Add a license
-					</Button>
+					</MuiButton>
 					<Tooltip title="Refresh license entitlements. This is done automatically every 10 minutes.">
-						<LoadingButton
-							loadingPosition="start"
-							loading={isRefreshing}
+						<Button
+							disabled={isRefreshing}
 							onClick={refreshEntitlements}
-							startIcon={<RefreshIcon />}
+							variant="outline"
 						>
+							<Spinner loading={isRefreshing}>
+								<RotateCwIcon className="size-icon-xs" />
+							</Spinner>
 							Refresh
-						</LoadingButton>
+						</Button>
 					</Tooltip>
 				</Stack>
 			</Stack>
@@ -93,7 +104,7 @@ const LicensesSettingsPageView: FC<Props> = ({
 
 				{!isLoading && licenses && licenses?.length > 0 && (
 					<Stack spacing={4} className="licenses">
-						{licenses
+						{[...(licenses ?? [])]
 							?.sort(
 								(a, b) =>
 									new Date(b.claims.license_expires).valueOf() -
@@ -142,6 +153,10 @@ const LicensesSettingsPageView: FC<Props> = ({
 							limit: 80,
 						}))}
 					/>
+				)}
+
+				{licenses && licenses.length > 0 && (
+					<ManagedAgentsConsumption managedAgentFeature={managedAgentFeature} />
 				)}
 			</div>
 		</>

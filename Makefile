@@ -36,7 +36,9 @@ GOOS         := $(shell go env GOOS)
 GOARCH       := $(shell go env GOARCH)
 GOOS_BIN_EXT := $(if $(filter windows, $(GOOS)),.exe,)
 VERSION      := $(shell ./scripts/version.sh)
-POSTGRES_VERSION ?= 16
+
+POSTGRES_VERSION ?= 17
+POSTGRES_IMAGE   ?= us-docker.pkg.dev/coder-v2-images-public/public/postgres:$(POSTGRES_VERSION)
 
 # Use the highest ZSTD compression level in CI.
 ifdef CI
@@ -54,6 +56,16 @@ FIND_EXCLUSIONS= \
 	-not \( \( -path '*/.git/*' -o -path './build/*' -o -path './vendor/*' -o -path './.coderv2/*' -o -path '*/node_modules/*' -o -path '*/out/*' -o -path './coderd/apidoc/*' -o -path '*/.next/*' -o -path '*/.terraform/*' \) -prune \)
 # Source files used for make targets, evaluated on use.
 GO_SRC_FILES := $(shell find . $(FIND_EXCLUSIONS) -type f -name '*.go' -not -name '*_test.go')
+# Same as GO_SRC_FILES but excluding certain files that have problematic
+# Makefile dependencies (e.g. pnpm).
+MOST_GO_SRC_FILES := $(shell \
+	find . \
+		$(FIND_EXCLUSIONS) \
+		-type f \
+		-name '*.go' \
+		-not -name '*_test.go' \
+		-not -wholename './agent/agentcontainers/dcspec/dcspec_gen.go' \
+)
 # All the shell files in the repo, excluding ignored files.
 SHELL_SRC_FILES := $(shell find . $(FIND_EXCLUSIONS) -type f -name '*.sh')
 
@@ -240,10 +252,14 @@ $(CODER_ALL_BINARIES): go.mod go.sum \
 		fi
 
 		cp "$@" "./site/out/bin/coder-$$os-$$arch$$dot_ext"
+
+		if [[ "$${CODER_SIGN_GPG:-0}" == "1" ]]; then
+			cp "$@.asc" "./site/out/bin/coder-$$os-$$arch$$dot_ext.asc"
+		fi
 	fi
 
 # This task builds Coder Desktop dylibs
-$(CODER_DYLIBS): go.mod go.sum $(GO_SRC_FILES)
+$(CODER_DYLIBS): go.mod go.sum $(MOST_GO_SRC_FILES)
 	@if [ "$(shell uname)" = "Darwin" ]; then
 		$(get-mode-os-arch-ext)
 		./scripts/build_go.sh \
@@ -388,16 +404,21 @@ $(foreach chart,$(charts),build/$(chart)_helm_$(VERSION).tgz): build/%_helm_$(VE
 		--chart $* \
 		--output "$@"
 
-node_modules/.installed: package.json
+node_modules/.installed: package.json pnpm-lock.yaml
 	./scripts/pnpm_install.sh
+	touch "$@"
 
-offlinedocs/node_modules/.installed: offlinedocs/package.json
-	cd offlinedocs/
-	../scripts/pnpm_install.sh
+offlinedocs/node_modules/.installed: offlinedocs/package.json offlinedocs/pnpm-lock.yaml
+	(cd offlinedocs/ && ../scripts/pnpm_install.sh)
+	touch "$@"
 
-site/node_modules/.installed: site/package.json
-	cd site/
-	../scripts/pnpm_install.sh
+site/node_modules/.installed: site/package.json site/pnpm-lock.yaml
+	(cd site/ && ../scripts/pnpm_install.sh)
+	touch "$@"
+
+scripts/apidocgen/node_modules/.installed: scripts/apidocgen/package.json scripts/apidocgen/pnpm-lock.yaml
+	(cd scripts/apidocgen && ../../scripts/pnpm_install.sh)
+	touch "$@"
 
 SITE_GEN_FILES := \
 	site/src/api/typesGenerated.ts \
@@ -439,16 +460,31 @@ fmt: fmt/ts fmt/go fmt/terraform fmt/shfmt fmt/biome fmt/markdown
 .PHONY: fmt
 
 fmt/go:
+ifdef FILE
+	# Format single file
+	if [[ -f "$(FILE)" ]] && [[ "$(FILE)" == *.go ]] && ! grep -q "DO NOT EDIT" "$(FILE)"; then \
+		echo "$(GREEN)==>$(RESET) $(BOLD)fmt/go$(RESET) $(FILE)"; \
+		go run mvdan.cc/gofumpt@v0.8.0 -w -l "$(FILE)"; \
+	fi
+else
 	go mod tidy
 	echo "$(GREEN)==>$(RESET) $(BOLD)fmt/go$(RESET)"
 	# VS Code users should check out
 	# https://github.com/mvdan/gofumpt#visual-studio-code
 	find . $(FIND_EXCLUSIONS) -type f -name '*.go' -print0 | \
-		xargs -0 grep --null -L "DO NOT EDIT" | \
-		xargs -0 go run mvdan.cc/gofumpt@v0.4.0 -w -l
+		xargs -0 grep -E --null -L '^// Code generated .* DO NOT EDIT\.$$' | \
+		xargs -0 go run mvdan.cc/gofumpt@v0.8.0 -w -l
+endif
 .PHONY: fmt/go
 
 fmt/ts: site/node_modules/.installed
+ifdef FILE
+	# Format single TypeScript/JavaScript file
+	if [[ -f "$(FILE)" ]] && [[ "$(FILE)" == *.ts ]] || [[ "$(FILE)" == *.tsx ]] || [[ "$(FILE)" == *.js ]] || [[ "$(FILE)" == *.jsx ]]; then \
+		echo "$(GREEN)==>$(RESET) $(BOLD)fmt/ts$(RESET) $(FILE)"; \
+		(cd site/ && pnpm exec biome format --write "../$(FILE)"); \
+	fi
+else
 	echo "$(GREEN)==>$(RESET) $(BOLD)fmt/ts$(RESET)"
 	cd site
 # Avoid writing files in CI to reduce file write activity
@@ -457,9 +493,17 @@ ifdef CI
 else
 	pnpm run check:fix
 endif
+endif
 .PHONY: fmt/ts
 
 fmt/biome: site/node_modules/.installed
+ifdef FILE
+	# Format single file with biome
+	if [[ -f "$(FILE)" ]] && [[ "$(FILE)" == *.ts ]] || [[ "$(FILE)" == *.tsx ]] || [[ "$(FILE)" == *.js ]] || [[ "$(FILE)" == *.jsx ]]; then \
+		echo "$(GREEN)==>$(RESET) $(BOLD)fmt/biome$(RESET) $(FILE)"; \
+		(cd site/ && pnpm exec biome format --write "../$(FILE)"); \
+	fi
+else
 	echo "$(GREEN)==>$(RESET) $(BOLD)fmt/biome$(RESET)"
 	cd site/
 # Avoid writing files in CI to reduce file write activity
@@ -468,14 +512,30 @@ ifdef CI
 else
 	pnpm run format
 endif
+endif
 .PHONY: fmt/biome
 
 fmt/terraform: $(wildcard *.tf)
+ifdef FILE
+	# Format single Terraform file
+	if [[ -f "$(FILE)" ]] && [[ "$(FILE)" == *.tf ]] || [[ "$(FILE)" == *.tfvars ]]; then \
+		echo "$(GREEN)==>$(RESET) $(BOLD)fmt/terraform$(RESET) $(FILE)"; \
+		terraform fmt "$(FILE)"; \
+	fi
+else
 	echo "$(GREEN)==>$(RESET) $(BOLD)fmt/terraform$(RESET)"
 	terraform fmt -recursive
+endif
 .PHONY: fmt/terraform
 
 fmt/shfmt: $(SHELL_SRC_FILES)
+ifdef FILE
+	# Format single shell script
+	if [[ -f "$(FILE)" ]] && [[ "$(FILE)" == *.sh ]]; then \
+		echo "$(GREEN)==>$(RESET) $(BOLD)fmt/shfmt$(RESET) $(FILE)"; \
+		shfmt -w "$(FILE)"; \
+	fi
+else
 	echo "$(GREEN)==>$(RESET) $(BOLD)fmt/shfmt$(RESET)"
 # Only do diff check in CI, errors on diff.
 ifdef CI
@@ -483,11 +543,20 @@ ifdef CI
 else
 	shfmt -w $(SHELL_SRC_FILES)
 endif
+endif
 .PHONY: fmt/shfmt
 
 fmt/markdown: node_modules/.installed
+ifdef FILE
+	# Format single markdown file
+	if [[ -f "$(FILE)" ]] && [[ "$(FILE)" == *.md ]]; then \
+		echo "$(GREEN)==>$(RESET) $(BOLD)fmt/markdown$(RESET) $(FILE)"; \
+		pnpm exec markdown-table-formatter "$(FILE)"; \
+	fi
+else
 	echo "$(GREEN)==>$(RESET) $(BOLD)fmt/markdown$(RESET)"
 	pnpm format-docs
+endif
 .PHONY: fmt/markdown
 
 lint: lint/shellcheck lint/go lint/ts lint/examples lint/helm lint/site-icons lint/markdown
@@ -534,7 +603,6 @@ DB_GEN_FILES := \
 	coderd/database/dump.sql \
 	coderd/database/querier.go \
 	coderd/database/unique_constraint.go \
-	coderd/database/dbmem/dbmem.go \
 	coderd/database/dbmetrics/dbmetrics.go \
 	coderd/database/dbauthz/dbauthz.go \
 	coderd/database/dbmock/dbmock.go
@@ -559,20 +627,34 @@ GEN_FILES := \
 	docs/reference/cli/index.md \
 	docs/admin/security/audit-logs.md \
 	coderd/apidoc/swagger.json \
+	docs/manifest.json \
 	provisioner/terraform/testdata/version \
 	site/e2e/provisionerGenerated.ts \
 	examples/examples.gen.json \
 	$(TAILNETTEST_MOCKS) \
 	coderd/database/pubsub/psmock/psmock.go \
 	agent/agentcontainers/acmock/acmock.go \
-	agent/agentcontainers/dcspec/dcspec_gen.go
+	agent/agentcontainers/dcspec/dcspec_gen.go \
+	coderd/httpmw/loggermw/loggermock/loggermock.go
 
 # all gen targets should be added here and to gen/mark-fresh
-gen: gen/db $(GEN_FILES)
+gen: gen/db gen/golden-files $(GEN_FILES)
 .PHONY: gen
 
 gen/db: $(DB_GEN_FILES)
 .PHONY: gen/db
+
+gen/golden-files: \
+	cli/testdata/.gen-golden \
+	coderd/.gen-golden \
+	coderd/notifications/.gen-golden \
+	enterprise/cli/testdata/.gen-golden \
+	enterprise/tailnet/testdata/.gen-golden \
+	helm/coder/tests/testdata/.gen-golden \
+	helm/provisioner/tests/testdata/.gen-golden \
+	provisioner/terraform/testdata/.gen-golden \
+	tailnet/testdata/.gen-golden
+.PHONY: gen/golden-files
 
 # Mark all generated files as fresh so make thinks they're up-to-date. This is
 # used during releases so we don't run generation scripts.
@@ -594,6 +676,7 @@ gen/mark-fresh:
 		docs/reference/cli/index.md \
 		docs/admin/security/audit-logs.md \
 		coderd/apidoc/swagger.json \
+		docs/manifest.json \
 		site/e2e/provisionerGenerated.ts \
 		site/src/theme/icons.json \
 		examples/examples.gen.json \
@@ -601,6 +684,7 @@ gen/mark-fresh:
 		coderd/database/pubsub/psmock/psmock.go \
 		agent/agentcontainers/acmock/acmock.go \
 		agent/agentcontainers/dcspec/dcspec_gen.go \
+		coderd/httpmw/loggermw/loggermock/loggermock.go \
 		"
 
 	for file in $$files; do
@@ -619,27 +703,42 @@ gen/mark-fresh:
 # applied.
 coderd/database/dump.sql: coderd/database/gen/dump/main.go $(wildcard coderd/database/migrations/*.sql)
 	go run ./coderd/database/gen/dump/main.go
+	touch "$@"
 
 # Generates Go code for querying the database.
 # coderd/database/queries.sql.go
 # coderd/database/models.go
 coderd/database/querier.go: coderd/database/sqlc.yaml coderd/database/dump.sql $(wildcard coderd/database/queries/*.sql)
 	./coderd/database/generate.sh
+	touch "$@"
 
 coderd/database/dbmock/dbmock.go: coderd/database/db.go coderd/database/querier.go
 	go generate ./coderd/database/dbmock/
+	touch "$@"
 
 coderd/database/pubsub/psmock/psmock.go: coderd/database/pubsub/pubsub.go
 	go generate ./coderd/database/pubsub/psmock
+	touch "$@"
 
 agent/agentcontainers/acmock/acmock.go: agent/agentcontainers/containers.go
 	go generate ./agent/agentcontainers/acmock/
+	touch "$@"
 
-agent/agentcontainers/dcspec/dcspec_gen.go: agent/agentcontainers/dcspec/devContainer.base.schema.json
-	go generate ./agent/agentcontainers/dcspec/
+coderd/httpmw/loggermw/loggermock/loggermock.go: coderd/httpmw/loggermw/logger.go
+	go generate ./coderd/httpmw/loggermw/loggermock/
+	touch "$@"
+
+agent/agentcontainers/dcspec/dcspec_gen.go: \
+	node_modules/.installed \
+	agent/agentcontainers/dcspec/devContainer.base.schema.json \
+	agent/agentcontainers/dcspec/gen.sh \
+	agent/agentcontainers/dcspec/doc.go
+	DCSPEC_QUIET=true go generate ./agent/agentcontainers/dcspec/
+	touch "$@"
 
 $(TAILNETTEST_MOCKS): tailnet/coordinator.go tailnet/service.go
 	go generate ./tailnet/tailnettest/
+	touch "$@"
 
 tailnet/proto/tailnet.pb.go: tailnet/proto/tailnet.proto
 	protoc \
@@ -682,77 +781,94 @@ vpn/vpn.pb.go: vpn/vpn.proto
 site/src/api/typesGenerated.ts: site/node_modules/.installed $(wildcard scripts/apitypings/*) $(shell find ./codersdk $(FIND_EXCLUSIONS) -type f -name '*.go')
 	# -C sets the directory for the go run command
 	go run -C ./scripts/apitypings main.go > $@
-	cd site/
-	pnpm exec biome format --write src/api/typesGenerated.ts
+	(cd site/ && pnpm exec biome format --write src/api/typesGenerated.ts)
+	touch "$@"
 
 site/e2e/provisionerGenerated.ts: site/node_modules/.installed provisionerd/proto/provisionerd.pb.go provisionersdk/proto/provisioner.pb.go
-	cd site/
-	pnpm run gen:provisioner
+	(cd site/ && pnpm run gen:provisioner)
+	touch "$@"
 
 site/src/theme/icons.json: site/node_modules/.installed $(wildcard scripts/gensite/*) $(wildcard site/static/icon/*)
 	go run ./scripts/gensite/ -icons "$@"
-	cd site/
-	pnpm exec biome format --write src/theme/icons.json
+	(cd site/ && pnpm exec biome format --write src/theme/icons.json)
+	touch "$@"
 
 examples/examples.gen.json: scripts/examplegen/main.go examples/examples.go $(shell find ./examples/templates)
 	go run ./scripts/examplegen/main.go > examples/examples.gen.json
+	touch "$@"
 
 coderd/rbac/object_gen.go: scripts/typegen/rbacobject.gotmpl scripts/typegen/main.go coderd/rbac/object.go coderd/rbac/policy/policy.go
 	tempdir=$(shell mktemp -d /tmp/typegen_rbac_object.XXXXXX)
 	go run ./scripts/typegen/main.go rbac object > "$$tempdir/object_gen.go"
 	mv -v "$$tempdir/object_gen.go" coderd/rbac/object_gen.go
 	rmdir -v "$$tempdir"
+	touch "$@"
 
 codersdk/rbacresources_gen.go: scripts/typegen/codersdk.gotmpl scripts/typegen/main.go coderd/rbac/object.go coderd/rbac/policy/policy.go
 	# Do no overwrite codersdk/rbacresources_gen.go directly, as it would make the file empty, breaking
  	# the `codersdk` package and any parallel build targets.
 	go run scripts/typegen/main.go rbac codersdk > /tmp/rbacresources_gen.go
 	mv /tmp/rbacresources_gen.go codersdk/rbacresources_gen.go
+	touch "$@"
 
 site/src/api/rbacresourcesGenerated.ts: site/node_modules/.installed scripts/typegen/codersdk.gotmpl scripts/typegen/main.go coderd/rbac/object.go coderd/rbac/policy/policy.go
 	go run scripts/typegen/main.go rbac typescript > "$@"
-	cd site/
-	pnpm exec biome format --write src/api/rbacresourcesGenerated.ts
+	(cd site/ && pnpm exec biome format --write src/api/rbacresourcesGenerated.ts)
+	touch "$@"
 
 site/src/api/countriesGenerated.ts: site/node_modules/.installed scripts/typegen/countries.tstmpl scripts/typegen/main.go codersdk/countries.go
 	go run scripts/typegen/main.go countries > "$@"
-	cd site/
-	pnpm exec biome format --write src/api/countriesGenerated.ts
+	(cd site/ && pnpm exec biome format --write src/api/countriesGenerated.ts)
+	touch "$@"
 
 docs/admin/integrations/prometheus.md: node_modules/.installed scripts/metricsdocgen/main.go scripts/metricsdocgen/metrics
 	go run scripts/metricsdocgen/main.go
 	pnpm exec markdownlint-cli2 --fix ./docs/admin/integrations/prometheus.md
 	pnpm exec markdown-table-formatter ./docs/admin/integrations/prometheus.md
+	touch "$@"
 
-docs/reference/cli/index.md: node_modules/.installed site/node_modules/.installed scripts/clidocgen/main.go examples/examples.gen.json $(GO_SRC_FILES)
+docs/reference/cli/index.md: node_modules/.installed scripts/clidocgen/main.go examples/examples.gen.json $(GO_SRC_FILES)
 	CI=true BASE_PATH="." go run ./scripts/clidocgen
 	pnpm exec markdownlint-cli2 --fix ./docs/reference/cli/*.md
 	pnpm exec markdown-table-formatter ./docs/reference/cli/*.md
-	cd site/
-	pnpm exec biome format --write ../docs/manifest.json
+	touch "$@"
 
 docs/admin/security/audit-logs.md: node_modules/.installed coderd/database/querier.go scripts/auditdocgen/main.go enterprise/audit/table.go coderd/rbac/object_gen.go
 	go run scripts/auditdocgen/main.go
 	pnpm exec markdownlint-cli2 --fix ./docs/admin/security/audit-logs.md
 	pnpm exec markdown-table-formatter ./docs/admin/security/audit-logs.md
+	touch "$@"
 
-coderd/apidoc/swagger.json: node_modules/.installed site/node_modules/.installed $(shell find ./scripts/apidocgen $(FIND_EXCLUSIONS) -type f) $(wildcard coderd/*.go) $(wildcard enterprise/coderd/*.go) $(wildcard codersdk/*.go) $(wildcard enterprise/wsproxy/wsproxysdk/*.go) $(DB_GEN_FILES) .swaggo docs/manifest.json coderd/rbac/object_gen.go
+coderd/apidoc/.gen: \
+	node_modules/.installed \
+	scripts/apidocgen/node_modules/.installed \
+	$(wildcard coderd/*.go) \
+	$(wildcard enterprise/coderd/*.go) \
+	$(wildcard codersdk/*.go) \
+	$(wildcard enterprise/wsproxy/wsproxysdk/*.go) \
+	$(DB_GEN_FILES) \
+	coderd/rbac/object_gen.go \
+	.swaggo \
+	scripts/apidocgen/generate.sh \
+	$(wildcard scripts/apidocgen/postprocess/*) \
+	$(wildcard scripts/apidocgen/markdown-template/*)
 	./scripts/apidocgen/generate.sh
 	pnpm exec markdownlint-cli2 --fix ./docs/reference/api/*.md
 	pnpm exec markdown-table-formatter ./docs/reference/api/*.md
-	cd site/
-	pnpm exec biome format --write ../docs/manifest.json ../coderd/apidoc/swagger.json
+	touch "$@"
 
-update-golden-files: \
-	cli/testdata/.gen-golden \
-	coderd/.gen-golden \
-	coderd/notifications/.gen-golden \
-	enterprise/cli/testdata/.gen-golden \
-	enterprise/tailnet/testdata/.gen-golden \
-	helm/coder/tests/testdata/.gen-golden \
-	helm/provisioner/tests/testdata/.gen-golden \
-	provisioner/terraform/testdata/.gen-golden \
-	tailnet/testdata/.gen-golden
+docs/manifest.json: site/node_modules/.installed coderd/apidoc/.gen docs/reference/cli/index.md
+	(cd site/ && pnpm exec biome format --write ../docs/manifest.json)
+	touch "$@"
+
+coderd/apidoc/swagger.json: site/node_modules/.installed coderd/apidoc/.gen
+	(cd site/ && pnpm exec biome format --write ../coderd/apidoc/swagger.json)
+	touch "$@"
+
+update-golden-files:
+	echo 'WARNING: This target is deprecated. Use "make gen/golden-files" instead.' >&2
+	echo 'Running "make gen/golden-files"' >&2
+	make gen/golden-files
 .PHONY: update-golden-files
 
 clean/golden-files:
@@ -771,39 +887,39 @@ clean/golden-files:
 .PHONY: clean/golden-files
 
 cli/testdata/.gen-golden: $(wildcard cli/testdata/*.golden) $(wildcard cli/*.tpl) $(GO_SRC_FILES) $(wildcard cli/*_test.go)
-	go test ./cli -run="Test(CommandHelp|ServerYAML|ErrorExamples|.*Golden)" -update
+	TZ=UTC go test ./cli -run="Test(CommandHelp|ServerYAML|ErrorExamples|.*Golden)" -update
 	touch "$@"
 
 enterprise/cli/testdata/.gen-golden: $(wildcard enterprise/cli/testdata/*.golden) $(wildcard cli/*.tpl) $(GO_SRC_FILES) $(wildcard enterprise/cli/*_test.go)
-	go test ./enterprise/cli -run="TestEnterpriseCommandHelp" -update
+	TZ=UTC go test ./enterprise/cli -run="TestEnterpriseCommandHelp" -update
 	touch "$@"
 
 tailnet/testdata/.gen-golden: $(wildcard tailnet/testdata/*.golden.html) $(GO_SRC_FILES) $(wildcard tailnet/*_test.go)
-	go test ./tailnet -run="TestDebugTemplate" -update
+	TZ=UTC go test ./tailnet -run="TestDebugTemplate" -update
 	touch "$@"
 
 enterprise/tailnet/testdata/.gen-golden: $(wildcard enterprise/tailnet/testdata/*.golden.html) $(GO_SRC_FILES) $(wildcard enterprise/tailnet/*_test.go)
-	go test ./enterprise/tailnet -run="TestDebugTemplate" -update
+	TZ=UTC go test ./enterprise/tailnet -run="TestDebugTemplate" -update
 	touch "$@"
 
 helm/coder/tests/testdata/.gen-golden: $(wildcard helm/coder/tests/testdata/*.yaml) $(wildcard helm/coder/tests/testdata/*.golden) $(GO_SRC_FILES) $(wildcard helm/coder/tests/*_test.go)
-	go test ./helm/coder/tests -run=TestUpdateGoldenFiles -update
+	TZ=UTC go test ./helm/coder/tests -run=TestUpdateGoldenFiles -update
 	touch "$@"
 
 helm/provisioner/tests/testdata/.gen-golden: $(wildcard helm/provisioner/tests/testdata/*.yaml) $(wildcard helm/provisioner/tests/testdata/*.golden) $(GO_SRC_FILES) $(wildcard helm/provisioner/tests/*_test.go)
-	go test ./helm/provisioner/tests -run=TestUpdateGoldenFiles -update
+	TZ=UTC go test ./helm/provisioner/tests -run=TestUpdateGoldenFiles -update
 	touch "$@"
 
 coderd/.gen-golden: $(wildcard coderd/testdata/*/*.golden) $(GO_SRC_FILES) $(wildcard coderd/*_test.go)
-	go test ./coderd -run="Test.*Golden$$" -update
+	TZ=UTC go test ./coderd -run="Test.*Golden$$" -update
 	touch "$@"
 
 coderd/notifications/.gen-golden: $(wildcard coderd/notifications/testdata/*/*.golden) $(GO_SRC_FILES) $(wildcard coderd/notifications/*_test.go)
-	go test ./coderd/notifications -run="Test.*Golden$$" -update
+	TZ=UTC go test ./coderd/notifications -run="Test.*Golden$$" -update
 	touch "$@"
 
 provisioner/terraform/testdata/.gen-golden: $(wildcard provisioner/terraform/testdata/*/*.golden) $(GO_SRC_FILES) $(wildcard provisioner/terraform/*_test.go)
-	go test ./provisioner/terraform -run="Test.*Golden$$" -update
+	TZ=UTC go test ./provisioner/terraform -run="Test.*Golden$$" -update
 	touch "$@"
 
 provisioner/terraform/testdata/version:
@@ -812,12 +928,19 @@ provisioner/terraform/testdata/version:
 	fi
 .PHONY: provisioner/terraform/testdata/version
 
+# Set the retry flags if TEST_RETRIES is set
+ifdef TEST_RETRIES
+GOTESTSUM_RETRY_FLAGS := --rerun-fails=$(TEST_RETRIES)
+else
+GOTESTSUM_RETRY_FLAGS :=
+endif
+
 test:
-	$(GIT_FLAGS) gotestsum --format standard-quiet -- -v -short -count=1 ./... $(if $(RUN),-run $(RUN))
+	$(GIT_FLAGS) gotestsum --format standard-quiet $(GOTESTSUM_RETRY_FLAGS) --packages="./..." -- -v -short -count=1 $(if $(RUN),-run $(RUN))
 .PHONY: test
 
 test-cli:
-	$(GIT_FLAGS) gotestsum --format standard-quiet -- -v -short -count=1 ./cli/...
+	$(GIT_FLAGS) gotestsum --format standard-quiet $(GOTESTSUM_RETRY_FLAGS) --packages="./cli/..." -- -v -short -count=1
 .PHONY: test-cli
 
 # sqlc-cloud-is-setup will fail if no SQLc auth token is set. Use this as a
@@ -853,12 +976,12 @@ sqlc-vet: test-postgres-docker
 test-postgres: test-postgres-docker
 	# The postgres test is prone to failure, so we limit parallelism for
 	# more consistent execution.
-	$(GIT_FLAGS)  DB=ci gotestsum \
+	$(GIT_FLAGS)  gotestsum \
 		--junitfile="gotests.xml" \
 		--jsonfile="gotests.json" \
+		$(GOTESTSUM_RETRY_FLAGS) \
 		--packages="./..." -- \
 		-timeout=20m \
-		-failfast \
 		-count=1
 .PHONY: test-postgres
 
@@ -879,12 +1002,12 @@ test-postgres-docker:
 	docker rm -f test-postgres-docker-${POSTGRES_VERSION} || true
 
 	# Try pulling up to three times to avoid CI flakes.
-	docker pull gcr.io/coder-dev-1/postgres:${POSTGRES_VERSION} || {
+	docker pull ${POSTGRES_IMAGE} || {
 		retries=2
 		for try in $(seq 1 ${retries}); do
 			echo "Failed to pull image, retrying (${try}/${retries})..."
 			sleep 1
-			if docker pull gcr.io/coder-dev-1/postgres:${POSTGRES_VERSION}; then
+			if docker pull ${POSTGRES_IMAGE}; then
 				break
 			fi
 		done
@@ -912,7 +1035,7 @@ test-postgres-docker:
 		--restart no \
 		--detach \
 		--memory 16GB \
-		gcr.io/coder-dev-1/postgres:${POSTGRES_VERSION} \
+		${POSTGRES_IMAGE} \
 		-c shared_buffers=2GB \
 		-c effective_cache_size=1GB \
 		-c work_mem=8MB \

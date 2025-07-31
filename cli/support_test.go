@@ -50,7 +50,8 @@ func TestSupportBundle(t *testing.T) {
 		secretValue := uuid.NewString()
 		seedSecretDeploymentOptions(t, &dc, secretValue)
 		client, db := coderdtest.NewWithDatabase(t, &coderdtest.Options{
-			DeploymentValues: dc.Values,
+			DeploymentValues:   dc.Values,
+			HealthcheckTimeout: testutil.WaitSuperLong,
 		})
 		owner := coderdtest.CreateFirstUser(t, client)
 		r := dbfake.WorkspaceBuild(t, db, database.WorkspaceTable{
@@ -113,7 +114,8 @@ func TestSupportBundle(t *testing.T) {
 		secretValue := uuid.NewString()
 		seedSecretDeploymentOptions(t, &dc, secretValue)
 		client := coderdtest.New(t, &coderdtest.Options{
-			DeploymentValues: dc.Values,
+			DeploymentValues:   dc.Values,
+			HealthcheckTimeout: testutil.WaitSuperLong,
 		})
 		_ = coderdtest.CreateFirstUser(t, client)
 
@@ -133,7 +135,8 @@ func TestSupportBundle(t *testing.T) {
 		secretValue := uuid.NewString()
 		seedSecretDeploymentOptions(t, &dc, secretValue)
 		client, db := coderdtest.NewWithDatabase(t, &coderdtest.Options{
-			DeploymentValues: dc.Values,
+			DeploymentValues:   dc.Values,
+			HealthcheckTimeout: testutil.WaitSuperLong,
 		})
 		admin := coderdtest.CreateFirstUser(t, client)
 		r := dbfake.WorkspaceBuild(t, db, database.WorkspaceTable{
@@ -383,6 +386,9 @@ func assertBundleContents(t *testing.T, path string, wantWorkspace bool, wantAge
 		case "cli_logs.txt":
 			bs := readBytesFromZip(t, f)
 			require.NotEmpty(t, bs, "CLI logs should not be empty")
+		case "license-status.txt":
+			bs := readBytesFromZip(t, f)
+			require.NotEmpty(t, bs, "license status should not be empty")
 		default:
 			require.Failf(t, "unexpected file in bundle", f.Name)
 		}

@@ -155,7 +155,7 @@ func TestBuildPayload(t *testing.T) {
 	require.NoError(t, err)
 
 	// THEN: expect that a payload will be constructed and have the expected values
-	payload := testutil.RequireRecvCtx(ctx, t, interceptor.payload)
+	payload := testutil.TryReceive(ctx, t, interceptor.payload)
 	require.Len(t, payload.Actions, 1)
 	require.Equal(t, label, payload.Actions[0].Label)
 	require.Equal(t, url, payload.Actions[0].URL)
@@ -182,6 +182,28 @@ func TestStopBeforeRun(t *testing.T) {
 	}, testutil.WaitShort, testutil.IntervalFast)
 }
 
+func TestRunStopRace(t *testing.T) {
+	t.Parallel()
+
+	// SETUP
+
+	// nolint:gocritic // Unit test.
+	ctx := dbauthz.AsSystemRestricted(testutil.Context(t, testutil.WaitMedium))
+	store, ps := dbtestutil.NewDB(t)
+	logger := testutil.Logger(t)
+
+	// GIVEN: a standard manager
+	mgr, err := notifications.NewManager(defaultNotificationsConfig(database.NotificationMethodSmtp), store, ps, defaultHelpers(), createMetrics(), logger.Named("notifications-manager"))
+	require.NoError(t, err)
+
+	// Start Run and Stop after each other (run does "go loop()").
+	// This is to catch a (now fixed) race condition where the manager
+	// would be accessed/stopped while it was being created/starting up.
+	mgr.Run(ctx)
+	err = mgr.Stop(ctx)
+	require.NoError(t, err)
+}
+
 type syncInterceptor struct {
 	notifications.Store
 
@@ -192,6 +214,7 @@ type syncInterceptor struct {
 
 func (b *syncInterceptor) BulkMarkNotificationMessagesSent(ctx context.Context, arg database.BulkMarkNotificationMessagesSentParams) (int64, error) {
 	updated, err := b.Store.BulkMarkNotificationMessagesSent(ctx, arg)
+	// #nosec G115 - Safe conversion as the count of updated notification messages is expected to be within int32 range
 	b.sent.Add(int32(updated))
 	if err != nil {
 		b.err.Store(err)
@@ -201,6 +224,7 @@ func (b *syncInterceptor) BulkMarkNotificationMessagesSent(ctx context.Context, 
 
 func (b *syncInterceptor) BulkMarkNotificationMessagesFailed(ctx context.Context, arg database.BulkMarkNotificationMessagesFailedParams) (int64, error) {
 	updated, err := b.Store.BulkMarkNotificationMessagesFailed(ctx, arg)
+	// #nosec G115 - Safe conversion as the count of updated notification messages is expected to be within int32 range
 	b.failed.Add(int32(updated))
 	if err != nil {
 		b.err.Store(err)

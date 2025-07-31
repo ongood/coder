@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
-	"strconv"
 	"time"
 
 	"cloud.google.com/go/compute/metadata"
@@ -19,12 +18,16 @@ import (
 	"tailscale.com/tailcfg"
 
 	"cdr.dev/slog"
+	"github.com/coder/retry"
+	"github.com/coder/websocket"
+
 	"github.com/coder/coder/v2/agent/proto"
 	"github.com/coder/coder/v2/apiversion"
+	"github.com/coder/coder/v2/coderd/httpapi"
 	"github.com/coder/coder/v2/codersdk"
-	drpcsdk "github.com/coder/coder/v2/codersdk/drpc"
+	"github.com/coder/coder/v2/codersdk/drpcsdk"
+	"github.com/coder/coder/v2/tailnet"
 	tailnetproto "github.com/coder/coder/v2/tailnet/proto"
-	"github.com/coder/websocket"
 )
 
 // ExternalLogSourceID is the statically-defined ID of a log-source that
@@ -33,18 +36,6 @@ import (
 // This is to support legacy API-consumers that do not create their own
 // log-source. This should be removed in the future.
 var ExternalLogSourceID = uuid.MustParse("3b579bf4-1ed8-4b99-87a8-e9a1e3410410")
-
-// ConnectionType is the type of connection that the agent is receiving.
-type ConnectionType string
-
-// Connection type enums.
-const (
-	ConnectionTypeUnspecified     ConnectionType = "Unspecified"
-	ConnectionTypeSSH             ConnectionType = "SSH"
-	ConnectionTypeVSCode          ConnectionType = "VS Code"
-	ConnectionTypeJetBrains       ConnectionType = "JetBrains"
-	ConnectionTypeReconnectingPTY ConnectionType = "Web Terminal"
-)
 
 // New returns a client that is used to interact with the
 // Coder API from a workspace agent.
@@ -99,9 +90,10 @@ type PostMetadataRequest struct {
 type PostMetadataRequestDeprecated = codersdk.WorkspaceAgentMetadataResult
 
 type Manifest struct {
+	ParentID  uuid.UUID `json:"parent_id"`
 	AgentID   uuid.UUID `json:"agent_id"`
 	AgentName string    `json:"agent_name"`
-	// OwnerName and WorkspaceID are used by an open-source user to identify the workspace.
+	// OwnerUsername and WorkspaceID are used by an open-source user to identify the workspace.
 	// We do not provide insurance that this will not be removed in the future,
 	// but if it's easy to persist lets keep it around.
 	OwnerName     string    `json:"owner_name"`
@@ -121,6 +113,7 @@ type Manifest struct {
 	DisableDirectConnections bool                                         `json:"disable_direct_connections"`
 	Metadata                 []codersdk.WorkspaceAgentMetadataDescription `json:"metadata"`
 	Scripts                  []codersdk.WorkspaceAgentScript              `json:"scripts"`
+	Devcontainers            []codersdk.WorkspaceAgentDevcontainer        `json:"devcontainers"`
 }
 
 type LogSource struct {
@@ -133,40 +126,13 @@ type Script struct {
 	Script string `json:"script"`
 }
 
-// RewriteDERPMap rewrites the DERP map to use the access URL of the SDK as the
-// "embedded relay" access URL. The passed derp map is modified in place.
+// RewriteDERPMap rewrites the DERP map to use the configured access URL of the
+// agent as the "embedded relay" access URL.
 //
-// Agents can provide an arbitrary access URL that may be different that the
-// globally configured one. This breaks the built-in DERP, which would continue
-// to reference the global access URL.
+// See tailnet.RewriteDERPMapDefaultRelay for more details on why this is
+// necessary.
 func (c *Client) RewriteDERPMap(derpMap *tailcfg.DERPMap) {
-	accessingPort := c.SDK.URL.Port()
-	if accessingPort == "" {
-		accessingPort = "80"
-		if c.SDK.URL.Scheme == "https" {
-			accessingPort = "443"
-		}
-	}
-	accessPort, err := strconv.Atoi(accessingPort)
-	if err != nil {
-		// this should never happen because URL.Port() returns the empty string if the port is not
-		// valid.
-		c.SDK.Logger().Critical(context.Background(), "failed to parse URL port", slog.F("port", accessingPort))
-	}
-	for _, region := range derpMap.Regions {
-		if !region.EmbeddedRelay {
-			continue
-		}
-
-		for _, node := range region.Nodes {
-			if node.STUNOnly {
-				continue
-			}
-			node.HostName = c.SDK.URL.Hostname()
-			node.DERPPort = accessPort
-			node.ForceHTTP = c.SDK.URL.Scheme == "http"
-		}
-	}
+	tailnet.RewriteDERPMapDefaultRelay(context.Background(), c.SDK.Logger(), derpMap, c.SDK.URL)
 }
 
 // ConnectRPC20 returns a dRPC client to the Agent API v2.0.  Notably, it is missing
@@ -242,11 +208,35 @@ func (c *Client) ConnectRPC23(ctx context.Context) (
 }
 
 // ConnectRPC24 returns a dRPC client to the Agent API v2.4.  It is useful when you want to be
-// maximally compatible with Coderd Release Versions from 2.xx+ // TODO @vincent: define version
+// maximally compatible with Coderd Release Versions from 2.20+
 func (c *Client) ConnectRPC24(ctx context.Context) (
 	proto.DRPCAgentClient24, tailnetproto.DRPCTailnetClient24, error,
 ) {
 	conn, err := c.connectRPCVersion(ctx, apiversion.New(2, 4))
+	if err != nil {
+		return nil, nil, err
+	}
+	return proto.NewDRPCAgentClient(conn), tailnetproto.NewDRPCTailnetClient(conn), nil
+}
+
+// ConnectRPC25 returns a dRPC client to the Agent API v2.5.  It is useful when you want to be
+// maximally compatible with Coderd Release Versions from 2.23+
+func (c *Client) ConnectRPC25(ctx context.Context) (
+	proto.DRPCAgentClient25, tailnetproto.DRPCTailnetClient25, error,
+) {
+	conn, err := c.connectRPCVersion(ctx, apiversion.New(2, 5))
+	if err != nil {
+		return nil, nil, err
+	}
+	return proto.NewDRPCAgentClient(conn), tailnetproto.NewDRPCTailnetClient(conn), nil
+}
+
+// ConnectRPC25 returns a dRPC client to the Agent API v2.5.  It is useful when you want to be
+// maximally compatible with Coderd Release Versions from 2.24+
+func (c *Client) ConnectRPC26(ctx context.Context) (
+	proto.DRPCAgentClient26, tailnetproto.DRPCTailnetClient26, error,
+) {
+	conn, err := c.connectRPCVersion(ctx, apiversion.New(2, 6))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -580,6 +570,30 @@ func (c *Client) PatchLogs(ctx context.Context, req PatchLogs) error {
 	return nil
 }
 
+// PatchAppStatus updates the status of a workspace app.
+type PatchAppStatus struct {
+	AppSlug string                           `json:"app_slug"`
+	State   codersdk.WorkspaceAppStatusState `json:"state"`
+	Message string                           `json:"message"`
+	URI     string                           `json:"uri"`
+	// Deprecated: this field is unused and will be removed in a future version.
+	Icon string `json:"icon"`
+	// Deprecated: this field is unused and will be removed in a future version.
+	NeedsUserAttention bool `json:"needs_user_attention"`
+}
+
+func (c *Client) PatchAppStatus(ctx context.Context, req PatchAppStatus) error {
+	res, err := c.SDK.Request(ctx, http.MethodPatch, "/api/v2/workspaceagents/me/app-status", req)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		return codersdk.ReadBodyAsError(res)
+	}
+	return nil
+}
+
 type PostLogSourceRequest struct {
 	// ID is a unique identifier for the log source.
 	// It is scoped to a workspace agent, and can be statically
@@ -660,4 +674,189 @@ func LogsNotifyChannel(agentID uuid.UUID) string {
 
 type LogsNotifyMessage struct {
 	CreatedAfter int64 `json:"created_after"`
+}
+
+type ReinitializationReason string
+
+const (
+	ReinitializeReasonPrebuildClaimed ReinitializationReason = "prebuild_claimed"
+)
+
+type ReinitializationEvent struct {
+	WorkspaceID uuid.UUID
+	Reason      ReinitializationReason `json:"reason"`
+}
+
+func PrebuildClaimedChannel(id uuid.UUID) string {
+	return fmt.Sprintf("prebuild_claimed_%s", id)
+}
+
+// WaitForReinit polls a SSE endpoint, and receives an event back under the following conditions:
+// - ping: ignored, keepalive
+// - prebuild claimed: a prebuilt workspace is claimed, so the agent must reinitialize.
+func (c *Client) WaitForReinit(ctx context.Context) (*ReinitializationEvent, error) {
+	rpcURL, err := c.SDK.URL.Parse("/api/v2/workspaceagents/me/reinit")
+	if err != nil {
+		return nil, xerrors.Errorf("parse url: %w", err)
+	}
+
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		return nil, xerrors.Errorf("create cookie jar: %w", err)
+	}
+	jar.SetCookies(rpcURL, []*http.Cookie{{
+		Name:  codersdk.SessionTokenCookie,
+		Value: c.SDK.SessionToken(),
+	}})
+	httpClient := &http.Client{
+		Jar:       jar,
+		Transport: c.SDK.HTTPClient.Transport,
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rpcURL.String(), nil)
+	if err != nil {
+		return nil, xerrors.Errorf("build request: %w", err)
+	}
+
+	res, err := httpClient.Do(req)
+	if err != nil {
+		return nil, xerrors.Errorf("execute request: %w", err)
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		return nil, codersdk.ReadBodyAsError(res)
+	}
+
+	reinitEvent, err := NewSSEAgentReinitReceiver(res.Body).Receive(ctx)
+	if err != nil {
+		return nil, xerrors.Errorf("listening for reinitialization events: %w", err)
+	}
+	return reinitEvent, nil
+}
+
+func WaitForReinitLoop(ctx context.Context, logger slog.Logger, client *Client) <-chan ReinitializationEvent {
+	reinitEvents := make(chan ReinitializationEvent)
+
+	go func() {
+		for retrier := retry.New(100*time.Millisecond, 10*time.Second); retrier.Wait(ctx); {
+			logger.Debug(ctx, "waiting for agent reinitialization instructions")
+			reinitEvent, err := client.WaitForReinit(ctx)
+			if err != nil {
+				logger.Error(ctx, "failed to wait for agent reinitialization instructions", slog.Error(err))
+				continue
+			}
+			retrier.Reset()
+			select {
+			case <-ctx.Done():
+				close(reinitEvents)
+				return
+			case reinitEvents <- *reinitEvent:
+			}
+		}
+	}()
+
+	return reinitEvents
+}
+
+func NewSSEAgentReinitTransmitter(logger slog.Logger, rw http.ResponseWriter, r *http.Request) *SSEAgentReinitTransmitter {
+	return &SSEAgentReinitTransmitter{logger: logger, rw: rw, r: r}
+}
+
+type SSEAgentReinitTransmitter struct {
+	rw     http.ResponseWriter
+	r      *http.Request
+	logger slog.Logger
+}
+
+var (
+	ErrTransmissionSourceClosed = xerrors.New("transmission source closed")
+	ErrTransmissionTargetClosed = xerrors.New("transmission target closed")
+)
+
+// Transmit will read from the given chan and send events for as long as:
+// * the chan remains open
+// * the context has not been canceled
+// * not timed out
+// * the connection to the receiver remains open
+func (s *SSEAgentReinitTransmitter) Transmit(ctx context.Context, reinitEvents <-chan ReinitializationEvent) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
+	sseSendEvent, sseSenderClosed, err := httpapi.ServerSentEventSender(s.rw, s.r)
+	if err != nil {
+		return xerrors.Errorf("failed to create sse transmitter: %w", err)
+	}
+
+	defer func() {
+		// Block returning until the ServerSentEventSender is closed
+		// to avoid a race condition where we might write or flush to rw after the handler returns.
+		<-sseSenderClosed
+	}()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-sseSenderClosed:
+			return ErrTransmissionTargetClosed
+		case reinitEvent, ok := <-reinitEvents:
+			if !ok {
+				return ErrTransmissionSourceClosed
+			}
+			err := sseSendEvent(codersdk.ServerSentEvent{
+				Type: codersdk.ServerSentEventTypeData,
+				Data: reinitEvent,
+			})
+			if err != nil {
+				return err
+			}
+		}
+	}
+}
+
+func NewSSEAgentReinitReceiver(r io.ReadCloser) *SSEAgentReinitReceiver {
+	return &SSEAgentReinitReceiver{r: r}
+}
+
+type SSEAgentReinitReceiver struct {
+	r io.ReadCloser
+}
+
+func (s *SSEAgentReinitReceiver) Receive(ctx context.Context) (*ReinitializationEvent, error) {
+	nextEvent := codersdk.ServerSentEventReader(ctx, s.r)
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+
+		sse, err := nextEvent()
+		switch {
+		case err != nil:
+			return nil, xerrors.Errorf("failed to read server-sent event: %w", err)
+		case sse.Type == codersdk.ServerSentEventTypeError:
+			return nil, xerrors.Errorf("unexpected server sent event type error")
+		case sse.Type == codersdk.ServerSentEventTypePing:
+			continue
+		case sse.Type != codersdk.ServerSentEventTypeData:
+			return nil, xerrors.Errorf("unexpected server sent event type: %s", sse.Type)
+		}
+
+		// At this point we know that the sent event is of type codersdk.ServerSentEventTypeData
+		var reinitEvent ReinitializationEvent
+		b, ok := sse.Data.([]byte)
+		if !ok {
+			return nil, xerrors.Errorf("expected data as []byte, got %T", sse.Data)
+		}
+		err = json.Unmarshal(b, &reinitEvent)
+		if err != nil {
+			return nil, xerrors.Errorf("unmarshal reinit response: %w", err)
+		}
+		return &reinitEvent, nil
+	}
 }

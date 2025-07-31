@@ -146,7 +146,7 @@ jobs:
         run: df -h
 
       - name: Harden Runner
-        uses: step-security/harden-runner@4d991eb9b905ef189e4c376166672c3f2f230481 # v2.11.0
+        uses: step-security/harden-runner@ec9f2d5744a09debf3a187a3f4f675c53b671911 # v2.13.0
         with:
           egress-policy: audit
 
@@ -233,7 +233,7 @@ jobs:
 
       # Necessary for signing Windows binaries.
       - name: Setup Java
-        uses: actions/setup-java@3a4f6e1af504cf6a31855fa899c6aa5355ba6c12 # v4.7.0
+        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
         with:
           distribution: "zulu"
           java-version: "11.0"
@@ -262,14 +262,10 @@ jobs:
           rm /tmp/rcodesign.tar.gz
 
       - name: Install cosign
-        uses: sigstore/cosign-installer@d7d6bc7722e3daa8354c50bcb52f4837da5e9b6a # v3.8.1
-        with:
-          cosign-release: "v2.4.3"
+        uses: ./.github/actions/install-cosign
 
       - name: Install syft
-        uses: anchore/sbom-action/download-syft@f325610c9f50a54015d37c8d16cb3b0e2c8f4de0 # v0.18.0
-        with:
-          syft-version: "v1.20.0"
+        uses: ./.github/actions/install-syft
 
       - name: Setup Apple Developer certificate and API key
         run: |
@@ -302,14 +298,14 @@ jobs:
       # Setup GCloud for signing Windows binaries.
       - name: Authenticate to Google Cloud
         id: gcloud_auth
-        uses: google-github-actions/auth@71f986410dfbc7added4569d411d040a91dc6935 # v2.1.8
+        uses: google-github-actions/auth@140bb5113ffb6b65a7e9b937a81fa96cf5064462 # v2.1.11
         with:
           workload_identity_provider: ${{ secrets.GCP_CODE_SIGNING_WORKLOAD_ID_PROVIDER }}
           service_account: ${{ secrets.GCP_CODE_SIGNING_SERVICE_ACCOUNT }}
           token_format: "access_token"
 
       - name: Setup GCloud SDK
-        uses: google-github-actions/setup-gcloud@77e7a554d41e2ee56fc945c52dfd3f33d12def9a # v2.1.4
+        uses: google-github-actions/setup-gcloud@6a7c903a70c8625ed6700fa299f5ddb4ca6022e9 # v2.1.5
 
       # - name: Download dylibs
       #   uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
@@ -337,9 +333,10 @@ jobs:
             build/coder_helm_"$version".tgz \
             build/provisioner_helm_"$version".tgz
         env:
-          # 这里修改从 1 改为 0
           CODER_SIGN_WINDOWS: "0"
           CODER_SIGN_DARWIN: "0"
+          CODER_SIGN_GPG: "0"
+          CODER_GPG_RELEASE_KEY_BASE64: ${{ secrets.GPG_RELEASE_KEY_BASE64 }}
           CODER_WINDOWS_RESOURCES: "0"
           AC_CERTIFICATE_FILE: /tmp/apple_cert.p12
           AC_CERTIFICATE_PASSWORD_FILE: /tmp/apple_cert_password.txt
@@ -381,7 +378,7 @@ jobs:
       # This uses OIDC authentication, so no auth variables are required.
       - name: Build base Docker image via depot.dev
         if: steps.image-base-tag.outputs.tag != ''
-        uses: depot/build-push-action@636daae76684e38c301daa0c5eca1c095b24e780 # v1.14.0
+        uses: depot/build-push-action@2583627a84956d07561420dcc1d0eb1f2af3fac0 # v1.15.0
         with:
           # 这里改成自己的
           project: zthl9kr4mv
@@ -437,7 +434,7 @@ jobs:
         id: attest_base
         if: ${{ !inputs.dry_run && steps.image-base-tag.outputs.tag != '' }}
         continue-on-error: true
-        uses: actions/attest@a63cfcc7d1aab266ee064c58250cfc2c7d07bc31 # v2.2.1
+        uses: actions/attest@ce27ba3b4a9a139d9a20a4a07d69fabb52f1e5bc # v2.4.0
         with:
           subject-name: ${{ steps.image-base-tag.outputs.tag }}
           predicate-type: "https://slsa.dev/provenance/v1"
@@ -514,11 +511,44 @@ jobs:
         env:
           CODER_BASE_IMAGE_TAG: ${{ steps.image-base-tag.outputs.tag }}
 
+      - name: SBOM Generation and Attestation
+        if: ${{ !inputs.dry_run }}
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+        run: |
+          set -euxo pipefail
+
+          # Generate SBOM for multi-arch image with version in filename
+          echo "Generating SBOM for multi-arch image: ${{ steps.build_docker.outputs.multiarch_image }}"
+          syft "${{ steps.build_docker.outputs.multiarch_image }}" -o spdx-json > coder_${{ steps.version.outputs.version }}_sbom.spdx.json
+
+          # Attest SBOM to multi-arch image
+          echo "Attesting SBOM to multi-arch image: ${{ steps.build_docker.outputs.multiarch_image }}"
+          cosign clean --force=true "${{ steps.build_docker.outputs.multiarch_image }}"
+          cosign attest --type spdxjson \
+            --predicate coder_${{ steps.version.outputs.version }}_sbom.spdx.json \
+            --yes \
+            "${{ steps.build_docker.outputs.multiarch_image }}"
+
+          # If latest tag was created, also attest it
+          if [[ "${{ steps.build_docker.outputs.created_latest_tag }}" == "true" ]]; then
+            latest_tag="$(./scripts/image_tag.sh --version latest)"
+            echo "Generating SBOM for latest image: ${latest_tag}"
+            syft "${latest_tag}" -o spdx-json > coder_latest_sbom.spdx.json
+
+            echo "Attesting SBOM to latest image: ${latest_tag}"
+            cosign clean --force=true "${latest_tag}"
+            cosign attest --type spdxjson \
+              --predicate coder_latest_sbom.spdx.json \
+              --yes \
+              "${latest_tag}"
+          fi
+
       - name: GitHub Attestation for Docker image
         id: attest_main
         if: ${{ !inputs.dry_run }}
         continue-on-error: true
-        uses: actions/attest@a63cfcc7d1aab266ee064c58250cfc2c7d07bc31 # v2.2.1
+        uses: actions/attest@ce27ba3b4a9a139d9a20a4a07d69fabb52f1e5bc # v2.4.0
         with:
           subject-name: ${{ steps.build_docker.outputs.multiarch_image }}
           predicate-type: "https://slsa.dev/provenance/v1"
@@ -562,7 +592,7 @@ jobs:
         id: attest_latest
         if: ${{ !inputs.dry_run && steps.build_docker.outputs.created_latest_tag == 'true' }}
         continue-on-error: true
-        uses: actions/attest@a63cfcc7d1aab266ee064c58250cfc2c7d07bc31 # v2.2.1
+        uses: actions/attest@ce27ba3b4a9a139d9a20a4a07d69fabb52f1e5bc # v2.4.0
         with:
           subject-name: ${{ steps.latest_tag.outputs.tag }}
           predicate-type: "https://slsa.dev/provenance/v1"
@@ -617,6 +647,29 @@ jobs:
       - name: ls build
         run: ls -lh build
 
+      - name: Publish Coder CLI binaries and detached signatures to GCS
+        if: ${{ !inputs.dry_run && github.ref == 'refs/heads/main' && github.repository_owner == 'coder'}}
+        run: |
+          set -euxo pipefail
+
+          version="$(./scripts/version.sh)"
+
+          binaries=(
+              "coder-darwin-amd64"
+              "coder-darwin-arm64"
+              "coder-linux-amd64"
+              "coder-linux-arm64"
+              "coder-linux-armv7"
+              "coder-windows-amd64.exe"
+              "coder-windows-arm64.exe"
+          )
+
+          for binary in "${binaries[@]}"; do
+            detached_signature="${binary}.asc"
+            gcloud storage cp "./site/out/bin/${binary}" "gs://releases.coder.com/coder-cli/${version}/${binary}"
+            gcloud storage cp "./site/out/bin/${detached_signature}" "gs://releases.coder.com/coder-cli/${version}/${detached_signature}"
+          done  
+
       - name: Publish release
         run: |
           set -euo pipefail
@@ -630,31 +683,60 @@ jobs:
           fi
           declare -p publish_args
 
+          # Build the list of files to publish
+          files=(
+            ./build/*_installer.exe
+            ./build/*.zip
+            ./build/*.tar.gz
+            ./build/*.tgz
+            ./build/*.apk
+            ./build/*.deb
+            ./build/*.rpm
+            ./coder_${{ steps.version.outputs.version }}_sbom.spdx.json
+          )
+
+          # Only include the latest SBOM file if it was created
+          if [[ "${{ steps.build_docker.outputs.created_latest_tag }}" == "true" ]]; then
+            files+=(./coder_latest_sbom.spdx.json)
+          fi
+
           ./scripts/release/publish.sh \
             "${publish_args[@]}" \
             --release-notes-file "$CODER_RELEASE_NOTES_FILE" \
-            ./build/*.tar.gz \
-            ./build/*.tgz \
-            ./build/*.apk \
-            ./build/*.deb \
-            ./build/*.rpm
+            "${files[@]}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CODER_GPG_RELEASE_KEY_BASE64: ${{ secrets.GPG_RELEASE_KEY_BASE64 }}
 
       - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@71f986410dfbc7added4569d411d040a91dc6935 # v2.1.8
+        uses: google-github-actions/auth@140bb5113ffb6b65a7e9b937a81fa96cf5064462 # v2.1.11
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_ID_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
       - name: Setup GCloud SDK
-        uses: google-github-actions/setup-gcloud@77e7a554d41e2ee56fc945c52dfd3f33d12def9a # 2.1.4
+        uses: google-github-actions/setup-gcloud@6a7c903a70c8625ed6700fa299f5ddb4ca6022e9 # 2.1.5
 
+      # - name: Publish Helm Chart
+      #   if: ${{ !inputs.dry_run }}
+      #   run: |
+      #     set -euo pipefail
+      #     version="$(./scripts/version.sh)"
+      #     mkdir -p build/helm
+      #     cp "build/coder_helm_${version}.tgz" build/helm
+      #     cp "build/provisioner_helm_${version}.tgz" build/helm
+      #     gsutil cp gs://helm.coder.com/v2/index.yaml build/helm/index.yaml
+      #     helm repo index build/helm --url https://helm.coder.com/v2 --merge build/helm/index.yaml
+      #     gsutil -h "Cache-Control:no-cache,max-age=0" cp build/helm/coder_helm_${version}.tgz gs://helm.coder.com/v2
+      #     gsutil -h "Cache-Control:no-cache,max-age=0" cp build/helm/provisioner_helm_${version}.tgz gs://helm.coder.com/v2
+      #     gsutil -h "Cache-Control:no-cache,max-age=0" cp build/helm/index.yaml gs://helm.coder.com/v2
+      #     gsutil -h "Cache-Control:no-cache,max-age=0" cp helm/artifacthub-repo.yml gs://helm.coder.com/v2
+      #     helm push build/coder_helm_${version}.tgz oci://ghcr.io/coder/chart
+      #     helm push build/provisioner_helm_${version}.tgz oci://ghcr.io/coder/chart
 
       # - name: Upload artifacts to actions (if dry-run)
       #   if: ${{ inputs.dry_run }}
-      #   uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+      #   uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
       #   with:
       #     name: release-artifacts
       #     path: |
@@ -665,6 +747,15 @@ jobs:
       #       ./build/*.apk
       #       ./build/*.deb
       #       ./build/*.rpm
+      #       ./coder_${{ steps.version.outputs.version }}_sbom.spdx.json
+      #     retention-days: 7
+
+      # - name: Upload latest sbom artifact to actions (if dry-run)
+      #   if: inputs.dry_run && steps.build_docker.outputs.created_latest_tag == 'true'
+      #   uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      #   with:
+      #     name: latest-sbom-artifact
+      #     path: ./coder_latest_sbom.spdx.json
       #     retention-days: 7
 
   #     - name: Upload artifacts to actions (if dry-run)
@@ -691,13 +782,13 @@ jobs:
   #         event-type: coder-release
   #         client-payload: '{"coder_version": "${{ steps.version.outputs.version }}", "release_channel": "${{ inputs.release_channel }}"}'
 
-  #   steps:
-  #     # TODO: skip this if it's not a new release (i.e. a backport). This is
-  #     #       fine right now because it just makes a PR that we can close.
-  #     - name: Harden Runner
-  #       uses: step-security/harden-runner@4d991eb9b905ef189e4c376166672c3f2f230481 # v2.11.0
-  #       with:
-  #         egress-policy: audit
+    # steps:
+    #   # TODO: skip this if it's not a new release (i.e. a backport). This is
+    #   #       fine right now because it just makes a PR that we can close.
+    #   - name: Harden Runner
+    #     uses: step-security/harden-runner@ec9f2d5744a09debf3a187a3f4f675c53b671911 # v2.13.0
+    #     with:
+    #       egress-policy: audit
 
   #   steps:
   #     # TODO: skip this if it's not a new release (i.e. a backport). This is
@@ -771,11 +862,11 @@ jobs:
   #           -a "${{ github.actor }}" \
   #           -b "This automatic PR was triggered by the release of Coder v$coder_version"
 
-  #   steps:
-  #     - name: Harden Runner
-  #       uses: step-security/harden-runner@4d991eb9b905ef189e4c376166672c3f2f230481 # v2.11.0
-  #       with:
-  #         egress-policy: audit
+    # steps:
+    #   - name: Harden Runner
+    #     uses: step-security/harden-runner@ec9f2d5744a09debf3a187a3f4f675c53b671911 # v2.13.0
+    #     with:
+    #       egress-policy: audit
 
   #   steps:
   #     - name: Harden Runner
@@ -864,7 +955,7 @@ jobs:
   #   if: ${{ !inputs.dry_run }}
   #   steps:
   #     - name: Harden Runner
-  #       uses: step-security/harden-runner@4d991eb9b905ef189e4c376166672c3f2f230481 # v2.11.0
+  #       uses: step-security/harden-runner@ec9f2d5744a09debf3a187a3f4f675c53b671911 # v2.13.0
   #       with:
   #         egress-policy: audit
 

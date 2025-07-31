@@ -170,6 +170,7 @@ spec:
             path: /healthz
             port: http
             scheme: HTTP
+          initialDelaySeconds: 0
         name: coder
         ports:
         - containerPort: 8080
@@ -180,7 +181,14 @@ spec:
             path: /healthz
             port: http
             scheme: HTTP
-        resources: {}
+          initialDelaySeconds: 0
+        resources:
+          limits:
+            cpu: 2000m
+            memory: 4096Mi
+          requests:
+            cpu: 2000m
+            memory: 4096Mi
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: null

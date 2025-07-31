@@ -2,27 +2,30 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import * as apiModule from "api/api";
 import type { TemplateVersionParameter, Workspace } from "api/typesGenerated";
-import EventSourceMock from "eventsourcemock";
+import MockServerSocket from "jest-websocket-mock";
 import {
 	DashboardContext,
 	type DashboardProvider,
 } from "modules/dashboard/DashboardProvider";
+import type { WorkspacePermissions } from "modules/workspaces/permissions";
 import { http, HttpResponse } from "msw";
 import type { FC } from "react";
 import { type Location, useLocation } from "react-router-dom";
 import {
 	MockAppearanceConfig,
+	MockBuildInfo,
 	MockDeploymentConfig,
 	MockEntitlements,
 	MockFailedWorkspace,
 	MockOrganization,
 	MockOutdatedWorkspace,
+	MockPendingWorkspace,
 	MockStartingWorkspace,
 	MockStoppedWorkspace,
 	MockTemplate,
 	MockTemplateVersionParameter1,
 	MockTemplateVersionParameter2,
-	MockUser,
+	MockUserOwner,
 	MockWorkspace,
 	MockWorkspaceBuild,
 	MockWorkspaceBuildDelete,
@@ -32,7 +35,7 @@ import {
 	renderWithAuth,
 } from "testHelpers/renderHelpers";
 import { server } from "testHelpers/server";
-import { WorkspacePage } from "./WorkspacePage";
+import WorkspacePage from "./WorkspacePage";
 
 const { API, MissingBuildParameters } = apiModule;
 
@@ -49,12 +52,7 @@ const renderWorkspacePage = async (
 	jest
 		.spyOn(API, "getDeploymentConfig")
 		.mockResolvedValueOnce(MockDeploymentConfig);
-	jest
-		.spyOn(apiModule, "watchWorkspaceAgentLogs")
-		.mockImplementation((_, options) => {
-			options.onDone?.();
-			return new WebSocket("");
-		});
+	jest.spyOn(apiModule, "watchWorkspaceAgentLogs");
 
 	renderWithAuth(<WorkspacePage />, {
 		...options,
@@ -84,23 +82,11 @@ const testButton = async (
 
 	const user = userEvent.setup();
 	await user.click(button);
-	expect(actionMock).toBeCalled();
+	expect(actionMock).toHaveBeenCalled();
 };
 
-let originalEventSource: typeof window.EventSource;
-
-beforeAll(() => {
-	originalEventSource = window.EventSource;
-	// mocking out EventSource for SSE
-	window.EventSource = EventSourceMock;
-});
-
-beforeEach(() => {
-	jest.resetAllMocks();
-});
-
-afterAll(() => {
-	window.EventSource = originalEventSource;
+afterEach(() => {
+	MockServerSocket.clean();
 });
 
 describe("WorkspacePage", () => {
@@ -138,11 +124,14 @@ describe("WorkspacePage", () => {
 		// set permissions
 		server.use(
 			http.post("/api/v2/authcheck", async () => {
-				return HttpResponse.json({
-					updateTemplates: true,
+				const permissions: WorkspacePermissions = {
+					deleteFailedWorkspace: true,
+					deploymentConfig: true,
+					readWorkspace: true,
 					updateWorkspace: true,
-					updateTemplate: true,
-				});
+					updateWorkspaceVersion: true,
+				};
+				return HttpResponse.json(permissions);
 			}),
 		);
 
@@ -236,11 +225,59 @@ describe("WorkspacePage", () => {
 			}),
 		);
 
+		const user = userEvent.setup({ delay: 0 });
 		const cancelWorkspaceMock = jest
 			.spyOn(API, "cancelWorkspaceBuild")
 			.mockImplementation(() => Promise.resolve({ message: "job canceled" }));
+		await renderWorkspacePage(MockStartingWorkspace);
 
-		await testButton(MockStartingWorkspace, "Cancel", cancelWorkspaceMock);
+		// Click on Cancel
+		const cancelButton = await screen.findByRole("button", { name: "Cancel" });
+		await user.click(cancelButton);
+
+		// Get dialog and confirm
+		const dialog = await screen.findByTestId("dialog");
+		const confirmButton = within(dialog).getByRole("button", {
+			name: "Confirm",
+			hidden: false,
+		});
+		await user.click(confirmButton);
+
+		expect(cancelWorkspaceMock).toHaveBeenCalledWith(
+			MockStartingWorkspace.latest_build.id,
+			undefined,
+		);
+	});
+
+	it("requests cancellation when the user presses Cancel and the workspace is pending", async () => {
+		server.use(
+			http.get("/api/v2/users/:userId/workspace/:workspaceName", () => {
+				return HttpResponse.json(MockPendingWorkspace);
+			}),
+		);
+
+		const user = userEvent.setup({ delay: 0 });
+		const cancelWorkspaceMock = jest
+			.spyOn(API, "cancelWorkspaceBuild")
+			.mockImplementation(() => Promise.resolve({ message: "job canceled" }));
+		await renderWorkspacePage(MockPendingWorkspace);
+
+		// Click on Cancel
+		const cancelButton = await screen.findByRole("button", { name: "Cancel" });
+		await user.click(cancelButton);
+
+		// Get dialog and confirm
+		const dialog = await screen.findByTestId("dialog");
+		const confirmButton = within(dialog).getByRole("button", {
+			name: "Confirm",
+			hidden: false,
+		});
+		await user.click(confirmButton);
+
+		expect(cancelWorkspaceMock).toHaveBeenCalledWith(
+			MockPendingWorkspace.latest_build.id,
+			{ expect_status: "pending" },
+		);
 	});
 
 	it("requests an update when the user presses Update", async () => {
@@ -318,21 +355,25 @@ describe("WorkspacePage", () => {
 
 		// Check if the update was called using the values from the form
 		await waitFor(() => {
-			expect(API.updateWorkspace).toBeCalledWith(MockOutdatedWorkspace, [
-				{
-					name: MockTemplateVersionParameter1.name,
-					value: "some-value",
-				},
-				{
-					name: MockTemplateVersionParameter2.name,
-					value: "2",
-				},
-			]);
+			expect(API.updateWorkspace).toHaveBeenCalledWith(
+				MockOutdatedWorkspace,
+				[
+					{
+						name: MockTemplateVersionParameter1.name,
+						value: "some-value",
+					},
+					{
+						name: MockTemplateVersionParameter2.name,
+						value: "2",
+					},
+				],
+				false,
+			);
 		});
 	});
 
 	it("restart the workspace with one time parameters when having the confirmation dialog", async () => {
-		localStorage.removeItem(`${MockUser.id}_ignoredWarnings`);
+		localStorage.removeItem(`${MockUserOwner.id}_ignoredWarnings`);
 		jest.spyOn(API, "getWorkspaceParameters").mockResolvedValue({
 			templateVersionRichParameters: [
 				{
@@ -563,6 +604,10 @@ describe("WorkspacePage", () => {
 						appearance: MockAppearanceConfig,
 						entitlements: MockEntitlements,
 						experiments: [],
+						buildInfo: {
+							...MockBuildInfo,
+							version: "v0.0.0-test",
+						},
 						organizations: [MockOrganization],
 						showOrganizations: true,
 						canViewOrganizationSettings: true,

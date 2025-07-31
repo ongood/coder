@@ -3,7 +3,7 @@
 A single CLI (`coder`) is used for both the Coder server and the client.
 
 We support two release channels: mainline and stable - read the
-[Releases](./releases.md) page to learn more about which best suits your team.
+[Releases](./releases/index.md) page to learn more about which best suits your team.
 
 There are several ways to install Coder. Follow the steps on this page for a
 minimal installation of Coder, or for a step-by-step guide on how to install and
@@ -29,11 +29,9 @@ alternate installation methods (e.g. standalone binaries, system packages).
 
 ## Windows
 
-> [!IMPORTANT]
-> If you plan to use the built-in PostgreSQL database, you will
-> need to ensure that the
-> [Visual C++ Runtime](https://learn.microsoft.com/en-US/cpp/windows/latest-supported-vc-redist#latest-microsoft-visual-c-redistributable-version)
-> is installed.
+If you plan to use the built-in PostgreSQL database, ensure that the
+[Visual C++ Runtime](https://learn.microsoft.com/en-US/cpp/windows/latest-supported-vc-redist#latest-microsoft-visual-c-redistributable-version)
+is installed.
 
 Use [GitHub releases](https://github.com/coder/coder/releases) to download the
 Windows installer (`.msi`) or standalone binary (`.exe`).

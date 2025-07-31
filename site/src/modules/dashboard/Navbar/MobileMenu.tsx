@@ -37,6 +37,7 @@ type MobileMenuPermissions = {
 	canViewDeployment: boolean;
 	canViewOrganizations: boolean;
 	canViewAuditLog: boolean;
+	canViewConnectionLog: boolean;
 	canViewHealth: boolean;
 };
 
@@ -67,9 +68,8 @@ export const MobileMenu: FC<MobileMenuProps> = ({
 			<DropdownMenuTrigger asChild>
 				<Button
 					aria-label={open ? "Close menu" : "Open menu"}
-					size="lg"
+					size="icon-lg"
 					variant="subtle"
-					className="ml-auto md:hidden"
 				>
 					{open ? <XIcon /> : <MenuIcon />}
 				</Button>
@@ -193,6 +193,7 @@ const AdminSettingsSub: FC<MobileMenuPermissions> = ({
 	canViewDeployment,
 	canViewOrganizations,
 	canViewAuditLog,
+	canViewConnectionLog,
 	canViewHealth,
 }) => {
 	const [open, setOpen] = useState(false);
@@ -236,6 +237,14 @@ const AdminSettingsSub: FC<MobileMenuPermissions> = ({
 						className={cn(itemStyles.default, itemStyles.sub)}
 					>
 						<Link to="/audit">Audit logs</Link>
+					</DropdownMenuItem>
+				)}
+				{canViewConnectionLog && (
+					<DropdownMenuItem
+						asChild
+						className={cn(itemStyles.default, itemStyles.sub)}
+					>
+						<Link to="/connectionlog">Connection logs</Link>
 					</DropdownMenuItem>
 				)}
 				{canViewHealth && (

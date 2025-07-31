@@ -407,6 +407,7 @@ curl -X GET http://coder-server:8080/api/v2/organizations/{organization}/provisi
       "template_version_id": "0ba39c92-1f1b-4c32-aa3e-9925d7713eb1",
       "workspace_build_id": "badaf2eb-96c5-4050-9f1d-db2d39ca5478"
     },
+    "logs_overflowed": true,
     "metadata": {
       "template_display_name": "string",
       "template_icon": "string",
@@ -426,7 +427,8 @@ curl -X GET http://coder-server:8080/api/v2/organizations/{organization}/provisi
       "property2": "string"
     },
     "type": "template_version_import",
-    "worker_id": "ae5fa6f7-c55b-40c1-b40a-b36ac467652b"
+    "worker_id": "ae5fa6f7-c55b-40c1-b40a-b36ac467652b",
+    "worker_name": "string"
   }
 ]
 ```
@@ -456,6 +458,7 @@ Status Code **200**
 | `»» error`                 | string                                                                       | false    |              |             |
 | `»» template_version_id`   | string(uuid)                                                                 | false    |              |             |
 | `»» workspace_build_id`    | string(uuid)                                                                 | false    |              |             |
+| `» logs_overflowed`        | boolean                                                                      | false    |              |             |
 | `» metadata`               | [codersdk.ProvisionerJobMetadata](schemas.md#codersdkprovisionerjobmetadata) | false    |              |             |
 | `»» template_display_name` | string                                                                       | false    |              |             |
 | `»» template_icon`         | string                                                                       | false    |              |             |
@@ -473,6 +476,7 @@ Status Code **200**
 | `»» [any property]`        | string                                                                       | false    |              |             |
 | `» type`                   | [codersdk.ProvisionerJobType](schemas.md#codersdkprovisionerjobtype)         | false    |              |             |
 | `» worker_id`              | string(uuid)                                                                 | false    |              |             |
+| `» worker_name`            | string                                                                       | false    |              |             |
 
 #### Enumerated Values
 
@@ -532,6 +536,7 @@ curl -X GET http://coder-server:8080/api/v2/organizations/{organization}/provisi
     "template_version_id": "0ba39c92-1f1b-4c32-aa3e-9925d7713eb1",
     "workspace_build_id": "badaf2eb-96c5-4050-9f1d-db2d39ca5478"
   },
+  "logs_overflowed": true,
   "metadata": {
     "template_display_name": "string",
     "template_icon": "string",
@@ -551,7 +556,8 @@ curl -X GET http://coder-server:8080/api/v2/organizations/{organization}/provisi
     "property2": "string"
   },
   "type": "template_version_import",
-  "worker_id": "ae5fa6f7-c55b-40c1-b40a-b36ac467652b"
+  "worker_id": "ae5fa6f7-c55b-40c1-b40a-b36ac467652b",
+  "worker_name": "string"
 }
 ```
 

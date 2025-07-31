@@ -6,12 +6,12 @@ USAGE:
   Start a Coder server
 
 SUBCOMMANDS:
-    create-admin-user         Create a new admin user with the given username,
-                              email and password and adds it to every
-                              organization.
-    postgres-builtin-serve    Run the built-in PostgreSQL deployment.
-    postgres-builtin-url      Output the connection URL for the built-in
-                              PostgreSQL deployment.
+    create-admin-user           Create a new admin user with the given username,
+                                email and password and adds it to every
+                                organization.
+    postgres-builtin-serve      Run the built-in PostgreSQL deployment.
+    postgres-builtin-url        Output the connection URL for the built-in
+                                PostgreSQL deployment.
 
 OPTIONS:
       --allow-workspace-renames bool, $CODER_ALLOW_WORKSPACE_RENAMES (default: false)
@@ -78,12 +78,15 @@ OPTIONS:
 
 CLIENT OPTIONS: 
 These options change the behavior of how clients interact with the Coder.
-Clients include the coder cli, vs code extension, and the web UI.
+Clients include the Coder CLI, Coder Desktop, IDE extensions, and the web UI.
 
       --cli-upgrade-message string, $CODER_CLI_UPGRADE_MESSAGE
           The upgrade message to display to users when a client/server mismatch
           is detected. By default it instructs users to update using 'curl -L
           https://coder.com/install.sh | sh'.
+
+      --hide-ai-tasks bool, $CODER_HIDE_AI_TASKS (default: false)
+          Hide AI tasks from the dashboard.
 
       --ssh-config-options string-array, $CODER_SSH_CONFIG_OPTIONS
           These SSH config options will override the default SSH config options.
@@ -97,6 +100,11 @@ Clients include the coder cli, vs code extension, and the web UI.
       --web-terminal-renderer string, $CODER_WEB_TERMINAL_RENDERER (default: canvas)
           The renderer to use when opening a web terminal. Valid values are
           'canvas', 'webgl', or 'dom'.
+
+      --workspace-hostname-suffix string, $CODER_WORKSPACE_HOSTNAME_SUFFIX (default: coder)
+          Workspace hostnames use this suffix in SSH config and Coder Connect on
+          Coder Desktop. By default it is coder, resulting in names like
+          myworkspace.coder.
 
 CONFIG OPTIONS: 
 Use a YAML configuration file when your server launch become unwieldy.
@@ -246,6 +254,9 @@ NETWORKING OPTIONS:
           Specifies whether to redirect requests that do not match the access
           URL host.
 
+      --samesite-auth-cookie lax|none, $CODER_SAMESITE_AUTH_COOKIE (default: lax)
+          Controls the 'SameSite' property is set on browser session cookies.
+
       --secure-auth-cookie bool, $CODER_SECURE_AUTH_COOKIE
           Controls if the 'Secure' property is set on browser session cookies.
 
@@ -323,6 +334,10 @@ NETWORKING / HTTP OPTIONS:
       --max-token-lifetime duration, $CODER_MAX_TOKEN_LIFETIME (default: 876600h0m0s)
           The maximum lifetime duration users can specify when creating an API
           token.
+
+      --max-admin-token-lifetime duration, $CODER_MAX_ADMIN_TOKEN_LIFETIME (default: 168h0m0s)
+          The maximum lifetime duration administrators can specify when creating
+          an API token.
 
       --proxy-health-interval duration, $CODER_PROXY_HEALTH_INTERVAL (default: 1m0s)
           The interval in which coderd should be checking the status of
@@ -472,6 +487,10 @@ Configure TLS for your SMTP server target.
       --notifications-email-tls-starttls bool, $CODER_NOTIFICATIONS_EMAIL_TLS_STARTTLS
           Enable STARTTLS to upgrade insecure SMTP connections using TLS.
           DEPRECATED: Use --email-tls-starttls instead.
+
+NOTIFICATIONS / INBOX OPTIONS: 
+      --notifications-inbox-enabled bool, $CODER_NOTIFICATIONS_INBOX_ENABLED (default: true)
+          Enable Coder Inbox.
 
 NOTIFICATIONS / WEBHOOK OPTIONS: 
       --notifications-webhook-endpoint url, $CODER_NOTIFICATIONS_WEBHOOK_ENDPOINT
@@ -657,6 +676,12 @@ workspaces stopping during the day due to template scheduling.
           the standard cron format, but the day-of-month, month and day-of-week
           must be *. Only one hour and minute can be specified (ranges or comma
           separated values are not supported).
+
+WORKSPACE PREBUILDS OPTIONS: 
+Configure how workspace prebuilds behave.
+
+      --workspace-prebuilds-reconciliation-interval duration, $CODER_WORKSPACE_PREBUILDS_RECONCILIATION_INTERVAL (default: 1m0s)
+          How often to reconcile workspace prebuilds state.
 
 ⚠️ DANGEROUS OPTIONS: 
       --dangerous-allow-path-app-sharing bool, $CODER_DANGEROUS_ALLOW_PATH_APP_SHARING

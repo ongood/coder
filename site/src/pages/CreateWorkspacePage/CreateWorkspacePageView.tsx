@@ -6,8 +6,7 @@ import { Alert } from "components/Alert/Alert";
 import { ErrorAlert } from "components/Alert/ErrorAlert";
 import { Avatar } from "components/Avatar/Avatar";
 import { Button } from "components/Button/Button";
-import { FeatureStageBadge } from "components/FeatureStageBadge/FeatureStageBadge";
-import { SelectFilter } from "components/Filter/SelectFilter";
+import { Combobox } from "components/Combobox/Combobox";
 import {
 	FormFields,
 	FormFooter,
@@ -24,10 +23,16 @@ import { Pill } from "components/Pill/Pill";
 import { RichParameterInput } from "components/RichParameterInput/RichParameterInput";
 import { Spinner } from "components/Spinner/Spinner";
 import { Stack } from "components/Stack/Stack";
+import { Switch } from "components/Switch/Switch";
 import { UserAutocomplete } from "components/UserAutocomplete/UserAutocomplete";
 import { type FormikContextType, useFormik } from "formik";
+import type { ExternalAuthPollingState } from "hooks/useExternalAuth";
+import { ExternalLinkIcon } from "lucide-react";
+import { linkToTemplate, useLinks } from "modules/navigation";
+import { ClassicParameterFlowDeprecationWarning } from "modules/workspaces/ClassicParameterFlowDeprecationWarning/ClassicParameterFlowDeprecationWarning";
 import { generateWorkspaceName } from "modules/workspaces/generateWorkspaceName";
 import { type FC, useCallback, useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import {
 	getFormHelpers,
 	nameValidator,
@@ -39,19 +44,16 @@ import {
 	useValidationSchemaForRichParameters,
 } from "utils/richParameters";
 import * as Yup from "yup";
-import type {
-	CreateWorkspaceMode,
-	ExternalAuthPollingState,
-} from "./CreateWorkspacePage";
+import type { CreateWorkspaceMode } from "./CreateWorkspacePage";
 import { ExternalAuthButton } from "./ExternalAuthButton";
-import type { CreateWSPermissions } from "./permissions";
+import type { CreateWorkspacePermissions } from "./permissions";
 
 export const Language = {
 	duplicationWarning:
 		"Duplicating a workspace only copies its parameters. No state from the old workspace is copied over.",
 } as const;
 
-export interface CreateWorkspacePageViewProps {
+interface CreateWorkspacePageViewProps {
 	mode: CreateWorkspaceMode;
 	defaultName?: string | null;
 	disabledParams?: string[];
@@ -67,8 +69,10 @@ export interface CreateWorkspacePageViewProps {
 	parameters: TypesGen.TemplateVersionParameter[];
 	autofillParameters: AutofillBuildParameter[];
 	presets: TypesGen.Preset[];
-	permissions: CreateWSPermissions;
+	permissions: CreateWorkspacePermissions;
+	templatePermissions: { canUpdateTemplate: boolean };
 	creatingWorkspace: boolean;
+	canUpdateTemplate?: boolean;
 	onCancel: () => void;
 	onSubmit: (
 		req: TypesGen.CreateWorkspaceRequest,
@@ -93,14 +97,18 @@ export const CreateWorkspacePageView: FC<CreateWorkspacePageViewProps> = ({
 	autofillParameters,
 	presets = [],
 	permissions,
+	templatePermissions,
 	creatingWorkspace,
+	canUpdateTemplate,
 	onSubmit,
 	onCancel,
 }) => {
+	const getLink = useLinks();
 	const [owner, setOwner] = useState(defaultOwner);
 	const [suggestedName, setSuggestedName] = useState(() =>
 		generateWorkspaceName(),
 	);
+	const [showPresetParameters, setShowPresetParameters] = useState(false);
 
 	const rerollSuggestedName = useCallback(() => {
 		setSuggestedName(() => generateWorkspaceName());
@@ -150,23 +158,35 @@ export const CreateWorkspacePageView: FC<CreateWorkspacePageViewProps> = ({
 	);
 
 	const [presetOptions, setPresetOptions] = useState([
-		{ label: "None", value: "" },
+		{ displayName: "None", value: "undefined", icon: "", description: "" },
 	]);
-	useEffect(() => {
-		setPresetOptions([
-			{ label: "None", value: "" },
-			...presets.map((preset) => ({
-				label: preset.Name,
-				value: preset.ID,
-			})),
-		]);
-	}, [presets]);
-
 	const [selectedPresetIndex, setSelectedPresetIndex] = useState(0);
+	// Build options and keep default label/value in sync
+	useEffect(() => {
+		const options = [
+			{ displayName: "None", value: "undefined", icon: "", description: "" },
+			...presets.map((preset) => ({
+				displayName: preset.Default ? `${preset.Name} (Default)` : preset.Name,
+				value: preset.ID,
+				icon: preset.Icon,
+				description: preset.Description,
+			})),
+		];
+		setPresetOptions(options);
+		const defaultPreset = presets.find((p) => p.Default);
+		if (defaultPreset) {
+			const idx = presets.indexOf(defaultPreset) + 1; // +1 for "None"
+			setSelectedPresetIndex(idx);
+			form.setFieldValue("template_version_preset_id", defaultPreset.ID);
+		} else {
+			setSelectedPresetIndex(0); // Explicitly set to "None"
+			form.setFieldValue("template_version_preset_id", undefined);
+		}
+	}, [presets, form.setFieldValue]);
+
 	const [presetParameterNames, setPresetParameterNames] = useState<string[]>(
 		[],
 	);
-
 	useEffect(() => {
 		const selectedPresetOption = presetOptions[selectedPresetIndex];
 		let selectedPreset: TypesGen.Preset | undefined;
@@ -209,9 +229,21 @@ export const CreateWorkspacePageView: FC<CreateWorkspacePageViewProps> = ({
 		<Margins size="medium">
 			<PageHeader
 				actions={
-					<Button size="sm" variant="outline" onClick={onCancel}>
-						Cancel
-					</Button>
+					<Stack direction="row" spacing={2}>
+						{canUpdateTemplate && (
+							<Button asChild size="sm" variant="outline">
+								<Link
+									to={`/templates/${template.organization_name}/${template.name}/versions/${versionId}/edit`}
+								>
+									<ExternalLinkIcon />
+									View source
+								</Link>
+							</Button>
+						)}
+						<Button size="sm" variant="outline" onClick={onCancel}>
+							Cancel
+						</Button>
+					</Stack>
 				}
 			>
 				<Stack direction="row">
@@ -236,6 +268,13 @@ export const CreateWorkspacePageView: FC<CreateWorkspacePageViewProps> = ({
 				</Stack>
 			</PageHeader>
 
+			<ClassicParameterFlowDeprecationWarning
+				templateSettingsLink={`${getLink(
+					linkToTemplate(template.organization_name, template.name),
+				)}/settings`}
+				isEnabled={templatePermissions.canUpdateTemplate}
+			/>
+
 			<HorizontalForm
 				name="create-workspace-form"
 				onSubmit={form.handleSubmit}
@@ -253,7 +292,7 @@ export const CreateWorkspacePageView: FC<CreateWorkspacePageViewProps> = ({
 				<FormSection
 					title="General"
 					description={
-						permissions.createWorkspaceForUser
+						permissions.createWorkspaceForAny
 							? "The name of the workspace and its owner. Only admins can create workspaces for other users."
 							: "The name of your new workspace."
 					}
@@ -273,31 +312,6 @@ export const CreateWorkspacePageView: FC<CreateWorkspacePageViewProps> = ({
 							</Stack>
 						)}
 
-						{presets.length > 0 && (
-							<Stack direction="column" spacing={2}>
-								<Stack direction="row" spacing={2} alignItems="center">
-									<span css={styles.description}>
-										Select a preset to get started
-									</span>
-									<FeatureStageBadge contentType={"beta"} size="md" />
-								</Stack>
-								<Stack direction="row" spacing={2}>
-									<SelectFilter
-										label="Preset"
-										options={presetOptions}
-										onSelect={(option) => {
-											setSelectedPresetIndex(
-												presetOptions.findIndex(
-													(preset) => preset.value === option?.value,
-												),
-											);
-										}}
-										placeholder="Select a preset"
-										selectedOption={presetOptions[selectedPresetIndex]}
-									/>
-								</Stack>
-							</Stack>
-						)}
 						<div>
 							<TextField
 								{...getFieldHelpers("name")}
@@ -323,7 +337,7 @@ export const CreateWorkspacePageView: FC<CreateWorkspacePageViewProps> = ({
 							</FormHelperText>
 						</div>
 
-						{permissions.createWorkspaceForUser && (
+						{permissions.createWorkspaceForAny && (
 							<UserAutocomplete
 								value={owner}
 								onChange={(user) => {
@@ -371,30 +385,100 @@ export const CreateWorkspacePageView: FC<CreateWorkspacePageViewProps> = ({
                 hence they require additional vertical spacing for better readability and
                 user experience. */}
 						<FormFields css={{ gap: 36 }}>
+							{presets.length > 0 && (
+								<Stack direction="column" spacing={2}>
+									<Stack direction="row" spacing={2} alignItems="center">
+										<span css={styles.description}>
+											Select a preset to get started
+										</span>
+									</Stack>
+									<Stack direction="column" spacing={2}>
+										<Stack direction="row" spacing={2}>
+											<Combobox
+												value={
+													presetOptions[selectedPresetIndex]?.displayName || ""
+												}
+												options={presetOptions}
+												placeholder="Select a preset"
+												onSelect={(value) => {
+													const index = presetOptions.findIndex(
+														(preset) => preset.value === value,
+													);
+													if (index === -1) {
+														return;
+													}
+													setSelectedPresetIndex(index);
+													form.setFieldValue(
+														"template_version_preset_id",
+														// "undefined" string is equivalent to using None option
+														// Combobox requires a value in order to correctly highlight the None option
+														presetOptions[index].value === "undefined"
+															? undefined
+															: presetOptions[index].value,
+													);
+												}}
+											/>
+										</Stack>
+										{/* Only show the preset parameter visibility toggle if preset parameters are actually being modified, otherwise it has no effect. */}
+										{presetParameterNames.length > 0 && (
+											<div
+												css={{
+													display: "flex",
+													alignItems: "center",
+													gap: "8px",
+												}}
+											>
+												<Switch
+													id="show-preset-parameters"
+													checked={showPresetParameters}
+													onCheckedChange={setShowPresetParameters}
+												/>
+												<label
+													htmlFor="show-preset-parameters"
+													css={styles.description}
+												>
+													Show preset parameters
+												</label>
+											</div>
+										)}
+									</Stack>
+								</Stack>
+							)}
+
 							{parameters.map((parameter, index) => {
 								const parameterField = `rich_parameter_values.${index}`;
 								const parameterInputName = `${parameterField}.value`;
+								const isPresetParameter = presetParameterNames.includes(
+									parameter.name,
+								);
 								const isDisabled =
 									disabledParams?.includes(
 										parameter.name.toLowerCase().replace(/ /g, "_"),
 									) ||
 									creatingWorkspace ||
-									presetParameterNames.includes(parameter.name);
+									isPresetParameter;
+
+								// Hide preset parameters if showPresetParameters is false
+								if (!showPresetParameters && isPresetParameter) {
+									return null;
+								}
 
 								return (
-									<RichParameterInput
-										{...getFieldHelpers(parameterInputName)}
-										onChange={async (value) => {
-											await form.setFieldValue(parameterField, {
-												name: parameter.name,
-												value,
-											});
-										}}
-										key={parameter.name}
-										parameter={parameter}
-										parameterAutofill={autofillByName[parameter.name]}
-										disabled={isDisabled}
-									/>
+									<div key={parameter.name}>
+										<RichParameterInput
+											{...getFieldHelpers(parameterInputName)}
+											onChange={async (value) => {
+												await form.setFieldValue(parameterField, {
+													name: parameter.name,
+													value,
+												});
+											}}
+											parameter={parameter}
+											parameterAutofill={autofillByName[parameter.name]}
+											disabled={isDisabled}
+											isPreset={isPresetParameter}
+										/>
+									</div>
 								);
 							})}
 						</FormFields>

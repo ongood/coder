@@ -202,7 +202,6 @@ func TestCache_BuildTime(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -249,7 +248,7 @@ func TestCache_BuildTime(t *testing.T) {
 				})
 
 				dbgen.WorkspaceBuild(t, db, database.WorkspaceBuild{
-					BuildNumber:       int32(1 + buildNumber),
+					BuildNumber:       int32(1 + buildNumber), // nolint:gosec
 					WorkspaceID:       workspace.ID,
 					InitiatorID:       user.ID,
 					TemplateVersionID: templateVersion.ID,

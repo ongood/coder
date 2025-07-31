@@ -1,73 +1,84 @@
 import type { ProvisionerJob } from "api/typesGenerated";
 import { Avatar } from "components/Avatar/Avatar";
 import { Badge } from "components/Badge/Badge";
+import { Button } from "components/Button/Button";
 import { TableCell, TableRow } from "components/Table/Table";
 import {
 	ChevronDownIcon,
 	ChevronRightIcon,
 	TriangleAlertIcon,
 } from "lucide-react";
+import { JobStatusIndicator } from "modules/provisioners/JobStatusIndicator";
+import {
+	ProvisionerTag,
+	ProvisionerTags,
+	ProvisionerTruncateTags,
+} from "modules/provisioners/ProvisionerTags";
 import { type FC, useState } from "react";
+import { Link as RouterLink } from "react-router-dom";
 import { cn } from "utils/cn";
 import { relativeTime } from "utils/time";
 import { CancelJobButton } from "./CancelJobButton";
-import { JobStatusIndicator } from "./JobStatusIndicator";
-import { Tag, Tags, TruncateTags } from "./Tags";
 
 type JobRowProps = {
 	job: ProvisionerJob;
+	defaultIsOpen: boolean;
 };
 
-export const JobRow: FC<JobRowProps> = ({ job }) => {
+export const JobRow: FC<JobRowProps> = ({ job, defaultIsOpen = false }) => {
 	const metadata = job.metadata;
-	const [isOpen, setIsOpen] = useState(false);
+	const [isOpen, setIsOpen] = useState(defaultIsOpen);
+	const queue = {
+		size: job.queue_size,
+		position: job.queue_position,
+	};
 
 	return (
 		<>
 			<TableRow key={job.id}>
 				<TableCell>
-					<button
+					<Button
+						variant="subtle"
+						size="sm"
 						className={cn([
-							"flex items-center gap-1 p-0 bg-transparent border-0 text-inherit text-xs cursor-pointer",
-							"transition-colors hover:text-content-primary font-medium whitespace-nowrap",
 							isOpen && "text-content-primary",
+							"p-0 h-auto min-w-0 align-middle",
 						])}
-						type="button"
 						onClick={() => {
 							setIsOpen((v) => !v);
 						}}
 					>
-						{isOpen ? (
-							<ChevronDownIcon className="size-icon-sm p-0.5" />
-						) : (
-							<ChevronRightIcon className="size-icon-sm p-0.5" />
-						)}
+						{isOpen ? <ChevronDownIcon /> : <ChevronRightIcon />}
 						<span className="sr-only">({isOpen ? "Hide" : "Show more"})</span>
-						<span className="[&:first-letter]:uppercase">
+						<span className="block first-letter:uppercase">
 							{relativeTime(new Date(job.created_at))}
 						</span>
-					</button>
+					</Button>
 				</TableCell>
 				<TableCell>
 					<Badge size="sm">{job.type}</Badge>
 				</TableCell>
 				<TableCell>
-					<div className="flex items-center gap-1 whitespace-nowrap">
-						<Avatar
-							variant="icon"
-							src={metadata.template_icon}
-							fallback={
-								metadata.template_display_name || metadata.template_name
-							}
-						/>
-						{metadata.template_display_name || metadata.template_name}
-					</div>
+					{job.metadata.template_name !== "" ? (
+						<div className="flex items-center gap-1 whitespace-nowrap">
+							<Avatar
+								variant="icon"
+								src={metadata.template_icon}
+								fallback={
+									metadata.template_display_name || metadata.template_name
+								}
+							/>
+							{metadata.template_display_name || metadata.template_name}
+						</div>
+					) : (
+						<span>-</span>
+					)}
 				</TableCell>
 				<TableCell>
-					<TruncateTags tags={job.tags} />
+					<ProvisionerTruncateTags tags={job.tags} />
 				</TableCell>
 				<TableCell>
-					<JobStatusIndicator job={job} />
+					<JobStatusIndicator status={job.status} queue={queue} />
 				</TableCell>
 				<TableCell className="text-right">
 					<CancelJobButton job={job} />
@@ -105,27 +116,46 @@ export const JobRow: FC<JobRowProps> = ({ job }) => {
 									: "[]"}
 							</dd>
 
-							<dt>Completed by provisioner:</dt>
-							<dd>{job.worker_id}</dd>
+							{job.worker_id && (
+								<>
+									<dt>Completed by provisioner:</dt>
+									<dd className="flex items-center gap-2">
+										<span>{job.worker_name || "[removed]"}</span>
+										{job.worker_name && (
+											<Button size="xs" variant="outline" asChild>
+												<RouterLink
+													to={`../provisioners?${new URLSearchParams({ ids: job.worker_id })}`}
+												>
+													View provisioner
+												</RouterLink>
+											</Button>
+										)}
+									</dd>
+								</>
+							)}
 
 							<dt>Associated workspace:</dt>
 							<dd>{job.metadata.workspace_name ?? "null"}</dd>
 
 							<dt>Creation time:</dt>
-							<dd>{job.created_at}</dd>
+							<dd data-chromatic="ignore">{job.created_at}</dd>
 
-							<dt>Queue:</dt>
-							<dd>
-								{job.queue_position}/{job.queue_size}
-							</dd>
+							{job.queue_position > 0 && (
+								<>
+									<dt>Queue:</dt>
+									<dd>
+										{job.queue_position}/{job.queue_size}
+									</dd>
+								</>
+							)}
 
 							<dt>Tags:</dt>
 							<dd>
-								<Tags>
+								<ProvisionerTags>
 									{Object.entries(job.tags).map(([key, value]) => (
-										<Tag key={key} label={key} value={value} />
+										<ProvisionerTag key={key} label={key} value={value} />
 									))}
-								</Tags>
+								</ProvisionerTags>
 							</dd>
 						</dl>
 					</TableCell>

@@ -10,6 +10,7 @@ import (
 
 	"github.com/coder/coder/v2/cli/clitest"
 	"github.com/coder/coder/v2/coderd/coderdtest"
+	"github.com/coder/coder/v2/coderd/util/ptr"
 	"github.com/coder/coder/v2/codersdk"
 	"github.com/coder/coder/v2/provisioner/echo"
 	"github.com/coder/coder/v2/provisionersdk/proto"
@@ -20,14 +21,16 @@ import (
 func TestRestart(t *testing.T) {
 	t.Parallel()
 
-	echoResponses := prepareEchoResponses([]*proto.RichParameter{
-		{
-			Name:        ephemeralParameterName,
-			Description: ephemeralParameterDescription,
-			Mutable:     true,
-			Ephemeral:   true,
-		},
-	})
+	echoResponses := func() *echo.Responses {
+		return prepareEchoResponses([]*proto.RichParameter{
+			{
+				Name:        ephemeralParameterName,
+				Description: ephemeralParameterDescription,
+				Mutable:     true,
+				Ephemeral:   true,
+			},
+		})
+	}
 
 	t.Run("OK", func(t *testing.T) {
 		t.Parallel()
@@ -66,10 +69,16 @@ func TestRestart(t *testing.T) {
 		client := coderdtest.New(t, &coderdtest.Options{IncludeProvisionerDaemon: true})
 		owner := coderdtest.CreateFirstUser(t, client)
 		member, memberUser := coderdtest.CreateAnotherUser(t, client, owner.OrganizationID)
-		version := coderdtest.CreateTemplateVersion(t, client, owner.OrganizationID, echoResponses)
+		version := coderdtest.CreateTemplateVersion(t, client, owner.OrganizationID, echoResponses())
 		coderdtest.AwaitTemplateVersionJobCompleted(t, client, version.ID)
-		template := coderdtest.CreateTemplate(t, client, owner.OrganizationID, version.ID)
-		workspace := coderdtest.CreateWorkspace(t, member, template.ID)
+		template := coderdtest.CreateTemplate(t, client, owner.OrganizationID, version.ID, func(request *codersdk.CreateTemplateRequest) {
+			request.UseClassicParameterFlow = ptr.Ref(true) // TODO: Remove when dynamic parameters prompt missing ephemeral parameters.
+		})
+		workspace := coderdtest.CreateWorkspace(t, member, template.ID, func(request *codersdk.CreateWorkspaceRequest) {
+			request.RichParameterValues = []codersdk.WorkspaceBuildParameter{
+				{Name: ephemeralParameterName, Value: "placeholder"},
+			}
+		})
 		coderdtest.AwaitWorkspaceBuildJobCompleted(t, client, workspace.LatestBuild.ID)
 
 		inv, root := clitest.New(t, "restart", workspace.Name, "--prompt-ephemeral-parameters")
@@ -120,10 +129,14 @@ func TestRestart(t *testing.T) {
 		client := coderdtest.New(t, &coderdtest.Options{IncludeProvisionerDaemon: true})
 		owner := coderdtest.CreateFirstUser(t, client)
 		member, memberUser := coderdtest.CreateAnotherUser(t, client, owner.OrganizationID)
-		version := coderdtest.CreateTemplateVersion(t, client, owner.OrganizationID, echoResponses)
+		version := coderdtest.CreateTemplateVersion(t, client, owner.OrganizationID, echoResponses())
 		coderdtest.AwaitTemplateVersionJobCompleted(t, client, version.ID)
 		template := coderdtest.CreateTemplate(t, client, owner.OrganizationID, version.ID)
-		workspace := coderdtest.CreateWorkspace(t, member, template.ID)
+		workspace := coderdtest.CreateWorkspace(t, member, template.ID, func(request *codersdk.CreateWorkspaceRequest) {
+			request.RichParameterValues = []codersdk.WorkspaceBuildParameter{
+				{Name: ephemeralParameterName, Value: "placeholder"},
+			}
+		})
 		coderdtest.AwaitWorkspaceBuildJobCompleted(t, client, workspace.LatestBuild.ID)
 
 		inv, root := clitest.New(t, "restart", workspace.Name,
@@ -174,10 +187,16 @@ func TestRestart(t *testing.T) {
 		client := coderdtest.New(t, &coderdtest.Options{IncludeProvisionerDaemon: true})
 		owner := coderdtest.CreateFirstUser(t, client)
 		member, memberUser := coderdtest.CreateAnotherUser(t, client, owner.OrganizationID)
-		version := coderdtest.CreateTemplateVersion(t, client, owner.OrganizationID, echoResponses)
+		version := coderdtest.CreateTemplateVersion(t, client, owner.OrganizationID, echoResponses())
 		coderdtest.AwaitTemplateVersionJobCompleted(t, client, version.ID)
-		template := coderdtest.CreateTemplate(t, client, owner.OrganizationID, version.ID)
-		workspace := coderdtest.CreateWorkspace(t, member, template.ID)
+		template := coderdtest.CreateTemplate(t, client, owner.OrganizationID, version.ID, func(request *codersdk.CreateTemplateRequest) {
+			request.UseClassicParameterFlow = ptr.Ref(true) // TODO: Remove when dynamic parameters prompts missing ephemeral parameters
+		})
+		workspace := coderdtest.CreateWorkspace(t, member, template.ID, func(request *codersdk.CreateWorkspaceRequest) {
+			request.RichParameterValues = []codersdk.WorkspaceBuildParameter{
+				{Name: ephemeralParameterName, Value: "placeholder"},
+			}
+		})
 		coderdtest.AwaitWorkspaceBuildJobCompleted(t, client, workspace.LatestBuild.ID)
 
 		inv, root := clitest.New(t, "restart", workspace.Name, "--build-options")
@@ -228,10 +247,14 @@ func TestRestart(t *testing.T) {
 		client := coderdtest.New(t, &coderdtest.Options{IncludeProvisionerDaemon: true})
 		owner := coderdtest.CreateFirstUser(t, client)
 		member, memberUser := coderdtest.CreateAnotherUser(t, client, owner.OrganizationID)
-		version := coderdtest.CreateTemplateVersion(t, client, owner.OrganizationID, echoResponses)
+		version := coderdtest.CreateTemplateVersion(t, client, owner.OrganizationID, echoResponses())
 		coderdtest.AwaitTemplateVersionJobCompleted(t, client, version.ID)
 		template := coderdtest.CreateTemplate(t, client, owner.OrganizationID, version.ID)
-		workspace := coderdtest.CreateWorkspace(t, member, template.ID)
+		workspace := coderdtest.CreateWorkspace(t, member, template.ID, func(request *codersdk.CreateWorkspaceRequest) {
+			request.RichParameterValues = []codersdk.WorkspaceBuildParameter{
+				{Name: ephemeralParameterName, Value: "placeholder"},
+			}
+		})
 		coderdtest.AwaitWorkspaceBuildJobCompleted(t, client, workspace.LatestBuild.ID)
 
 		inv, root := clitest.New(t, "restart", workspace.Name,
@@ -280,24 +303,26 @@ func TestRestart(t *testing.T) {
 func TestRestartWithParameters(t *testing.T) {
 	t.Parallel()
 
-	echoResponses := &echo.Responses{
-		Parse: echo.ParseComplete,
-		ProvisionPlan: []*proto.Response{
-			{
-				Type: &proto.Response_Plan{
-					Plan: &proto.PlanComplete{
-						Parameters: []*proto.RichParameter{
-							{
-								Name:        immutableParameterName,
-								Description: immutableParameterDescription,
-								Required:    true,
+	echoResponses := func() *echo.Responses {
+		return &echo.Responses{
+			Parse: echo.ParseComplete,
+			ProvisionPlan: []*proto.Response{
+				{
+					Type: &proto.Response_Plan{
+						Plan: &proto.PlanComplete{
+							Parameters: []*proto.RichParameter{
+								{
+									Name:        immutableParameterName,
+									Description: immutableParameterDescription,
+									Required:    true,
+								},
 							},
 						},
 					},
 				},
 			},
-		},
-		ProvisionApply: echo.ApplyComplete,
+			ProvisionApply: echo.ApplyComplete,
+		}
 	}
 
 	t.Run("DoNotAskForImmutables", func(t *testing.T) {
@@ -307,7 +332,7 @@ func TestRestartWithParameters(t *testing.T) {
 		client := coderdtest.New(t, &coderdtest.Options{IncludeProvisionerDaemon: true})
 		owner := coderdtest.CreateFirstUser(t, client)
 		member, _ := coderdtest.CreateAnotherUser(t, client, owner.OrganizationID)
-		version := coderdtest.CreateTemplateVersion(t, client, owner.OrganizationID, echoResponses)
+		version := coderdtest.CreateTemplateVersion(t, client, owner.OrganizationID, echoResponses())
 		coderdtest.AwaitTemplateVersionJobCompleted(t, client, version.ID)
 		template := coderdtest.CreateTemplate(t, client, owner.OrganizationID, version.ID)
 		workspace := coderdtest.CreateWorkspace(t, member, template.ID, func(cwr *codersdk.CreateWorkspaceRequest) {
@@ -355,7 +380,7 @@ func TestRestartWithParameters(t *testing.T) {
 		client := coderdtest.New(t, &coderdtest.Options{IncludeProvisionerDaemon: true})
 		owner := coderdtest.CreateFirstUser(t, client)
 		member, _ := coderdtest.CreateAnotherUser(t, client, owner.OrganizationID)
-		version := coderdtest.CreateTemplateVersion(t, client, owner.OrganizationID, mutableParamsResponse)
+		version := coderdtest.CreateTemplateVersion(t, client, owner.OrganizationID, mutableParamsResponse())
 		coderdtest.AwaitTemplateVersionJobCompleted(t, client, version.ID)
 		template := coderdtest.CreateTemplate(t, client, owner.OrganizationID, version.ID)
 		workspace := coderdtest.CreateWorkspace(t, member, template.ID, func(cwr *codersdk.CreateWorkspaceRequest) {

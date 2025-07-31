@@ -6,13 +6,11 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"net"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/sqlc-dev/pqtype"
 	"go.opentelemetry.io/otel/baggage"
 	"golang.org/x/xerrors"
 
@@ -113,6 +111,8 @@ func ResourceTarget[T Auditable](tgt T) string {
 		return "" // no target?
 	case database.NotificationsSettings:
 		return "" // no target?
+	case database.PrebuildsSettings:
+		return "" // no target?
 	case database.OAuth2ProviderApp:
 		return typed.Name
 	case database.OAuth2ProviderAppSecret:
@@ -131,10 +131,6 @@ func ResourceTarget[T Auditable](tgt T) string {
 		return "Organization Group Sync"
 	case idpsync.RoleSyncSettings:
 		return "Organization Role Sync"
-	case database.WorkspaceAgent:
-		return typed.Name
-	case database.WorkspaceApp:
-		return typed.Slug
 	default:
 		panic(fmt.Sprintf("unknown resource %T for ResourceTarget", tgt))
 	}
@@ -176,6 +172,9 @@ func ResourceID[T Auditable](tgt T) uuid.UUID {
 	case database.NotificationsSettings:
 		// Artificial ID for auditing purposes
 		return typed.ID
+	case database.PrebuildsSettings:
+		// Artificial ID for auditing purposes
+		return typed.ID
 	case database.OAuth2ProviderApp:
 		return typed.ID
 	case database.OAuth2ProviderAppSecret:
@@ -194,10 +193,6 @@ func ResourceID[T Auditable](tgt T) uuid.UUID {
 		return noID // Org field on audit log has org id
 	case idpsync.RoleSyncSettings:
 		return noID // Org field on audit log has org id
-	case database.WorkspaceAgent:
-		return typed.ID
-	case database.WorkspaceApp:
-		return typed.ID
 	default:
 		panic(fmt.Sprintf("unknown resource %T for ResourceID", tgt))
 	}
@@ -231,6 +226,8 @@ func ResourceType[T Auditable](tgt T) database.ResourceType {
 		return database.ResourceTypeHealthSettings
 	case database.NotificationsSettings:
 		return database.ResourceTypeNotificationsSettings
+	case database.PrebuildsSettings:
+		return database.ResourceTypePrebuildsSettings
 	case database.OAuth2ProviderApp:
 		return database.ResourceTypeOauth2ProviderApp
 	case database.OAuth2ProviderAppSecret:
@@ -249,10 +246,6 @@ func ResourceType[T Auditable](tgt T) database.ResourceType {
 		return database.ResourceTypeIdpSyncSettingsRole
 	case idpsync.GroupSyncSettings:
 		return database.ResourceTypeIdpSyncSettingsGroup
-	case database.WorkspaceAgent:
-		return database.ResourceTypeWorkspaceAgent
-	case database.WorkspaceApp:
-		return database.ResourceTypeWorkspaceApp
 	default:
 		panic(fmt.Sprintf("unknown resource %T for ResourceType", typed))
 	}
@@ -288,6 +281,9 @@ func ResourceRequiresOrgID[T Auditable]() bool {
 	case database.NotificationsSettings:
 		// Artificial ID for auditing purposes
 		return false
+	case database.PrebuildsSettings:
+		// Artificial ID for auditing purposes
+		return false
 	case database.OAuth2ProviderApp:
 		return false
 	case database.OAuth2ProviderAppSecret:
@@ -305,10 +301,6 @@ func ResourceRequiresOrgID[T Auditable]() bool {
 	case idpsync.GroupSyncSettings:
 		return true
 	case idpsync.RoleSyncSettings:
-		return true
-	case database.WorkspaceAgent:
-		return true
-	case database.WorkspaceApp:
 		return true
 	default:
 		panic(fmt.Sprintf("unknown resource %T for ResourceRequiresOrgID", tgt))
@@ -407,11 +399,12 @@ func InitRequest[T Auditable](w http.ResponseWriter, p *RequestParams) (*Request
 
 		var userID uuid.UUID
 		key, ok := httpmw.APIKeyOptional(p.Request)
-		if ok {
+		switch {
+		case ok:
 			userID = key.UserID
-		} else if req.UserID != uuid.Nil {
+		case req.UserID != uuid.Nil:
 			userID = req.UserID
-		} else {
+		default:
 			// if we do not have a user associated with the audit action
 			// we do not want to audit
 			// (this pertains to logins; we don't want to capture non-user login attempts)
@@ -423,18 +416,19 @@ func InitRequest[T Auditable](w http.ResponseWriter, p *RequestParams) (*Request
 			action = req.Action
 		}
 
-		ip := ParseIP(p.Request.RemoteAddr)
+		ip := database.ParseIP(p.Request.RemoteAddr)
 		auditLog := database.AuditLog{
-			ID:               uuid.New(),
-			Time:             dbtime.Now(),
-			UserID:           userID,
-			Ip:               ip,
-			UserAgent:        sql.NullString{String: p.Request.UserAgent(), Valid: true},
-			ResourceType:     either(req.Old, req.New, ResourceType[T], req.params.Action),
-			ResourceID:       either(req.Old, req.New, ResourceID[T], req.params.Action),
-			ResourceTarget:   either(req.Old, req.New, ResourceTarget[T], req.params.Action),
-			Action:           action,
-			Diff:             diffRaw,
+			ID:             uuid.New(),
+			Time:           dbtime.Now(),
+			UserID:         userID,
+			Ip:             ip,
+			UserAgent:      sql.NullString{String: p.Request.UserAgent(), Valid: true},
+			ResourceType:   either(req.Old, req.New, ResourceType[T], req.params.Action),
+			ResourceID:     either(req.Old, req.New, ResourceID[T], req.params.Action),
+			ResourceTarget: either(req.Old, req.New, ResourceTarget[T], req.params.Action),
+			Action:         action,
+			Diff:           diffRaw,
+			// #nosec G115 - Safe conversion as HTTP status code is expected to be within int32 range (typically 100-599)
 			StatusCode:       int32(sw.Status),
 			RequestID:        httpmw.RequestID(p.Request),
 			AdditionalFields: additionalFieldsRaw,
@@ -454,7 +448,7 @@ func InitRequest[T Auditable](w http.ResponseWriter, p *RequestParams) (*Request
 // BackgroundAudit creates an audit log for a background event.
 // The audit log is committed upon invocation.
 func BackgroundAudit[T Auditable](ctx context.Context, p *BackgroundAuditParams[T]) {
-	ip := ParseIP(p.IP)
+	ip := database.ParseIP(p.IP)
 
 	diff := Diff(p.Audit, p.Old, p.New)
 	var err error
@@ -475,17 +469,18 @@ func BackgroundAudit[T Auditable](ctx context.Context, p *BackgroundAuditParams[
 	}
 
 	auditLog := database.AuditLog{
-		ID:               uuid.New(),
-		Time:             p.Time,
-		UserID:           p.UserID,
-		OrganizationID:   requireOrgID[T](ctx, p.OrganizationID, p.Log),
-		Ip:               ip,
-		UserAgent:        sql.NullString{Valid: p.UserAgent != "", String: p.UserAgent},
-		ResourceType:     either(p.Old, p.New, ResourceType[T], p.Action),
-		ResourceID:       either(p.Old, p.New, ResourceID[T], p.Action),
-		ResourceTarget:   either(p.Old, p.New, ResourceTarget[T], p.Action),
-		Action:           p.Action,
-		Diff:             diffRaw,
+		ID:             uuid.New(),
+		Time:           p.Time,
+		UserID:         p.UserID,
+		OrganizationID: requireOrgID[T](ctx, p.OrganizationID, p.Log),
+		Ip:             ip,
+		UserAgent:      sql.NullString{Valid: p.UserAgent != "", String: p.UserAgent},
+		ResourceType:   either(p.Old, p.New, ResourceType[T], p.Action),
+		ResourceID:     either(p.Old, p.New, ResourceID[T], p.Action),
+		ResourceTarget: either(p.Old, p.New, ResourceTarget[T], p.Action),
+		Action:         p.Action,
+		Diff:           diffRaw,
+		// #nosec G115 - Safe conversion as HTTP status code is expected to be within int32 range (typically 100-599)
 		StatusCode:       int32(p.Status),
 		RequestID:        p.RequestID,
 		AdditionalFields: p.AdditionalFields,
@@ -554,31 +549,17 @@ func BaggageFromContext(ctx context.Context) WorkspaceBuildBaggage {
 	return d
 }
 
-func either[T Auditable, R any](old, new T, fn func(T) R, auditAction database.AuditAction) R {
-	if ResourceID(new) != uuid.Nil {
-		return fn(new)
-	} else if ResourceID(old) != uuid.Nil {
+func either[T Auditable, R any](old, newVal T, fn func(T) R, auditAction database.AuditAction) R {
+	switch {
+	case ResourceID(newVal) != uuid.Nil:
+		return fn(newVal)
+	case ResourceID(old) != uuid.Nil:
 		return fn(old)
-	} else if auditAction == database.AuditActionLogin || auditAction == database.AuditActionLogout {
+	case auditAction == database.AuditActionLogin || auditAction == database.AuditActionLogout:
 		// If the request action is a login or logout, we always want to audit it even if
 		// there is no diff. See the comment in audit.InitRequest for more detail.
 		return fn(old)
-	}
-	panic("both old and new are nil")
-}
-
-func ParseIP(ipStr string) pqtype.Inet {
-	ip := net.ParseIP(ipStr)
-	ipNet := net.IPNet{}
-	if ip != nil {
-		ipNet = net.IPNet{
-			IP:   ip,
-			Mask: net.CIDRMask(len(ip)*8, len(ip)*8),
-		}
-	}
-
-	return pqtype.Inet{
-		IPNet: ipNet,
-		Valid: ip != nil,
+	default:
+		panic("both old and new are nil")
 	}
 }

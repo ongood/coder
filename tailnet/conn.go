@@ -65,7 +65,9 @@ const EnvMagicsockDebugLogging = "CODER_MAGICSOCK_DEBUG_LOGGING"
 
 func init() {
 	// Globally disable network namespacing. All networking happens in
-	// userspace.
+	// userspace unless the connection is configured to use a TUN.
+	// NOTE: this exists in init() so it affects all connections (incl. DERP)
+	//       made by tailscale packages by default.
 	netns.SetEnabled(false)
 	// Tailscale, by default, "trims" the set of peers down to ones that we are
 	// "actively" communicating with in an effort to save memory. Since
@@ -100,6 +102,7 @@ type Options struct {
 	BlockEndpoints bool
 	Logger         slog.Logger
 	ListenPort     uint16
+
 	// CaptureHook is a callback that captures Disco packets and packets sent
 	// into the tailnet tunnel.
 	CaptureHook capture.Callback
@@ -120,6 +123,9 @@ type Options struct {
 	// WireguardMonitor is optional, and is passed to the underlying wireguard
 	// engine.
 	WireguardMonitor *netmon.Monitor
+	// DNSMatchDomain is the DNS suffix to use as a match domain. Only relevant for TUN connections that configure the
+	// OS DNS resolver.
+	DNSMatchDomain string
 }
 
 // TelemetrySink allows tailnet.Conn to send network telemetry to the Coder
@@ -132,6 +138,7 @@ type TelemetrySink interface {
 // NodeID creates a Tailscale NodeID from the last 8 bytes of a UUID. It ensures
 // the returned NodeID is always positive.
 func NodeID(uid uuid.UUID) tailcfg.NodeID {
+	// #nosec G115 - This is safe because the next lines ensure the ID is always positive
 	id := int64(binary.BigEndian.Uint64(uid[8:]))
 
 	// ensure id is positive
@@ -150,7 +157,14 @@ func NewConn(options *Options) (conn *Conn, err error) {
 		return nil, xerrors.New("At least one IP range must be provided")
 	}
 
-	netns.SetEnabled(options.TUNDev != nil)
+	useNetNS := options.TUNDev != nil
+	options.Logger.Debug(context.Background(), "network isolation configuration", slog.F("use_netns", useNetNS))
+	netns.SetEnabled(useNetNS)
+	// The Coder soft isolation mode is a workaround to allow Coder Connect to
+	// connect to Coder servers behind corporate VPNs, and relaxes some of the
+	// loop protections that come with Tailscale.
+	// See the comment above the netns function for more details.
+	netns.SetCoderSoftIsolation(useNetNS)
 
 	var telemetryStore *TelemetryStore
 	if options.TelemetrySink != nil {
@@ -266,12 +280,21 @@ func NewConn(options *Options) (conn *Conn, err error) {
 		netStack.ProcessLocalIPs = true
 	}
 
+	if options.DNSMatchDomain == "" {
+		options.DNSMatchDomain = CoderDNSSuffix
+	}
+	matchDomain, err := dnsname.ToFQDN(options.DNSMatchDomain + ".")
+	if err != nil {
+		return nil, xerrors.Errorf("convert hostname suffix (%s) to fully-qualified domain: %w",
+			options.DNSMatchDomain, err)
+	}
 	cfgMaps := newConfigMaps(
 		options.Logger,
 		wireguardEngine,
 		nodeID,
 		nodePrivateKey,
 		magicConn.DiscoPublicKey(),
+		matchDomain,
 	)
 	cfgMaps.setAddresses(options.Addresses)
 	if options.DERPMap != nil {
@@ -352,6 +375,11 @@ func NewConn(options *Options) (conn *Conn, err error) {
 
 	return server, nil
 }
+
+// A FQDN to be mapped to `tsaddr.CoderServiceIPv6`. This address can be used
+// when you want to know if Coder Connect is running, but are not trying to
+// connect to a specific known workspace.
+const IsCoderConnectEnabledFmtString = "is.coder--connect--enabled--right--now.%s."
 
 type ServicePrefix [6]byte
 

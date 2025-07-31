@@ -18,13 +18,13 @@ export const ScrollArea = React.forwardRef<
 		<ScrollAreaPrimitive.Viewport className="h-full w-full rounded-[inherit]">
 			{children}
 		</ScrollAreaPrimitive.Viewport>
-		<ScrollBar />
+		<ScrollBar className="z-10" />
 		<ScrollAreaPrimitive.Corner />
 	</ScrollAreaPrimitive.Root>
 ));
 ScrollArea.displayName = ScrollAreaPrimitive.Root.displayName;
 
-export const ScrollBar = React.forwardRef<
+const ScrollBar = React.forwardRef<
 	React.ElementRef<typeof ScrollAreaPrimitive.ScrollAreaScrollbar>,
 	React.ComponentPropsWithoutRef<typeof ScrollAreaPrimitive.ScrollAreaScrollbar>
 >(({ className, orientation = "vertical", ...props }, ref) => (

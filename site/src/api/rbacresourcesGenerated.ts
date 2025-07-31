@@ -31,6 +31,10 @@ export const RBACResourceActions: Partial<
 		create: "create new audit log entries",
 		read: "read audit logs",
 	},
+	connection_log: {
+		read: "read connection logs",
+		update: "upsert connection log entries",
+	},
 	crypto_key: {
 		create: "create crypto keys",
 		delete: "delete crypto keys",
@@ -117,6 +121,10 @@ export const RBACResourceActions: Partial<
 		read: "read member",
 		update: "update an organization member",
 	},
+	prebuilt_workspace: {
+		delete: "delete prebuilt workspace",
+		update: "update prebuilt workspace settings",
+	},
 	provisioner_daemon: {
 		create: "create a provisioner daemon/key",
 		delete: "delete a provisioner daemon/key",
@@ -124,7 +132,9 @@ export const RBACResourceActions: Partial<
 		update: "update a provisioner daemon",
 	},
 	provisioner_jobs: {
+		create: "create provisioner jobs",
 		read: "read provisioner jobs",
+		update: "update provisioner jobs",
 	},
 	replicas: {
 		read: "read replicas",
@@ -157,15 +167,25 @@ export const RBACResourceActions: Partial<
 		update: "update an existing user",
 		update_personal: "update personal data",
 	},
+	webpush_subscription: {
+		create: "create webpush subscriptions",
+		delete: "delete webpush subscriptions",
+		read: "read webpush subscriptions",
+	},
 	workspace: {
 		application_connect: "connect to workspace apps via browser",
 		create: "create a new workspace",
+		create_agent: "create a new workspace agent",
 		delete: "delete workspace",
+		delete_agent: "delete an existing workspace agent",
 		read: "read workspace data to view on the UI",
 		ssh: "ssh into a given workspace",
 		start: "allows starting a workspace",
 		stop: "allows stopping a workspace",
 		update: "edit workspace settings (scheduling, permissions, parameters)",
+	},
+	workspace_agent_devcontainers: {
+		create: "create workspace agent devcontainers",
 	},
 	workspace_agent_resource_monitor: {
 		create: "create workspace agent resource monitor",
@@ -175,7 +195,9 @@ export const RBACResourceActions: Partial<
 	workspace_dormant: {
 		application_connect: "connect to workspace apps via browser",
 		create: "create a new workspace",
+		create_agent: "create a new workspace agent",
 		delete: "delete workspace",
+		delete_agent: "delete an existing workspace agent",
 		read: "read workspace data to view on the UI",
 		ssh: "ssh into a given workspace",
 		start: "allows starting a workspace",

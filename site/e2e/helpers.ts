@@ -81,7 +81,7 @@ export async function login(page: Page, options: LoginOptions = users.owner) {
 	(ctx as any)[Symbol.for("currentUser")] = options;
 }
 
-export function currentUser(page: Page): LoginOptions {
+function currentUser(page: Page): LoginOptions {
 	const ctx = page.context();
 	// biome-ignore lint/suspicious/noExplicitAny: get the current user
 	const user = (ctx as any)[Symbol.for("currentUser")];
@@ -127,6 +127,10 @@ export const createWorkspace = async (
 	const name = randomName();
 	await page.getByLabel("name").fill(name);
 
+	if (buildParameters.length > 0) {
+		await page.waitForSelector("form", { state: "visible" });
+	}
+
 	await fillParameters(page, richParameters, buildParameters);
 
 	if (useExternalAuth) {
@@ -152,7 +156,7 @@ export const createWorkspace = async (
 	const user = currentUser(page);
 	await expectUrl(page).toHavePathName(`/@${user.username}/${name}`);
 
-	await page.waitForSelector("[data-testid='build-status'] >> text=Running", {
+	await page.waitForSelector("text=Workspace status: Running", {
 		state: "visible",
 	});
 	return name;
@@ -364,7 +368,7 @@ export const stopWorkspace = async (page: Page, workspaceName: string) => {
 
 	await page.getByTestId("workspace-stop-button").click();
 
-	await page.waitForSelector("*[data-testid='build-status'] >> text=Stopped", {
+	await page.waitForSelector("text=Workspace status: Stopped", {
 		state: "visible",
 	});
 };
@@ -389,7 +393,7 @@ export const buildWorkspaceWithParameters = async (
 		await page.getByTestId("confirm-button").click();
 	}
 
-	await page.waitForSelector("*[data-testid='build-status'] >> text=Running", {
+	await page.waitForSelector("text=Workspace status: Running", {
 		state: "visible",
 	});
 };
@@ -412,11 +416,12 @@ export const startAgent = async (
 export const downloadCoderVersion = async (
 	version: string,
 ): Promise<string> => {
-	if (version.startsWith("v")) {
-		version = version.slice(1);
+	let versionNumber = version;
+	if (versionNumber.startsWith("v")) {
+		versionNumber = versionNumber.slice(1);
 	}
 
-	const binaryName = `coder-e2e-${version}`;
+	const binaryName = `coder-e2e-${versionNumber}`;
 	const tempDir = "/tmp/coder-e2e-cache";
 	// The install script adds `./bin` automatically to the path :shrug:
 	const binaryPath = path.join(tempDir, "bin", binaryName);
@@ -438,7 +443,7 @@ export const downloadCoderVersion = async (
 			path.join(__dirname, "../../install.sh"),
 			[
 				"--version",
-				version,
+				versionNumber,
 				"--method",
 				"standalone",
 				"--prefix",
@@ -544,16 +549,15 @@ interface EchoProvisionerResponses {
 	apply?: RecursivePartial<Response>[];
 }
 
+const emptyPlan = new TextEncoder().encode("{}");
+
 /**
  * createTemplateVersionTar consumes a series of echo provisioner protobufs and
  * converts it into an uploadable tar file.
  */
 const createTemplateVersionTar = async (
-	responses?: EchoProvisionerResponses,
+	responses: EchoProvisionerResponses = {},
 ): Promise<Buffer> => {
-	if (!responses) {
-		responses = {};
-	}
 	if (!responses.parse) {
 		responses.parse = [
 			{
@@ -581,6 +585,10 @@ const createTemplateVersionTar = async (
 					externalAuthProviders: response.apply?.externalAuthProviders ?? [],
 					timings: response.apply?.timings ?? [],
 					presets: [],
+					resourceReplacements: [],
+					plan: emptyPlan,
+					moduleFiles: new Uint8Array(),
+					moduleFilesHash: new Uint8Array(),
 				},
 			};
 		});
@@ -616,6 +624,7 @@ const createTemplateVersionTar = async (
 								slug: "example",
 								subdomain: false,
 								url: "",
+								group: "",
 								...app,
 							} as App;
 						});
@@ -640,6 +649,8 @@ const createTemplateVersionTar = async (
 						startupScriptTimeoutSeconds: 300,
 						troubleshootingUrl: "",
 						token: randomUUID(),
+						devcontainers: [],
+						apiKeyScope: "all",
 						...agent,
 					} as Agent;
 
@@ -684,6 +695,7 @@ const createTemplateVersionTar = async (
 			parameters: [],
 			externalAuthProviders: [],
 			timings: [],
+			aiTasks: [],
 			...response.apply,
 		} as ApplyComplete;
 		response.apply.resources = response.apply.resources?.map(fillResource);
@@ -702,6 +714,11 @@ const createTemplateVersionTar = async (
 			timings: [],
 			modules: [],
 			presets: [],
+			resourceReplacements: [],
+			plan: emptyPlan,
+			moduleFiles: new Uint8Array(),
+			moduleFilesHash: new Uint8Array(),
+			aiTasks: [],
 			...response.plan,
 		} as PlanComplete;
 		response.plan.resources = response.plan.resources?.map(fillResource);
@@ -870,7 +887,7 @@ export const echoResponsesWithExternalAuth = (
 	};
 };
 
-export const fillParameters = async (
+const fillParameters = async (
 	page: Page,
 	richParameters: RichParameter[] = [],
 	buildParameters: WorkspaceBuildParameter[] = [],
@@ -885,28 +902,29 @@ export const fillParameters = async (
 			);
 		}
 
-		const parameterLabel = await page.waitForSelector(
-			`[data-testid='parameter-field-${richParameter.name}']`,
-			{ state: "visible" },
+		// Use modern locator approach instead of waitForSelector
+		const parameterLabel = page.getByTestId(
+			`parameter-field-${richParameter.name}`,
 		);
+		await expect(parameterLabel).toBeVisible();
 
 		if (richParameter.type === "bool") {
-			const parameterField = await parameterLabel.waitForSelector(
-				`[data-testid='parameter-field-bool'] .MuiRadio-root input[value='${buildParameter.value}']`,
-			);
+			const parameterField = parameterLabel
+				.getByTestId("parameter-field-bool")
+				.locator(`.MuiRadio-root input[value='${buildParameter.value}']`);
 			await parameterField.click();
 		} else if (richParameter.options.length > 0) {
-			const parameterField = await parameterLabel.waitForSelector(
-				`[data-testid='parameter-field-options'] .MuiRadio-root input[value='${buildParameter.value}']`,
-			);
+			const parameterField = parameterLabel
+				.getByTestId("parameter-field-options")
+				.locator(`.MuiRadio-root input[value='${buildParameter.value}']`);
 			await parameterField.click();
 		} else if (richParameter.type === "list(string)") {
 			throw new Error("not implemented yet"); // FIXME
 		} else {
 			// text or number
-			const parameterField = await parameterLabel.waitForSelector(
-				"[data-testid='parameter-field-text'] input",
-			);
+			const parameterField = parameterLabel
+				.getByTestId("parameter-field-text")
+				.locator("input");
 			await parameterField.fill(buildParameter.value);
 		}
 	}
@@ -1002,12 +1020,27 @@ export const updateWorkspace = async (
 	await page.getByTestId("workspace-update-button").click();
 	await page.getByTestId("confirm-button").click();
 
+	await page.waitForSelector('[data-testid="dialog"]', { state: "visible" });
+
 	await fillParameters(page, richParameters, buildParameters);
 	await page.getByRole("button", { name: /update parameters/i }).click();
 
-	await page.waitForSelector("*[data-testid='build-status'] >> text=Running", {
+	// Wait for the update button to detach.
+	await page.waitForSelector(
+		"button[data-testid='workspace-update-button']:enabled",
+		{ state: "detached" },
+	);
+	// Wait for the workspace to be running again.
+	await page.waitForSelector("text=Workspace status: Running", {
 		state: "visible",
 	});
+	// Wait for the stop button to be enabled again
+	await page.waitForSelector(
+		"button[data-testid='workspace-stop-button']:enabled",
+		{
+			state: "visible",
+		},
+	);
 };
 
 export const updateWorkspaceParameters = async (
@@ -1024,7 +1057,7 @@ export const updateWorkspaceParameters = async (
 	await fillParameters(page, richParameters, buildParameters);
 	await page.getByRole("button", { name: /submit and restart/i }).click();
 
-	await page.waitForSelector("*[data-testid='build-status'] >> text=Running", {
+	await page.waitForSelector("text=Workspace status: Running", {
 		state: "visible",
 	});
 };
@@ -1037,7 +1070,9 @@ export async function openTerminalWindow(
 ): Promise<Page> {
 	// Wait for the web terminal to open in a new tab
 	const pagePromise = context.waitForEvent("page");
-	await page.getByTestId("terminal").click({ timeout: 60_000 });
+	await page
+		.getByRole("link", { name: /terminal/i })
+		.click({ timeout: 60_000 });
 	const terminal = await pagePromise;
 	await terminal.waitForLoadState("domcontentloaded");
 
@@ -1173,3 +1208,48 @@ export async function addUserToOrganization(
 	}
 	await page.mouse.click(10, 10); // close the popover by clicking outside of it
 }
+
+/**
+ * disableDynamicParameters navigates to the template settings page and disables
+ * dynamic parameters by unchecking the "Enable dynamic parameters" checkbox.
+ */
+export const disableDynamicParameters = async (
+	page: Page,
+	templateName: string,
+	orgName = defaultOrganizationName,
+) => {
+	await page.goto(`/templates/${orgName}/${templateName}/settings`, {
+		waitUntil: "domcontentloaded",
+	});
+
+	await page.waitForSelector("form", { state: "visible" });
+
+	// Find and uncheck the "Enable dynamic parameters" checkbox
+	const dynamicParamsCheckbox = page.getByRole("checkbox", {
+		name: /Enable dynamic parameters for workspace creation/,
+	});
+
+	await dynamicParamsCheckbox.waitFor({ state: "visible" });
+
+	// If the checkbox is checked, uncheck it
+	if (await dynamicParamsCheckbox.isChecked()) {
+		await dynamicParamsCheckbox.click();
+	}
+
+	// Save the changes
+	const saveButton = page.getByRole("button", { name: /save/i });
+	await saveButton.waitFor({ state: "visible" });
+	await saveButton.click();
+
+	// Wait for the success message or page to update
+	await page
+		.locator("[role='alert']:has-text('Template updated successfully')")
+		.first()
+		.waitFor({
+			state: "visible",
+			timeout: 15000,
+		});
+
+	// Additional wait to ensure the changes are persisted
+	await page.waitForTimeout(500);
+};

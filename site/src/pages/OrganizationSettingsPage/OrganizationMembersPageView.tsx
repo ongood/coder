@@ -1,5 +1,3 @@
-import PersonAdd from "@mui/icons-material/PersonAdd";
-import LoadingButton from "@mui/lab/LoadingButton";
 import { getErrorMessage } from "api/errors";
 import type {
 	Group,
@@ -10,16 +8,21 @@ import type {
 import { ErrorAlert } from "components/Alert/ErrorAlert";
 import { Avatar } from "components/Avatar/Avatar";
 import { AvatarData } from "components/Avatar/AvatarData";
-import { displayError, displaySuccess } from "components/GlobalSnackbar/utils";
+import { Button } from "components/Button/Button";
 import {
-	MoreMenu,
-	MoreMenuContent,
-	MoreMenuItem,
-	MoreMenuTrigger,
-	ThreeDotsButton,
-} from "components/MoreMenu/MoreMenu";
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "components/DropdownMenu/DropdownMenu";
+import { displayError, displaySuccess } from "components/GlobalSnackbar/utils";
+import { Loader } from "components/Loader/Loader";
 import { PaginationContainer } from "components/PaginationWidget/PaginationContainer";
-import { SettingsHeader } from "components/SettingsHeader/SettingsHeader";
+import {
+	SettingsHeader,
+	SettingsHeaderTitle,
+} from "components/SettingsHeader/SettingsHeader";
+import { Spinner } from "components/Spinner/Spinner";
 import { Stack } from "components/Stack/Stack";
 import {
 	Table,
@@ -31,7 +34,8 @@ import {
 } from "components/Table/Table";
 import { UserAutocomplete } from "components/UserAutocomplete/UserAutocomplete";
 import type { PaginationResultInfo } from "hooks/usePaginatedQuery";
-import { TriangleAlert } from "lucide-react";
+import { UserPlusIcon } from "lucide-react";
+import { EllipsisVertical, TriangleAlert } from "lucide-react";
 import { UserGroupsCell } from "pages/UsersPage/UsersTable/UserGroupsCell";
 import { type FC, useState } from "react";
 import { TableColumnHelpTooltip } from "./UserTable/TableColumnHelpTooltip";
@@ -47,7 +51,7 @@ interface OrganizationMembersPageViewProps {
 	me: User;
 	members: Array<OrganizationMemberTableEntry> | undefined;
 	membersQuery: PaginationResultInfo & {
-		isPreviousData: boolean;
+		isPlaceholderData: boolean;
 	};
 	addMember: (user: User) => Promise<void>;
 	removeMember: (member: OrganizationMemberWithUserData) => void;
@@ -79,7 +83,10 @@ export const OrganizationMembersPageView: FC<
 }) => {
 	return (
 		<div>
-			<SettingsHeader title="Members" />
+			<SettingsHeader>
+				<SettingsHeaderTitle>Members</SettingsHeaderTitle>
+			</SettingsHeader>
+
 			<div className="flex flex-col gap-4">
 				{Boolean(error) && <ErrorAlert error={error} />}
 
@@ -119,58 +126,74 @@ export const OrganizationMembersPageView: FC<
 							</TableRow>
 						</TableHeader>
 						<TableBody>
-							{members?.map((member) => (
-								<TableRow key={member.user_id} className="align-baseline">
-									<TableCell>
-										<AvatarData
-											avatar={
-												<Avatar
-													fallback={member.username}
-													src={member.avatar_url}
-												/>
-											}
-											title={member.name || member.username}
-											subtitle={member.email}
+							{members ? (
+								members.map((member) => (
+									<TableRow key={member.user_id} className="align-baseline">
+										<TableCell>
+											<AvatarData
+												avatar={
+													<Avatar
+														fallback={member.username}
+														src={member.avatar_url}
+														size="lg"
+													/>
+												}
+												title={member.name || member.username}
+												subtitle={member.email}
+											/>
+										</TableCell>
+										<UserRoleCell
+											inheritedRoles={member.global_roles}
+											roles={member.roles}
+											allAvailableRoles={allAvailableRoles}
+											oidcRoleSyncEnabled={false}
+											isLoading={isUpdatingMemberRoles}
+											canEditUsers={canEditMembers}
+											onEditRoles={async (roles) => {
+												try {
+													await updateMemberRoles(member, roles);
+													displaySuccess("Roles updated successfully.");
+												} catch (error) {
+													displayError(
+														getErrorMessage(error, "Failed to update roles."),
+													);
+												}
+											}}
 										/>
-									</TableCell>
-									<UserRoleCell
-										inheritedRoles={member.global_roles}
-										roles={member.roles}
-										allAvailableRoles={allAvailableRoles}
-										oidcRoleSyncEnabled={false}
-										isLoading={isUpdatingMemberRoles}
-										canEditUsers={canEditMembers}
-										onEditRoles={async (roles) => {
-											try {
-												await updateMemberRoles(member, roles);
-												displaySuccess("Roles updated successfully.");
-											} catch (error) {
-												displayError(
-													getErrorMessage(error, "Failed to update roles."),
-												);
-											}
-										}}
-									/>
-									<UserGroupsCell userGroups={member.groups} />
-									<TableCell>
-										{member.user_id !== me.id && canEditMembers && (
-											<MoreMenu>
-												<MoreMenuTrigger>
-													<ThreeDotsButton />
-												</MoreMenuTrigger>
-												<MoreMenuContent>
-													<MoreMenuItem
-														danger
-														onClick={() => removeMember(member)}
-													>
-														Remove
-													</MoreMenuItem>
-												</MoreMenuContent>
-											</MoreMenu>
-										)}
+										<UserGroupsCell userGroups={member.groups} />
+										<TableCell>
+											{member.user_id !== me.id && canEditMembers && (
+												<DropdownMenu>
+													<DropdownMenuTrigger asChild>
+														<Button
+															size="icon-lg"
+															variant="subtle"
+															aria-label="Open menu"
+														>
+															<EllipsisVertical aria-hidden="true" />
+															<span className="sr-only">Open menu</span>
+														</Button>
+													</DropdownMenuTrigger>
+													<DropdownMenuContent align="end">
+														<DropdownMenuItem
+															className="text-content-destructive focus:text-content-destructive"
+															onClick={() => removeMember(member)}
+														>
+															Remove
+														</DropdownMenuItem>
+													</DropdownMenuContent>
+												</DropdownMenu>
+											)}
+										</TableCell>
+									</TableRow>
+								))
+							) : (
+								<TableRow>
+									<TableCell colSpan={999}>
+										<Loader />
 									</TableCell>
 								</TableRow>
-							))}
+							)}
 						</TableBody>
 					</Table>
 				</PaginationContainer>
@@ -214,15 +237,16 @@ const AddOrganizationMember: FC<AddOrganizationMemberProps> = ({
 					}}
 				/>
 
-				<LoadingButton
-					loadingPosition="start"
-					disabled={!selectedUser}
+				<Button
+					disabled={!selectedUser || isLoading}
 					type="submit"
-					startIcon={<PersonAdd />}
-					loading={isLoading}
+					variant="outline"
 				>
+					<Spinner loading={isLoading}>
+						<UserPlusIcon className="size-icon-sm" />
+					</Spinner>
 					Add user
-				</LoadingButton>
+				</Button>
 			</Stack>
 		</form>
 	);
