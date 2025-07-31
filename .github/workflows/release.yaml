@@ -462,13 +462,6 @@ jobs:
       # TODO: Consider refactoring these attestation steps to use a matrix strategy or composite action
       # to reduce duplication while maintaining the required functionality for each distinct image tag.
 
-      - name: Get Docker image digest (base image)
-        id: base_image_digest
-        run: |
-          tag="${{ steps.image-base-tag.outputs.tag }}"
-          digest=$(docker buildx imagetools inspect $tag --format '{{.Digest}}')
-          echo "digest=$digest" >> $GITHUB_OUTPUT
-
       - name: GitHub Attestation for Base Docker image
         id: attest_base
         if: ${{ !inputs.dry_run && steps.image-base-tag.outputs.tag != '' }}
@@ -476,7 +469,6 @@ jobs:
         uses: actions/attest@ce27ba3b4a9a139d9a20a4a07d69fabb52f1e5bc # v2.4.0
         with:
           subject-name: ${{ steps.image-base-tag.outputs.tag }}
-          subject-digest: ${{ steps.base_image_digest.outputs.digest }}
           predicate-type: "https://slsa.dev/provenance/v1"
           predicate: |
             {
@@ -506,13 +498,6 @@ jobs:
               }
             }
           push-to-registry: true
-
-      - name: Get Docker image digest (main image)
-        id: main_image_digest
-        run: |
-          tag="${{ steps.build_docker.outputs.multiarch_image }}"
-          digest=$(docker buildx imagetools inspect $tag --format '{{.Digest}}')
-          echo "digest=$digest" >> $GITHUB_OUTPUT
 
       - name: GitHub Attestation for Docker image
         id: attest_main
@@ -521,7 +506,6 @@ jobs:
         uses: actions/attest@ce27ba3b4a9a139d9a20a4a07d69fabb52f1e5bc # v2.4.0
         with:
           subject-name: ${{ steps.build_docker.outputs.multiarch_image }}
-          subject-digest: ${{ steps.main_image_digest.outputs.digest }}
           predicate-type: "https://slsa.dev/provenance/v1"
           predicate: |
             {
@@ -551,14 +535,6 @@ jobs:
               }
             }
           push-to-registry: true
-
-      - name: Get Docker image digest (latest image)
-        id: latest_image_digest
-        if: ${{ !inputs.dry_run && steps.build_docker.outputs.created_latest_tag == 'true' }}
-        run: |
-          tag="${{ steps.latest_tag.outputs.tag }}"
-          digest=$(docker buildx imagetools inspect "$tag" --format '{{.Digest}}')
-          echo "digest=$digest" >> $GITHUB_OUTPUT
 
       # If this is the highest version according to semver, also attest the "latest" tag
       - name: GitHub Attestation for "latest" Docker image
@@ -568,7 +544,6 @@ jobs:
         uses: actions/attest@ce27ba3b4a9a139d9a20a4a07d69fabb52f1e5bc # v2.4.0
         with:
           subject-name: ${{ steps.latest_tag.outputs.tag }}
-          subject-digest: ${{ steps.latest_image_digest.outputs.digest }}
           predicate-type: "https://slsa.dev/provenance/v1"
           predicate: |
             {
