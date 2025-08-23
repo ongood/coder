@@ -574,30 +574,6 @@ jobs:
       - name: ls build
         run: ls -lh build
 
-      - name: Publish Coder CLI binaries and detached signatures to GCS
-        if: ${{ !inputs.dry_run }}
-        run: |
-          set -euxo pipefail
-
-          version="$(./scripts/version.sh)"
-
-          # Source array of slim binaries
-          declare -A binaries
-          binaries["coder-darwin-amd64"]="coder-slim_${version}_darwin_amd64"
-          binaries["coder-darwin-arm64"]="coder-slim_${version}_darwin_arm64"
-          binaries["coder-linux-amd64"]="coder-slim_${version}_linux_amd64"
-          binaries["coder-linux-arm64"]="coder-slim_${version}_linux_arm64"
-          binaries["coder-linux-armv7"]="coder-slim_${version}_linux_armv7"
-          binaries["coder-windows-amd64.exe"]="coder-slim_${version}_windows_amd64.exe"
-          binaries["coder-windows-arm64.exe"]="coder-slim_${version}_windows_arm64.exe"
-
-          for cli_name in "${!binaries[@]}"; do
-            slim_binary="${binaries[$cli_name]}"
-            detached_signature="${slim_binary}.asc"
-            gcloud storage cp "./build/${slim_binary}" "gs://releases.coder.com/coder-cli/${version}/${cli_name}"
-            gcloud storage cp "./build/${detached_signature}" "gs://releases.coder.com/coder-cli/${version}/${cli_name}.asc"
-          done
-
       - name: Publish release
         run: |
           set -euo pipefail
