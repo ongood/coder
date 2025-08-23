@@ -59,16 +59,16 @@ jobs:
   #           if (!allowed) core.setFailed('Denied: requires maintain or admin');
 
   # build-dylib is a separate job to build the dylib on macOS.
-  build-dylib:
-    runs-on: ${{ github.repository_owner == 'coder' && 'depot-macos-latest' || 'macos-latest' }}
-    needs: check-perms
-    steps:
-      # Harden Runner doesn't work on macOS.
-      - name: Checkout
-        uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
-        with:
-          fetch-depth: 0
-          persist-credentials: false
+  # build-dylib:
+  #   runs-on: ${{ github.repository_owner == 'coder' && 'depot-macos-latest' || 'macos-latest' }}
+  #   needs: check-perms
+  #   steps:
+  #     # Harden Runner doesn't work on macOS.
+  #     - name: Checkout
+  #       uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+  #       with:
+  #         fetch-depth: 0
+  #         persist-credentials: false
 
   # # build-dylib is a separate job to build the dylib on macOS.
   # build-dylib:
