@@ -276,7 +276,9 @@ func (w WorkspaceTable) RBACObject() rbac.Object {
 
 	return rbac.ResourceWorkspace.WithID(w.ID).
 		InOrg(w.OrganizationID).
-		WithOwner(w.OwnerID.String())
+		WithOwner(w.OwnerID.String()).
+		WithGroupACL(w.GroupACL.RBACACL()).
+		WithACLUserList(w.UserACL.RBACACL())
 }
 
 func (w WorkspaceTable) DormantRBAC() rbac.Object {
@@ -629,4 +631,8 @@ func (m WorkspaceAgentVolumeResourceMonitor) Debounce(
 	}
 
 	return m.DebouncedUntil, false
+}
+
+func (s UserSecret) RBACObject() rbac.Object {
+	return rbac.ResourceUserSecret.WithID(s.ID).WithOwner(s.UserID.String())
 }
