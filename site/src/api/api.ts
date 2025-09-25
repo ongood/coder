@@ -27,6 +27,7 @@ import { delay } from "../utils/delay";
 import { OneWayWebSocket } from "../utils/OneWayWebSocket";
 import { type FieldError, isApiError } from "./errors";
 import type {
+	DeleteExternalAuthByIDResponse,
 	DynamicParametersRequest,
 	PostWorkspaceUsageRequest,
 } from "./typesGenerated";
@@ -1727,7 +1728,9 @@ class ApiMethods {
 			return resp.data;
 		};
 
-	unlinkExternalAuthProvider = async (provider: string): Promise<string> => {
+	unlinkExternalAuthProvider = async (
+		provider: string,
+	): Promise<DeleteExternalAuthByIDResponse> => {
 		const resp = await this.axios.delete(`/api/v2/external-auth/${provider}`);
 		return resp.data;
 	};
@@ -2686,8 +2689,8 @@ class ExperimentalApiMethods {
 	createTask = async (
 		user: string,
 		req: TypesGen.CreateTaskRequest,
-	): Promise<TypesGen.Workspace> => {
-		const response = await this.axios.post<TypesGen.Workspace>(
+	): Promise<TypesGen.Task> => {
+		const response = await this.axios.post<TypesGen.Task>(
 			`/api/experimental/tasks/${user}`,
 			req,
 		);
@@ -2702,14 +2705,18 @@ class ExperimentalApiMethods {
 			queryExpressions.push(`owner:${filter.username}`);
 		}
 
-		const workspaces = await API.getWorkspaces({
+		const res = await API.getWorkspaces({
 			q: queryExpressions.join(" "),
 		});
+		// Exclude prebuild workspaces as they are not user-facing.
+		const workspaces = res.workspaces.filter(
+			(workspace) => !workspace.is_prebuild,
+		);
 		const prompts = await API.experimental.getAITasksPrompts(
-			workspaces.workspaces.map((workspace) => workspace.latest_build.id),
+			workspaces.map((workspace) => workspace.latest_build.id),
 		);
 
-		return workspaces.workspaces.map((workspace) => ({
+		return workspaces.map((workspace) => ({
 			workspace,
 			prompt: prompts.prompts[workspace.latest_build.id],
 		}));

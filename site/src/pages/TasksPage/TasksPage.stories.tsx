@@ -2,6 +2,7 @@ import {
 	MockAIPromptPresets,
 	MockNewTaskData,
 	MockPresets,
+	MockTask,
 	MockTasks,
 	MockTemplate,
 	MockTemplateVersionExternalAuthGithub,
@@ -19,7 +20,6 @@ import { API } from "api/api";
 import { MockUsers } from "pages/UsersPage/storybookData/users";
 import { expect, spyOn, userEvent, waitFor, within } from "storybook/test";
 import { reactRouterParameters } from "storybook-addon-remix-react-router";
-import { data } from "./data";
 import TasksPage from "./TasksPage";
 
 const meta: Meta<typeof TasksPage> = {
@@ -226,6 +226,7 @@ export const LoadedTasksWaitingForInputTab: Story = {
 };
 
 export const CreateTaskSuccessfully: Story = {
+	decorators: [withGlobalSnackbar],
 	parameters: {
 		reactRouter: reactRouterParameters({
 			location: {
@@ -244,11 +245,16 @@ export const CreateTaskSuccessfully: Story = {
 		}),
 	},
 	beforeEach: () => {
+		const activeVersionId = `${MockTemplate.active_version_id}-latest`;
 		spyOn(API, "getTemplates").mockResolvedValue([MockTemplate]);
+		spyOn(API, "getTemplate").mockResolvedValue({
+			...MockTemplate,
+			active_version_id: activeVersionId,
+		});
 		spyOn(API.experimental, "getTasks")
 			.mockResolvedValueOnce(MockTasks)
 			.mockResolvedValue([MockNewTaskData, ...MockTasks]);
-		spyOn(data, "createTask").mockResolvedValue(MockNewTaskData);
+		spyOn(API.experimental, "createTask").mockResolvedValue(MockTask);
 	},
 	play: async ({ canvasElement, step }) => {
 		const canvas = within(canvasElement);
@@ -261,8 +267,28 @@ export const CreateTaskSuccessfully: Story = {
 			await userEvent.click(submitButton);
 		});
 
-		await step("Redirects to the task page", async () => {
-			await canvas.findByText(/task page/i);
+		await step("Uses latest template version", () => {
+			expect(API.experimental.createTask).toHaveBeenCalledWith(
+				MockUserOwner.id,
+				{
+					prompt: MockNewTaskData.prompt,
+					template_version_id: `${MockTemplate.active_version_id}-latest`,
+					template_version_preset_id: undefined,
+				},
+			);
+		});
+
+		await step("Displays success message", async () => {
+			const body = within(canvasElement.ownerDocument.body);
+			const successMessage = await body.findByText(/task created/i);
+			expect(successMessage).toBeInTheDocument();
+		});
+
+		await step("Find task in the table", async () => {
+			const table = canvasElement.querySelector("table");
+			await waitFor(() => {
+				expect(table).toHaveTextContent(MockNewTaskData.prompt);
+			});
 		});
 	},
 };
@@ -271,8 +297,9 @@ export const CreateTaskError: Story = {
 	decorators: [withGlobalSnackbar],
 	beforeEach: () => {
 		spyOn(API, "getTemplates").mockResolvedValue([MockTemplate]);
+		spyOn(API, "getTemplate").mockResolvedValue(MockTemplate);
 		spyOn(API.experimental, "getTasks").mockResolvedValue(MockTasks);
-		spyOn(data, "createTask").mockRejectedValue(
+		spyOn(API.experimental, "createTask").mockRejectedValue(
 			mockApiError({
 				message: "Failed to create task",
 				detail: "You don't have permission to create tasks.",
@@ -301,7 +328,7 @@ export const WithAuthenticatedExternalAuth: Story = {
 		spyOn(API.experimental, "getTasks")
 			.mockResolvedValueOnce(MockTasks)
 			.mockResolvedValue([MockNewTaskData, ...MockTasks]);
-		spyOn(data, "createTask").mockResolvedValue(MockNewTaskData);
+		spyOn(API.experimental, "createTask").mockResolvedValue(MockTask);
 		spyOn(API, "getTemplateVersionExternalAuth").mockResolvedValue([
 			MockTemplateVersionExternalAuthGithubAuthenticated,
 		]);
@@ -327,7 +354,7 @@ export const MissingExternalAuth: Story = {
 		spyOn(API.experimental, "getTasks")
 			.mockResolvedValueOnce(MockTasks)
 			.mockResolvedValue([MockNewTaskData, ...MockTasks]);
-		spyOn(data, "createTask").mockResolvedValue(MockNewTaskData);
+		spyOn(API.experimental, "createTask").mockResolvedValue(MockTask);
 		spyOn(API, "getTemplateVersionExternalAuth").mockResolvedValue([
 			MockTemplateVersionExternalAuthGithub,
 		]);
@@ -353,7 +380,7 @@ export const ExternalAuthError: Story = {
 		spyOn(API.experimental, "getTasks")
 			.mockResolvedValueOnce(MockTasks)
 			.mockResolvedValue([MockNewTaskData, ...MockTasks]);
-		spyOn(data, "createTask").mockResolvedValue(MockNewTaskData);
+		spyOn(API.experimental, "createTask").mockResolvedValue(MockTask);
 		spyOn(API, "getTemplateVersionExternalAuth").mockRejectedValue(
 			mockApiError({
 				message: "Failed to load external auth",

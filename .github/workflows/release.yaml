@@ -86,12 +86,12 @@ jobs:
           df -h
 
       - name: Harden Runner
-        uses: step-security/harden-runner@ec9f2d5744a09debf3a187a3f4f675c53b671911 # v2.13.0
+        uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a # v2.13.1
         with:
           egress-policy: audit
 
       - name: Checkout
-        uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -174,7 +174,7 @@ jobs:
 
       # Necessary for signing Windows binaries.
       - name: Setup Java
-        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
+        uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
         with:
           distribution: "zulu"
           java-version: "11.0"
@@ -300,7 +300,7 @@ jobs:
       # This uses OIDC authentication, so no auth variables are required.
       - name: Build base Docker image via depot.dev
         if: steps.image-base-tag.outputs.tag != ''
-        uses: depot/build-push-action@2583627a84956d07561420dcc1d0eb1f2af3fac0 # v1.15.0
+        uses: depot/build-push-action@9785b135c3c76c33db102e45be96a25ab55cd507 # v1.16.2
         with:
           # 这里改成自己的
           project: zthl9kr4mv
@@ -359,7 +359,7 @@ jobs:
         id: attest_base
         if: ${{ !inputs.dry_run && steps.image-base-tag.outputs.tag != '' }}
         continue-on-error: true
-        uses: actions/attest@ce27ba3b4a9a139d9a20a4a07d69fabb52f1e5bc # v2.4.0
+        uses: actions/attest@daf44fb950173508f38bd2406030372c1d1162b1 # v3.0.0
         with:
           subject-name: ${{ steps.image-base-tag.outputs.tag }}
           predicate-type: "https://slsa.dev/provenance/v1"
@@ -475,7 +475,7 @@ jobs:
         id: attest_main
         if: ${{ !inputs.dry_run }}
         continue-on-error: true
-        uses: actions/attest@ce27ba3b4a9a139d9a20a4a07d69fabb52f1e5bc # v2.4.0
+        uses: actions/attest@daf44fb950173508f38bd2406030372c1d1162b1 # v3.0.0
         with:
           subject-name: ${{ steps.build_docker.outputs.multiarch_image }}
           predicate-type: "https://slsa.dev/provenance/v1"
@@ -519,7 +519,7 @@ jobs:
         id: attest_latest
         if: ${{ !inputs.dry_run && steps.build_docker.outputs.created_latest_tag == 'true' }}
         continue-on-error: true
-        uses: actions/attest@ce27ba3b4a9a139d9a20a4a07d69fabb52f1e5bc # v2.4.0
+        uses: actions/attest@daf44fb950173508f38bd2406030372c1d1162b1 # v3.0.0
         with:
           subject-name: ${{ steps.latest_tag.outputs.tag }}
           predicate-type: "https://slsa.dev/provenance/v1"
