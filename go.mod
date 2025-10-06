@@ -1,6 +1,6 @@
 module github.com/coder/coder/v2
 
-go 1.22.9
+go 1.24.0
 
 // Required until a v3 of chroma is created to lazily initialize all XML files.
 // None of our dependencies seem to use the registries anyways, so this
@@ -119,7 +119,7 @@ require (
 	github.com/go-chi/render v1.0.1
 	github.com/go-jose/go-jose/v4 v4.0.5
 	github.com/go-logr/logr v1.4.2
-	github.com/go-playground/validator/v10 v10.25.0
+	github.com/go-playground/validator/v10 v10.28.0
 	github.com/gofrs/flock v0.12.0
 	github.com/gohugoio/hugo v0.143.0
 	github.com/golang-jwt/jwt/v4 v4.5.1
@@ -189,16 +189,16 @@ require (
 	go.uber.org/goleak v1.3.1-0.20240429205332-517bace7cc29
 	go.uber.org/mock v0.5.0
 	go4.org/netipx v0.0.0-20230728180743-ad4cb58a6516
-	golang.org/x/crypto v0.33.0
+	golang.org/x/crypto v0.42.0
 	golang.org/x/exp v0.0.0-20240808152545-0cdaa3abc0fa
-	golang.org/x/mod v0.23.0
-	golang.org/x/net v0.35.0
+	golang.org/x/mod v0.27.0
+	golang.org/x/net v0.43.0
 	golang.org/x/oauth2 v0.26.0
-	golang.org/x/sync v0.11.0
-	golang.org/x/sys v0.30.0
-	golang.org/x/term v0.29.0
-	golang.org/x/text v0.22.0 // indirect
-	golang.org/x/tools v0.30.0
+	golang.org/x/sync v0.17.0
+	golang.org/x/sys v0.36.0
+	golang.org/x/term v0.35.0
+	golang.org/x/text v0.29.0 // indirect
+	golang.org/x/tools v0.36.0
 	golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da
 	google.golang.org/api v0.221.0
 	google.golang.org/grpc v1.70.0
@@ -291,7 +291,7 @@ require (
 	github.com/erikgeiser/coninput v0.0.0-20211004153227-1c3628e74d0f // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fxamacker/cbor/v2 v2.4.0 // indirect
-	github.com/gabriel-vasile/mimetype v1.4.8 // indirect
+	github.com/gabriel-vasile/mimetype v1.4.10 // indirect
 	github.com/go-chi/hostrouter v0.2.0 // indirect
 	github.com/go-ini/ini v1.67.0 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
