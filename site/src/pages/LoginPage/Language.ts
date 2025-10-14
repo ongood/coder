@@ -1,9 +1,9 @@
 export const Language = {
-	emailLabel: "Email",
-	passwordLabel: "Password",
-	emailInvalid: "Please enter a valid email address.",
-	emailRequired: "Please enter an email address.",
-	passwordSignIn: "Sign In",
+	emailLabel: "邮箱",
+	passwordLabel: "密码",
+	emailInvalid: "请输入有效的邮箱地址。",
+	emailRequired: "请输入邮箱地址。",
+	passwordSignIn: "登录",
 	githubSignIn: "GitHub",
 	oidcSignIn: "OpenID Connect",
 };

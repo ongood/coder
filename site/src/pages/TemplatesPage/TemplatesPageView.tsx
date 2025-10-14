@@ -54,18 +54,18 @@ import type { TemplateFilterState } from "./TemplatesPage";
 
 const Language = {
 	developerCount: (activeCount: number): string => {
-		return `${formatTemplateActiveDevelopers(activeCount)} developer${
-			activeCount !== 1 ? "s" : ""
+		return `${formatTemplateActiveDevelopers(activeCount)} 名开发人员${
+			activeCount !== 1 ? "" : ""
 		}`;
 	},
-	nameLabel: "Name",
-	buildTimeLabel: "Build time",
-	usedByLabel: "Used by",
-	lastUpdatedLabel: "Last updated",
-	templateTooltipTitle: "What is template?",
+	nameLabel: "名称",
+	buildTimeLabel: "构建时间",
+	usedByLabel: "使用情况",
+	lastUpdatedLabel: "最后更新",
+	templateTooltipTitle: "什么是模板？",
 	templateTooltipText:
-		"With templates you can create a common configuration for your workspaces using Terraform.",
-	templateTooltipLink: "Manage templates",
+		"使用模板，您可以通过 Terraform 为工作区创建通用配置。",
+	templateTooltipLink: "管理模板",
 };
 
 const TemplateHelpTooltip: FC = () => {

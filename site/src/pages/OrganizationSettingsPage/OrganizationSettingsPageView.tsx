@@ -30,6 +30,20 @@ import {
 import * as Yup from "yup";
 import { HorizontalContainer, HorizontalSection } from "./Horizontal";
 
+const Language = {
+	title: "设置",
+	infoTitle: "信息",
+	infoDescription: "组织的名称和描述。",
+	slugLabel: "Slug",
+	displayNameLabel: "显示名称",
+	descriptionLabel: "描述",
+	saveButton: "保存",
+	settingsTitle: "设置",
+	settingsDescription: "更改或删除您的组织。",
+	deleteWarning: "删除组织是不可逆的。",
+	deleteButton: "删除此组织",
+};
+
 const MAX_DESCRIPTION_CHAR_LIMIT = 128;
 const MAX_DESCRIPTION_MESSAGE = `Please enter a description that is no longer than ${MAX_DESCRIPTION_CHAR_LIMIT} characters.`;
 
@@ -70,7 +84,7 @@ export const OrganizationSettingsPageView: FC<
 	return (
 		<div className="w-full max-w-screen-2xl pb-10">
 			<SettingsHeader>
-				<SettingsHeaderTitle>Settings</SettingsHeaderTitle>
+				<SettingsHeaderTitle>{Language.title}</SettingsHeaderTitle>
 			</SettingsHeader>
 
 			{Boolean(error) && !isApiValidationError(error) && (
@@ -84,8 +98,8 @@ export const OrganizationSettingsPageView: FC<
 				aria-label="Organization settings form"
 			>
 				<FormSection
-					title="Info"
-					description="The name and description of the organization."
+					title={Language.infoTitle}
+					description={Language.infoDescription}
 				>
 					<fieldset
 						disabled={form.isSubmitting}
@@ -97,18 +111,18 @@ export const OrganizationSettingsPageView: FC<
 								onChange={onChangeTrimmed(form)}
 								autoFocus
 								fullWidth
-								label="Slug"
+								label={Language.slugLabel}
 							/>
 							<TextField
 								{...getFieldHelpers("display_name")}
 								fullWidth
-								label="Display name"
+								label={Language.displayNameLabel}
 							/>
 							<TextField
 								{...getFieldHelpers("description")}
 								multiline
 								fullWidth
-								label="Description"
+								label={Language.descriptionLabel}
 								rows={2}
 							/>
 							<IconField
@@ -124,7 +138,7 @@ export const OrganizationSettingsPageView: FC<
 				<FormFooter>
 					<Button type="submit" disabled={form.isSubmitting}>
 						<Spinner loading={form.isSubmitting} />
-						Save
+						{Language.saveButton}
 					</Button>
 				</FormFooter>
 			</HorizontalForm>
@@ -132,17 +146,17 @@ export const OrganizationSettingsPageView: FC<
 			{!organization.is_default && (
 				<HorizontalContainer className="mt-12">
 					<HorizontalSection
-						title="Settings"
-						description="Change or delete your organization."
+						title={Language.settingsTitle}
+						description={Language.settingsDescription}
 					>
 						<div className="flex bg-surface-orange items-center justify-between border border-solid border-orange-600 rounded-md p-3 pl-4 gap-2 flex-grow">
-							<span>Deleting an organization is irreversible.</span>
+							<span>{Language.deleteWarning}</span>
 							<Button
 								variant="destructive"
 								onClick={() => setIsDeleting(true)}
 								className="min-w-fit"
 							>
-								Delete this organization
+								{Language.deleteButton}
 							</Button>
 						</div>
 					</HorizontalSection>

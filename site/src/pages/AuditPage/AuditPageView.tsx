@@ -23,8 +23,8 @@ import { AuditHelpTooltip } from "./AuditHelpTooltip";
 import { AuditLogRow } from "./AuditLogRow/AuditLogRow";
 
 const Language = {
-	title: "Audit",
-	subtitle: "View events in your audit log.",
+	title: "审计",
+	subtitle: "查看审计日志中的事件。",
 };
 
 interface AuditPageViewProps {

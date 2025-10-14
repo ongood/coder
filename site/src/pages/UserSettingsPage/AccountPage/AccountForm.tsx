@@ -14,10 +14,10 @@ import {
 import * as Yup from "yup";
 
 export const Language = {
-	usernameLabel: "Username",
-	emailLabel: "Email",
-	nameLabel: "Name",
-	updateSettings: "Update account",
+	usernameLabel: "用户名",
+	emailLabel: "邮箱",
+	nameLabel: "姓名",
+	updateSettings: "更新账户",
 };
 
 const validationSchema = Yup.object({

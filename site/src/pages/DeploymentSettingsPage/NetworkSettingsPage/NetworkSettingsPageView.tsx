@@ -15,6 +15,13 @@ import {
 import { docs } from "utils/docs";
 import OptionsTable from "../OptionsTable";
 
+const Language = {
+	networkTitle: "网络",
+	networkDescription: "配置您的部署连接性。",
+	portForwardingTitle: "端口转发",
+	portForwardingDescription: "端口转发让开发者能够从本地机器安全地访问其 Coder 工作区上的进程。",
+};
+
 type NetworkSettingsPageViewProps = {
 	options: SerpentOption[];
 };
@@ -27,9 +34,9 @@ export const NetworkSettingsPageView: FC<NetworkSettingsPageViewProps> = ({
 			<SettingsHeader
 				actions={<SettingsHeaderDocsLink href={docs("/admin/networking")} />}
 			>
-				<SettingsHeaderTitle>Network</SettingsHeaderTitle>
+				<SettingsHeaderTitle>{Language.networkTitle}</SettingsHeaderTitle>
 				<SettingsHeaderDescription>
-					Configure your deployment connectivity.
+					{Language.networkDescription}
 				</SettingsHeaderDescription>
 			</SettingsHeader>
 
@@ -49,11 +56,10 @@ export const NetworkSettingsPageView: FC<NetworkSettingsPageViewProps> = ({
 				}
 			>
 				<SettingsHeaderTitle level="h2" hierarchy="secondary">
-					Port Forwarding
+					{Language.portForwardingTitle}
 				</SettingsHeaderTitle>
 				<SettingsHeaderDescription>
-					Port forwarding lets developers securely access processes on their
-					Coder workspace from a local machine.
+					{Language.portForwardingDescription}
 				</SettingsHeaderDescription>
 			</SettingsHeader>
 

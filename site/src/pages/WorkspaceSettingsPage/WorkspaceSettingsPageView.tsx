@@ -3,6 +3,10 @@ import { PageHeader, PageHeaderTitle } from "components/PageHeader/PageHeader";
 import type { ComponentProps, FC } from "react";
 import { WorkspaceSettingsForm } from "./WorkspaceSettingsForm";
 
+const Language = {
+	title: "工作区设置",
+};
+
 type WorkspaceSettingsPageViewProps = {
 	error: unknown;
 	workspace: Workspace;
@@ -23,7 +27,7 @@ export const WorkspaceSettingsPageView: FC<WorkspaceSettingsPageViewProps> = ({
 					paddingTop: 0,
 				}}
 			>
-				<PageHeaderTitle>Workspace Settings</PageHeaderTitle>
+				<PageHeaderTitle>{Language.title}</PageHeaderTitle>
 			</PageHeader>
 
 			<WorkspaceSettingsForm

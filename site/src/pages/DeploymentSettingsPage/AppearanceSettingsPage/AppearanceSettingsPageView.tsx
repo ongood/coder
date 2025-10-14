@@ -25,6 +25,22 @@ import { getFormHelpers } from "utils/formUtils";
 import { Fieldset } from "../Fieldset";
 import { AnnouncementBannerSettings } from "./AnnouncementBannerSettings";
 
+const Language = {
+	appearanceTitle: "外观",
+	appearanceDescription: "自定义您的 Coder 部署的外观和感觉。",
+	applicationNameTitle: "应用名称",
+	applicationNameSubtitle: "指定在登录页面上显示的自定义应用名称。",
+	applicationNamePlaceholder: '留空以显示 "Coder"。',
+	applicationNameAriaLabel: "应用名称",
+	logoUrlTitle: "Logo URL",
+	logoUrlSubtitle: "为您的 Logo 指定自定义 URL，将在登录页面和仪表板左上角显示。",
+	logoUrlPlaceholder: "留空以显示 Coder Logo。",
+	logoUrlAriaLabel: "Logo URL",
+	enterpriseOnlyFeature: "这是仅限企业版的功能。",
+	logoBestPractices: "具有透明度和宽高比为 3:1 或更小的图像效果最佳。",
+	submitButton: "提交",
+};
+
 type AppearanceSettingsPageViewProps = {
 	appearance: UpdateAppearanceConfig;
 	isEntitled: boolean;
@@ -60,9 +76,9 @@ export const AppearanceSettingsPageView: FC<
 	return (
 		<>
 			<SettingsHeader>
-				<SettingsHeaderTitle>Appearance</SettingsHeaderTitle>
+				<SettingsHeaderTitle>{Language.appearanceTitle}</SettingsHeaderTitle>
 				<SettingsHeaderDescription>
-					Customize the look and feel of your Coder deployment.
+					{Language.appearanceDescription}
 				</SettingsHeaderDescription>
 			</SettingsHeader>
 
@@ -95,41 +111,40 @@ export const AppearanceSettingsPageView: FC<
 			</Badges>
 
 			<Fieldset
-				title="Application name"
-				subtitle="Specify a custom application name to be displayed on the login page."
-				validation={!isEntitled ? "This is an Enterprise only feature." : ""}
+				title={Language.applicationNameTitle}
+				subtitle={Language.applicationNameSubtitle}
+				validation={!isEntitled ? Language.enterpriseOnlyFeature : ""}
 				onSubmit={applicationNameForm.handleSubmit}
-				button={!isEntitled && <Button disabled>Submit</Button>}
+				button={!isEntitled && <Button disabled>{Language.submitButton}</Button>}
 			>
 				<TextField
 					{...applicationNameFieldHelpers("application_name")}
 					defaultValue={appearance.application_name}
 					fullWidth
-					placeholder='Leave empty to display "Coder".'
+					placeholder={Language.applicationNamePlaceholder}
 					disabled={!isEntitled}
 					inputProps={{
-						"aria-label": "Application name",
+						"aria-label": Language.applicationNameAriaLabel,
 					}}
 				/>
 			</Fieldset>
 
 			<Fieldset
-				title="Logo URL"
-				subtitle="Specify a custom URL for your logo to be displayed on the sign in page and in the top left
-          corner of the dashboard."
+				title={Language.logoUrlTitle}
+				subtitle={Language.logoUrlSubtitle}
 				validation={
 					isEntitled
-						? "An image with transparency and an aspect ratio of 3:1 or less will look best."
-						: "This is an Enterprise only feature."
+						? Language.logoBestPractices
+						: Language.enterpriseOnlyFeature
 				}
 				onSubmit={logoForm.handleSubmit}
-				button={!isEntitled && <Button disabled>Submit</Button>}
+				button={!isEntitled && <Button disabled>{Language.submitButton}</Button>}
 			>
 				<TextField
 					{...logoFieldHelpers("logo_url")}
 					defaultValue={appearance.logo_url}
 					fullWidth
-					placeholder="Leave empty to display the Coder logo."
+					placeholder={Language.logoUrlPlaceholder}
 					disabled={!isEntitled}
 					InputProps={{
 						endAdornment: (
@@ -160,7 +175,7 @@ export const AppearanceSettingsPageView: FC<
 						),
 					}}
 					inputProps={{
-						"aria-label": "Logo URL",
+						"aria-label": Language.logoUrlAriaLabel,
 					}}
 				/>
 			</Fieldset>

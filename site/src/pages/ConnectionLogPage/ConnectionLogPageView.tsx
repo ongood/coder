@@ -23,8 +23,8 @@ import { ConnectionLogHelpTooltip } from "./ConnectionLogHelpTooltip";
 import { ConnectionLogRow } from "./ConnectionLogRow/ConnectionLogRow";
 
 const Language = {
-	title: "Connection Log",
-	subtitle: "View workspace connection events.",
+	title: "连接日志",
+	subtitle: "查看工作区连接事件。",
 };
 
 interface ConnectionLogPageViewProps {

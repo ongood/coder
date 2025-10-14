@@ -36,12 +36,12 @@ import { WorkspaceHelpTooltip } from "./WorkspaceHelpTooltip";
 import { WorkspacesButton } from "./WorkspacesButton";
 
 const Language = {
-	pageTitle: "Workspaces",
-	yourWorkspacesButton: "Your workspaces",
-	allWorkspacesButton: "All workspaces",
-	runningWorkspacesButton: "Running workspaces",
-	seeAllTemplates: "See all templates",
-	template: "Template",
+	pageTitle: "工作区",
+	yourWorkspacesButton: "您的工作区",
+	allWorkspacesButton: "所有工作区",
+	runningWorkspacesButton: "运行中的工作区",
+	seeAllTemplates: "查看所有模板",
+	template: "模板",
 };
 
 type TemplateQuery = UseQueryResult<Template[]>;

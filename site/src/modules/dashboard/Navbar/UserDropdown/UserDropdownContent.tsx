@@ -26,8 +26,8 @@ import type { FC, JSX } from "react";
 import { Link } from "react-router";
 
 export const Language = {
-	accountLabel: "Account",
-	signOutLabel: "Sign Out",
+	accountLabel: "账户",
+	signOutLabel: "退出登录",
 	copyrightText: `\u00a9 ${new Date().getFullYear()} Coder Technologies, Inc.`,
 };
 

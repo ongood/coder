@@ -13,13 +13,13 @@ interface ResetPasswordDialogProps {
 }
 
 const Language = {
-	title: "Reset password",
+	title: "重置密码",
 	message: (username?: string): JSX.Element => (
 		<>
-			You will need to send <strong>{username}</strong> the following password:
+			您需要将以下密码发送给 <strong>{username}</strong>：
 		</>
 	),
-	confirmText: "Reset password",
+	confirmText: "重置密码",
 };
 
 export const ResetPasswordDialog: FC<ResetPasswordDialogProps> = ({

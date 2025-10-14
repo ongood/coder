@@ -13,12 +13,12 @@ import { TableColumnHelpTooltip } from "../../OrganizationSettingsPage/UserTable
 import { UsersTableBody } from "./UsersTableBody";
 
 const Language = {
-	usernameLabel: "User",
-	rolesLabel: "Roles",
-	groupsLabel: "Groups",
-	statusLabel: "Status",
-	lastSeenLabel: "Last Seen",
-	loginTypeLabel: "Login Type",
+	usernameLabel: "用户",
+	rolesLabel: "角色",
+	groupsLabel: "群组",
+	statusLabel: "状态",
+	lastSeenLabel: "最后在线",
+	loginTypeLabel: "登录类型",
 } as const;
 
 interface UsersTableProps {

@@ -8,14 +8,14 @@ import { Section } from "../Section";
 import { SSHKeysPageView } from "./SSHKeysPageView";
 
 export const Language = {
-	title: "SSH keys",
-	regenerateDialogTitle: "Regenerate SSH key?",
-	regenerationError: "Failed to regenerate SSH key",
-	regenerationSuccess: "SSH Key regenerated successfully.",
+	title: "SSH 密钥",
+	regenerateDialogTitle: "重新生成 SSH 密钥？",
+	regenerationError: "重新生成 SSH 密钥失败",
+	regenerationSuccess: "SSH 密钥重新生成成功。",
 	regenerateDialogMessage:
-		"You will need to replace the public SSH key on services you use it with, and you'll need to rebuild existing workspaces.",
-	confirmLabel: "Confirm",
-	cancelLabel: "Cancel",
+		"您需要在使用的服务上替换公钥 SSH 密钥，并且需要重新构建现有的工作区。",
+	confirmLabel: "确认",
+	cancelLabel: "取消",
 };
 
 const SSHKeysPage: FC = () => {

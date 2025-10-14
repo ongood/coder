@@ -16,6 +16,12 @@ import { Link as RouterLink } from "react-router";
 import { UsersFilter } from "./UsersFilter";
 import { UsersTable } from "./UsersTable/UsersTable";
 
+const Language = {
+	title: "用户",
+	description: "管理用户账户和权限。",
+	createUser: "创建用户",
+};
+
 interface UsersPageViewProps {
 	users?: readonly TypesGen.User[];
 	roles?: TypesGen.AssignableRoles[];
@@ -77,15 +83,15 @@ export const UsersPageView: FC<UsersPageViewProps> = ({
 						<Button asChild>
 							<RouterLink to="create">
 								<UserPlusIcon />
-								Create user
+								{Language.createUser}
 							</RouterLink>
 						</Button>
 					)
 				}
 			>
-				<SettingsHeaderTitle>Users</SettingsHeaderTitle>
+				<SettingsHeaderTitle>{Language.title}</SettingsHeaderTitle>
 				<SettingsHeaderDescription>
-					Manage user accounts and permissions.
+					{Language.description}
 				</SettingsHeaderDescription>
 			</SettingsHeader>
 

@@ -20,6 +20,18 @@ import {
 	type LinkProps as RouterLinkProps,
 } from "react-router";
 
+const Language = {
+	noTemplatesYet: "尚无模板。",
+	createOneNow: "立即创建一个。",
+	noTemplatesFound: "未找到模板",
+	placeholder: "输入/选择工作区模板",
+	ariaLabel: "工作区模板选择",
+	seeAllTemplates: "查看所有模板",
+	noDevelopers: "无",
+	developer: "开发者",
+	developers: "开发者",
+};
+
 type TemplatesQuery = UseQueryResult<Template[]>;
 
 interface WorkspacesButtonProps {
@@ -42,14 +54,14 @@ export const WorkspacesButton: FC<WorkspacesButtonProps> = ({
 	if (templates?.length === 0) {
 		emptyState = (
 			<SearchEmpty>
-				No templates yet.{" "}
+				{Language.noTemplatesYet}{" "}
 				<Link to="/templates" component={RouterLink}>
-					Create one now.
+					{Language.createOneNow}
 				</Link>
 			</SearchEmpty>
 		);
 	} else if (processed.length === 0) {
-		emptyState = <SearchEmpty>No templates found</SearchEmpty>;
+		emptyState = <SearchEmpty>{Language.noTemplatesFound}</SearchEmpty>;
 	}
 
 	return (
@@ -68,8 +80,8 @@ export const WorkspacesButton: FC<WorkspacesButtonProps> = ({
 					value={searchTerm}
 					autoFocus={true}
 					onChange={setSearchTerm}
-					placeholder="Type/select a workspace template"
-					aria-label="Template select for workspace"
+					placeholder={Language.placeholder}
+					aria-label={Language.ariaLabel}
 				/>
 
 				<OverflowY
@@ -110,7 +122,7 @@ export const WorkspacesButton: FC<WorkspacesButtonProps> = ({
 						})}
 					>
 						<ExternalLinkIcon className="size-icon-xs" />
-						<span>See all templates</span>
+						<span>{Language.seeAllTemplates}</span>
 					</PopoverLink>
 				</div>
 			</PopoverContent>
@@ -167,9 +179,8 @@ const WorkspaceResultsRow: FC<WorkspaceResultsRowProps> = ({ template }) => {
 					 * basically functioning like a null value in JS. Can safely just
 					 * treat them as if they were 0.
 					 */}
-					{template.active_user_count <= 0 ? "No" : template.active_user_count}{" "}
-					developer
-					{template.active_user_count === 1 ? "" : "s"}
+					{template.active_user_count <= 0 ? Language.noDevelopers : template.active_user_count}{" "}
+					{template.active_user_count === 1 ? Language.developer : Language.developers}
 				</span>
 			</div>
 		</PopoverLink>

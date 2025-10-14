@@ -20,6 +20,15 @@ import {
 import { docs } from "utils/docs";
 import OptionsTable from "../OptionsTable";
 
+const Language = {
+	securityTitle: "安全",
+	securityDescription: "确保您的 Coder 部署安全。",
+	browserOnlyTitle: "仅浏览器连接",
+	browserOnlyDescription: "阻止所有通过 SSH、端口转发和其他非浏览器连接的工作区访问。",
+	tlsTitle: "TLS",
+	tlsDescription: "确保为您的 Coder 部署正确配置 TLS。",
+};
+
 type SecuritySettingsPageViewProps = {
 	options: SerpentOption[];
 	featureBrowserOnlyEnabled: boolean;
@@ -62,11 +71,10 @@ export const SecuritySettingsPageView: FC<SecuritySettingsPageViewProps> = ({
 					}
 				>
 					<SettingsHeaderTitle level="h2" hierarchy="secondary">
-						Browser-Only Connections
+						{Language.browserOnlyTitle}
 					</SettingsHeaderTitle>
 					<SettingsHeaderDescription>
-						Block all workspace access via SSH, port forward, and other
-						non-browser connections.
+						{Language.browserOnlyDescription}
 					</SettingsHeaderDescription>
 				</SettingsHeader>
 
