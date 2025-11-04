@@ -1,5 +1,5 @@
 # 1.86.0
-FROM rust:slim@sha256:1219c0b5980e8310eb8e08a7fec9e2159ffc9f166cc9999ddb13604c43cd0eb6 AS rust-utils
+FROM rust:slim@sha256:af95fd1bb203d15e0e82a3c2ade1799767aa99dd91a652ce044533d6582d7415 AS rust-utils
 # Install rust helper programs
 ENV CARGO_INSTALL_ROOT=/tmp/
 # Use more reliable mirrors for Debian packages
@@ -8,7 +8,7 @@ RUN sed -i 's|http://deb.debian.org/debian|http://mirrors.edge.kernel.org/debian
 RUN apt-get update && apt-get install -y libssl-dev openssl pkg-config build-essential
 RUN cargo install jj-cli typos-cli watchexec-cli
 
-FROM ubuntu:jammy@sha256:4e0171b9275e12d375863f2b3ae9ce00a4c53ddda176bd55868df97ac6f21a6e AS go
+FROM ubuntu:jammy@sha256:09506232a8004baa32c47d68f1e5c307d648fdd59f5e7eaa42aaf87914100db3 AS go
 
 # Install Go manually, so that we can control the version
 ARG GO_VERSION=1.24.6
@@ -62,7 +62,12 @@ RUN apt-get update && \
 	# charts and values files
 	go install github.com/norwoodj/helm-docs/cmd/helm-docs@v1.5.0 && \
 	# sqlc for Go code generation
-	(CGO_ENABLED=1 go install github.com/sqlc-dev/sqlc/cmd/sqlc@v1.27.0) && \
+	# (CGO_ENABLED=1 go install github.com/sqlc-dev/sqlc/cmd/sqlc@v1.27.0) && \
+	#
+	# Switched to coder/sqlc fork to fix ambiguous column bug, see:
+	# - https://github.com/coder/sqlc/pull/1
+	# - https://github.com/sqlc-dev/sqlc/pull/4159
+	(CGO_ENABLED=1 go install github.com/coder/sqlc/cmd/sqlc@aab4e865a51df0c43e1839f81a9d349b41d14f05) && \
 	# gcr-cleaner-cli used by CI to prune unused images
 	go install github.com/sethvargo/gcr-cleaner/cmd/gcr-cleaner-cli@v0.5.1 && \
 	# ruleguard for checking custom rules, without needing to run all of
@@ -97,7 +102,7 @@ RUN curl -L -o protoc.zip https://github.com/protocolbuffers/protobuf/releases/d
 	unzip protoc.zip && \
 	rm protoc.zip
 
-FROM ubuntu:jammy@sha256:4e0171b9275e12d375863f2b3ae9ce00a4c53ddda176bd55868df97ac6f21a6e
+FROM ubuntu:jammy@sha256:09506232a8004baa32c47d68f1e5c307d648fdd59f5e7eaa42aaf87914100db3
 
 SHELL ["/bin/bash", "-c"]
 
@@ -209,7 +214,7 @@ RUN sed -i 's|http://archive.ubuntu.com/ubuntu/|http://mirrors.edge.kernel.org/u
 
 # NOTE: In scripts/Dockerfile.base we specifically install Terraform version 1.12.2.
 # Installing the same version here to match.
-RUN wget -O /tmp/terraform.zip "https://releases.hashicorp.com/terraform/1.13.0/terraform_1.13.0_linux_amd64.zip" && \
+RUN wget -O /tmp/terraform.zip "https://releases.hashicorp.com/terraform/1.13.4/terraform_1.13.4_linux_amd64.zip" && \
 	unzip /tmp/terraform.zip -d /usr/local/bin && \
 	rm -f /tmp/terraform.zip && \
 	chmod +x /usr/local/bin/terraform && \

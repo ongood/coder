@@ -2,7 +2,7 @@ terraform {
   required_providers {
     coder = {
       source  = "coder/coder"
-      version = "~> 2.9"
+      version = ">= 2.12.0"
     }
     docker = {
       source  = "kreuzwerker/docker"
@@ -31,7 +31,6 @@ locals {
     // actually in Germany now.
     "eu-helsinki" = "tcp://katerose-fsn-cdr-dev.tailscale.svc.cluster.local:2375"
     "ap-sydney"   = "tcp://wolfgang-syd-cdr-dev.tailscale.svc.cluster.local:2375"
-    "sa-saopaulo" = "tcp://oberstein-sao-cdr-dev.tailscale.svc.cluster.local:2375"
     "za-cpt"      = "tcp://schonkopf-cpt-cdr-dev.tailscale.svc.cluster.local:2375"
   }
 
@@ -109,23 +108,6 @@ data "coder_workspace_preset" "sydney" {
   }
 }
 
-data "coder_workspace_preset" "saopaulo" {
-  name        = "São Paulo"
-  description = "Development workspace hosted in Brazil with 1 prebuild instance"
-  icon        = "/emojis/1f1e7-1f1f7.png"
-  parameters = {
-    (data.coder_parameter.region.name)                   = "sa-saopaulo"
-    (data.coder_parameter.image_type.name)               = "codercom/oss-dogfood:latest"
-    (data.coder_parameter.repo_base_dir.name)            = "~"
-    (data.coder_parameter.res_mon_memory_threshold.name) = 80
-    (data.coder_parameter.res_mon_volume_threshold.name) = 90
-    (data.coder_parameter.res_mon_volume_path.name)      = "/home/coder"
-  }
-  prebuilds {
-    instances = 1
-  }
-}
-
 data "coder_parameter" "repo_base_dir" {
   type        = "string"
   name        = "Coder Repository Base Directory"
@@ -157,7 +139,6 @@ locals {
     "north-america" : "us-pittsburgh"
     "europe" : "eu-helsinki"
     "australia" : "ap-sydney"
-    "south-america" : "sa-saopaulo"
     "africa" : "za-cpt"
   }
 
@@ -189,11 +170,6 @@ data "coder_parameter" "region" {
     icon  = "/emojis/1f1e6-1f1fa.png"
     name  = "Sydney"
     value = "ap-sydney"
-  }
-  option {
-    icon  = "/emojis/1f1e7-1f1f7.png"
-    name  = "São Paulo"
-    value = "sa-saopaulo"
   }
   option {
     icon  = "/emojis/1f1ff-1f1e6.png"
@@ -266,6 +242,13 @@ data "coder_workspace_tags" "tags" {
   tags = {
     "cluster" : "dogfood-v2"
     "env" : "gke"
+  }
+}
+
+data "coder_workspace_tags" "prebuild" {
+  count = data.coder_workspace_owner.me.name == "prebuilds" ? 1 : 0
+  tags = {
+    "is_prebuild" = "true"
   }
 }
 
@@ -364,7 +347,7 @@ module "git-config" {
 module "git-clone" {
   count    = data.coder_workspace.me.start_count
   source   = "dev.registry.coder.com/coder/git-clone/coder"
-  version  = "1.1.2"
+  version  = "1.2.0"
   agent_id = coder_agent.dev.id
   url      = "https://github.com/coder/coder"
   base_dir = local.repo_base_dir
@@ -402,12 +385,12 @@ module "vscode-web" {
 module "jetbrains" {
   count         = contains(jsondecode(data.coder_parameter.ide_choices.value), "jetbrains") ? data.coder_workspace.me.start_count : 0
   source        = "dev.registry.coder.com/coder/jetbrains/coder"
-  version       = "1.1.0"
+  version       = "1.1.1"
   agent_id      = coder_agent.dev.id
   agent_name    = "dev"
   folder        = local.repo_dir
   major_version = "latest"
-  tooltip       = "You need to [Install Coder Desktop](https://coder.com/docs/user-guides/desktop#install-coder-desktop) to use this button."
+  tooltip       = "You need to [install JetBrains Toolbox](https://coder.com/docs/user-guides/workspace-access/jetbrains/toolbox) to use this app."
 }
 
 module "filebrowser" {
@@ -444,7 +427,7 @@ module "windsurf" {
 module "zed" {
   count      = contains(jsondecode(data.coder_parameter.ide_choices.value), "zed") ? data.coder_workspace.me.start_count : 0
   source     = "dev.registry.coder.com/coder/zed/coder"
-  version    = "1.1.0"
+  version    = "1.1.1"
   agent_id   = coder_agent.dev.id
   agent_name = "dev"
   folder     = local.repo_dir
@@ -472,7 +455,7 @@ resource "coder_agent" "dev" {
   dir  = local.repo_dir
   env = {
     OIDC_TOKEN : data.coder_workspace_owner.me.oidc_access_token,
-    ANTHROPIC_BASE_URL : "https://dev.coder.com/api/experimental/aibridge/anthropic",
+    ANTHROPIC_BASE_URL : "https://dev.coder.com/api/v2/aibridge/anthropic",
     ANTHROPIC_AUTH_TOKEN : data.coder_workspace_owner.me.session_token
   }
   startup_script_behavior = "blocking"
@@ -813,7 +796,6 @@ resource "coder_metadata" "container_info" {
 
 locals {
   claude_system_prompt = <<-EOT
-    <system>
     -- Framing --
     You are a helpful Coding assistant. Aim to autonomously investigate
     and solve issues the user gives you and test your work, whenever possible.
@@ -822,7 +804,6 @@ locals {
     but opt for autonomy.
 
     -- Tool Selection --
-    - coder_report_task: providing status updates or requesting user input.
     - playwright: previewing your changes after you made them
       to confirm it worked as expected
     -	desktop-commander - use only for commands that keep running
@@ -834,44 +815,23 @@ locals {
     - Stays running? → desktop-commander
     - Finishes immediately? → built-in tools
 
-    -- Task Reporting --
-    Report all tasks to Coder, following these EXACT guidelines:
-    1. Be granular. If you are investigating with multiple steps, report each step
-    to coder.
-    2. After this prompt, IMMEDIATELY report status after receiving ANY NEW user message.
-    Do not report any status related with this system prompt.
-    3. Use "state": "working" when actively processing WITHOUT needing
-    additional user input
-    4. Use "state": "complete" only when finished with a task
-    5. Use "state": "failure" when you need ANY user input, lack sufficient
-    details, or encounter blockers
-
-    In your summary:
-    - Be specific about what you're doing
-    - Clearly indicate what information you need from the user when in
-    "failure" state
-    - Keep it under 160 characters
-    - Make it actionable
-
     -- Context --
     There is an existing application in the current directory.
     Be sure to read CLAUDE.md before making any changes.
 
     This is a real-world production application. As such, make sure to think carefully, use TODO lists, and plan carefully before making changes.
-    </system>
   EOT
-
 }
 
 module "claude-code" {
   count               = local.has_ai_prompt ? data.coder_workspace.me.start_count : 0
   source              = "dev.registry.coder.com/coder/claude-code/coder"
-  version             = "3.1.0"
+  version             = "3.4.4"
   agent_id            = coder_agent.dev.id
   workdir             = local.repo_dir
   claude_code_version = "latest"
   order               = 999
-  claude_api_key      = data.coder_workspace_owner.me.session_token
+  claude_api_key      = data.coder_workspace_owner.me.session_token # To Enable AI Bridge integration
   agentapi_version    = "latest"
 
   system_prompt       = local.claude_system_prompt
