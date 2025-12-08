@@ -436,7 +436,7 @@ module "zed" {
 module "jetbrains-fleet" {
   count      = contains(jsondecode(data.coder_parameter.ide_choices.value), "fleet") ? data.coder_workspace.me.start_count : 0
   source     = "registry.coder.com/coder/jetbrains-fleet/coder"
-  version    = "1.0.1"
+  version    = "1.0.2"
   agent_id   = coder_agent.dev.id
   agent_name = "dev"
   folder     = local.repo_dir
