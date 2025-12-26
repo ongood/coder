@@ -32,6 +32,9 @@ export interface AIBridgeConfig {
 	readonly anthropic: AIBridgeAnthropicConfig;
 	readonly bedrock: AIBridgeBedrockConfig;
 	readonly inject_coder_mcp_tools: boolean;
+	readonly retention: number;
+	readonly max_concurrency: number;
+	readonly rate_limit: number;
 }
 
 // From codersdk/aibridge.go
@@ -104,22 +107,6 @@ export interface AIBridgeUserPrompt {
 export interface AIConfig {
 	readonly bridge?: AIBridgeConfig;
 }
-
-// From codersdk/aitasks.go
-/**
- * AITaskPromptParameterName is the name of the parameter used to pass prompts
- * to AI tasks.
- *
- * Deprecated: This constant is deprecated and maintained only for backwards
- * compatibility with older templates. Task prompts are now stored directly
- * in the tasks.prompt database column. New code should access prompts via
- * the Task.InitialPrompt field returned from task endpoints.
- *
- * This constant will be removed in a future major version. Templates should
- * not rely on this parameter name, as the backend will continue to create it
- * automatically for compatibility but reads from tasks.prompt.
- */
-export const AITaskPromptParameterName = "AI Prompt";
 
 // From codersdk/allowlist.go
 /**
@@ -1194,14 +1181,13 @@ export interface CreateProvisionerKeyResponse {
 // From codersdk/aitasks.go
 /**
  * CreateTaskRequest represents the request to create a new task.
- *
- * Experimental: This type is experimental and may change in the future.
  */
 export interface CreateTaskRequest {
 	readonly template_version_id: string;
 	readonly template_version_preset_id?: string;
 	readonly input: string;
 	readonly name?: string;
+	readonly display_name?: string;
 }
 
 // From codersdk/organizations.go
@@ -1772,12 +1758,14 @@ export interface DeploymentValues {
 	readonly config_ssh?: SSHConfig;
 	readonly wgtunnel_host?: string;
 	readonly disable_owner_workspace_exec?: boolean;
+	readonly disable_workspace_sharing?: boolean;
 	readonly proxy_health_status_interval?: number;
 	readonly enable_terraform_debug_mode?: boolean;
 	readonly user_quiet_hours_schedule?: UserQuietHoursScheduleConfig;
 	readonly web_terminal_renderer?: string;
 	readonly allow_workspace_renames?: boolean;
 	readonly healthcheck?: HealthcheckConfig;
+	readonly retention?: RetentionConfig;
 	readonly cli_upgrade_message?: string;
 	readonly terms_of_service_url?: string;
 	readonly notifications?: NotificationsConfig;
@@ -1786,6 +1774,7 @@ export interface DeploymentValues {
 	readonly workspace_prebuilds?: PrebuildsConfig;
 	readonly hide_ai_tasks?: boolean;
 	readonly ai?: AIConfig;
+	readonly template_insights?: TemplateInsightsConfig;
 	readonly config?: string;
 	readonly write_config?: boolean;
 	/**
@@ -1999,6 +1988,11 @@ export interface ExternalAuthConfig {
 	 * DisplayIcon is a URL to an icon to display in the UI.
 	 */
 	readonly display_icon: string;
+	/**
+	 * CodeChallengeMethodsSupported lists the PKCE code challenge methods
+	 * The only one supported by Coder is "S256".
+	 */
+	readonly code_challenge_methods_supported: readonly string[];
 }
 
 // From codersdk/externalauth.go
@@ -2048,6 +2042,7 @@ export interface ExternalAuthLinkProvider {
 	readonly allow_refresh: boolean;
 	readonly allow_validate: boolean;
 	readonly supports_revocation: boolean;
+	readonly code_challenge_methods_supported: readonly string[];
 }
 
 // From codersdk/externalauth.go
@@ -2103,6 +2098,7 @@ export type FeatureName =
 	| "multiple_external_auth"
 	| "multiple_organizations"
 	| "scim"
+	| "task_batch_actions"
 	| "template_rbac"
 	| "user_limit"
 	| "user_role_management"
@@ -2128,6 +2124,7 @@ export const FeatureNames: FeatureName[] = [
 	"multiple_external_auth",
 	"multiple_organizations",
 	"scim",
+	"task_batch_actions",
 	"template_rbac",
 	"user_limit",
 	"user_role_management",
@@ -2173,7 +2170,11 @@ export interface GetInboxNotificationResponse {
 
 // From codersdk/insights.go
 export interface GetUserStatusCountsRequest {
-	readonly offset: string;
+	/**
+	 * Timezone offset in hours. Use 0 for UTC, and TimezoneOffsetHour(time.Local)
+	 * for the local timezone.
+	 */
+	readonly offset: number;
 }
 
 // From codersdk/insights.go
@@ -2480,6 +2481,18 @@ export const InsightsReportIntervals: InsightsReportInterval[] = [
 	"day",
 	"week",
 ];
+
+// From codersdk/templates.go
+export interface InvalidatePresetsResponse {
+	readonly invalidated: readonly InvalidatedPreset[];
+}
+
+// From codersdk/templates.go
+export interface InvalidatedPreset {
+	readonly template_name: string;
+	readonly template_version_name: string;
+	readonly preset_name: string;
+}
 
 // From codersdk/workspaceagents.go
 export interface IssueReconnectingPTYSignedTokenRequest {
@@ -3026,6 +3039,14 @@ export interface OAuth2GithubConfig {
 	readonly allow_everyone: boolean;
 	readonly enterprise_base_url: string;
 }
+
+// From codersdk/client.go
+/**
+ * OAuth2PKCEVerifier is the name of the cookie that stores the oauth2 PKCE
+ * verifier. This is the raw verifier that when hashed, will match the challenge
+ * sent in the initial oauth2 request.
+ */
+export const OAuth2PKCEVerifier = "oauth_pkce_verifier";
 
 // From codersdk/oauth2.go
 /**
@@ -4142,6 +4163,39 @@ export interface Response {
 	readonly validations?: readonly ValidationError[];
 }
 
+// From codersdk/deployment.go
+/**
+ * RetentionConfig contains configuration for data retention policies.
+ * These settings control how long various types of data are retained in the database
+ * before being automatically purged. Setting a value to 0 disables retention for that
+ * data type (data is kept indefinitely).
+ */
+export interface RetentionConfig {
+	/**
+	 * AuditLogs controls how long audit log entries are retained.
+	 * Set to 0 to disable (keep indefinitely).
+	 */
+	readonly audit_logs: number;
+	/**
+	 * ConnectionLogs controls how long connection log entries are retained.
+	 * Set to 0 to disable (keep indefinitely).
+	 */
+	readonly connection_logs: number;
+	/**
+	 * APIKeys controls how long expired API keys are retained before being deleted.
+	 * Keys are only deleted if they have been expired for at least this duration.
+	 * Defaults to 7 days to preserve existing behavior.
+	 */
+	readonly api_keys: number;
+	/**
+	 * WorkspaceAgentLogs controls how long workspace agent logs are retained.
+	 * Logs are deleted if the agent hasn't connected within this period.
+	 * Logs from the latest build are always retained regardless of age.
+	 * Defaults to 7 days to preserve existing behavior.
+	 */
+	readonly workspace_agent_logs: number;
+}
+
 // From codersdk/roles.go
 /**
  * Role is a longer form of SlimRole that includes permissions details.
@@ -4479,6 +4533,23 @@ export interface SessionLifetime {
  */
 export const SessionTokenHeader = "Coder-Session-Token";
 
+// From codersdk/workspaces.go
+export interface SharedWorkspaceActor {
+	readonly id: string;
+	readonly actor_type: SharedWorkspaceActorType;
+	readonly name: string;
+	readonly avatar_url?: string;
+	readonly roles: readonly WorkspaceRole[];
+}
+
+// From codersdk/workspaces.go
+export type SharedWorkspaceActorType = "group" | "user";
+
+export const SharedWorkspaceActorTypes: SharedWorkspaceActorType[] = [
+	"group",
+	"user",
+];
+
 // From codersdk/client.go
 /**
  * SignedAppTokenCookie is the name of the cookie that stores a temporary
@@ -4709,8 +4780,6 @@ export interface TailDERPRegion {
 // From codersdk/aitasks.go
 /**
  * Task represents a task.
- *
- * Experimental: This type is experimental and may change in the future.
  */
 export interface Task {
 	readonly id: string;
@@ -4719,6 +4788,7 @@ export interface Task {
 	readonly owner_name: string;
 	readonly owner_avatar_url?: string;
 	readonly name: string;
+	readonly display_name: string;
 	readonly template_id: string;
 	readonly template_version_id: string;
 	readonly template_name: string;
@@ -4742,8 +4812,6 @@ export interface Task {
 // From codersdk/aitasks.go
 /**
  * TaskLogEntry represents a single log entry for a task.
- *
- * Experimental: This type is experimental and may change in the future.
  */
 export interface TaskLogEntry {
 	readonly id: number;
@@ -4760,8 +4828,6 @@ export const TaskLogTypes: TaskLogType[] = ["input", "output"];
 // From codersdk/aitasks.go
 /**
  * TaskLogsResponse contains the logs for a task.
- *
- * Experimental: This type is experimental and may change in the future.
  */
 export interface TaskLogsResponse {
 	readonly logs: readonly TaskLogEntry[];
@@ -4770,8 +4836,6 @@ export interface TaskLogsResponse {
 // From codersdk/aitasks.go
 /**
  * TaskSendRequest is used to send task input to the tasks sidebar app.
- *
- * Experimental: This type is experimental and may change in the future.
  */
 export interface TaskSendRequest {
 	readonly input: string;
@@ -4783,8 +4847,6 @@ export type TaskState = "complete" | "failed" | "idle" | "working";
 // From codersdk/aitasks.go
 /**
  * TaskStateEntry represents a single entry in the task's state history.
- *
- * Experimental: This type is experimental and may change in the future.
  */
 export interface TaskStateEntry {
 	readonly timestamp: string;
@@ -4821,8 +4883,6 @@ export const TaskStatuses: TaskStatus[] = [
 // From codersdk/aitasks.go
 /**
  * TasksFilter filters the list of tasks.
- *
- * Experimental: This type is experimental and may change in the future.
  */
 export interface TasksFilter {
 	/**
@@ -4846,8 +4906,6 @@ export interface TasksFilter {
 // From codersdk/aitasks.go
 /**
  * TaskListResponse is the response shape for tasks list.
- *
- * Experimental response shape for tasks list (server returns []Task).
  */
 export interface TasksListResponse {
 	readonly tasks: readonly Task[];
@@ -5036,6 +5094,11 @@ export interface TemplateFilter {
 // From codersdk/templates.go
 export interface TemplateGroup extends Group {
 	readonly role: TemplateRole;
+}
+
+// From codersdk/deployment.go
+export interface TemplateInsightsConfig {
+	readonly enable: boolean;
 }
 
 // From codersdk/insights.go
@@ -5358,6 +5421,14 @@ export interface UpdateRoles {
 	readonly roles: readonly string[];
 }
 
+// From codersdk/aitasks.go
+/**
+ * UpdateTaskInputRequest is used to update a task's input.
+ */
+export interface UpdateTaskInputRequest {
+	readonly input: string;
+}
+
 // From codersdk/templates.go
 export interface UpdateTemplateACL {
 	/**
@@ -5468,6 +5539,11 @@ export interface UpdateUserNotificationPreferences {
 export interface UpdateUserPasswordRequest {
 	readonly old_password: string;
 	readonly password: string;
+}
+
+// From codersdk/users.go
+export interface UpdateUserPreferenceSettingsRequest {
+	readonly task_notification_alert_dismissed: boolean;
 }
 
 // From codersdk/users.go
@@ -5698,6 +5774,11 @@ export interface UserParameter {
 	readonly value: string;
 }
 
+// From codersdk/users.go
+export interface UserPreferenceSettings {
+	readonly task_notification_alert_dismissed: boolean;
+}
+
 // From codersdk/deployment.go
 export interface UserQuietHoursScheduleConfig {
 	readonly default_schedule: string;
@@ -5886,6 +5967,7 @@ export interface Workspace {
 	 * TaskID, if set, indicates that the workspace is relevant to the given codersdk.Task.
 	 */
 	readonly task_id?: string;
+	readonly shared_with?: readonly SharedWorkspaceActor[];
 }
 
 // From codersdk/workspaces.go
@@ -6045,13 +6127,15 @@ export interface WorkspaceAgentDevcontainerAgent {
 
 // From codersdk/workspaceagents.go
 export type WorkspaceAgentDevcontainerStatus =
+	| "deleting"
 	| "error"
 	| "running"
 	| "starting"
-	| "stopped";
+	| "stopped"
+	| "stopping";
 
 export const WorkspaceAgentDevcontainerStatuses: WorkspaceAgentDevcontainerStatus[] =
-	["error", "running", "starting", "stopped"];
+	["deleting", "error", "running", "starting", "stopped", "stopping"];
 
 // From codersdk/workspaceagents.go
 export interface WorkspaceAgentHealth {

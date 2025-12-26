@@ -14,6 +14,8 @@ import (
 	"testing"
 	"time"
 
+	"cdr.dev/slog"
+
 	"github.com/google/uuid"
 	"github.com/sqlc-dev/pqtype"
 	"github.com/stretchr/testify/require"
@@ -175,6 +177,13 @@ func APIKey(t testing.TB, db database.Store, seed database.APIKey, munge ...func
 		}
 	}
 
+	// It does not make sense for the created_at to be after the expires_at.
+	// So if expires is set, change the default created_at to be 24 hours before.
+	var createdAt time.Time
+	if !seed.ExpiresAt.IsZero() && seed.CreatedAt.IsZero() {
+		createdAt = seed.ExpiresAt.Add(-24 * time.Hour)
+	}
+
 	params := database.InsertAPIKeyParams{
 		ID: takeFirst(seed.ID, id),
 		// 0 defaults to 86400 at the db layer
@@ -184,7 +193,7 @@ func APIKey(t testing.TB, db database.Store, seed database.APIKey, munge ...func
 		UserID:          takeFirst(seed.UserID, uuid.New()),
 		LastUsed:        takeFirst(seed.LastUsed, dbtime.Now()),
 		ExpiresAt:       takeFirst(seed.ExpiresAt, dbtime.Now().Add(time.Hour)),
-		CreatedAt:       takeFirst(seed.CreatedAt, dbtime.Now()),
+		CreatedAt:       takeFirst(seed.CreatedAt, createdAt, dbtime.Now()),
 		UpdatedAt:       takeFirst(seed.UpdatedAt, dbtime.Now()),
 		LoginType:       takeFirst(seed.LoginType, database.LoginTypePassword),
 		Scopes:          takeFirstSlice([]database.APIKeyScope(seed.Scopes), []database.APIKeyScope{database.ApiKeyScopeCoderAll}),
@@ -430,6 +439,24 @@ func Workspace(t testing.TB, db database.Store, orig database.WorkspaceTable) da
 		require.NoError(t, err, "set workspace as dormant")
 		workspace.DormantAt = orig.DormantAt
 	}
+	if len(orig.UserACL) > 0 || len(orig.GroupACL) > 0 {
+		userACL := orig.UserACL
+		if userACL == nil {
+			userACL = database.WorkspaceACL{}
+		}
+		groupACL := orig.GroupACL
+		if groupACL == nil {
+			groupACL = database.WorkspaceACL{}
+		}
+		err = db.UpdateWorkspaceACLByID(genCtx, database.UpdateWorkspaceACLByIDParams{
+			ID:       workspace.ID,
+			UserACL:  userACL,
+			GroupACL: groupACL,
+		})
+		require.NoError(t, err, "set workspace ACL")
+		workspace.UserACL = orig.UserACL
+		workspace.GroupACL = orig.GroupACL
+	}
 	return workspace
 }
 
@@ -553,9 +580,10 @@ func User(t testing.TB, db database.Store, orig database.User) database.User {
 	require.NoError(t, err, "insert user")
 
 	user, err = db.UpdateUserStatus(genCtx, database.UpdateUserStatusParams{
-		ID:        user.ID,
-		Status:    takeFirst(orig.Status, database.UserStatusActive),
-		UpdatedAt: dbtime.Now(),
+		ID:         user.ID,
+		Status:     takeFirst(orig.Status, database.UserStatusActive),
+		UpdatedAt:  dbtime.Now(),
+		UserIsSeen: false,
 	})
 	require.NoError(t, err, "insert user")
 
@@ -1428,6 +1456,7 @@ func Preset(t testing.TB, db database.Store, seed database.InsertPresetParams) d
 		IsDefault:           seed.IsDefault,
 		Description:         seed.Description,
 		Icon:                seed.Icon,
+		LastInvalidatedAt:   seed.LastInvalidatedAt,
 	})
 	require.NoError(t, err, "insert preset")
 	return preset
@@ -1574,11 +1603,13 @@ func Task(t testing.TB, db database.Store, orig database.TaskTable) database.Tas
 		parameters = json.RawMessage([]byte("{}"))
 	}
 
+	taskName := taskname.Generate(genCtx, slog.Make(), orig.Prompt)
 	task, err := db.InsertTask(genCtx, database.InsertTaskParams{
 		ID:                 takeFirst(orig.ID, uuid.New()),
 		OrganizationID:     orig.OrganizationID,
 		OwnerID:            orig.OwnerID,
-		Name:               takeFirst(orig.Name, taskname.GenerateFallback()),
+		Name:               takeFirst(orig.Name, taskName.Name),
+		DisplayName:        takeFirst(orig.DisplayName, taskName.DisplayName),
 		WorkspaceID:        orig.WorkspaceID,
 		TemplateVersionID:  orig.TemplateVersionID,
 		TemplateParameters: parameters,

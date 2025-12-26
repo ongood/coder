@@ -4,13 +4,13 @@ import CssBaseline from "@mui/material/CssBaseline";
 import {
 	ThemeProvider as MuiThemeProvider,
 	StyledEngineProvider,
-	// biome-ignore lint/style/noRestrictedImports: we extend the MUI theme
 } from "@mui/material/styles";
 import { DecoratorHelpers } from "@storybook/addon-themes";
 import isChromatic from "chromatic/isChromatic";
 import { StrictMode } from "react";
 import { QueryClient, QueryClientProvider } from "react-query";
 import { withRouter } from "storybook-addon-remix-react-router";
+import { TooltipProvider } from "../src/components/Tooltip/Tooltip";
 import "theme/globalFonts";
 import type { Decorator, Loader, Parameters } from "@storybook/react-vite";
 import themes from "../src/theme";
@@ -100,8 +100,10 @@ const withTheme: Decorator = (Story, context) => {
 			<StyledEngineProvider injectFirst>
 				<MuiThemeProvider theme={themes[selected]}>
 					<EmotionThemeProvider theme={themes[selected]}>
-						<CssBaseline />
-						<Story />
+						<TooltipProvider delayDuration={100}>
+							<CssBaseline />
+							<Story />
+						</TooltipProvider>
 					</EmotionThemeProvider>
 				</MuiThemeProvider>
 			</StyledEngineProvider>

@@ -6,7 +6,6 @@ import ListItem from "@mui/material/ListItem";
 import ListItemText, { listItemTextClasses } from "@mui/material/ListItemText";
 import ToggleButton from "@mui/material/ToggleButton";
 import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
-import Tooltip from "@mui/material/Tooltip";
 import { getErrorMessage } from "api/errors";
 import {
 	type selectTemplatesByGroup,
@@ -17,6 +16,11 @@ import { Alert } from "components/Alert/Alert";
 import { Button } from "components/Button/Button";
 import { displayError, displaySuccess } from "components/GlobalSnackbar/utils";
 import { Stack } from "components/Stack/Stack";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "components/Tooltip/Tooltip";
 import {
 	castNotificationMethod,
 	methodIcons,
@@ -65,6 +69,7 @@ export const NotificationEvents: FC<NotificationEventsProps> = ({
 			{hasWebhookNotifications && !isWebhookConfigured && (
 				<Alert
 					severity="warning"
+					prominent
 					actions={
 						<Button variant="subtle" size="sm" asChild>
 							<a
@@ -84,6 +89,7 @@ export const NotificationEvents: FC<NotificationEventsProps> = ({
 			{hasSMTPNotifications && !isSMTPConfigured && (
 				<Alert
 					severity="warning"
+					prominent
 					actions={
 						<Button variant="subtle" size="sm" asChild>
 							<a
@@ -186,22 +192,25 @@ const MethodToggleGroup: FC<MethodToggleGroupProps> = ({
 				const Icon = methodIcons[method];
 				const label = methodLabels[method];
 				return (
-					<Tooltip key={method} title={label}>
-						<ToggleButton
-							value={method}
-							css={styles.toggleButton}
-							onClick={(e) => {
-								// Retain the value if the user clicks the same button, ensuring
-								// at least one value remains selected.
-								if (method === value) {
-									e.preventDefault();
-									e.stopPropagation();
-									return;
-								}
-							}}
-						>
-							<Icon aria-label={label} />
-						</ToggleButton>
+					<Tooltip key={method}>
+						<TooltipTrigger asChild>
+							<ToggleButton
+								value={method}
+								css={styles.toggleButton}
+								onClick={(e) => {
+									// Retain the value if the user clicks the same button, ensuring
+									// at least one value remains selected.
+									if (method === value) {
+										e.preventDefault();
+										e.stopPropagation();
+										return;
+									}
+								}}
+							>
+								<Icon aria-label={label} />
+							</ToggleButton>
+						</TooltipTrigger>
+						<TooltipContent side="bottom">{label}</TooltipContent>
 					</Tooltip>
 				);
 			})}

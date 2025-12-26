@@ -388,16 +388,17 @@ func (api *API) patchWorkspaceAgentAppStatus(rw http.ResponseWriter, r *http.Req
 	// Treat the message as untrusted input.
 	cleaned := strutil.UISanitize(req.Message)
 
-	// Get the latest statuses for the workspace app to detect no-op updates
+	// Get the latest status for the workspace app to detect no-op updates
 	// nolint:gocritic // This is a system restricted operation.
-	latestAppStatus, err := api.Database.GetLatestWorkspaceAppStatusesByAppID(dbauthz.AsSystemRestricted(ctx), app.ID)
-	if err != nil {
+	latestAppStatus, err := api.Database.GetLatestWorkspaceAppStatusByAppID(dbauthz.AsSystemRestricted(ctx), app.ID)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: "Failed to get latest workspace app statuses.",
+			Message: "Failed to get latest workspace app status.",
 			Detail:  err.Error(),
 		})
 		return
 	}
+	// If no rows found, latestAppStatus will be a zero-value struct (ID == uuid.Nil)
 
 	// nolint:gocritic // This is a system restricted operation.
 	_, err = api.Database.InsertWorkspaceAppStatus(dbauthz.AsSystemRestricted(ctx), database.InsertWorkspaceAppStatusParams{
@@ -442,7 +443,7 @@ func (api *API) patchWorkspaceAgentAppStatus(rw http.ResponseWriter, r *http.Req
 func (api *API) enqueueAITaskStateNotification(
 	ctx context.Context,
 	appID uuid.UUID,
-	latestAppStatus []database.WorkspaceAppStatus,
+	latestAppStatus database.WorkspaceAppStatus,
 	newAppStatus codersdk.WorkspaceAppStatusState,
 	workspace database.Workspace,
 	agent database.WorkspaceAgent,
@@ -492,14 +493,16 @@ func (api *API) enqueueAITaskStateNotification(
 	}
 
 	// Skip if the latest persisted state equals the new state (no new transition)
-	if len(latestAppStatus) > 0 && latestAppStatus[0].State == database.WorkspaceAppStatusState(newAppStatus) {
+	// Note: uuid.Nil check is valid here. If no previous status exists,
+	// GetLatestWorkspaceAppStatusByAppID returns sql.ErrNoRows and we get a zero-value struct.
+	if latestAppStatus.ID != uuid.Nil && latestAppStatus.State == database.WorkspaceAppStatusState(newAppStatus) {
 		return
 	}
 
 	// Skip the initial "Working" notification when task first starts.
 	// This is obvious to the user since they just created the task.
 	// We still notify on first "Idle" status and all subsequent transitions.
-	if len(latestAppStatus) == 0 && newAppStatus == codersdk.WorkspaceAppStatusStateWorking {
+	if latestAppStatus.ID == uuid.Nil && newAppStatus == codersdk.WorkspaceAppStatusStateWorking {
 		return
 	}
 
@@ -1117,6 +1120,96 @@ func (api *API) workspaceAgentListContainers(rw http.ResponseWriter, r *http.Req
 	})
 
 	httpapi.Write(ctx, rw, http.StatusOK, cts)
+}
+
+// @Summary Delete devcontainer for workspace agent
+// @ID delete-devcontainer-for-workspace-agent
+// @Security CoderSessionToken
+// @Tags Agents
+// @Param workspaceagent path string true "Workspace agent ID" format(uuid)
+// @Param devcontainer path string true "Devcontainer ID"
+// @Success 204
+// @Router /workspaceagents/{workspaceagent}/containers/devcontainers/{devcontainer} [delete]
+func (api *API) workspaceAgentDeleteDevcontainer(rw http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	workspaceAgent := httpmw.WorkspaceAgentParam(r)
+	workspace := httpmw.WorkspaceParam(r)
+
+	if !api.Authorize(r, policy.ActionUpdate, workspace) {
+		httpapi.Forbidden(rw)
+		return
+	}
+
+	devcontainer := chi.URLParam(r, "devcontainer")
+	if devcontainer == "" {
+		httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
+			Message: "Devcontainer ID is required.",
+			Validations: []codersdk.ValidationError{
+				{Field: "devcontainer", Detail: "Devcontainer ID is required."},
+			},
+		})
+		return
+	}
+
+	apiAgent, err := db2sdk.WorkspaceAgent(
+		api.DERPMap(),
+		*api.TailnetCoordinator.Load(),
+		workspaceAgent,
+		nil,
+		nil,
+		nil,
+		api.AgentInactiveDisconnectTimeout,
+		api.DeploymentValues.AgentFallbackTroubleshootingURL.String(),
+	)
+	if err != nil {
+		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
+			Message: "Internal error reading workspace agent.",
+			Detail:  err.Error(),
+		})
+		return
+	}
+	if apiAgent.Status != codersdk.WorkspaceAgentConnected {
+		httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
+			Message: fmt.Sprintf("Agent state is %q, it must be in the %q state.", apiAgent.Status, codersdk.WorkspaceAgentConnected),
+		})
+		return
+	}
+
+	// If the agent is unreachable, the request will hang. Assume that if we
+	// don't get a response after 30s that the agent is unreachable.
+	dialCtx, dialCancel := context.WithTimeout(ctx, 30*time.Second)
+	defer dialCancel()
+	agentConn, release, err := api.agentProvider.AgentConn(dialCtx, workspaceAgent.ID)
+	if err != nil {
+		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
+			Message: "Internal error dialing workspace agent.",
+			Detail:  err.Error(),
+		})
+		return
+	}
+	defer release()
+
+	if err = agentConn.DeleteDevcontainer(ctx, devcontainer); err != nil {
+		if errors.Is(err, context.Canceled) {
+			httpapi.Write(ctx, rw, http.StatusRequestTimeout, codersdk.Response{
+				Message: "Failed to delete devcontainer from agent.",
+				Detail:  "Request timed out.",
+			})
+			return
+		}
+		// If the agent returns a codersdk.Error, we can return that directly.
+		if cerr, ok := codersdk.AsError(err); ok {
+			httpapi.Write(ctx, rw, cerr.StatusCode(), cerr.Response)
+			return
+		}
+		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
+			Message: "Internal error deleting devcontainer.",
+			Detail:  err.Error(),
+		})
+		return
+	}
+
+	httpapi.Write(ctx, rw, http.StatusNoContent, nil)
 }
 
 // @Summary Recreate devcontainer for workspace agent

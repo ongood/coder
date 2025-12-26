@@ -1,7 +1,11 @@
 import { useTheme } from "@emotion/react";
-import Tooltip from "@mui/material/Tooltip";
 import type { HealthcheckReport } from "api/typesGenerated";
 import { Alert } from "components/Alert/Alert";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "components/Tooltip/Tooltip";
 import { CodeIcon } from "lucide-react";
 import { useOutletContext } from "react-router";
 import { MONOSPACE_FONT_FAMILY } from "theme/constants";
@@ -34,21 +38,28 @@ const WebsocketPage = () => {
 			</Header>
 
 			<Main>
-				{websocket.error && <Alert severity="error">{websocket.error}</Alert>}
+				{websocket.error && (
+					<Alert severity="error" prominent>
+						{websocket.error}
+					</Alert>
+				)}
 
 				{websocket.warnings.map((warning) => {
 					return (
-						<Alert key={warning.code} severity="warning">
+						<Alert key={warning.code} severity="warning" prominent>
 							{warning.message}
 						</Alert>
 					);
 				})}
 
 				<section>
-					<Tooltip title="Code">
-						<Pill icon={<CodeIcon className="size-icon-sm" />}>
-							{websocket.code}
-						</Pill>
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<Pill icon={<CodeIcon className="size-icon-sm" />}>
+								{websocket.code}
+							</Pill>
+						</TooltipTrigger>
+						<TooltipContent side="bottom">Code</TooltipContent>
 					</Tooltip>
 				</section>
 

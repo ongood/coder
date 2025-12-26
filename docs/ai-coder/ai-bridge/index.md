@@ -2,7 +2,7 @@
 
 ![AI bridge diagram](../../images/aibridge/aibridge_diagram.png)
 
-AI Bridge is a smart proxy for AI. It acts as a man-in-the-middle between your users' coding agents / IDEs
+AI Bridge is a smart gateway for AI. It acts as an intermediary between your users' coding agents / IDEs
 and providers like OpenAI and Anthropic. By intercepting all the AI traffic between these clients and
 the upstream APIs, AI Bridge can record user prompts, token usage, and tool invocations.
 
@@ -35,5 +35,5 @@ AI Bridge is best suited for organizations facing these centralized management a
 - [Set up AI Bridge](./setup.md) on your Coder deployment
 - [Configure AI clients](./client-config.md) to use AI Bridge
 - [Configure MCP servers](./mcp.md) for tool access
-- [Monitor usage and metrics](./monitoring.md)
+- [Monitor usage and metrics](./monitoring.md) and [configure data retention](./setup.md#data-retention)
 - [Reference documentation](./reference.md)

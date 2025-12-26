@@ -1,6 +1,5 @@
 import { type Interpolation, type Theme, useTheme } from "@emotion/react";
 import Link from "@mui/material/Link";
-import Tooltip from "@mui/material/Tooltip";
 import { workspaceQuota } from "api/queries/workspaceQuota";
 import type * as TypesGen from "api/typesGenerated";
 import { Avatar } from "components/Avatar/Avatar";
@@ -19,6 +18,11 @@ import {
 	HelpTooltipContent,
 	HelpTooltipTrigger,
 } from "components/HelpTooltip/HelpTooltip";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "components/Tooltip/Tooltip";
 import { ChevronLeftIcon, CircleDollarSign, TrashIcon } from "lucide-react";
 import { useDashboard } from "modules/dashboard/useDashboard";
 import { linkToTemplate, useLinks } from "modules/navigation";
@@ -108,10 +112,13 @@ export const WorkspaceTopbar: FC<WorkspaceProps> = ({
 
 	return (
 		<Topbar css={{ gridArea: "topbar" }}>
-			<Tooltip title="Back to workspaces">
-				<TopbarIconButton component={RouterLink} to="/workspaces">
-					<ChevronLeftIcon className="size-icon-sm" />
-				</TopbarIconButton>
+			<Tooltip>
+				<TooltipTrigger asChild>
+					<TopbarIconButton component={RouterLink} to="/workspaces">
+						<ChevronLeftIcon className="size-icon-sm" />
+					</TopbarIconButton>
+				</TooltipTrigger>
+				<TooltipContent side="bottom">Back to workspaces</TooltipContent>
 			</Tooltip>
 
 			<div css={styles.topbarLeft}>
@@ -259,7 +266,7 @@ const OwnerBreadcrumb: FC<OwnerBreadcrumbProps> = ({
 		<HelpTooltip>
 			<HelpTooltipTrigger asChild>
 				<span css={styles.breadcrumbSegment}>
-					<Avatar size="sm" fallback={ownerName} src={ownerAvatarUrl} />
+					<Avatar size="md" fallback={ownerName} src={ownerAvatarUrl} />
 					<span css={styles.breadcrumbText}>{ownerName}</span>
 				</span>
 			</HelpTooltipTrigger>
@@ -287,7 +294,7 @@ const OrganizationBreadcrumb: FC<OrganizationBreadcrumbProps> = ({
 			<HelpTooltipTrigger asChild>
 				<span css={styles.breadcrumbSegment}>
 					<Avatar
-						size="sm"
+						size="md"
 						variant="icon"
 						src={orgIconUrl}
 						fallback={orgName}
@@ -314,7 +321,12 @@ const OrganizationBreadcrumb: FC<OrganizationBreadcrumbProps> = ({
 					subtitle="Organization"
 					avatar={
 						orgIconUrl && (
-							<Avatar variant="icon" src={orgIconUrl} fallback={orgName} />
+							<Avatar
+								variant="icon"
+								src={orgIconUrl}
+								fallback={orgName}
+								size="md"
+							/>
 						)
 					}
 					imgFallbackText={orgName}
@@ -382,6 +394,7 @@ const WorkspaceBreadcrumb: FC<WorkspaceBreadcrumbProps> = ({
 								variant="icon"
 								src={templateIconUrl}
 								fallback={templateDisplayName}
+								size="md"
 							/>
 						}
 						imgFallbackText={templateDisplayName}

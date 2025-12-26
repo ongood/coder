@@ -25,14 +25,13 @@ import { TableCell, TableRow } from "components/Table/Table";
 import {
 	Tooltip,
 	TooltipContent,
-	TooltipProvider,
 	TooltipTrigger,
 } from "components/Tooltip/Tooltip";
 import { useFormik } from "formik";
 import { Plus, Trash, TriangleAlert } from "lucide-react";
+import { isEveryoneGroup } from "modules/groups";
 import { type FC, type KeyboardEventHandler, useId, useState } from "react";
 import { docs } from "utils/docs";
-import { isEveryoneGroup } from "utils/groups";
 import { isUUID } from "utils/uuid";
 import * as Yup from "yup";
 import { ExportPolicyButton } from "./ExportPolicyButton";
@@ -195,7 +194,7 @@ export const IdpGroupSyncForm: FC<IdpGroupSyncFormProps> = ({
 					</div>
 					{form.errors.field ||
 						(form.errors.regex_filter && (
-							<p className="text-content-danger text-sm m-0">
+							<p className="text-content-destructive text-sm m-0">
 								{form.errors.field || form.errors.regex_filter}
 							</p>
 						))}
@@ -303,7 +302,7 @@ export const IdpGroupSyncForm: FC<IdpGroupSyncFormProps> = ({
 					</div>
 				</div>
 				{form.errors.mapping && (
-					<p className="text-content-danger text-sm m-0">
+					<p className="text-content-destructive text-sm m-0">
 						{Object.values(form.errors.mapping || {})}
 					</p>
 				)}
@@ -370,23 +369,21 @@ const GroupRow: FC<GroupRowProps> = ({
 				<div className="flex flex-row items-center gap-2 text-content-primary">
 					{idpGroup}
 					{!exists && (
-						<TooltipProvider>
-							<Tooltip>
-								<TooltipTrigger asChild>
-									<TriangleAlert className="size-icon-xs cursor-pointer text-content-warning" />
-								</TooltipTrigger>
-								<TooltipContent
-									align="start"
-									alignOffset={-8}
-									sideOffset={8}
-									className="p-2 text-xs text-content-secondary max-w-sm"
-								>
-									This value has not be seen in the specified claim field
-									before. You might want to check your IdP configuration and
-									ensure that this value is not misspelled.
-								</TooltipContent>
-							</Tooltip>
-						</TooltipProvider>
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<TriangleAlert className="size-icon-xs cursor-pointer text-content-warning" />
+							</TooltipTrigger>
+							<TooltipContent
+								align="start"
+								alignOffset={-8}
+								sideOffset={8}
+								className="p-2 text-xs text-content-secondary max-w-sm"
+							>
+								This value has not be seen in the specified claim field before.
+								You might want to check your IdP configuration and ensure that
+								this value is not misspelled.
+							</TooltipContent>
+						</Tooltip>
 					)}
 				</div>
 			</TableCell>

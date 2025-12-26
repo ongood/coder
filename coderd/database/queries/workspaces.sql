@@ -451,6 +451,8 @@ WHERE
 		'', -- template_icon
 		'', -- template_description
 		'00000000-0000-0000-0000-000000000000'::uuid, -- task_id
+		'{}'::jsonb, -- group_acl_display_info
+		'{}'::jsonb, -- user_acl_display_info
 		-- Extra columns added to `filtered_workspaces`
 		'00000000-0000-0000-0000-000000000000'::uuid, -- template_version_id
 		'', -- template_version_name
@@ -846,6 +848,7 @@ SET
 WHERE
     template_id = @template_id
 	AND dormant_at IS NOT NULL
+	AND deleted = false
 	-- Prebuilt workspaces (identified by having the prebuilds system user as owner_id)
 	-- should not have their dormant or deleting at set, as these are handled by the
     -- prebuilds reconciliation loop.

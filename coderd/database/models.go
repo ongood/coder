@@ -4208,23 +4208,27 @@ type TailnetTunnel struct {
 }
 
 type Task struct {
-	ID                   uuid.UUID       `db:"id" json:"id"`
-	OrganizationID       uuid.UUID       `db:"organization_id" json:"organization_id"`
-	OwnerID              uuid.UUID       `db:"owner_id" json:"owner_id"`
-	Name                 string          `db:"name" json:"name"`
-	WorkspaceID          uuid.NullUUID   `db:"workspace_id" json:"workspace_id"`
-	TemplateVersionID    uuid.UUID       `db:"template_version_id" json:"template_version_id"`
-	TemplateParameters   json.RawMessage `db:"template_parameters" json:"template_parameters"`
-	Prompt               string          `db:"prompt" json:"prompt"`
-	CreatedAt            time.Time       `db:"created_at" json:"created_at"`
-	DeletedAt            sql.NullTime    `db:"deleted_at" json:"deleted_at"`
-	Status               TaskStatus      `db:"status" json:"status"`
-	WorkspaceBuildNumber sql.NullInt32   `db:"workspace_build_number" json:"workspace_build_number"`
-	WorkspaceAgentID     uuid.NullUUID   `db:"workspace_agent_id" json:"workspace_agent_id"`
-	WorkspaceAppID       uuid.NullUUID   `db:"workspace_app_id" json:"workspace_app_id"`
-	OwnerUsername        string          `db:"owner_username" json:"owner_username"`
-	OwnerName            string          `db:"owner_name" json:"owner_name"`
-	OwnerAvatarUrl       string          `db:"owner_avatar_url" json:"owner_avatar_url"`
+	ID                           uuid.UUID                        `db:"id" json:"id"`
+	OrganizationID               uuid.UUID                        `db:"organization_id" json:"organization_id"`
+	OwnerID                      uuid.UUID                        `db:"owner_id" json:"owner_id"`
+	Name                         string                           `db:"name" json:"name"`
+	WorkspaceID                  uuid.NullUUID                    `db:"workspace_id" json:"workspace_id"`
+	TemplateVersionID            uuid.UUID                        `db:"template_version_id" json:"template_version_id"`
+	TemplateParameters           json.RawMessage                  `db:"template_parameters" json:"template_parameters"`
+	Prompt                       string                           `db:"prompt" json:"prompt"`
+	CreatedAt                    time.Time                        `db:"created_at" json:"created_at"`
+	DeletedAt                    sql.NullTime                     `db:"deleted_at" json:"deleted_at"`
+	DisplayName                  string                           `db:"display_name" json:"display_name"`
+	Status                       TaskStatus                       `db:"status" json:"status"`
+	StatusDebug                  json.RawMessage                  `db:"status_debug" json:"status_debug"`
+	WorkspaceBuildNumber         sql.NullInt32                    `db:"workspace_build_number" json:"workspace_build_number"`
+	WorkspaceAgentID             uuid.NullUUID                    `db:"workspace_agent_id" json:"workspace_agent_id"`
+	WorkspaceAppID               uuid.NullUUID                    `db:"workspace_app_id" json:"workspace_app_id"`
+	WorkspaceAgentLifecycleState NullWorkspaceAgentLifecycleState `db:"workspace_agent_lifecycle_state" json:"workspace_agent_lifecycle_state"`
+	WorkspaceAppHealth           NullWorkspaceAppHealth           `db:"workspace_app_health" json:"workspace_app_health"`
+	OwnerUsername                string                           `db:"owner_username" json:"owner_username"`
+	OwnerName                    string                           `db:"owner_name" json:"owner_name"`
+	OwnerAvatarUrl               string                           `db:"owner_avatar_url" json:"owner_avatar_url"`
 }
 
 type TaskTable struct {
@@ -4238,6 +4242,8 @@ type TaskTable struct {
 	Prompt             string          `db:"prompt" json:"prompt"`
 	CreatedAt          time.Time       `db:"created_at" json:"created_at"`
 	DeletedAt          sql.NullTime    `db:"deleted_at" json:"deleted_at"`
+	// Display name is a custom, human-friendly task name.
+	DisplayName string `db:"display_name" json:"display_name"`
 }
 
 type TaskWorkspaceApp struct {
@@ -4449,7 +4455,8 @@ type TemplateVersionPreset struct {
 	// Short text describing the preset (max 128 characters).
 	Description string `db:"description" json:"description"`
 	// URL or path to an icon representing the preset (max 256 characters).
-	Icon string `db:"icon" json:"icon"`
+	Icon              string       `db:"icon" json:"icon"`
+	LastInvalidatedAt sql.NullTime `db:"last_invalidated_at" json:"last_invalidated_at"`
 }
 
 type TemplateVersionPresetParameter struct {
@@ -4638,36 +4645,38 @@ type WebpushSubscription struct {
 
 // Joins in the display name information such as username, avatar, and organization name.
 type Workspace struct {
-	ID                      uuid.UUID        `db:"id" json:"id"`
-	CreatedAt               time.Time        `db:"created_at" json:"created_at"`
-	UpdatedAt               time.Time        `db:"updated_at" json:"updated_at"`
-	OwnerID                 uuid.UUID        `db:"owner_id" json:"owner_id"`
-	OrganizationID          uuid.UUID        `db:"organization_id" json:"organization_id"`
-	TemplateID              uuid.UUID        `db:"template_id" json:"template_id"`
-	Deleted                 bool             `db:"deleted" json:"deleted"`
-	Name                    string           `db:"name" json:"name"`
-	AutostartSchedule       sql.NullString   `db:"autostart_schedule" json:"autostart_schedule"`
-	Ttl                     sql.NullInt64    `db:"ttl" json:"ttl"`
-	LastUsedAt              time.Time        `db:"last_used_at" json:"last_used_at"`
-	DormantAt               sql.NullTime     `db:"dormant_at" json:"dormant_at"`
-	DeletingAt              sql.NullTime     `db:"deleting_at" json:"deleting_at"`
-	AutomaticUpdates        AutomaticUpdates `db:"automatic_updates" json:"automatic_updates"`
-	Favorite                bool             `db:"favorite" json:"favorite"`
-	NextStartAt             sql.NullTime     `db:"next_start_at" json:"next_start_at"`
-	GroupACL                WorkspaceACL     `db:"group_acl" json:"group_acl"`
-	UserACL                 WorkspaceACL     `db:"user_acl" json:"user_acl"`
-	OwnerAvatarUrl          string           `db:"owner_avatar_url" json:"owner_avatar_url"`
-	OwnerUsername           string           `db:"owner_username" json:"owner_username"`
-	OwnerName               string           `db:"owner_name" json:"owner_name"`
-	OrganizationName        string           `db:"organization_name" json:"organization_name"`
-	OrganizationDisplayName string           `db:"organization_display_name" json:"organization_display_name"`
-	OrganizationIcon        string           `db:"organization_icon" json:"organization_icon"`
-	OrganizationDescription string           `db:"organization_description" json:"organization_description"`
-	TemplateName            string           `db:"template_name" json:"template_name"`
-	TemplateDisplayName     string           `db:"template_display_name" json:"template_display_name"`
-	TemplateIcon            string           `db:"template_icon" json:"template_icon"`
-	TemplateDescription     string           `db:"template_description" json:"template_description"`
-	TaskID                  uuid.NullUUID    `db:"task_id" json:"task_id"`
+	ID                      uuid.UUID               `db:"id" json:"id"`
+	CreatedAt               time.Time               `db:"created_at" json:"created_at"`
+	UpdatedAt               time.Time               `db:"updated_at" json:"updated_at"`
+	OwnerID                 uuid.UUID               `db:"owner_id" json:"owner_id"`
+	OrganizationID          uuid.UUID               `db:"organization_id" json:"organization_id"`
+	TemplateID              uuid.UUID               `db:"template_id" json:"template_id"`
+	Deleted                 bool                    `db:"deleted" json:"deleted"`
+	Name                    string                  `db:"name" json:"name"`
+	AutostartSchedule       sql.NullString          `db:"autostart_schedule" json:"autostart_schedule"`
+	Ttl                     sql.NullInt64           `db:"ttl" json:"ttl"`
+	LastUsedAt              time.Time               `db:"last_used_at" json:"last_used_at"`
+	DormantAt               sql.NullTime            `db:"dormant_at" json:"dormant_at"`
+	DeletingAt              sql.NullTime            `db:"deleting_at" json:"deleting_at"`
+	AutomaticUpdates        AutomaticUpdates        `db:"automatic_updates" json:"automatic_updates"`
+	Favorite                bool                    `db:"favorite" json:"favorite"`
+	NextStartAt             sql.NullTime            `db:"next_start_at" json:"next_start_at"`
+	GroupACL                WorkspaceACL            `db:"group_acl" json:"group_acl"`
+	UserACL                 WorkspaceACL            `db:"user_acl" json:"user_acl"`
+	OwnerAvatarUrl          string                  `db:"owner_avatar_url" json:"owner_avatar_url"`
+	OwnerUsername           string                  `db:"owner_username" json:"owner_username"`
+	OwnerName               string                  `db:"owner_name" json:"owner_name"`
+	OrganizationName        string                  `db:"organization_name" json:"organization_name"`
+	OrganizationDisplayName string                  `db:"organization_display_name" json:"organization_display_name"`
+	OrganizationIcon        string                  `db:"organization_icon" json:"organization_icon"`
+	OrganizationDescription string                  `db:"organization_description" json:"organization_description"`
+	TemplateName            string                  `db:"template_name" json:"template_name"`
+	TemplateDisplayName     string                  `db:"template_display_name" json:"template_display_name"`
+	TemplateIcon            string                  `db:"template_icon" json:"template_icon"`
+	TemplateDescription     string                  `db:"template_description" json:"template_description"`
+	TaskID                  uuid.NullUUID           `db:"task_id" json:"task_id"`
+	GroupACLDisplayInfo     WorkspaceACLDisplayInfo `db:"group_acl_display_info" json:"group_acl_display_info"`
+	UserACLDisplayInfo      WorkspaceACLDisplayInfo `db:"user_acl_display_info" json:"user_acl_display_info"`
 }
 
 type WorkspaceAgent struct {

@@ -99,6 +99,7 @@ import (
 	"github.com/coder/coder/v2/coderd/workspacestats"
 	"github.com/coder/coder/v2/codersdk"
 	"github.com/coder/coder/v2/codersdk/healthsdk"
+	sharedhttpmw "github.com/coder/coder/v2/httpmw"
 	"github.com/coder/coder/v2/provisionersdk"
 	"github.com/coder/coder/v2/site"
 	"github.com/coder/coder/v2/tailnet"
@@ -330,6 +331,10 @@ func New(options *Options) *API {
 		rbac.ReloadBuiltinRoles(&rbac.RoleOptions{
 			NoOwnerWorkspaceExec: true,
 		})
+	}
+
+	if options.DeploymentValues.DisableWorkspaceSharing {
+		rbac.SetWorkspaceACLDisabled(true)
 	}
 
 	if options.PrometheusRegistry == nil {
@@ -610,6 +615,7 @@ func New(options *Options) *API {
 		dbRolluper: options.DatabaseRolluper,
 	}
 	api.WorkspaceAppsProvider = workspaceapps.NewDBTokenProvider(
+		ctx,
 		options.Logger.Named("workspaceapps"),
 		options.AccessURL,
 		options.Authorizer,
@@ -762,14 +768,15 @@ func New(options *Options) *API {
 	}
 
 	api.statsReporter = workspacestats.NewReporter(workspacestats.ReporterOptions{
-		Database:              options.Database,
-		Logger:                options.Logger.Named("workspacestats"),
-		Pubsub:                options.Pubsub,
-		TemplateScheduleStore: options.TemplateScheduleStore,
-		StatsBatcher:          options.StatsBatcher,
-		UsageTracker:          options.WorkspaceUsageTracker,
-		UpdateAgentMetricsFn:  options.UpdateAgentMetrics,
-		AppStatBatchSize:      workspaceapps.DefaultStatsDBReporterBatchSize,
+		Database:               options.Database,
+		Logger:                 options.Logger.Named("workspacestats"),
+		Pubsub:                 options.Pubsub,
+		TemplateScheduleStore:  options.TemplateScheduleStore,
+		StatsBatcher:           options.StatsBatcher,
+		UsageTracker:           options.WorkspaceUsageTracker,
+		UpdateAgentMetricsFn:   options.UpdateAgentMetrics,
+		AppStatBatchSize:       workspaceapps.DefaultStatsDBReporterBatchSize,
+		DisableDatabaseInserts: !options.DeploymentValues.TemplateInsights.Enable.Value(),
 	})
 	workspaceAppsLogger := options.Logger.Named("workspaceapps")
 	if options.WorkspaceAppsStatsCollectorOptions.Logger == nil {
@@ -860,7 +867,7 @@ func New(options *Options) *API {
 	prometheusMW := httpmw.Prometheus(options.PrometheusRegistry)
 
 	r.Use(
-		httpmw.Recover(api.Logger),
+		sharedhttpmw.Recover(api.Logger),
 		httpmw.WithProfilingLabels,
 		tracing.StatusWriterMiddleware,
 		tracing.Middleware(api.TracerProvider),
@@ -934,7 +941,7 @@ func New(options *Options) *API {
 				r.Route(fmt.Sprintf("/%s/callback", externalAuthConfig.ID), func(r chi.Router) {
 					r.Use(
 						apiKeyMiddlewareRedirect,
-						httpmw.ExtractOAuth2(externalAuthConfig, options.HTTPClient, options.DeploymentValues.HTTPCookies, nil),
+						httpmw.ExtractOAuth2(externalAuthConfig, options.HTTPClient, options.DeploymentValues.HTTPCookies, nil, externalAuthConfig.CodeChallengeMethodsSupported),
 					)
 					r.Get("/", api.externalAuthCallback(externalAuthConfig))
 				})
@@ -1022,6 +1029,9 @@ func New(options *Options) *API {
 			httpmw.ReportCLITelemetry(api.Logger, options.Telemetry),
 		)
 
+		// NOTE(DanielleMaywood):
+		// Tasks have been promoted to stable, but we have guaranteed a single release transition period
+		// where these routes must remain. These should be removed no earlier than Coder v2.30.0
 		r.Route("/tasks", func(r chi.Router) {
 			r.Use(apiKeyMiddleware)
 
@@ -1035,6 +1045,7 @@ func New(options *Options) *API {
 					r.Use(httpmw.ExtractTaskParam(options.Database))
 					r.Get("/", api.taskGet)
 					r.Delete("/", api.taskDelete)
+					r.Patch("/input", api.taskUpdateInput)
 					r.Post("/send", api.taskSend)
 					r.Get("/logs", api.taskLogs)
 				})
@@ -1279,14 +1290,15 @@ func New(options *Options) *API {
 					r.Get("/github/device", api.userOAuth2GithubDevice)
 					r.Route("/github", func(r chi.Router) {
 						r.Use(
-							httpmw.ExtractOAuth2(options.GithubOAuth2Config, options.HTTPClient, options.DeploymentValues.HTTPCookies, nil),
+							// Github supports PKCE S256
+							httpmw.ExtractOAuth2(options.GithubOAuth2Config, options.HTTPClient, options.DeploymentValues.HTTPCookies, nil, options.GithubOAuth2Config.PKCESupported()),
 						)
 						r.Get("/callback", api.userOAuth2Github)
 					})
 				})
 				r.Route("/oidc/callback", func(r chi.Router) {
 					r.Use(
-						httpmw.ExtractOAuth2(options.OIDCConfig, options.HTTPClient, options.DeploymentValues.HTTPCookies, oidcAuthURLParams),
+						httpmw.ExtractOAuth2(options.OIDCConfig, options.HTTPClient, options.DeploymentValues.HTTPCookies, oidcAuthURLParams, options.OIDCConfig.PKCESupported()),
 					)
 					r.Get("/", api.userOIDC)
 				})
@@ -1330,6 +1342,8 @@ func New(options *Options) *API {
 						})
 						r.Get("/appearance", api.userAppearanceSettings)
 						r.Put("/appearance", api.putUserAppearanceSettings)
+						r.Get("/preferences", api.userPreferenceSettings)
+						r.Put("/preferences", api.putUserPreferenceSettings)
 						r.Route("/password", func(r chi.Router) {
 							r.Use(httpmw.RateLimit(options.LoginRateLimit, time.Minute))
 							r.Put("/", api.putUserPassword)
@@ -1428,6 +1442,7 @@ func New(options *Options) *API {
 				r.Get("/connection", api.workspaceAgentConnection)
 				r.Get("/containers", api.workspaceAgentListContainers)
 				r.Get("/containers/watch", api.watchWorkspaceAgentContainers)
+				r.Delete("/containers/devcontainers/{devcontainer}", api.workspaceAgentDeleteDevcontainer)
 				r.Post("/containers/devcontainers/{devcontainer}/recreate", api.workspaceAgentRecreateDevcontainer)
 				r.Get("/coordinate", api.workspaceAgentClientCoordinate)
 
@@ -1516,11 +1531,28 @@ func New(options *Options) *API {
 		})
 		r.Route("/insights", func(r chi.Router) {
 			r.Use(apiKeyMiddleware)
-			r.Get("/daus", api.deploymentDAUs)
-			r.Get("/user-activity", api.insightsUserActivity)
+			r.Group(func(r chi.Router) {
+				r.Use(
+					func(next http.Handler) http.Handler {
+						return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+							if !options.DeploymentValues.TemplateInsights.Enable.Value() {
+								httpapi.Write(context.Background(), rw, http.StatusNotFound, codersdk.Response{
+									Message: "Not Found.",
+									Detail:  "Template insights are disabled.",
+								})
+								return
+							}
+
+							next.ServeHTTP(rw, r)
+						})
+					},
+				)
+				r.Get("/daus", api.deploymentDAUs)
+				r.Get("/user-activity", api.insightsUserActivity)
+				r.Get("/user-latency", api.insightsUserLatency)
+				r.Get("/templates", api.insightsTemplates)
+			})
 			r.Get("/user-status-counts", api.insightsUserStatusCounts)
-			r.Get("/user-latency", api.insightsUserLatency)
-			r.Get("/templates", api.insightsTemplates)
 		})
 		r.Route("/debug", func(r chi.Router) {
 			r.Use(
@@ -1647,6 +1679,25 @@ func New(options *Options) *API {
 		})
 		r.Route("/init-script", func(r chi.Router) {
 			r.Get("/{os}/{arch}", api.initScript)
+		})
+		r.Route("/tasks", func(r chi.Router) {
+			r.Use(apiKeyMiddleware)
+
+			r.Get("/", api.tasksList)
+
+			r.Route("/{user}", func(r chi.Router) {
+				r.Use(httpmw.ExtractOrganizationMembersParam(options.Database, api.HTTPAuth.Authorize))
+				r.Post("/", api.tasksCreate)
+
+				r.Route("/{task}", func(r chi.Router) {
+					r.Use(httpmw.ExtractTaskParam(options.Database))
+					r.Get("/", api.taskGet)
+					r.Delete("/", api.taskDelete)
+					r.Patch("/input", api.taskUpdateInput)
+					r.Post("/send", api.taskSend)
+					r.Get("/logs", api.taskLogs)
+				})
+			})
 		})
 	})
 

@@ -1,5 +1,6 @@
 import {
 	MockDeletedWorkspace,
+	MockDisplayNameTasks,
 	MockFailedWorkspace,
 	MockStartingWorkspace,
 	MockStoppedWorkspace,
@@ -7,6 +8,7 @@ import {
 	MockTasks,
 	MockUserOwner,
 	MockWorkspace,
+	MockWorkspaceAgent,
 	MockWorkspaceAgentLogSource,
 	MockWorkspaceAgentReady,
 	MockWorkspaceAgentStarting,
@@ -17,6 +19,7 @@ import {
 } from "testHelpers/entities";
 import {
 	withAuthProvider,
+	withDashboardProvider,
 	withGlobalSnackbar,
 	withProxyProvider,
 	withWebSocket,
@@ -63,9 +66,9 @@ const MockVSCodeApp: WorkspaceApp = {
 const meta: Meta<typeof TaskPage> = {
 	title: "pages/TaskPage",
 	component: TaskPage,
-	decorators: [withProxyProvider(), withAuthProvider],
+	decorators: [withProxyProvider(), withAuthProvider, withDashboardProvider],
 	beforeEach: () => {
-		spyOn(API.experimental, "getTasks").mockResolvedValue(MockTasks);
+		spyOn(API, "getTasks").mockResolvedValue(MockTasks);
 	},
 	parameters: {
 		layout: "fullscreen",
@@ -87,13 +90,11 @@ type Story = StoryObj<typeof TaskPage>;
 
 export const LoadingTask: Story = {
 	beforeEach: () => {
-		spyOn(API.experimental, "getTask").mockImplementation(
-			() => new Promise(() => {}),
-		);
+		spyOn(API, "getTask").mockImplementation(() => new Promise(() => {}));
 	},
 	play: async () => {
 		await waitFor(() => {
-			expect(API.experimental.getTask).toHaveBeenCalledWith(
+			expect(API.getTask).toHaveBeenCalledWith(
 				MockTask.owner_name,
 				MockTask.id,
 			);
@@ -103,7 +104,7 @@ export const LoadingTask: Story = {
 
 export const LoadingWorkspace: Story = {
 	beforeEach: () => {
-		spyOn(API.experimental, "getTask").mockResolvedValue(MockTask);
+		spyOn(API, "getTask").mockResolvedValue(MockTask);
 		spyOn(API, "getWorkspaceByOwnerAndName").mockImplementation(
 			() => new Promise(() => {}),
 		);
@@ -112,7 +113,7 @@ export const LoadingWorkspace: Story = {
 
 export const LoadingTaskError: Story = {
 	beforeEach: () => {
-		spyOn(API.experimental, "getTask").mockRejectedValue(
+		spyOn(API, "getTask").mockRejectedValue(
 			mockApiError({
 				message: "Failed to load task",
 				detail: "You don't have permission to access this resource.",
@@ -123,7 +124,7 @@ export const LoadingTaskError: Story = {
 
 export const LoadingWorkspaceError: Story = {
 	beforeEach: () => {
-		spyOn(API.experimental, "getTask").mockResolvedValue(MockTask);
+		spyOn(API, "getTask").mockResolvedValue(MockTask);
 		spyOn(API, "getWorkspaceByOwnerAndName").mockRejectedValue(
 			mockApiError({
 				message: "Failed to load workspace",
@@ -135,7 +136,7 @@ export const LoadingWorkspaceError: Story = {
 
 export const WaitingOnBuild: Story = {
 	beforeEach: () => {
-		spyOn(API.experimental, "getTask").mockResolvedValue(MockTask);
+		spyOn(API, "getTask").mockResolvedValue(MockTask);
 		spyOn(API, "getWorkspaceByOwnerAndName").mockResolvedValue(
 			MockStartingWorkspace,
 		);
@@ -144,7 +145,7 @@ export const WaitingOnBuild: Story = {
 
 export const FailedBuild: Story = {
 	beforeEach: () => {
-		spyOn(API.experimental, "getTask").mockResolvedValue(MockTask);
+		spyOn(API, "getTask").mockResolvedValue(MockTask);
 		spyOn(API, "getWorkspaceByOwnerAndName").mockResolvedValue(
 			MockFailedWorkspace,
 		);
@@ -153,7 +154,7 @@ export const FailedBuild: Story = {
 
 export const TerminatedBuild: Story = {
 	beforeEach: () => {
-		spyOn(API.experimental, "getTask").mockResolvedValue(MockTask);
+		spyOn(API, "getTask").mockResolvedValue(MockTask);
 		spyOn(API, "getWorkspaceByOwnerAndName").mockResolvedValue(
 			MockStoppedWorkspace,
 		);
@@ -162,7 +163,7 @@ export const TerminatedBuild: Story = {
 
 export const TerminatedBuildWithStatus: Story = {
 	beforeEach: () => {
-		spyOn(API.experimental, "getTask").mockResolvedValue(MockTask);
+		spyOn(API, "getTask").mockResolvedValue(MockTask);
 		spyOn(API, "getWorkspaceByOwnerAndName").mockResolvedValue({
 			...MockStoppedWorkspace,
 			latest_app_status: MockWorkspaceAppStatus,
@@ -172,7 +173,7 @@ export const TerminatedBuildWithStatus: Story = {
 
 export const DeletedWorkspace: Story = {
 	beforeEach: () => {
-		spyOn(API.experimental, "getTask").mockResolvedValue(MockTask);
+		spyOn(API, "getTask").mockResolvedValue(MockTask);
 		spyOn(API, "getWorkspaceByOwnerAndName").mockResolvedValue(
 			MockDeletedWorkspace,
 		);
@@ -181,7 +182,7 @@ export const DeletedWorkspace: Story = {
 
 export const WaitingStartupScripts: Story = {
 	beforeEach: () => {
-		spyOn(API.experimental, "getTask").mockResolvedValue(MockTask);
+		spyOn(API, "getTask").mockResolvedValue(MockTask);
 		spyOn(API, "getWorkspaceByOwnerAndName").mockResolvedValue({
 			...MockWorkspace,
 			latest_build: {
@@ -218,13 +219,124 @@ export const WaitingStartupScripts: Story = {
 	},
 };
 
+export const StartupScriptError: Story = {
+	decorators: [withWebSocket],
+	parameters: {
+		queries: [
+			{
+				key: ["tasks", MockTask.owner_name, MockTask.id],
+				data: {
+					...MockTask,
+					workspace_agent_lifecycle: "start_error",
+				},
+			},
+			{
+				key: [
+					"workspace",
+					MockTask.owner_name,
+					MockTask.workspace_name,
+					"settings",
+				],
+				data: {
+					...MockWorkspace,
+					latest_build: {
+						...MockWorkspace.latest_build,
+						has_ai_task: true,
+						resources: [
+							{
+								...MockWorkspaceResource,
+								agents: [MockWorkspaceAgent],
+							},
+						],
+					},
+				},
+			},
+		],
+		webSocket: [
+			{
+				event: "message",
+				data: JSON.stringify(
+					[
+						"Cloning Git repository...",
+						"Starting application...",
+						"\x1b[91mError: Failed to connect to database",
+						"\x1b[91mStartup script exited with code 1",
+					].map((line, index) => ({
+						id: index,
+						level: index >= 2 ? "error" : "info",
+						output: line,
+						source_id: MockWorkspaceAgentLogSource.id,
+						created_at: new Date("2024-01-01T12:00:00Z").toISOString(),
+					})),
+				),
+			},
+		],
+	},
+};
+
+export const StartupScriptTimeout: Story = {
+	decorators: [withWebSocket],
+	parameters: {
+		queries: [
+			{
+				key: ["tasks", MockTask.owner_name, MockTask.id],
+				data: {
+					...MockTask,
+					workspace_agent_lifecycle: "start_timeout",
+				},
+			},
+			{
+				key: [
+					"workspace",
+					MockTask.owner_name,
+					MockTask.workspace_name,
+					"settings",
+				],
+				data: {
+					...MockWorkspace,
+					latest_build: {
+						...MockWorkspace.latest_build,
+						has_ai_task: true,
+						resources: [
+							{
+								...MockWorkspaceResource,
+								agents: [MockWorkspaceAgent],
+							},
+						],
+					},
+				},
+			},
+		],
+		webSocket: [
+			{
+				event: "message",
+				data: JSON.stringify(
+					[
+						"Cloning Git repository...",
+						"Starting application...",
+						"Waiting for dependencies...",
+						"Still waiting...",
+						"\x1b[93mWarning: Startup script exceeded timeout limit",
+					].map((line, index) => ({
+						id: index,
+						level: index === 4 ? "warn" : "info",
+						output: line,
+						source_id: MockWorkspaceAgentLogSource.id,
+						created_at: new Date("2024-01-01T12:00:00Z").toISOString(),
+					})),
+				),
+			},
+		],
+	},
+};
+
 export const SidebarAppNotFound: Story = {
 	beforeEach: () => {
 		const [task, workspace] = mockTaskWithWorkspace(
 			MockClaudeCodeApp,
 			MockVSCodeApp,
 		);
-		spyOn(API.experimental, "getTask").mockResolvedValue({
+		spyOn(API, "getTask").mockResolvedValue({
 			...task,
 			workspace_app_id: null,
 		});
@@ -238,7 +350,7 @@ export const SidebarAppHealthDisabled: Story = {
 			{ ...MockClaudeCodeApp, health: "disabled" },
 			MockVSCodeApp,
 		);
-		spyOn(API.experimental, "getTask").mockResolvedValue(task);
+		spyOn(API, "getTask").mockResolvedValue(task);
 		spyOn(API, "getWorkspaceByOwnerAndName").mockResolvedValue(workspace);
 	},
 };
@@ -249,7 +361,7 @@ export const SidebarAppInitializing: Story = {
 			{ ...MockClaudeCodeApp, health: "initializing" },
 			MockVSCodeApp,
 		);
-		spyOn(API.experimental, "getTask").mockResolvedValue(task);
+		spyOn(API, "getTask").mockResolvedValue(task);
 		spyOn(API, "getWorkspaceByOwnerAndName").mockResolvedValue(workspace);
 	},
 };
@@ -260,7 +372,7 @@ export const SidebarAppHealthy: Story = {
 			{ ...MockClaudeCodeApp, health: "healthy" },
 			MockVSCodeApp,
 		);
-		spyOn(API.experimental, "getTask").mockResolvedValue(task);
+		spyOn(API, "getTask").mockResolvedValue(task);
 		spyOn(API, "getWorkspaceByOwnerAndName").mockResolvedValue(workspace);
 	},
 };
@@ -271,7 +383,7 @@ export const SidebarAppUnhealthy: Story = {
 			{ ...MockClaudeCodeApp, health: "unhealthy" },
 			MockVSCodeApp,
 		);
-		spyOn(API.experimental, "getTask").mockResolvedValue(task);
+		spyOn(API, "getTask").mockResolvedValue(task);
 		spyOn(API, "getWorkspaceByOwnerAndName").mockResolvedValue(workspace);
 	},
 };
@@ -282,7 +394,7 @@ const mainAppHealthStory = (health: WorkspaceApp["health"]) => ({
 			...MockVSCodeApp,
 			health,
 		});
-		spyOn(API.experimental, "getTask").mockResolvedValue(task);
+		spyOn(API, "getTask").mockResolvedValue(task);
 		spyOn(API, "getWorkspaceByOwnerAndName").mockResolvedValue(workspace);
 	},
 });
@@ -291,6 +403,50 @@ export const MainAppHealthy: Story = mainAppHealthStory("healthy");
 export const MainAppInitializing: Story = mainAppHealthStory("initializing");
 export const MainAppUnhealthy: Story = mainAppHealthStory("unhealthy");
 
+export const OutdatedWorkspace: Story = {
+	// Given: an 'outdated' workspace (that is, the latest build does not use template's active version)
+	parameters: {
+		queries: [
+			{
+				key: ["tasks", { owner: MockTask.owner_name }],
+				data: [MockTask],
+			},
+			{
+				key: ["tasks", MockTask.owner_name, MockTask.id],
+				data: MockTask,
+			},
+			{
+				key: [
+					"workspace",
+					MockTask.owner_name,
+					MockTask.workspace_name,
+					"settings",
+				],
+				data: {
+					...MockStoppedWorkspace,
+					outdated: true,
+				},
+			},
+			{
+				key: [
+					"workspaceBuilds",
+					MockStoppedWorkspace.latest_build.id,
+					"parameters",
+				],
+				data: [],
+			},
+		],
+	},
+	// Then: a tooltip should be displayed prompting the user to update the workspace.
+	play: async ({ canvasElement }) => {
+		const canvas = within(canvasElement);
+		const outdatedTooltip = await canvas.findByTestId(
+			"workspace-outdated-tooltip",
+		);
+		expect(outdatedTooltip).toBeVisible();
+	},
+};
+
 export const Active: Story = {
 	decorators: [withProxyProvider()],
 	beforeEach: () => {
@@ -298,7 +454,7 @@ export const Active: Story = {
 			MockClaudeCodeApp,
 			MockVSCodeApp,
 		);
-		spyOn(API.experimental, "getTask").mockResolvedValue(task);
+		spyOn(API, "getTask").mockResolvedValue(task);
 		spyOn(API, "getWorkspaceByOwnerAndName").mockResolvedValue(workspace);
 	},
 	play: async ({ canvasElement }) => {
@@ -321,7 +477,7 @@ export const ActivePreview: Story = {
 			MockClaudeCodeApp,
 			MockVSCodeApp,
 		);
-		spyOn(API.experimental, "getTask").mockResolvedValue(task);
+		spyOn(API, "getTask").mockResolvedValue(task);
 		spyOn(API, "getWorkspaceByOwnerAndName").mockResolvedValue(workspace);
 	},
 	play: async ({ canvasElement }) => {
@@ -334,7 +490,7 @@ export const ActivePreview: Story = {
 export const WorkspaceStarting: Story = {
 	decorators: [withGlobalSnackbar],
 	beforeEach: () => {
-		spyOn(API.experimental, "getTask").mockResolvedValue(MockTask);
+		spyOn(API, "getTask").mockResolvedValue(MockTask);
 		spyOn(API, "getWorkspaceByOwnerAndName").mockResolvedValue(
 			MockStoppedWorkspace,
 		);
@@ -372,7 +528,7 @@ export const WorkspaceStarting: Story = {
 export const WorkspaceStartFailure: Story = {
 	decorators: [withGlobalSnackbar],
 	beforeEach: () => {
-		spyOn(API.experimental, "getTask").mockResolvedValue(MockTask);
+		spyOn(API, "getTask").mockResolvedValue(MockTask);
 		spyOn(API, "getWorkspaceByOwnerAndName").mockResolvedValue(
 			MockStoppedWorkspace,
 		);
@@ -410,7 +566,7 @@ export const WorkspaceStartFailure: Story = {
 
 export const WorkspaceStartFailureWithDialog: Story = {
 	beforeEach: () => {
-		spyOn(API.experimental, "getTask").mockResolvedValue(MockTask);
+		spyOn(API, "getTask").mockResolvedValue(MockTask);
 		spyOn(API, "getWorkspaceByOwnerAndName").mockResolvedValue(
 			MockStoppedWorkspace,
 		);
@@ -448,6 +604,38 @@ export const WorkspaceStartFailureWithDialog: Story = {
 			const dialogTitle = await body.findByText("Error building workspace");
 			expect(dialogTitle).toBeInTheDocument();
 		});
+	},
+};
+
+const longDisplayName =
+	"Implement comprehensive authentication and authorization system with role-based access control";
+export const LongDisplayName: Story = {
+	parameters: {
+		queries: [
+			{
+				// Sidebar: uses getTasks() which returns an array
+				key: ["tasks", { owner: MockTask.owner_name }],
+				data: [
+					{ ...MockDisplayNameTasks[0], display_name: longDisplayName },
+					...MockDisplayNameTasks.slice(1),
+				],
+			},
+			{
+				// TaskTopbar: uses getTask() which returns a single task
+				key: ["tasks", MockTask.owner_name, MockTask.id],
+				data: { ...MockDisplayNameTasks[0], display_name: longDisplayName },
+			},
+			{
+				// Workspace data for the task
+				key: [
+					"workspace",
+					MockTask.owner_name,
+					MockTask.workspace_name,
+					"settings",
+				],
+				data: MockWorkspace,
+			},
+		],
 	},
 };
 

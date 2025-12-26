@@ -1,5 +1,12 @@
 import { type Theme, useTheme } from "@emotion/react";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "components/Tooltip/Tooltip";
+import { ExternalLinkIcon } from "lucide-react";
 import { type FC, useState } from "react";
+import { Link } from "react-router";
 import { Bar } from "./Chart/Bar";
 import {
 	Chart,
@@ -10,7 +17,6 @@ import {
 	ChartSearch,
 	ChartToolbar,
 } from "./Chart/Chart";
-import { Tooltip, TooltipLink, TooltipTitle } from "./Chart/Tooltip";
 import {
 	calcDuration,
 	calcOffset,
@@ -52,7 +58,10 @@ export const ResourcesChart: FC<ResourcesChartProps> = ({
 	const [ticks, scale] = makeTicks(totalTime);
 	const [filter, setFilter] = useState("");
 	const visibleTimings = timings.filter(
-		(t) => !isCoderResource(t.name) && t.name.includes(filter),
+		// Stage boundaries are also included
+		(t) =>
+			(!isCoderResource(t.name) || isStageBoundary(t.name)) &&
+			t.name.includes(filter),
 	);
 	const theme = useTheme();
 	const legendsByAction = getLegendsByAction(theme);
@@ -86,11 +95,16 @@ export const ResourcesChart: FC<ResourcesChartProps> = ({
 					<YAxisSection>
 						<YAxisHeader>{stage.name} stage</YAxisHeader>
 						<YAxisLabels>
-							{visibleTimings.map((t) => (
-								<YAxisLabel key={t.name} id={encodeURIComponent(t.name)}>
-									{t.name}
-								</YAxisLabel>
-							))}
+							{visibleTimings.map((t) => {
+								const label = isStageBoundary(t.name)
+									? "total stage duration"
+									: t.name;
+								return (
+									<YAxisLabel key={label} id={encodeURIComponent(t.name)}>
+										{label}
+									</YAxisLabel>
+								);
+							})}
 						</YAxisLabels>
 					</YAxisSection>
 				</YAxis>
@@ -98,28 +112,41 @@ export const ResourcesChart: FC<ResourcesChartProps> = ({
 				<XAxis ticks={ticks} scale={scale}>
 					<XAxisSection>
 						{visibleTimings.map((t) => {
+							const stageBoundary = isStageBoundary(t.name);
 							const duration = calcDuration(t.range);
 							const legend = legendsByAction[t.action] ?? { label: t.action };
+							const label = stageBoundary ? "total stage duration" : t.name;
 
 							return (
 								<XAxisRow
 									key={t.name}
 									yAxisLabelId={encodeURIComponent(t.name)}
 								>
-									<Tooltip
-										title={
-											<>
-												<TooltipTitle>{t.name}</TooltipTitle>
-												<TooltipLink to="">view template</TooltipLink>
-											</>
-										}
-									>
-										<Bar
-											value={duration}
-											offset={calcOffset(t.range, generalTiming)}
-											scale={scale}
-											colors={legend.colors}
-										/>
+									<Tooltip>
+										<TooltipTrigger asChild>
+											<Bar
+												value={duration}
+												offset={calcOffset(t.range, generalTiming)}
+												scale={scale}
+												colors={legend.colors}
+											/>
+										</TooltipTrigger>
+										<TooltipContent
+											side="bottom"
+											className="flex flex-col gap-1.5 border-surface-quaternary"
+										>
+											<p className="m-0 text-content-primary">{label}</p>
+											{/* Stage boundaries should not have these links */}
+											{!stageBoundary && (
+												<Link
+													to=""
+													className="flex items-center gap-1 no-underline text-xs text-inherit hover:text-content-primary"
+												>
+													<ExternalLinkIcon className="size-icon-xs" />
+													view template
+												</Link>
+											)}
+										</TooltipContent>
 									</Tooltip>
 									{formatTime(duration)}
 								</XAxisRow>
@@ -130,6 +157,10 @@ export const ResourcesChart: FC<ResourcesChartProps> = ({
 			</ChartContent>
 		</Chart>
 	);
+};
+
+export const isStageBoundary = (resource: string) => {
+	return resource.startsWith("coder_stage_");
 };
 
 export const isCoderResource = (resource: string) => {

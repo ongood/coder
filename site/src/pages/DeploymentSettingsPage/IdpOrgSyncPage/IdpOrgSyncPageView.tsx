@@ -41,7 +41,6 @@ import {
 import {
 	Tooltip,
 	TooltipContent,
-	TooltipProvider,
 	TooltipTrigger,
 } from "components/Tooltip/Tooltip";
 import { useFormik } from "formik";
@@ -209,7 +208,7 @@ export const IdpOrgSyncPageView: FC<IdpSyncPageViewProps> = ({
 						</div>
 					</div>
 					{form.errors.field && (
-						<p className="text-content-danger text-sm m-0">
+						<p className="text-content-destructive text-sm m-0">
 							{form.errors.field}
 						</p>
 					)}
@@ -298,7 +297,7 @@ export const IdpOrgSyncPageView: FC<IdpSyncPageViewProps> = ({
 							</div>
 						</div>
 						{form.errors.mapping && (
-							<p className="text-content-danger text-sm m-0">
+							<p className="text-content-destructive text-sm m-0">
 								{Object.values(form.errors.mapping || {})}
 							</p>
 						)}
@@ -377,7 +376,7 @@ const IdpMappingTable: FC<IdpMappingTableProps> = ({ isEmpty, children }) => {
 						<TableRow>
 							<TableCell colSpan={999}>
 								<EmptyState
-									message={"No organization mappings"}
+									message="No organization mappings"
 									isCompact
 									cta={
 										<Link
@@ -417,23 +416,21 @@ const OrganizationRow: FC<OrganizationRowProps> = ({
 				<div className="flex flex-row items-center gap-2 text-content-primary">
 					{idpOrg}
 					{!exists && (
-						<TooltipProvider>
-							<Tooltip>
-								<TooltipTrigger asChild>
-									<TriangleAlert className="size-icon-xs cursor-pointer text-content-warning" />
-								</TooltipTrigger>
-								<TooltipContent
-									align="start"
-									alignOffset={-8}
-									sideOffset={8}
-									className="p-2 text-xs text-content-secondary max-w-sm"
-								>
-									This value has not be seen in the specified claim field
-									before. You might want to check your IdP configuration and
-									ensure that this value is not misspelled.
-								</TooltipContent>
-							</Tooltip>
-						</TooltipProvider>
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<TriangleAlert className="size-icon-xs cursor-pointer text-content-warning" />
+							</TooltipTrigger>
+							<TooltipContent
+								align="start"
+								alignOffset={-8}
+								sideOffset={8}
+								className="p-2 text-xs text-content-secondary max-w-sm"
+							>
+								This value has not be seen in the specified claim field before.
+								You might want to check your IdP configuration and ensure that
+								this value is not misspelled.
+							</TooltipContent>
+						</Tooltip>
 					)}
 				</div>
 			</TableCell>

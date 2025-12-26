@@ -103,11 +103,12 @@ func TestAIBridgeListInterceptions(t *testing.T) {
 		// Insert a bunch of test data.
 		now := dbtime.Now()
 		i1ApiKey := sql.NullString{String: "some-api-key", Valid: true}
+		i1EndedAt := now.Add(-time.Hour + time.Minute)
 		i1 := dbgen.AIBridgeInterception(t, db, database.InsertAIBridgeInterceptionParams{
 			APIKeyID:    i1ApiKey,
 			InitiatorID: user1.ID,
 			StartedAt:   now.Add(-time.Hour),
-		}, nil)
+		}, &i1EndedAt)
 		i1tok1 := dbgen.AIBridgeTokenUsage(t, db, database.InsertAIBridgeTokenUsageParams{
 			InterceptionID: i1.ID,
 			CreatedAt:      now,
@@ -175,9 +176,11 @@ func TestAIBridgeListInterceptions(t *testing.T) {
 		// Time comparison
 		require.Len(t, res.Results, 2)
 		require.Equal(t, res.Results[0].ID, i2SDK.ID)
-		require.NotNil(t, now, res.Results[0].EndedAt)
+		require.NotNil(t, res.Results[0].EndedAt)
 		require.WithinDuration(t, now, *res.Results[0].EndedAt, 5*time.Second)
 		res.Results[0].EndedAt = i2SDK.EndedAt
+		require.NotNil(t, res.Results[1].EndedAt)
+		res.Results[1].EndedAt = i1SDK.EndedAt
 
 		require.Equal(t, []codersdk.AIBridgeInterception{i2SDK, i1SDK}, res.Results)
 	})
@@ -217,11 +220,12 @@ func TestAIBridgeListInterceptions(t *testing.T) {
 			randomOffset, err := cryptorand.Intn(10000)
 			require.NoError(t, err)
 			randomOffsetDur := time.Duration(randomOffset) * time.Second
+			endedAt := now.Add(randomOffsetDur + time.Minute)
 			interception := dbgen.AIBridgeInterception(t, db, database.InsertAIBridgeInterceptionParams{
 				ID:          uuid.UUID{byte(i + 10)},
 				InitiatorID: firstUser.UserID,
 				StartedAt:   now.Add(randomOffsetDur),
-			}, nil)
+			}, &endedAt)
 			allInterceptionIDs = append(allInterceptionIDs, interception.ID)
 		}
 
@@ -297,6 +301,39 @@ func TestAIBridgeListInterceptions(t *testing.T) {
 		}
 	})
 
+	t.Run("InflightInterceptions", func(t *testing.T) {
+		t.Parallel()
+		dv := coderdtest.DeploymentValues(t)
+		client, db, firstUser := coderdenttest.NewWithDatabase(t, &coderdenttest.Options{
+			Options: &coderdtest.Options{
+				DeploymentValues: dv,
+			},
+			LicenseOptions: &coderdenttest.LicenseOptions{
+				Features: license.Features{
+					codersdk.FeatureAIBridge: 1,
+				},
+			},
+		})
+		ctx := testutil.Context(t, testutil.WaitLong)
+
+		now := dbtime.Now()
+		i1EndedAt := now.Add(time.Minute)
+		i1 := dbgen.AIBridgeInterception(t, db, database.InsertAIBridgeInterceptionParams{
+			InitiatorID: firstUser.UserID,
+			StartedAt:   now,
+		}, &i1EndedAt)
+		dbgen.AIBridgeInterception(t, db, database.InsertAIBridgeInterceptionParams{
+			InitiatorID: firstUser.UserID,
+			StartedAt:   now.Add(-time.Hour),
+		}, nil)
+
+		res, err := client.AIBridgeListInterceptions(ctx, codersdk.AIBridgeListInterceptionsFilter{})
+		require.NoError(t, err)
+		require.EqualValues(t, 1, res.Count)
+		require.Len(t, res.Results, 1)
+		require.Equal(t, i1.ID, res.Results[0].ID)
+	})
+
 	t.Run("Authorized", func(t *testing.T) {
 		t.Parallel()
 		dv := coderdtest.DeploymentValues(t)
@@ -315,10 +352,11 @@ func TestAIBridgeListInterceptions(t *testing.T) {
 		secondUserClient, secondUser := coderdtest.CreateAnotherUser(t, adminClient, firstUser.OrganizationID)
 
 		now := dbtime.Now()
+		i1EndedAt := now.Add(time.Minute)
 		i1 := dbgen.AIBridgeInterception(t, db, database.InsertAIBridgeInterceptionParams{
 			InitiatorID: firstUser.UserID,
 			StartedAt:   now,
-		}, nil)
+		}, &i1EndedAt)
 		i2 := dbgen.AIBridgeInterception(t, db, database.InsertAIBridgeInterceptionParams{
 			InitiatorID: secondUser.ID,
 			StartedAt:   now.Add(-time.Hour),
@@ -374,13 +412,14 @@ func TestAIBridgeListInterceptions(t *testing.T) {
 
 		// Insert a bunch of test data with varying filterable fields.
 		now := dbtime.Now()
+		i1EndedAt := now.Add(time.Minute)
 		i1 := dbgen.AIBridgeInterception(t, db, database.InsertAIBridgeInterceptionParams{
 			ID:          uuid.MustParse("00000000-0000-0000-0000-000000000001"),
 			InitiatorID: user1.ID,
 			Provider:    "one",
 			Model:       "one",
 			StartedAt:   now,
-		}, nil)
+		}, &i1EndedAt)
 		i2 := dbgen.AIBridgeInterception(t, db, database.InsertAIBridgeInterceptionParams{
 			ID:          uuid.MustParse("00000000-0000-0000-0000-000000000002"),
 			InitiatorID: user1.ID,
@@ -662,5 +701,137 @@ func TestAIBridgeRouting(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, tc.expectedPath, string(body))
 		})
+	}
+}
+
+func TestAIBridgeRateLimiting(t *testing.T) {
+	t.Parallel()
+
+	dv := coderdtest.DeploymentValues(t)
+	// Set a low rate limit for testing.
+	dv.AI.BridgeConfig.RateLimit = 2
+
+	client, closer, api, _ := coderdenttest.NewWithAPI(t, &coderdenttest.Options{
+		Options: &coderdtest.Options{
+			DeploymentValues: dv,
+		},
+		LicenseOptions: &coderdenttest.LicenseOptions{
+			Features: license.Features{
+				codersdk.FeatureAIBridge: 1,
+			},
+		},
+	})
+	t.Cleanup(func() {
+		_ = closer.Close()
+	})
+
+	// Register a simple test handler.
+	testHandler := http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		rw.WriteHeader(http.StatusOK)
+	})
+	api.RegisterInMemoryAIBridgedHTTPHandler(testHandler)
+
+	ctx := testutil.Context(t, testutil.WaitLong)
+	httpClient := &http.Client{}
+	url := client.URL.String() + "/api/v2/aibridge/test"
+
+	// Make requests up to the limit - should succeed.
+	for range 2 {
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, nil)
+		require.NoError(t, err)
+		req.Header.Set(codersdk.SessionTokenHeader, client.SessionToken())
+
+		resp, err := httpClient.Do(req)
+		require.NoError(t, err)
+		_ = resp.Body.Close()
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+	}
+
+	// Next request should be rate limited.
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, nil)
+	require.NoError(t, err)
+	req.Header.Set(codersdk.SessionTokenHeader, client.SessionToken())
+
+	resp, err := httpClient.Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	require.Equal(t, http.StatusTooManyRequests, resp.StatusCode)
+	require.NotEmpty(t, resp.Header.Get("Retry-After"))
+}
+
+func TestAIBridgeConcurrencyLimiting(t *testing.T) {
+	t.Parallel()
+
+	dv := coderdtest.DeploymentValues(t)
+	// Set a low concurrency limit for testing.
+	dv.AI.BridgeConfig.MaxConcurrency = 1
+
+	client, closer, api, _ := coderdenttest.NewWithAPI(t, &coderdenttest.Options{
+		Options: &coderdtest.Options{
+			DeploymentValues: dv,
+		},
+		LicenseOptions: &coderdenttest.LicenseOptions{
+			Features: license.Features{
+				codersdk.FeatureAIBridge: 1,
+			},
+		},
+	})
+	t.Cleanup(func() {
+		_ = closer.Close()
+	})
+
+	// Register a handler that blocks until signaled.
+	started := make(chan struct{})
+	unblock := make(chan struct{})
+	testHandler := http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		started <- struct{}{}
+		<-unblock
+		rw.WriteHeader(http.StatusOK)
+	})
+	api.RegisterInMemoryAIBridgedHTTPHandler(testHandler)
+
+	ctx := testutil.Context(t, testutil.WaitLong)
+	httpClient := &http.Client{}
+	url := client.URL.String() + "/api/v2/aibridge/test"
+
+	// Start a request that will block.
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, nil)
+		if err != nil {
+			return
+		}
+		req.Header.Set(codersdk.SessionTokenHeader, client.SessionToken())
+
+		resp, err := httpClient.Do(req)
+		if err == nil {
+			_ = resp.Body.Close()
+		}
+	}()
+
+	// Wait for the first request to start processing.
+	select {
+	case <-started:
+	case <-ctx.Done():
+		t.Fatal("timed out waiting for first request to start")
+	}
+
+	// Second request should be rejected with 503.
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, nil)
+	require.NoError(t, err)
+	req.Header.Set(codersdk.SessionTokenHeader, client.SessionToken())
+
+	resp, err := httpClient.Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	require.Equal(t, http.StatusServiceUnavailable, resp.StatusCode)
+
+	// Unblock the first request and wait for it to complete.
+	close(unblock)
+	select {
+	case <-done:
+	case <-ctx.Done():
+		t.Fatal("timed out waiting for first request to complete")
 	}
 }

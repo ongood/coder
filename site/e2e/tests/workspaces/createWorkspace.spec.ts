@@ -3,7 +3,6 @@ import { users } from "../../constants";
 import {
 	createTemplate,
 	createWorkspace,
-	disableDynamicParameters,
 	echoResponsesWithParameters,
 	login,
 	openTerminalWindow,
@@ -33,11 +32,8 @@ test.beforeEach(async ({ page }) => {
 test("create workspace", async ({ page }) => {
 	await login(page, users.templateAdmin);
 	const template = await createTemplate(page, {
-		apply: [{ apply: { resources: [{ name: "example" }] } }],
+		graph: [{ graph: { resources: [{ name: "example" }] } }],
 	});
-
-	// Disable dynamic parameters to use classic parameter flow for this test
-	await disableDynamicParameters(page, template);
 
 	await login(page, users.member);
 	await createWorkspace(page, template);
@@ -55,9 +51,6 @@ test("create workspace with default immutable parameters", async ({ page }) => {
 		echoResponsesWithParameters(richParameters),
 	);
 
-	// Disable dynamic parameters to use classic parameter flow for this test
-	await disableDynamicParameters(page, template);
-
 	await login(page, users.member);
 	const workspaceName = await createWorkspace(page, template);
 	await verifyParameters(page, workspaceName, richParameters, [
@@ -74,9 +67,6 @@ test("create workspace with default mutable parameters", async ({ page }) => {
 		page,
 		echoResponsesWithParameters(richParameters),
 	);
-
-	// Disable dynamic parameters to use classic parameter flow for this test
-	await disableDynamicParameters(page, template);
 
 	await login(page, users.member);
 	const workspaceName = await createWorkspace(page, template);
@@ -104,9 +94,6 @@ test("create workspace with default and required parameters", async ({
 		page,
 		echoResponsesWithParameters(richParameters),
 	);
-
-	// Disable dynamic parameters to use classic parameter flow for this test
-	await disableDynamicParameters(page, template);
 
 	await login(page, users.member);
 	const workspaceName = await createWorkspace(page, template, {
@@ -140,14 +127,16 @@ test("create workspace and overwrite default parameters", async ({ page }) => {
 		echoResponsesWithParameters(richParameters),
 	);
 
-	// Disable dynamic parameters to use classic parameter flow for this test
-	await disableDynamicParameters(page, template);
-
 	await login(page, users.member);
 	const workspaceName = await createWorkspace(page, template, {
 		richParameters,
 		buildParameters,
 	});
+
+	await page.waitForSelector("text=Workspace status: Running", {
+		state: "visible",
+	});
+
 	await verifyParameters(page, workspaceName, richParameters, buildParameters);
 });
 
@@ -162,9 +151,6 @@ test("create workspace with disable_param search params", async ({ page }) => {
 		page,
 		echoResponsesWithParameters(richParameters),
 	);
-
-	// Disable dynamic parameters to use classic parameter flow for this test
-	await disableDynamicParameters(page, templateName);
 
 	await login(page, users.member);
 	await page.goto(
@@ -183,9 +169,6 @@ test.skip("create docker workspace", async ({ context, page }) => {
 
 	await login(page, users.templateAdmin);
 	const template = await createTemplate(page, StarterTemplates.STARTER_DOCKER);
-
-	// Disable dynamic parameters to use classic parameter flow for this test
-	await disableDynamicParameters(page, template);
 
 	await login(page, users.member);
 	const workspaceName = await createWorkspace(page, template);

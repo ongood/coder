@@ -2175,6 +2175,12 @@ func (s *server) completeWorkspaceBuildJob(ctx context.Context, job database.Pro
 				continue
 			}
 
+			// Scan does not guarantee validity
+			if !stg.Valid() {
+				s.Logger.Warn(ctx, "invalid stage, will fail insert based one enum", slog.F("value", t.Stage))
+				continue
+			}
+
 			params.Stage = append(params.Stage, stg)
 			params.Source = append(params.Source, t.Source)
 			params.Resource = append(params.Resource, t.Resource)
@@ -2184,8 +2190,11 @@ func (s *server) completeWorkspaceBuildJob(ctx context.Context, job database.Pro
 		}
 		_, err = db.InsertProvisionerJobTimings(ctx, params)
 		if err != nil {
-			// Log error but don't fail the whole transaction for non-critical data
+			// A database error here will "fail" this transaction. Making this error fatal.
+			// If this error is seen, add checks above to validate the insert parameters. In
+			// production, timings should not be a fatal error.
 			s.Logger.Warn(ctx, "failed to update provisioner job timings", slog.F("job_id", jobID), slog.Error(err))
+			return xerrors.Errorf("update provisioner job timings: %w", err)
 		}
 
 		// On start, we want to ensure that workspace agents timeout statuses
@@ -2258,6 +2267,13 @@ func (s *server) completeWorkspaceBuildJob(ctx context.Context, job database.Pro
 		if err != nil {
 			return xerrors.Errorf("update workspace deleted: %w", err)
 		}
+
+		// A user might delete their task workspace directly, instead of
+		// deleting the task. To avoid leaving the Task in a scenario where
+		// it has no workspace, we also attempt to delete the task.
+		//
+		// Deleting the task may fail if it has already been deleted as part
+		// of the typical task deletion workflow, so we explicitly allow that.
 		if workspace.TaskID.Valid {
 			if _, err := db.DeleteTask(ctx, database.DeleteTaskParams{
 				ID:        workspace.TaskID.UUID,
@@ -2336,40 +2352,42 @@ func (s *server) completeWorkspaceBuildJob(ctx context.Context, job database.Pro
 	}
 
 	// Update workspace (regular and prebuild) timing metrics
-	if s.metrics != nil {
-		// Only consider 'start' workspace builds
-		if workspaceBuild.Transition == database.WorkspaceTransitionStart {
-			// Get the updated job to report the metrics with correct data
-			updatedJob, err := s.Database.GetProvisionerJobByID(ctx, jobID)
-			if err != nil {
-				s.Logger.Error(ctx, "get updated job from database", slog.Error(err))
-			} else
-			// Only consider 'succeeded' provisioner jobs
-			if updatedJob.JobStatus == database.ProvisionerJobStatusSucceeded {
-				presetName := ""
-				if workspaceBuild.TemplateVersionPresetID.Valid {
-					preset, err := s.Database.GetPresetByID(ctx, workspaceBuild.TemplateVersionPresetID.UUID)
-					if err != nil {
-						if !errors.Is(err, sql.ErrNoRows) {
-							s.Logger.Error(ctx, "get preset by ID for workspace timing metrics", slog.Error(err))
-						}
-					} else {
-						presetName = preset.Name
+	// Only consider 'start' workspace builds
+	if s.metrics != nil && workspaceBuild.Transition == database.WorkspaceTransitionStart {
+		// Get the updated job to report the metrics with correct data
+		updatedJob, err := s.Database.GetProvisionerJobByID(ctx, jobID)
+		if err != nil {
+			s.Logger.Error(ctx, "get updated job from database", slog.Error(err))
+		} else
+		// Only consider 'succeeded' provisioner jobs
+		if updatedJob.JobStatus == database.ProvisionerJobStatusSucceeded {
+			presetName := ""
+			if workspaceBuild.TemplateVersionPresetID.Valid {
+				preset, err := s.Database.GetPresetByID(ctx, workspaceBuild.TemplateVersionPresetID.UUID)
+				if err != nil {
+					if !errors.Is(err, sql.ErrNoRows) {
+						s.Logger.Error(ctx, "get preset by ID for workspace timing metrics", slog.Error(err))
 					}
+				} else {
+					presetName = preset.Name
 				}
+			}
 
-				buildTime := updatedJob.CompletedAt.Time.Sub(updatedJob.StartedAt.Time).Seconds()
+			buildTime := updatedJob.CompletedAt.Time.Sub(updatedJob.StartedAt.Time).Seconds()
+			flags := WorkspaceTimingFlags{
+				// Is a prebuilt workspace creation build
+				IsPrebuild: input.PrebuiltWorkspaceBuildStage.IsPrebuild(),
+				// Is a prebuilt workspace claim build
+				IsClaim: input.PrebuiltWorkspaceBuildStage.IsPrebuiltWorkspaceClaim(),
+				// Is a regular workspace creation build
+				// Only consider the first build number for regular workspaces
+				IsFirstBuild: workspaceBuild.BuildNumber == 1,
+			}
+			// Only track metrics for prebuild creation, prebuild claims and workspace creation
+			if flags.IsTrackable() {
 				s.metrics.UpdateWorkspaceTimingsMetrics(
 					ctx,
-					WorkspaceTimingFlags{
-						// Is a prebuilt workspace creation build
-						IsPrebuild: input.PrebuiltWorkspaceBuildStage.IsPrebuild(),
-						// Is a prebuilt workspace claim build
-						IsClaim: input.PrebuiltWorkspaceBuildStage.IsPrebuiltWorkspaceClaim(),
-						// Is a regular workspace creation build
-						// Only consider the first build number for regular workspaces
-						IsFirstBuild: workspaceBuild.BuildNumber == 1,
-					},
+					flags,
 					workspace.OrganizationName,
 					workspace.TemplateName,
 					presetName,
@@ -2570,6 +2588,7 @@ func InsertWorkspacePresetAndParameters(ctx context.Context, db database.Store, 
 			IsDefault:           protoPreset.GetDefault(),
 			Description:         protoPreset.Description,
 			Icon:                protoPreset.Icon,
+			LastInvalidatedAt:   sql.NullTime{},
 		})
 		if err != nil {
 			return xerrors.Errorf("insert preset: %w", err)

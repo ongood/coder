@@ -391,10 +391,19 @@ func (s *Server) sessionHandler(session ssh.Session) {
 	env := session.Environ()
 	magicType, magicTypeRaw, env := extractMagicSessionType(env)
 
+	// It's not safe to assume RemoteAddr() returns a non-nil value. slog.F usage is fine because it correctly
+	// handles nil.
+	// c.f. https://github.com/coder/internal/issues/1143
+	remoteAddr := session.RemoteAddr()
+	remoteAddrString := ""
+	if remoteAddr != nil {
+		remoteAddrString = remoteAddr.String()
+	}
+
 	if !s.trackSession(session, true) {
 		reason := "unable to accept new session, server is closing"
 		// Report connection attempt even if we couldn't accept it.
-		disconnected := s.config.ReportConnection(id, magicType, session.RemoteAddr().String())
+		disconnected := s.config.ReportConnection(id, magicType, remoteAddrString)
 		defer disconnected(1, reason)
 
 		logger.Info(ctx, reason)
@@ -429,7 +438,7 @@ func (s *Server) sessionHandler(session ssh.Session) {
 		scr := &sessionCloseTracker{Session: session}
 		session = scr
 
-		disconnected := s.config.ReportConnection(id, magicType, session.RemoteAddr().String())
+		disconnected := s.config.ReportConnection(id, magicType, remoteAddrString)
 		defer func() {
 			disconnected(scr.exitCode(), reason)
 		}()
@@ -820,13 +829,19 @@ func (s *Server) sftpHandler(logger slog.Logger, session ssh.Session) error {
 	session.DisablePTYEmulation()
 
 	var opts []sftp.ServerOption
-	// Change current working directory to the users home
-	// directory so that SFTP connections land there.
-	homedir, err := userHomeDir()
-	if err != nil {
-		logger.Warn(ctx, "get sftp working directory failed, unable to get home dir", slog.Error(err))
-	} else {
-		opts = append(opts, sftp.WithServerWorkingDirectory(homedir))
+	// Change current working directory to the configured
+	// directory (or home directory if not set) so that SFTP
+	// connections land there.
+	dir := s.config.WorkingDirectory()
+	if dir == "" {
+		var err error
+		dir, err = userHomeDir()
+		if err != nil {
+			logger.Warn(ctx, "get sftp working directory failed, unable to get home dir", slog.Error(err))
+		}
+	}
+	if dir != "" {
+		opts = append(opts, sftp.WithServerWorkingDirectory(dir))
 	}
 
 	server, err := sftp.NewServer(session, opts...)

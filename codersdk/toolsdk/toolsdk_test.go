@@ -1015,9 +1015,8 @@ func TestTools(t *testing.T) {
 		version := coderdtest.CreateTemplateVersion(t, client, owner.OrganizationID, &echo.Responses{
 			Parse:          echo.ParseComplete,
 			ProvisionApply: echo.ApplyComplete,
-			ProvisionPlan: []*proto.Response{
-				{Type: &proto.Response_Plan{Plan: &proto.PlanComplete{
-					Parameters: []*proto.RichParameter{{Name: "AI Prompt", Type: "string"}},
+			ProvisionGraph: []*proto.Response{
+				{Type: &proto.Response_Graph{Graph: &proto.GraphComplete{
 					HasAiTasks: true,
 				}}},
 			},
@@ -1025,11 +1024,8 @@ func TestTools(t *testing.T) {
 		coderdtest.AwaitTemplateVersionJobCompleted(t, client, version.ID)
 		template := coderdtest.CreateTemplate(t, client, owner.OrganizationID, version.ID)
 
-		expClient := codersdk.NewExperimentalClient(client)
-		taskExpClient := codersdk.NewExperimentalClient(taskClient)
-
 		// This task should not show up since listing is user-scoped.
-		_, err := expClient.CreateTask(ctx, member.Username, codersdk.CreateTaskRequest{
+		_, err := client.CreateTask(ctx, member.Username, codersdk.CreateTaskRequest{
 			TemplateVersionID: template.ActiveVersionID,
 			Input:             "task for member",
 			Name:              "list-task-workspace-member",
@@ -1039,7 +1035,7 @@ func TestTools(t *testing.T) {
 		// Create tasks for taskUser. These should show up in the list.
 		for i := range 5 {
 			taskName := fmt.Sprintf("list-task-workspace-%d", i)
-			task, err := taskExpClient.CreateTask(ctx, codersdk.Me, codersdk.CreateTaskRequest{
+			task, err := taskClient.CreateTask(ctx, codersdk.Me, codersdk.CreateTaskRequest{
 				TemplateVersionID: template.ActiveVersionID,
 				Input:             fmt.Sprintf("task %d", i),
 				Name:              taskName,

@@ -6,17 +6,22 @@ import { Spinner } from "components/Spinner/Spinner";
 import {
 	Tooltip,
 	TooltipContent,
-	TooltipProvider,
 	TooltipTrigger,
 } from "components/Tooltip/Tooltip";
 import { useProxy } from "contexts/ProxyContext";
-import { CircleAlertIcon } from "lucide-react";
+import {
+	Building2Icon,
+	CircleAlertIcon,
+	GlobeIcon,
+	type LucideIcon,
+	SquareArrowOutUpRightIcon,
+	UsersIcon,
+} from "lucide-react";
 import { isExternalApp, needsSessionToken } from "modules/apps/apps";
 import { useAppLink } from "modules/apps/useAppLink";
 import { type FC, type ReactNode, useState } from "react";
 import { AgentButton } from "../AgentButton";
 import { BaseIcon } from "./BaseIcon";
-import { ShareIcon } from "./ShareIcon";
 
 export const DisplayAppNameMap: Record<TypesGen.DisplayApp, string> = {
 	port_forwarding_helper: "Ports",
@@ -116,13 +121,24 @@ export const AppLink: FC<AppLinkProps> = ({
 	}
 
 	const canShare = app.sharing_level !== "owner";
+	const { shareTooltip, shareIcon: ShareIcon } = canShare
+		? app.external
+			? {
+					shareTooltip: "Open external URL",
+					shareIcon: SquareArrowOutUpRightIcon,
+				}
+			: shareDetails[app.sharing_level]
+		: {
+				shareTooltip: null,
+				shareIcon: null,
+			};
 
 	const button = grouped ? (
 		<DropdownMenuItem asChild>
 			<a href={canClick ? link.href : undefined} onClick={link.onClick}>
 				{icon}
 				{link.label}
-				{canShare && <ShareIcon app={app} />}
+				{ShareIcon && <ShareIcon />}
 			</a>
 		</DropdownMenuItem>
 	) : (
@@ -130,29 +146,48 @@ export const AppLink: FC<AppLinkProps> = ({
 			<a href={canClick ? link.href : undefined} onClick={link.onClick}>
 				{icon}
 				{link.label}
-				{canShare && <ShareIcon app={app} />}
+				{ShareIcon && <ShareIcon />}
 			</a>
 		</AgentButton>
 	);
 
 	if (primaryTooltip || app.tooltip) {
 		return (
-			<TooltipProvider>
-				<Tooltip>
-					<TooltipTrigger asChild>{button}</TooltipTrigger>
-					<TooltipContent>
-						{primaryTooltip ? (
-							primaryTooltip
-						) : app.tooltip ? (
-							<Markdown className="text-content-secondary prose-sm font-medium wrap-anywhere">
-								{app.tooltip}
-							</Markdown>
-						) : null}
-					</TooltipContent>
-				</Tooltip>
-			</TooltipProvider>
+			<Tooltip>
+				<TooltipTrigger asChild>{button}</TooltipTrigger>
+				<TooltipContent className="max-w-xs">
+					{primaryTooltip ? (
+						primaryTooltip
+					) : app.tooltip ? (
+						<Markdown className="text-content-secondary prose-sm font-medium wrap-anywhere">
+							{app.tooltip}
+						</Markdown>
+					) : null}
+					{shareTooltip}
+				</TooltipContent>
+			</Tooltip>
 		);
 	}
 
 	return button;
+};
+
+const shareDetails: {
+	[SharingLevel in TypesGen.WorkspaceAppSharingLevel as Exclude<
+		SharingLevel,
+		"owner"
+	>]: { shareTooltip: string; shareIcon: LucideIcon };
+} = {
+	authenticated: {
+		shareTooltip: "Shared with all authenticated users",
+		shareIcon: UsersIcon,
+	},
+	organization: {
+		shareTooltip: "Shared with organization members",
+		shareIcon: Building2Icon,
+	},
+	public: {
+		shareTooltip: "Shared publicly",
+		shareIcon: GlobeIcon,
+	},
 };

@@ -7,13 +7,15 @@ import (
 	"time"
 
 	"github.com/dgraph-io/ristretto/v2"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/xerrors"
 	"tailscale.com/util/singleflight"
 
 	"cdr.dev/slog"
-
 	"github.com/coder/aibridge"
 	"github.com/coder/aibridge/mcp"
+	"github.com/coder/aibridge/tracing"
 )
 
 const (
@@ -51,11 +53,14 @@ type CachedBridgePool struct {
 
 	singleflight *singleflight.Group[string, *aibridge.RequestBridge]
 
+	metrics *aibridge.Metrics
+	tracer  trace.Tracer
+
 	shutDownOnce   sync.Once
 	shuttingDownCh chan struct{}
 }
 
-func NewCachedBridgePool(options PoolOptions, providers []aibridge.Provider, logger slog.Logger) (*CachedBridgePool, error) {
+func NewCachedBridgePool(options PoolOptions, providers []aibridge.Provider, logger slog.Logger, metrics *aibridge.Metrics, tracer trace.Tracer) (*CachedBridgePool, error) {
 	cache, err := ristretto.NewCache(&ristretto.Config[string, *aibridge.RequestBridge]{
 		NumCounters:        options.MaxItems * 10,        // Docs suggest setting this 10x number of keys.
 		MaxCost:            options.MaxItems * cacheCost, // Up to n instances.
@@ -83,8 +88,10 @@ func NewCachedBridgePool(options PoolOptions, providers []aibridge.Provider, log
 	return &CachedBridgePool{
 		cache:     cache,
 		providers: providers,
-		logger:    logger,
 		options:   options,
+		metrics:   metrics,
+		tracer:    tracer,
+		logger:    logger,
 
 		singleflight: &singleflight.Group[string, *aibridge.RequestBridge]{},
 
@@ -96,7 +103,15 @@ func NewCachedBridgePool(options PoolOptions, providers []aibridge.Provider, log
 //
 // Each returned [*aibridge.RequestBridge] is safe for concurrent use.
 // Each [*aibridge.RequestBridge] is stateful because it has MCP clients which maintain sessions to the configured MCP server.
-func (p *CachedBridgePool) Acquire(ctx context.Context, req Request, clientFn ClientFunc, mcpProxyFactory MCPProxyBuilder) (http.Handler, error) {
+func (p *CachedBridgePool) Acquire(ctx context.Context, req Request, clientFn ClientFunc, mcpProxyFactory MCPProxyBuilder) (_ http.Handler, outErr error) {
+	spanAttrs := []attribute.KeyValue{
+		attribute.String(tracing.InitiatorID, req.InitiatorID.String()),
+		attribute.String(tracing.APIKeyID, req.APIKeyID),
+	}
+	ctx, span := p.tracer.Start(ctx, "CachedBridgePool.Acquire", trace.WithAttributes(spanAttrs...))
+	defer tracing.EndSpanErr(span, &outErr)
+	ctx = tracing.WithRequestBridgeAttributesInContext(ctx, spanAttrs)
+
 	if err := ctx.Err(); err != nil {
 		return nil, xerrors.Errorf("acquire: %w", err)
 	}
@@ -120,10 +135,12 @@ func (p *CachedBridgePool) Acquire(ctx context.Context, req Request, clientFn Cl
 		// expire after the original TTL; we can extend the TTL on each Acquire() call.
 		// For now, we need to let the instance expiry to keep the MCP connections fresh.
 
+		span.AddEvent("cache_hit")
 		return bridge, nil
 	}
 
-	recorder := aibridge.NewRecorder(p.logger.Named("recorder"), func() (aibridge.Recorder, error) {
+	span.AddEvent("cache_miss")
+	recorder := aibridge.NewRecorder(p.logger.Named("recorder"), p.tracer, func() (aibridge.Recorder, error) {
 		client, err := clientFn()
 		if err != nil {
 			return nil, xerrors.Errorf("acquire client: %w", err)
@@ -141,7 +158,7 @@ func (p *CachedBridgePool) Acquire(ctx context.Context, req Request, clientFn Cl
 			err        error
 		)
 
-		mcpServers, err = mcpProxyFactory.Build(ctx, req)
+		mcpServers, err = mcpProxyFactory.Build(ctx, req, p.tracer)
 		if err != nil {
 			p.logger.Warn(ctx, "failed to create MCP server proxiers", slog.Error(err))
 			// Don't fail here; MCP server injection can gracefully degrade.
@@ -154,7 +171,7 @@ func (p *CachedBridgePool) Acquire(ctx context.Context, req Request, clientFn Cl
 			}
 		}
 
-		bridge, err := aibridge.NewRequestBridge(ctx, p.providers, p.logger, recorder, mcpServers)
+		bridge, err := aibridge.NewRequestBridge(ctx, p.providers, recorder, mcpServers, p.logger, p.metrics, p.tracer)
 		if err != nil {
 			return nil, xerrors.Errorf("create new request bridge: %w", err)
 		}
@@ -167,7 +184,7 @@ func (p *CachedBridgePool) Acquire(ctx context.Context, req Request, clientFn Cl
 	return instance, err
 }
 
-func (p *CachedBridgePool) Metrics() PoolMetrics {
+func (p *CachedBridgePool) CacheMetrics() PoolMetrics {
 	if p.cache == nil {
 		return nil
 	}

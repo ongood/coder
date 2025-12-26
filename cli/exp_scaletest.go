@@ -48,6 +48,8 @@ import (
 
 const scaletestTracerName = "coder_scaletest"
 
+var BypassHeader = map[string][]string{codersdk.BypassRatelimitHeader: {"true"}}
+
 func (r *RootCmd) scaletestCmd() *serpent.Command {
 	cmd := &serpent.Command{
 		Use:   "scaletest",
@@ -64,7 +66,9 @@ func (r *RootCmd) scaletestCmd() *serpent.Command {
 			r.scaletestWorkspaceTraffic(),
 			r.scaletestAutostart(),
 			r.scaletestNotifications(),
+			r.scaletestTaskStatus(),
 			r.scaletestSMTP(),
+			r.scaletestPrebuilds(),
 		},
 	}
 
@@ -638,9 +642,10 @@ func (r *RootCmd) scaletestCleanup() *serpent.Command {
 
 func (r *RootCmd) scaletestCreateWorkspaces() *serpent.Command {
 	var (
-		count    int64
-		retry    int64
-		template string
+		count       int64
+		retry       int64
+		maxFailures int64
+		template    string
 
 		noCleanup bool
 		// TODO: implement this flag
@@ -686,15 +691,6 @@ func (r *RootCmd) scaletestCreateWorkspaces() *serpent.Command {
 			me, err := requireAdmin(ctx, client)
 			if err != nil {
 				return err
-			}
-
-			client.HTTPClient = &http.Client{
-				Transport: &codersdk.HeaderTransport{
-					Transport: http.DefaultTransport,
-					Header: map[string][]string{
-						codersdk.BypassRatelimitHeader: {"true"},
-					},
-				},
 			}
 
 			if count <= 0 {
@@ -808,7 +804,13 @@ func (r *RootCmd) scaletestCreateWorkspaces() *serpent.Command {
 					return xerrors.Errorf("validate config: %w", err)
 				}
 
-				var runner harness.Runnable = createworkspaces.NewRunner(client, config)
+				// use an independent client for each Runner, so they don't reuse TCP connections. This can lead to
+				// requests being unbalanced among Coder instances.
+				runnerClient, err := loadtestutil.DupClientCopyingHeaders(client, BypassHeader)
+				if err != nil {
+					return xerrors.Errorf("create runner client: %w", err)
+				}
+				var runner harness.Runnable = createworkspaces.NewRunner(runnerClient, config)
 				if tracingEnabled {
 					runner = &runnableTraceWrapper{
 						tracer:   tracer,
@@ -845,8 +847,8 @@ func (r *RootCmd) scaletestCreateWorkspaces() *serpent.Command {
 				return xerrors.Errorf("cleanup tests: %w", err)
 			}
 
-			if res.TotalFail > 0 {
-				return xerrors.New("load test failed, see above for more details")
+			if res.TotalFail > int(maxFailures) {
+				return xerrors.Errorf("load test failed, %d runs failed (max allowed: %d)", res.TotalFail, maxFailures)
 			}
 
 			return nil
@@ -961,6 +963,13 @@ func (r *RootCmd) scaletestCreateWorkspaces() *serpent.Command {
 			Description: "Use the user logged in on the host machine, instead of creating users.",
 			Value:       serpent.BoolOf(&useHostUser),
 		},
+		{
+			Flag:        "max-failures",
+			Env:         "CODER_SCALETEST_MAX_FAILURES",
+			Default:     "0",
+			Description: "Maximum number of runs that are allowed to fail before the entire test is considered failed. 0 means any failure will cause the test to fail.",
+			Value:       serpent.Int64Of(&maxFailures),
+		},
 	}
 
 	cmd.Options = append(cmd.Options, parameterFlags.cliParameters()...)
@@ -1007,15 +1016,6 @@ func (r *RootCmd) scaletestWorkspaceUpdates() *serpent.Command {
 			me, err := requireAdmin(ctx, client)
 			if err != nil {
 				return err
-			}
-
-			client.HTTPClient = &http.Client{
-				Transport: &codersdk.HeaderTransport{
-					Transport: http.DefaultTransport,
-					Header: map[string][]string{
-						codersdk.BypassRatelimitHeader: {"true"},
-					},
-				},
 			}
 
 			if workspaceCount <= 0 {
@@ -1156,7 +1156,14 @@ func (r *RootCmd) scaletestWorkspaceUpdates() *serpent.Command {
 			for i, config := range configs {
 				name := fmt.Sprintf("workspaceupdates-%dw", config.WorkspaceCount)
 				id := strconv.Itoa(i)
-				var runner harness.Runnable = workspaceupdates.NewRunner(client, config)
+
+				// use an independent client for each Runner, so they don't reuse TCP connections. This can lead to
+				// requests being unbalanced among Coder instances.
+				runnerClient, err := loadtestutil.DupClientCopyingHeaders(client, BypassHeader)
+				if err != nil {
+					return xerrors.Errorf("create runner client: %w", err)
+				}
+				var runner harness.Runnable = workspaceupdates.NewRunner(runnerClient, config)
 				if tracingEnabled {
 					runner = &runnableTraceWrapper{
 						tracer:   tracer,
@@ -1313,16 +1320,6 @@ func (r *RootCmd) scaletestWorkspaceTraffic() *serpent.Command {
 			prometheusSrvClose := ServeHandler(ctx, logger, promhttp.HandlerFor(reg, promhttp.HandlerOpts{}), prometheusFlags.Address, "prometheus")
 			defer prometheusSrvClose()
 
-			// Bypass rate limiting
-			client.HTTPClient = &http.Client{
-				Transport: &codersdk.HeaderTransport{
-					Transport: http.DefaultTransport,
-					Header: map[string][]string{
-						codersdk.BypassRatelimitHeader: {"true"},
-					},
-				},
-			}
-
 			workspaces, err := targetFlags.getTargetedWorkspaces(ctx, client, me.OrganizationIDs, inv.Stdout)
 			if err != nil {
 				return err
@@ -1419,7 +1416,13 @@ func (r *RootCmd) scaletestWorkspaceTraffic() *serpent.Command {
 				if err := config.Validate(); err != nil {
 					return xerrors.Errorf("validate config: %w", err)
 				}
-				var runner harness.Runnable = workspacetraffic.NewRunner(client, config)
+				// use an independent client for each Runner, so they don't reuse TCP connections. This can lead to
+				// requests being unbalanced among Coder instances.
+				runnerClient, err := loadtestutil.DupClientCopyingHeaders(client, BypassHeader)
+				if err != nil {
+					return xerrors.Errorf("create runner client: %w", err)
+				}
+				var runner harness.Runnable = workspacetraffic.NewRunner(runnerClient, config)
 				if tracingEnabled {
 					runner = &runnableTraceWrapper{
 						tracer:   tracer,
@@ -1557,6 +1560,15 @@ func (r *RootCmd) scaletestDashboard() *serpent.Command {
 			if err != nil {
 				return xerrors.Errorf("create tracer provider: %w", err)
 			}
+			tracer := tracerProvider.Tracer(scaletestTracerName)
+			outputs, err := output.parse()
+			if err != nil {
+				return xerrors.Errorf("could not parse --output flags")
+			}
+			reg := prometheus.NewRegistry()
+			prometheusSrvClose := ServeHandler(ctx, logger, promhttp.HandlerFor(reg, promhttp.HandlerOpts{}), prometheusFlags.Address, "prometheus")
+			defer prometheusSrvClose()
+
 			defer func() {
 				// Allow time for traces to flush even if command context is
 				// canceled. This is a no-op if tracing is not enabled.
@@ -1568,14 +1580,7 @@ func (r *RootCmd) scaletestDashboard() *serpent.Command {
 				_, _ = fmt.Fprintf(inv.Stderr, "Waiting %s for prometheus metrics to be scraped\n", prometheusFlags.Wait)
 				<-time.After(prometheusFlags.Wait)
 			}()
-			tracer := tracerProvider.Tracer(scaletestTracerName)
-			outputs, err := output.parse()
-			if err != nil {
-				return xerrors.Errorf("could not parse --output flags")
-			}
-			reg := prometheus.NewRegistry()
-			prometheusSrvClose := ServeHandler(ctx, logger, promhttp.HandlerFor(reg, promhttp.HandlerOpts{}), prometheusFlags.Address, "prometheus")
-			defer prometheusSrvClose()
+
 			metrics := dashboard.NewMetrics(reg)
 
 			th := harness.NewTestHarness(strategy.toStrategy(), cleanupStrategy.toStrategy())
@@ -1605,9 +1610,13 @@ func (r *RootCmd) scaletestDashboard() *serpent.Command {
 					return xerrors.Errorf("create token for user: %w", err)
 				}
 
-				userClient := codersdk.New(client.URL,
-					codersdk.WithSessionToken(userTokResp.Key),
-				)
+				// use an independent client for each Runner, so they don't reuse TCP connections. This can lead to
+				// requests being unbalanced among Coder instances.
+				userClient, err := loadtestutil.DupClientCopyingHeaders(client, BypassHeader)
+				if err != nil {
+					return xerrors.Errorf("create runner client: %w", err)
+				}
+				codersdk.WithSessionToken(userTokResp.Key)(userClient)
 
 				config := dashboard.Config{
 					Interval: interval,
@@ -1754,15 +1763,6 @@ func (r *RootCmd) scaletestAutostart() *serpent.Command {
 				return err
 			}
 
-			client.HTTPClient = &http.Client{
-				Transport: &codersdk.HeaderTransport{
-					Transport: http.DefaultTransport,
-					Header: map[string][]string{
-						codersdk.BypassRatelimitHeader: {"true"},
-					},
-				},
-			}
-
 			if workspaceCount <= 0 {
 				return xerrors.Errorf("--workspace-count must be greater than zero")
 			}
@@ -1828,7 +1828,13 @@ func (r *RootCmd) scaletestAutostart() *serpent.Command {
 				if err := config.Validate(); err != nil {
 					return xerrors.Errorf("validate config: %w", err)
 				}
-				var runner harness.Runnable = autostart.NewRunner(client, config)
+				// use an independent client for each Runner, so they don't reuse TCP connections. This can lead to
+				// requests being unbalanced among Coder instances.
+				runnerClient, err := loadtestutil.DupClientCopyingHeaders(client, BypassHeader)
+				if err != nil {
+					return xerrors.Errorf("create runner client: %w", err)
+				}
+				var runner harness.Runnable = autostart.NewRunner(runnerClient, config)
 				if tracingEnabled {
 					runner = &runnableTraceWrapper{
 						tracer:   tracer,

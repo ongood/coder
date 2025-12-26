@@ -1,11 +1,9 @@
-import MuiTooltip from "@mui/material/Tooltip";
 import type { WorkspaceAgentLogSource } from "api/typesGenerated";
 import { Badge } from "components/Badge/Badge";
 import type { Line } from "components/Logs/LogLine";
 import {
 	Tooltip,
 	TooltipContent,
-	TooltipProvider,
 	TooltipTrigger,
 } from "components/Tooltip/Tooltip";
 import { type ComponentProps, forwardRef, type JSX } from "react";
@@ -126,21 +124,18 @@ export const AgentLogs = forwardRef<List, AgentLogsProps>(
 								maxLineNumber={logs.length}
 								style={style}
 								sourceIcon={
-									<MuiTooltip
-										title={
-											<>
-												{logSource.display_name}
-												{assignedIcon && (
-													<i>
-														<br />
-														No icon specified!
-													</i>
-												)}
-											</>
-										}
-									>
-										{icon}
-									</MuiTooltip>
+									<Tooltip>
+										<TooltipTrigger asChild>{icon}</TooltipTrigger>
+										<TooltipContent side="bottom">
+											{logSource.display_name}
+											{assignedIcon && (
+												<i>
+													<br />
+													No icon specified!
+												</i>
+											)}
+										</TooltipContent>
+									</Tooltip>
 								}
 							/>
 						);
@@ -148,33 +143,31 @@ export const AgentLogs = forwardRef<List, AgentLogsProps>(
 				</List>
 
 				{overflowed && (
-					<TooltipProvider delayDuration={100}>
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<Badge
-									asChild
-									className="max-w-fit py-1.5 px-3 absolute bottom-3 left-1/2 -translate-x-1/2"
-								>
-									<span>Logs overflowed</span>
-								</Badge>
-							</TooltipTrigger>
-							<TooltipContent
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<Badge
 								asChild
-								className="w-full text-sm text-content-secondary bg-surface-primary max-w-prose leading-relaxed m-0 p-4"
+								className="max-w-fit py-1.5 px-3 absolute bottom-3 left-1/2 -translate-x-1/2"
 							>
-								<p>
-									Startup logs exceeded the max size of{" "}
-									<span className="tracking-wide font-mono">1MB</span>, and will
-									not continue to be written to the database. Logs will continue
-									to be written to the{" "}
-									<span className="font-mono bg-surface-tertiary rounded-md px-1.5 py-0.5">
-										/tmp/coder-startup-script.log
-									</span>{" "}
-									file in the workspace.
-								</p>
-							</TooltipContent>
-						</Tooltip>
-					</TooltipProvider>
+								<span>Logs overflowed</span>
+							</Badge>
+						</TooltipTrigger>
+						<TooltipContent
+							asChild
+							className="w-full text-sm text-content-secondary bg-surface-primary max-w-prose leading-relaxed m-0 p-4"
+						>
+							<p>
+								Startup logs exceeded the max size of{" "}
+								<span className="tracking-wide font-mono">1MB</span>, and will
+								not continue to be written to the database. Logs will continue
+								to be written to the{" "}
+								<span className="font-mono bg-surface-tertiary rounded-md px-1.5 py-0.5">
+									/tmp/coder-startup-script.log
+								</span>{" "}
+								file in the workspace.
+							</p>
+						</TooltipContent>
+					</Tooltip>
 				)}
 			</div>
 		);

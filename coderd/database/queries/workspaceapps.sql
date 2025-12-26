@@ -71,13 +71,15 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 RETURNING *;
 
 -- name: GetWorkspaceAppStatusesByAppIDs :many
-SELECT * FROM workspace_app_statuses WHERE app_id = ANY(@ids :: uuid [ ]);
+SELECT * FROM workspace_app_statuses WHERE app_id = ANY(@ids :: uuid [ ])
+ORDER BY created_at DESC, id DESC;
 
--- name: GetLatestWorkspaceAppStatusesByAppID :many
+-- name: GetLatestWorkspaceAppStatusByAppID :one
 SELECT *
 FROM workspace_app_statuses
 WHERE app_id = @app_id::uuid
-ORDER BY created_at DESC, id DESC;
+ORDER BY created_at DESC, id DESC
+LIMIT 1;
 
 -- name: GetLatestWorkspaceAppStatusesByWorkspaceIDs :many
 SELECT DISTINCT ON (workspace_id)

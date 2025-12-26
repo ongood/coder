@@ -359,6 +359,8 @@ export type DeploymentConfig = Readonly<{
 
 type Claims = {
 	license_expires: number;
+	// nbf is a standard JWT claim for "not before" - the license valid from date
+	nbf?: number;
 	account_type?: string;
 	account_id?: string;
 	trial: boolean;
@@ -1177,6 +1179,15 @@ class ApiMethods {
 		return response.data;
 	};
 
+	invalidateTemplatePresets = async (
+		templateId: string,
+	): Promise<TypesGen.InvalidatePresetsResponse> => {
+		const response = await this.axios.post<TypesGen.InvalidatePresetsResponse>(
+			`/api/v2/templates/${templateId}/prebuilds/invalidate`,
+		);
+		return response.data;
+	};
+
 	getWorkspace = async (
 		workspaceId: string,
 		params?: TypesGen.WorkspaceOptions,
@@ -1471,6 +1482,19 @@ class ApiMethods {
 		data: TypesGen.UpdateUserAppearanceSettingsRequest,
 	): Promise<TypesGen.UserAppearanceSettings> => {
 		const response = await this.axios.put("/api/v2/users/me/appearance", data);
+		return response.data;
+	};
+
+	getUserPreferenceSettings =
+		async (): Promise<TypesGen.UserPreferenceSettings> => {
+			const response = await this.axios.get("/api/v2/users/me/preferences");
+			return response.data;
+		};
+
+	updateUserPreferenceSettings = async (
+		req: TypesGen.UpdateUserPreferenceSettingsRequest,
+	): Promise<TypesGen.UserPreferenceSettings> => {
+		const response = await this.axios.put("/api/v2/users/me/preferences", req);
 		return response.data;
 	};
 
@@ -1896,6 +1920,16 @@ class ApiMethods {
 		const response = await this.axios.patch(
 			`/api/v2/templates/${templateId}/acl`,
 			data,
+		);
+
+		return response.data;
+	};
+
+	getWorkspaceACL = async (
+		workspaceId: string,
+	): Promise<TypesGen.WorkspaceACL> => {
+		const response = await this.axios.get(
+			`/api/v2/workspaces/${workspaceId}/acl`,
 		);
 
 		return response.data;
@@ -2644,29 +2678,13 @@ class ApiMethods {
 	markAllInboxNotificationsAsRead = async () => {
 		await this.axios.put<void>("/api/v2/notifications/inbox/mark-all-as-read");
 	};
-}
-
-// Experimental API methods call endpoints under the /api/experimental/ prefix.
-// These endpoints are not stable and may change or be removed at any time.
-//
-// All methods must be defined with arrow function syntax. See the docstring
-// above the ApiMethods class for a full explanation.
-
-export type TaskFeedbackRating = "good" | "okay" | "bad";
-
-export type CreateTaskFeedbackRequest = {
-	rate: TaskFeedbackRating;
-	comment?: string;
-};
-class ExperimentalApiMethods {
-	constructor(protected readonly axios: AxiosInstance) {}
 
 	createTask = async (
 		user: string,
 		req: TypesGen.CreateTaskRequest,
 	): Promise<TypesGen.Task> => {
 		const response = await this.axios.post<TypesGen.Task>(
-			`/api/experimental/tasks/${user}`,
+			`/api/v2/tasks/${user}`,
 			req,
 		);
 
@@ -2685,7 +2703,7 @@ class ExperimentalApiMethods {
 		}
 
 		const res = await this.axios.get<TypesGen.TasksListResponse>(
-			"/api/experimental/tasks",
+			"/api/v2/tasks",
 			{
 				params: {
 					q: query.join(", "),
@@ -2698,14 +2716,24 @@ class ExperimentalApiMethods {
 
 	getTask = async (user: string, id: string): Promise<TypesGen.Task> => {
 		const response = await this.axios.get<TypesGen.Task>(
-			`/api/experimental/tasks/${user}/${id}`,
+			`/api/v2/tasks/${user}/${id}`,
 		);
 
 		return response.data;
 	};
 
 	deleteTask = async (user: string, id: string): Promise<void> => {
-		await this.axios.delete(`/api/experimental/tasks/${user}/${id}`);
+		await this.axios.delete(`/api/v2/tasks/${user}/${id}`);
+	};
+
+	updateTaskInput = async (
+		user: string,
+		id: string,
+		input: string,
+	): Promise<void> => {
+		await this.axios.patch(`/api/v2/tasks/${user}/${id}/input`, {
+			input,
+		} satisfies TypesGen.UpdateTaskInputRequest);
 	};
 
 	createTaskFeedback = async (
@@ -2716,6 +2744,22 @@ class ExperimentalApiMethods {
 			setTimeout(() => res(), 500);
 		});
 	};
+}
+
+export type TaskFeedbackRating = "good" | "okay" | "bad";
+
+export type CreateTaskFeedbackRequest = {
+	rate: TaskFeedbackRating;
+	comment?: string;
+};
+
+// Experimental API methods call endpoints under the /api/experimental/ prefix.
+// These endpoints are not stable and may change or be removed at any time.
+//
+// All methods must be defined with arrow function syntax. See the docstring
+// above the ApiMethods class for a full explanation.
+class ExperimentalApiMethods {
+	constructor(protected readonly axios: AxiosInstance) {}
 
 	getAIBridgeInterceptions = async (options: SearchParamOptions) => {
 		const url = getURLWithSearchParams(
@@ -2761,15 +2805,18 @@ function getConfiguredAxiosInstance(): AxiosInstance {
 		if (process.env.NODE_ENV === "development") {
 			// Development mode uses a hard-coded CSRF token
 			instance.defaults.headers.common["X-CSRF-TOKEN"] = csrfToken;
-			instance.defaults.headers.common["X-CSRF-TOKEN"] = csrfToken;
 			tokenMetadataElement.setAttribute("content", csrfToken);
 		} else {
 			instance.defaults.headers.common["X-CSRF-TOKEN"] =
 				tokenMetadataElement.getAttribute("content") ?? "";
 		}
 	} else {
-		// Do not write error logs if we are in a FE unit test.
-		if (!process.env.JEST_WORKER_ID && !process.env.VITEST) {
+		// Do not write error logs if we are in a FE unit test or if there is no document (e.g., Electron)
+		if (
+			typeof document !== "undefined" &&
+			!process.env.JEST_WORKER_ID &&
+			!process.env.VITEST
+		) {
 			console.error("CSRF token not found");
 		}
 	}
@@ -2800,7 +2847,8 @@ interface ClientApi extends ApiMethods {
 	getAxiosInstance: () => AxiosInstance;
 }
 
-class Api extends ApiMethods implements ClientApi {
+/** @public Exported for use by external consumers (e.g., VS Code extension). */
+export class Api extends ApiMethods implements ClientApi {
 	constructor() {
 		const scopedAxiosInstance = getConfiguredAxiosInstance();
 		super(scopedAxiosInstance);

@@ -96,10 +96,10 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "AIBridge"
+                    "AI Bridge"
                 ],
-                "summary": "List AIBridge interceptions",
-                "operationId": "list-aibridge-interceptions",
+                "summary": "List AI Bridge interceptions",
+                "operationId": "list-ai-bridge-interceptions",
                 "parameters": [
                     {
                         "type": "string",
@@ -132,233 +132,6 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/codersdk.AIBridgeListInterceptionsResponse"
                         }
-                    }
-                }
-            }
-        },
-        "/api/experimental/tasks": {
-            "get": {
-                "security": [
-                    {
-                        "CoderSessionToken": []
-                    }
-                ],
-                "tags": [
-                    "Experimental"
-                ],
-                "summary": "List AI tasks",
-                "operationId": "list-tasks",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Search query for filtering tasks. Supports: owner:\u003cusername/uuid/me\u003e, organization:\u003corg-name/uuid\u003e, status:\u003cstatus\u003e",
-                        "name": "q",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/codersdk.TasksListResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/experimental/tasks/{user}": {
-            "post": {
-                "security": [
-                    {
-                        "CoderSessionToken": []
-                    }
-                ],
-                "tags": [
-                    "Experimental"
-                ],
-                "summary": "Create a new AI task",
-                "operationId": "create-task",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Username, user ID, or 'me' for the authenticated user",
-                        "name": "user",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Create task request",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/codersdk.CreateTaskRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/codersdk.Task"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/experimental/tasks/{user}/{task}": {
-            "get": {
-                "security": [
-                    {
-                        "CoderSessionToken": []
-                    }
-                ],
-                "tags": [
-                    "Experimental"
-                ],
-                "summary": "Get AI task by ID",
-                "operationId": "get-task",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Username, user ID, or 'me' for the authenticated user",
-                        "name": "user",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "format": "uuid",
-                        "description": "Task ID",
-                        "name": "task",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/codersdk.Task"
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "security": [
-                    {
-                        "CoderSessionToken": []
-                    }
-                ],
-                "tags": [
-                    "Experimental"
-                ],
-                "summary": "Delete AI task by ID",
-                "operationId": "delete-task",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Username, user ID, or 'me' for the authenticated user",
-                        "name": "user",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "format": "uuid",
-                        "description": "Task ID",
-                        "name": "task",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "202": {
-                        "description": "Task deletion initiated"
-                    }
-                }
-            }
-        },
-        "/api/experimental/tasks/{user}/{task}/logs": {
-            "get": {
-                "security": [
-                    {
-                        "CoderSessionToken": []
-                    }
-                ],
-                "tags": [
-                    "Experimental"
-                ],
-                "summary": "Get AI task logs",
-                "operationId": "get-task-logs",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Username, user ID, or 'me' for the authenticated user",
-                        "name": "user",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "format": "uuid",
-                        "description": "Task ID",
-                        "name": "task",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/codersdk.TaskLogsResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/experimental/tasks/{user}/{task}/send": {
-            "post": {
-                "security": [
-                    {
-                        "CoderSessionToken": []
-                    }
-                ],
-                "tags": [
-                    "Experimental"
-                ],
-                "summary": "Send input to AI task",
-                "operationId": "send-task-input",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Username, user ID, or 'me' for the authenticated user",
-                        "name": "user",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "format": "uuid",
-                        "description": "Task ID",
-                        "name": "task",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Task input request",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/codersdk.TaskSendRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "204": {
-                        "description": "Input sent successfully"
                     }
                 }
             }
@@ -1517,8 +1290,14 @@ const docTemplate = `{
                     }
                 ],
                 "responses": {
+                    "200": {
+                        "description": "Returns existing file if duplicate",
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.UploadResponse"
+                        }
+                    },
                     "201": {
-                        "description": "Created",
+                        "description": "Returns newly created file",
                         "schema": {
                             "$ref": "#/definitions/codersdk.UploadResponse"
                         }
@@ -2027,7 +1806,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Organizations"
+                    "Enterprise"
                 ],
                 "summary": "Add new license",
                 "operationId": "add-new-license",
@@ -2063,7 +1842,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Organizations"
+                    "Enterprise"
                 ],
                 "summary": "Update license entitlements",
                 "operationId": "update-license-entitlements",
@@ -5679,6 +5458,294 @@ const docTemplate = `{
                 }
             }
         },
+        "/tasks": {
+            "get": {
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tasks"
+                ],
+                "summary": "List AI tasks",
+                "operationId": "list-ai-tasks",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Search query for filtering tasks. Supports: owner:\u003cusername/uuid/me\u003e, organization:\u003corg-name/uuid\u003e, status:\u003cstatus\u003e",
+                        "name": "q",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.TasksListResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/tasks/{user}": {
+            "post": {
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tasks"
+                ],
+                "summary": "Create a new AI task",
+                "operationId": "create-a-new-ai-task",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Username, user ID, or 'me' for the authenticated user",
+                        "name": "user",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Create task request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.CreateTaskRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.Task"
+                        }
+                    }
+                }
+            }
+        },
+        "/tasks/{user}/{task}": {
+            "get": {
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tasks"
+                ],
+                "summary": "Get AI task by ID or name",
+                "operationId": "get-ai-task-by-id-or-name",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Username, user ID, or 'me' for the authenticated user",
+                        "name": "user",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Task ID, or task name",
+                        "name": "task",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.Task"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ],
+                "tags": [
+                    "Tasks"
+                ],
+                "summary": "Delete AI task",
+                "operationId": "delete-ai-task",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Username, user ID, or 'me' for the authenticated user",
+                        "name": "user",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Task ID, or task name",
+                        "name": "task",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted"
+                    }
+                }
+            }
+        },
+        "/tasks/{user}/{task}/input": {
+            "patch": {
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tasks"
+                ],
+                "summary": "Update AI task input",
+                "operationId": "update-ai-task-input",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Username, user ID, or 'me' for the authenticated user",
+                        "name": "user",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Task ID, or task name",
+                        "name": "task",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Update task input request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.UpdateTaskInputRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    }
+                }
+            }
+        },
+        "/tasks/{user}/{task}/logs": {
+            "get": {
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tasks"
+                ],
+                "summary": "Get AI task logs",
+                "operationId": "get-ai-task-logs",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Username, user ID, or 'me' for the authenticated user",
+                        "name": "user",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Task ID, or task name",
+                        "name": "task",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.TaskLogsResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/tasks/{user}/{task}/send": {
+            "post": {
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tasks"
+                ],
+                "summary": "Send input to AI task",
+                "operationId": "send-input-to-ai-task",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Username, user ID, or 'me' for the authenticated user",
+                        "name": "user",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Task ID, or task name",
+                        "name": "task",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Task input request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.TaskSendRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    }
+                }
+            }
+        },
         "/templates": {
             "get": {
                 "security": [
@@ -5997,6 +6064,41 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/codersdk.DAUsResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/templates/{template}/prebuilds/invalidate": {
+            "post": {
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Enterprise"
+                ],
+                "summary": "Invalidate presets for template",
+                "operationId": "invalidate-presets-for-template",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Template ID",
+                        "name": "template",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.InvalidatePresetsResponse"
                         }
                     }
                 }
@@ -8291,6 +8393,84 @@ const docTemplate = `{
                 }
             }
         },
+        "/users/{user}/preferences": {
+            "get": {
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Get user preference settings",
+                "operationId": "get-user-preference-settings",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID, name, or me",
+                        "name": "user",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.UserPreferenceSettings"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Update user preference settings",
+                "operationId": "update-user-preference-settings",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID, name, or me",
+                        "name": "user",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "New preference settings",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.UpdateUserPreferenceSettingsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.UserPreferenceSettings"
+                        }
+                    }
+                }
+            }
+        },
         "/users/{user}/profile": {
             "put": {
                 "security": [
@@ -9399,6 +9579,42 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/codersdk.WorkspaceAgentListContainersResponse"
                         }
+                    }
+                }
+            }
+        },
+        "/workspaceagents/{workspaceagent}/containers/devcontainers/{devcontainer}": {
+            "delete": {
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ],
+                "tags": [
+                    "Agents"
+                ],
+                "summary": "Delete devcontainer for workspace agent",
+                "operationId": "delete-devcontainer-for-workspace-agent",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Workspace agent ID",
+                        "name": "workspaceagent",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Devcontainer ID",
+                        "name": "devcontainer",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
                     }
                 }
             }
@@ -11703,8 +11919,17 @@ const docTemplate = `{
                 "inject_coder_mcp_tools": {
                     "type": "boolean"
                 },
+                "max_concurrency": {
+                    "type": "integer"
+                },
                 "openai": {
                     "$ref": "#/definitions/codersdk.AIBridgeOpenAIConfig"
+                },
+                "rate_limit": {
+                    "type": "integer"
+                },
+                "retention": {
+                    "type": "integer"
                 }
             }
         },
@@ -13199,6 +13424,9 @@ const docTemplate = `{
         "codersdk.CreateTaskRequest": {
             "type": "object",
             "properties": {
+                "display_name": {
+                    "type": "string"
+                },
                 "input": {
                     "type": "string"
                 },
@@ -14028,6 +14256,9 @@ const docTemplate = `{
                 "disable_path_apps": {
                     "type": "boolean"
                 },
+                "disable_workspace_sharing": {
+                    "type": "boolean"
+                },
                 "docs_url": {
                     "$ref": "#/definitions/serpent.URL"
                 },
@@ -14122,6 +14353,9 @@ const docTemplate = `{
                 "redirect_to_access_url": {
                     "type": "boolean"
                 },
+                "retention": {
+                    "$ref": "#/definitions/codersdk.RetentionConfig"
+                },
                 "scim_api_key": {
                     "type": "string"
                 },
@@ -14148,6 +14382,9 @@ const docTemplate = `{
                 },
                 "telemetry": {
                     "$ref": "#/definitions/codersdk.TelemetryConfig"
+                },
+                "template_insights": {
+                    "$ref": "#/definitions/codersdk.TemplateInsightsConfig"
                 },
                 "terms_of_service_url": {
                     "type": "string"
@@ -14438,6 +14675,13 @@ const docTemplate = `{
                 },
                 "client_id": {
                     "type": "string"
+                },
+                "code_challenge_methods_supported": {
+                    "description": "CodeChallengeMethodsSupported lists the PKCE code challenge methods\nThe only one supported by Coder is \"S256\".",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "device_code_url": {
                     "type": "string"
@@ -14888,6 +15132,31 @@ const docTemplate = `{
                 "InsightsReportIntervalDay",
                 "InsightsReportIntervalWeek"
             ]
+        },
+        "codersdk.InvalidatePresetsResponse": {
+            "type": "object",
+            "properties": {
+                "invalidated": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/codersdk.InvalidatedPreset"
+                    }
+                }
+            }
+        },
+        "codersdk.InvalidatedPreset": {
+            "type": "object",
+            "properties": {
+                "preset_name": {
+                    "type": "string"
+                },
+                "template_name": {
+                    "type": "string"
+                },
+                "template_version_name": {
+                    "type": "string"
+                }
+            }
         },
         "codersdk.IssueReconnectingPTYSignedTokenRequest": {
             "type": "object",
@@ -17523,6 +17792,27 @@ const docTemplate = `{
                 }
             }
         },
+        "codersdk.RetentionConfig": {
+            "type": "object",
+            "properties": {
+                "api_keys": {
+                    "description": "APIKeys controls how long expired API keys are retained before being deleted.\nKeys are only deleted if they have been expired for at least this duration.\nDefaults to 7 days to preserve existing behavior.",
+                    "type": "integer"
+                },
+                "audit_logs": {
+                    "description": "AuditLogs controls how long audit log entries are retained.\nSet to 0 to disable (keep indefinitely).",
+                    "type": "integer"
+                },
+                "connection_logs": {
+                    "description": "ConnectionLogs controls how long connection log entries are retained.\nSet to 0 to disable (keep indefinitely).",
+                    "type": "integer"
+                },
+                "workspace_agent_logs": {
+                    "description": "WorkspaceAgentLogs controls how long workspace agent logs are retained.\nLogs are deleted if the agent hasn't connected within this period.\nLogs from the latest build are always retained regardless of age.\nDefaults to 7 days to preserve existing behavior.",
+                    "type": "integer"
+                }
+            }
+        },
         "codersdk.Role": {
             "type": "object",
             "properties": {
@@ -17683,6 +17973,50 @@ const docTemplate = `{
                 }
             }
         },
+        "codersdk.SharedWorkspaceActor": {
+            "type": "object",
+            "properties": {
+                "actor_type": {
+                    "enum": [
+                        "group",
+                        "user"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/codersdk.SharedWorkspaceActorType"
+                        }
+                    ]
+                },
+                "avatar_url": {
+                    "type": "string",
+                    "format": "uri"
+                },
+                "id": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "roles": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/codersdk.WorkspaceRole"
+                    }
+                }
+            }
+        },
+        "codersdk.SharedWorkspaceActorType": {
+            "type": "string",
+            "enum": [
+                "group",
+                "user"
+            ],
+            "x-enum-varnames": [
+                "SharedWorkspaceActorTypeGroup",
+                "SharedWorkspaceActorTypeUser"
+            ]
+        },
         "codersdk.SlimRole": {
             "type": "object",
             "properties": {
@@ -17772,6 +18106,9 @@ const docTemplate = `{
                 },
                 "current_state": {
                     "$ref": "#/definitions/codersdk.TaskStateEntry"
+                },
+                "display_name": {
+                    "type": "string"
                 },
                 "id": {
                     "type": "string",
@@ -18346,6 +18683,14 @@ const docTemplate = `{
                 "total_member_count": {
                     "description": "How many members are in this group. Shows the total count,\neven if the user is not authorized to read group member details.\nMay be greater than ` + "`" + `len(Group.Members)` + "`" + `.",
                     "type": "integer"
+                }
+            }
+        },
+        "codersdk.TemplateInsightsConfig": {
+            "type": "object",
+            "properties": {
+                "enable": {
+                    "type": "boolean"
                 }
             }
         },
@@ -18962,6 +19307,14 @@ const docTemplate = `{
                 }
             }
         },
+        "codersdk.UpdateTaskInputRequest": {
+            "type": "object",
+            "properties": {
+                "input": {
+                    "type": "string"
+                }
+            }
+        },
         "codersdk.UpdateTemplateACL": {
             "type": "object",
             "properties": {
@@ -19113,6 +19466,14 @@ const docTemplate = `{
                 },
                 "password": {
                     "type": "string"
+                }
+            }
+        },
+        "codersdk.UpdateUserPreferenceSettingsRequest": {
+            "type": "object",
+            "properties": {
+                "task_notification_alert_dismissed": {
+                    "type": "boolean"
                 }
             }
         },
@@ -19501,6 +19862,14 @@ const docTemplate = `{
                 }
             }
         },
+        "codersdk.UserPreferenceSettings": {
+            "type": "object",
+            "properties": {
+                "task_notification_alert_dismissed": {
+                    "type": "boolean"
+                }
+            }
+        },
         "codersdk.UserQuietHoursScheduleConfig": {
             "type": "object",
             "properties": {
@@ -19730,6 +20099,12 @@ const docTemplate = `{
                 "owner_name": {
                     "description": "OwnerName is the username of the owner of the workspace.",
                     "type": "string"
+                },
+                "shared_with": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/codersdk.SharedWorkspaceActor"
+                    }
                 },
                 "task_id": {
                     "description": "TaskID, if set, indicates that the workspace is relevant to the given codersdk.Task.",
@@ -20072,12 +20447,16 @@ const docTemplate = `{
                 "running",
                 "stopped",
                 "starting",
+                "stopping",
+                "deleting",
                 "error"
             ],
             "x-enum-varnames": [
                 "WorkspaceAgentDevcontainerStatusRunning",
                 "WorkspaceAgentDevcontainerStatusStopped",
                 "WorkspaceAgentDevcontainerStatusStarting",
+                "WorkspaceAgentDevcontainerStatusStopping",
+                "WorkspaceAgentDevcontainerStatusDeleting",
                 "WorkspaceAgentDevcontainerStatusError"
             ]
         },

@@ -1,6 +1,7 @@
 package database
 
 import (
+	"database/sql"
 	"encoding/hex"
 	"slices"
 	"sort"
@@ -132,11 +133,29 @@ func (w ConnectionLog) RBACObject() rbac.Object {
 	return obj
 }
 
+// TaskTable converts a Task to it's reduced version.
+// A more generalized solution is to use json marshaling to
+// consistently keep these two structs in sync.
+// That would be a lot of overhead, and a more costly unit test is
+// written to make sure these match up.
+func (t Task) TaskTable() TaskTable {
+	return TaskTable{
+		ID:                 t.ID,
+		OrganizationID:     t.OrganizationID,
+		OwnerID:            t.OwnerID,
+		Name:               t.Name,
+		DisplayName:        t.DisplayName,
+		WorkspaceID:        t.WorkspaceID,
+		TemplateVersionID:  t.TemplateVersionID,
+		TemplateParameters: t.TemplateParameters,
+		Prompt:             t.Prompt,
+		CreatedAt:          t.CreatedAt,
+		DeletedAt:          t.DeletedAt,
+	}
+}
+
 func (t Task) RBACObject() rbac.Object {
-	return rbac.ResourceTask.
-		WithID(t.ID).
-		WithOwner(t.OwnerID.String()).
-		InOrg(t.OrganizationID)
+	return t.TaskTable().RBACObject()
 }
 
 func (t TaskTable) RBACObject() rbac.Object {
@@ -411,9 +430,16 @@ func (w WorkspaceTable) RBACObject() rbac.Object {
 		return w.DormantRBAC()
 	}
 
-	return rbac.ResourceWorkspace.WithID(w.ID).
+	obj := rbac.ResourceWorkspace.
+		WithID(w.ID).
 		InOrg(w.OrganizationID).
-		WithOwner(w.OwnerID.String()).
+		WithOwner(w.OwnerID.String())
+
+	if rbac.WorkspaceACLDisabled() {
+		return obj
+	}
+
+	return obj.
 		WithGroupACL(w.GroupACL.RBACACL()).
 		WithACLUserList(w.UserACL.RBACACL())
 }
@@ -632,7 +658,7 @@ func ConvertUserRows(rows []GetUsersRow) []User {
 	return users
 }
 
-func ConvertWorkspaceRows(rows []GetWorkspacesRow) []Workspace {
+func ConvertWorkspaceRows(rows []GetWorkspacesRow) ([]Workspace, error) {
 	workspaces := make([]Workspace, len(rows))
 	for i, r := range rows {
 		workspaces[i] = Workspace{
@@ -653,6 +679,7 @@ func ConvertWorkspaceRows(rows []GetWorkspacesRow) []Workspace {
 			Favorite:                r.Favorite,
 			OwnerAvatarUrl:          r.OwnerAvatarUrl,
 			OwnerUsername:           r.OwnerUsername,
+			OwnerName:               r.OwnerName,
 			OrganizationName:        r.OrganizationName,
 			OrganizationDisplayName: r.OrganizationDisplayName,
 			OrganizationIcon:        r.OrganizationIcon,
@@ -662,10 +689,33 @@ func ConvertWorkspaceRows(rows []GetWorkspacesRow) []Workspace {
 			TemplateIcon:            r.TemplateIcon,
 			TemplateDescription:     r.TemplateDescription,
 			NextStartAt:             r.NextStartAt,
+			TaskID:                  r.TaskID,
+		}
+
+		var err error
+
+		err = workspaces[i].UserACL.Scan(r.UserACL)
+		if err != nil {
+			return nil, xerrors.Errorf("scan user ACL %q: %w", r.UserACL, err)
+		}
+		err = workspaces[i].GroupACL.Scan(r.GroupACL)
+		if err != nil {
+			return nil, xerrors.Errorf("scan group ACL %q: %w", r.GroupACL, err)
+		}
+
+		err = workspaces[i].UserACLDisplayInfo.Scan(r.UserACLDisplayInfo)
+		if err != nil {
+			return nil, xerrors.Errorf("scan user ACL display info %q: %w",
+				r.UserACLDisplayInfo, err)
+		}
+		err = workspaces[i].GroupACLDisplayInfo.Scan(r.GroupACLDisplayInfo)
+		if err != nil {
+			return nil, xerrors.Errorf("scan group ACL display info %q: %w",
+				r.GroupACLDisplayInfo, err)
 		}
 	}
 
-	return workspaces
+	return workspaces, nil
 }
 
 func (g Group) IsEveryone() bool {
@@ -776,4 +826,61 @@ func (s UserSecret) RBACObject() rbac.Object {
 
 func (s AIBridgeInterception) RBACObject() rbac.Object {
 	return rbac.ResourceAibridgeInterception.WithOwner(s.InitiatorID.String())
+}
+
+// WorkspaceIdentity contains the minimal workspace fields needed for agent API metadata/stats reporting
+// and RBAC checks, without requiring a full database.Workspace object.
+type WorkspaceIdentity struct {
+	// Add any other fields needed for IsPrebuild() if it relies on workspace fields
+	// Identity fields
+	ID             uuid.UUID
+	OwnerID        uuid.UUID
+	OrganizationID uuid.UUID
+	TemplateID     uuid.UUID
+
+	// Display fields for logging/metrics
+	Name          string
+	OwnerUsername string
+	TemplateName  string
+
+	// Lifecycle fields needed for stats reporting
+	AutostartSchedule sql.NullString
+}
+
+func (w WorkspaceIdentity) RBACObject() rbac.Object {
+	return Workspace{
+		ID:                w.ID,
+		OwnerID:           w.OwnerID,
+		OrganizationID:    w.OrganizationID,
+		TemplateID:        w.TemplateID,
+		Name:              w.Name,
+		OwnerUsername:     w.OwnerUsername,
+		TemplateName:      w.TemplateName,
+		AutostartSchedule: w.AutostartSchedule,
+	}.RBACObject()
+}
+
+// IsPrebuild returns true if the workspace is a prebuild workspace.
+// A workspace is considered a prebuild if its owner is the prebuild system user.
+func (w WorkspaceIdentity) IsPrebuild() bool {
+	return w.OwnerID == PrebuildsSystemUserID
+}
+
+func (w WorkspaceIdentity) Equal(w2 WorkspaceIdentity) bool {
+	return w.ID == w2.ID && w.OwnerID == w2.OwnerID && w.OrganizationID == w2.OrganizationID &&
+		w.TemplateID == w2.TemplateID && w.Name == w2.Name && w.OwnerUsername == w2.OwnerUsername &&
+		w.TemplateName == w2.TemplateName && w.AutostartSchedule == w2.AutostartSchedule
+}
+
+func WorkspaceIdentityFromWorkspace(w Workspace) WorkspaceIdentity {
+	return WorkspaceIdentity{
+		ID:                w.ID,
+		OwnerID:           w.OwnerID,
+		OrganizationID:    w.OrganizationID,
+		TemplateID:        w.TemplateID,
+		Name:              w.Name,
+		OwnerUsername:     w.OwnerUsername,
+		TemplateName:      w.TemplateName,
+		AutostartSchedule: w.AutostartSchedule,
+	}
 }

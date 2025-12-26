@@ -1826,8 +1826,11 @@ CREATE TABLE tasks (
     template_parameters jsonb DEFAULT '{}'::jsonb NOT NULL,
     prompt text NOT NULL,
     created_at timestamp with time zone NOT NULL,
-    deleted_at timestamp with time zone
+    deleted_at timestamp with time zone,
+    display_name character varying(127) DEFAULT ''::character varying NOT NULL
 );
+
+COMMENT ON COLUMN tasks.display_name IS 'Display name is a custom, human-friendly task name.';
 
 CREATE VIEW visible_users AS
  SELECT users.id,
@@ -1964,33 +1967,23 @@ CREATE VIEW tasks_with_status AS
     tasks.prompt,
     tasks.created_at,
     tasks.deleted_at,
+    tasks.display_name,
         CASE
-            WHEN ((tasks.workspace_id IS NULL) OR (latest_build.job_status IS NULL)) THEN 'pending'::task_status
-            WHEN (latest_build.job_status = 'failed'::provisioner_job_status) THEN 'error'::task_status
-            WHEN ((latest_build.transition = ANY (ARRAY['stop'::workspace_transition, 'delete'::workspace_transition])) AND (latest_build.job_status = 'succeeded'::provisioner_job_status)) THEN 'paused'::task_status
-            WHEN ((latest_build.transition = 'start'::workspace_transition) AND (latest_build.job_status = 'pending'::provisioner_job_status)) THEN 'initializing'::task_status
-            WHEN ((latest_build.transition = 'start'::workspace_transition) AND (latest_build.job_status = ANY (ARRAY['running'::provisioner_job_status, 'succeeded'::provisioner_job_status]))) THEN
-            CASE
-                WHEN agent_status."none" THEN 'initializing'::task_status
-                WHEN agent_status.connecting THEN 'initializing'::task_status
-                WHEN agent_status.connected THEN
-                CASE
-                    WHEN app_status.any_unhealthy THEN 'error'::task_status
-                    WHEN app_status.any_initializing THEN 'initializing'::task_status
-                    WHEN app_status.all_healthy_or_disabled THEN 'active'::task_status
-                    ELSE 'unknown'::task_status
-                END
-                ELSE 'unknown'::task_status
-            END
-            ELSE 'unknown'::task_status
+            WHEN (tasks.workspace_id IS NULL) THEN 'pending'::task_status
+            WHEN (build_status.status <> 'active'::task_status) THEN build_status.status
+            WHEN (agent_status.status <> 'active'::task_status) THEN agent_status.status
+            ELSE app_status.status
         END AS status,
+    jsonb_build_object('build', jsonb_build_object('transition', latest_build_raw.transition, 'job_status', latest_build_raw.job_status, 'computed', build_status.status), 'agent', jsonb_build_object('lifecycle_state', agent_raw.lifecycle_state, 'computed', agent_status.status), 'app', jsonb_build_object('health', app_raw.health, 'computed', app_status.status)) AS status_debug,
     task_app.workspace_build_number,
     task_app.workspace_agent_id,
     task_app.workspace_app_id,
+    agent_raw.lifecycle_state AS workspace_agent_lifecycle_state,
+    app_raw.health AS workspace_app_health,
     task_owner.owner_username,
     task_owner.owner_name,
     task_owner.owner_avatar_url
-   FROM (((((tasks
+   FROM ((((((((tasks
      CROSS JOIN LATERAL ( SELECT vu.username AS owner_username,
             vu.name AS owner_name,
             vu.avatar_url AS owner_avatar_url
@@ -2008,17 +2001,36 @@ CREATE VIEW tasks_with_status AS
             workspace_build.job_id
            FROM (workspace_builds workspace_build
              JOIN provisioner_jobs provisioner_job ON ((provisioner_job.id = workspace_build.job_id)))
-          WHERE ((workspace_build.workspace_id = tasks.workspace_id) AND (workspace_build.build_number = task_app.workspace_build_number))) latest_build ON (true))
-     CROSS JOIN LATERAL ( SELECT (count(*) = 0) AS "none",
-            bool_or((workspace_agent.lifecycle_state = ANY (ARRAY['created'::workspace_agent_lifecycle_state, 'starting'::workspace_agent_lifecycle_state]))) AS connecting,
-            bool_and((workspace_agent.lifecycle_state = 'ready'::workspace_agent_lifecycle_state)) AS connected
+          WHERE ((workspace_build.workspace_id = tasks.workspace_id) AND (workspace_build.build_number = task_app.workspace_build_number))) latest_build_raw ON (true))
+     LEFT JOIN LATERAL ( SELECT workspace_agent.lifecycle_state
            FROM workspace_agents workspace_agent
-          WHERE (workspace_agent.id = task_app.workspace_agent_id)) agent_status)
-     CROSS JOIN LATERAL ( SELECT bool_or((workspace_app.health = 'unhealthy'::workspace_app_health)) AS any_unhealthy,
-            bool_or((workspace_app.health = 'initializing'::workspace_app_health)) AS any_initializing,
-            bool_and((workspace_app.health = ANY (ARRAY['healthy'::workspace_app_health, 'disabled'::workspace_app_health]))) AS all_healthy_or_disabled
+          WHERE (workspace_agent.id = task_app.workspace_agent_id)) agent_raw ON (true))
+     LEFT JOIN LATERAL ( SELECT workspace_app.health
            FROM workspace_apps workspace_app
-          WHERE (workspace_app.id = task_app.workspace_app_id)) app_status)
+          WHERE (workspace_app.id = task_app.workspace_app_id)) app_raw ON (true))
+     CROSS JOIN LATERAL ( SELECT
+                CASE
+                    WHEN (latest_build_raw.job_status IS NULL) THEN 'pending'::task_status
+                    WHEN (latest_build_raw.job_status = ANY (ARRAY['failed'::provisioner_job_status, 'canceling'::provisioner_job_status, 'canceled'::provisioner_job_status])) THEN 'error'::task_status
+                    WHEN ((latest_build_raw.transition = ANY (ARRAY['stop'::workspace_transition, 'delete'::workspace_transition])) AND (latest_build_raw.job_status = 'succeeded'::provisioner_job_status)) THEN 'paused'::task_status
+                    WHEN ((latest_build_raw.transition = 'start'::workspace_transition) AND (latest_build_raw.job_status = 'pending'::provisioner_job_status)) THEN 'initializing'::task_status
+                    WHEN ((latest_build_raw.transition = 'start'::workspace_transition) AND (latest_build_raw.job_status = ANY (ARRAY['running'::provisioner_job_status, 'succeeded'::provisioner_job_status]))) THEN 'active'::task_status
+                    ELSE 'unknown'::task_status
+                END AS status) build_status)
+     CROSS JOIN LATERAL ( SELECT
+                CASE
+                    WHEN ((agent_raw.lifecycle_state IS NULL) OR (agent_raw.lifecycle_state = ANY (ARRAY['created'::workspace_agent_lifecycle_state, 'starting'::workspace_agent_lifecycle_state]))) THEN 'initializing'::task_status
+                    WHEN (agent_raw.lifecycle_state = ANY (ARRAY['ready'::workspace_agent_lifecycle_state, 'start_timeout'::workspace_agent_lifecycle_state, 'start_error'::workspace_agent_lifecycle_state])) THEN 'active'::task_status
+                    WHEN (agent_raw.lifecycle_state <> ALL (ARRAY['created'::workspace_agent_lifecycle_state, 'starting'::workspace_agent_lifecycle_state, 'ready'::workspace_agent_lifecycle_state, 'start_timeout'::workspace_agent_lifecycle_state, 'start_error'::workspace_agent_lifecycle_state])) THEN 'unknown'::task_status
+                    ELSE 'unknown'::task_status
+                END AS status) agent_status)
+     CROSS JOIN LATERAL ( SELECT
+                CASE
+                    WHEN (app_raw.health = 'initializing'::workspace_app_health) THEN 'initializing'::task_status
+                    WHEN (app_raw.health = 'unhealthy'::workspace_app_health) THEN 'error'::task_status
+                    WHEN (app_raw.health = ANY (ARRAY['healthy'::workspace_app_health, 'disabled'::workspace_app_health])) THEN 'active'::task_status
+                    ELSE 'unknown'::task_status
+                END AS status) app_status)
   WHERE (tasks.deleted_at IS NULL);
 
 CREATE TABLE telemetry_items (
@@ -2162,7 +2174,8 @@ CREATE TABLE template_version_presets (
     scheduling_timezone text DEFAULT ''::text NOT NULL,
     is_default boolean DEFAULT false NOT NULL,
     description character varying(128) DEFAULT ''::character varying NOT NULL,
-    icon character varying(256) DEFAULT ''::character varying NOT NULL
+    icon character varying(256) DEFAULT ''::character varying NOT NULL,
+    last_invalidated_at timestamp with time zone
 );
 
 COMMENT ON COLUMN template_version_presets.description IS 'Short text describing the preset (max 128 characters).';
@@ -2925,7 +2938,13 @@ CREATE VIEW workspaces_expanded AS
     templates.display_name AS template_display_name,
     templates.icon AS template_icon,
     templates.description AS template_description,
-    tasks.id AS task_id
+    tasks.id AS task_id,
+    COALESCE(( SELECT jsonb_object_agg(acl.key, jsonb_build_object('name', COALESCE(g.name, ''::text), 'avatar_url', COALESCE(g.avatar_url, ''::text))) AS jsonb_object_agg
+           FROM (jsonb_each(workspaces.group_acl) acl(key, value)
+             LEFT JOIN groups g ON ((g.id = (acl.key)::uuid)))), '{}'::jsonb) AS group_acl_display_info,
+    COALESCE(( SELECT jsonb_object_agg(acl.key, jsonb_build_object('name', COALESCE(vu.name, ''::text), 'avatar_url', COALESCE(vu.avatar_url, ''::text))) AS jsonb_object_agg
+           FROM (jsonb_each(workspaces.user_acl) acl(key, value)
+             LEFT JOIN visible_users vu ON ((vu.id = (acl.key)::uuid)))), '{}'::jsonb) AS user_acl_display_info
    FROM ((((workspaces
      JOIN visible_users ON ((workspaces.owner_id = visible_users.id)))
      JOIN organizations ON ((workspaces.organization_id = organizations.id)))
@@ -3424,6 +3443,8 @@ CREATE INDEX workspace_agent_stats_template_id_created_at_user_id_idx ON workspa
 
 COMMENT ON INDEX workspace_agent_stats_template_id_created_at_user_id_idx IS 'Support index for template insights endpoint to build interval reports faster.';
 
+CREATE INDEX workspace_agents_auth_instance_id_deleted_idx ON workspace_agents USING btree (auth_instance_id, deleted);
+
 CREATE INDEX workspace_agents_auth_token_idx ON workspace_agents USING btree (auth_token);
 
 CREATE INDEX workspace_agents_resource_id_idx ON workspace_agents USING btree (resource_id);
@@ -3433,6 +3454,8 @@ CREATE UNIQUE INDEX workspace_app_audit_sessions_unique_index ON workspace_app_a
 COMMENT ON INDEX workspace_app_audit_sessions_unique_index IS 'Unique index to ensure that we do not allow duplicate entries from multiple transactions.';
 
 CREATE INDEX workspace_app_stats_workspace_id_idx ON workspace_app_stats USING btree (workspace_id);
+
+CREATE INDEX workspace_app_statuses_app_id_idx ON workspace_app_statuses USING btree (app_id, created_at DESC);
 
 CREATE INDEX workspace_modules_created_at_idx ON workspace_modules USING btree (created_at);
 

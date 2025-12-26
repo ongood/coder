@@ -1,5 +1,5 @@
 # 1.86.0
-FROM rust:slim@sha256:d9ba8014603166915f7e0fcaa9af09df2a1fc30547e75a72c1d34165139f036a AS rust-utils
+FROM rust:slim@sha256:0d8bf269f3ab28ddcdc3a182f519d7499daee82ce2faa4008048ae8adf6977e7 AS rust-utils
 # Install rust helper programs
 ENV CARGO_INSTALL_ROOT=/tmp/
 # Use more reliable mirrors for Debian packages
@@ -8,7 +8,7 @@ RUN sed -i 's|http://deb.debian.org/debian|http://mirrors.edge.kernel.org/debian
 RUN apt-get update && apt-get install -y libssl-dev openssl pkg-config build-essential
 RUN cargo install jj-cli typos-cli watchexec-cli
 
-FROM ubuntu:jammy@sha256:09506232a8004baa32c47d68f1e5c307d648fdd59f5e7eaa42aaf87914100db3 AS go
+FROM ubuntu:jammy@sha256:104ae83764a5119017b8e8d6218fa0832b09df65aae7d5a6de29a85d813da2fb AS go
 
 # Install Go manually, so that we can control the version
 ARG GO_VERSION=1.24.10
@@ -102,7 +102,7 @@ RUN curl -L -o protoc.zip https://github.com/protocolbuffers/protobuf/releases/d
 	unzip protoc.zip && \
 	rm protoc.zip
 
-FROM ubuntu:jammy@sha256:09506232a8004baa32c47d68f1e5c307d648fdd59f5e7eaa42aaf87914100db3
+FROM ubuntu:jammy@sha256:104ae83764a5119017b8e8d6218fa0832b09df65aae7d5a6de29a85d813da2fb
 
 SHELL ["/bin/bash", "-c"]
 
@@ -214,7 +214,7 @@ RUN sed -i 's|http://archive.ubuntu.com/ubuntu/|http://mirrors.edge.kernel.org/u
 
 # NOTE: In scripts/Dockerfile.base we specifically install Terraform version 1.12.2.
 # Installing the same version here to match.
-RUN wget -O /tmp/terraform.zip "https://releases.hashicorp.com/terraform/1.13.4/terraform_1.13.4_linux_amd64.zip" && \
+RUN wget -O /tmp/terraform.zip "https://releases.hashicorp.com/terraform/1.14.1/terraform_1.14.1_linux_amd64.zip" && \
 	unzip /tmp/terraform.zip -d /usr/local/bin && \
 	rm -f /tmp/terraform.zip && \
 	chmod +x /usr/local/bin/terraform && \
