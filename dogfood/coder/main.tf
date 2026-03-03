@@ -419,7 +419,7 @@ module "cursor" {
 module "windsurf" {
   count    = contains(jsondecode(data.coder_parameter.ide_choices.value), "windsurf") ? data.coder_workspace.me.start_count : 0
   source   = "dev.registry.coder.com/coder/windsurf/coder"
-  version  = "1.2.0"
+  version  = "1.3.1"
   agent_id = coder_agent.dev.id
   folder   = local.repo_dir
 }
